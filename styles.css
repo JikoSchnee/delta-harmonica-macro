@@ -17,7 +17,6 @@
   --mono: "JetBrains Mono", "Courier New", monospace;
   --body: "Noto Sans SC", "Microsoft YaHei", sans-serif;
   --pixel: "Silkscreen", "MS Gothic", "Noto Sans SC", sans-serif;
-  --workbench-max-height: none;
   --max-width: 1440px;
 }
 
@@ -198,10 +197,10 @@ main {
 .library-grid::-webkit-scrollbar-thumb { background: var(--teal); border: 2px solid var(--surface-light); }
 .library-grid .song-card { min-height: 104px; }
 
-.workbench { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(350px, .82fr); grid-template-rows: auto; align-items: stretch; max-height: var(--workbench-max-height); gap: 16px; margin-top: 16px; }
+.workbench { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(350px, .82fr); grid-template-rows: auto; align-items: start; gap: 16px; margin-top: 16px; }
 .workbench > * { min-width: 0; }
 .editor-panel { min-width: 0; max-width: 100%; height: auto; max-height: none; overflow: visible; padding: 0 22px 22px; animation: rise .45s .1s ease both; }
-.monitor-panel { display: flex; flex-direction: column; min-height: 0; height: 100%; max-height: 100%; overflow: hidden; padding: 0 0 22px; animation: rise .45s .15s ease both; }
+.monitor-panel { display: flex; flex-direction: column; min-height: 0; height: var(--workbench-height, auto); max-height: none; overflow: hidden; padding: 0 0 22px; animation: rise .45s .15s ease both; }
 .editor-panel > .window-titlebar { margin: 0 -22px 18px; }
 .panel-heading, .section-heading { display: flex; align-items: start; justify-content: space-between; }
 .panel-heading { padding-bottom: 14px; border-bottom: 2px groove var(--surface); }
@@ -460,7 +459,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
 @media (max-width: 860px) {
   .library-deck { grid-template-columns: 1fr; }
   .library-deck-copy { padding: 3px 0 17px; border-right: 0; border-bottom: 2px groove var(--surface); }
-  .workbench { grid-template-columns: 1fr; grid-template-rows: auto; max-height: none; }
+  .workbench { grid-template-columns: 1fr; grid-template-rows: auto; }
   .editor-panel { height: auto; max-height: none; overflow: visible; }
   .monitor-panel { height: auto; min-height: 430px; max-height: 720px; }
   .export-grid { grid-template-columns: 1fr; }

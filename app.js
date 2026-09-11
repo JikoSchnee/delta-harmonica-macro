@@ -348,11 +348,11 @@ let inputMode = "jianpu";
 function syncWorkbenchHeight() {
   if (!elements.workbench || !elements.editorPanel) return;
   if (window.matchMedia("(max-width: 860px)").matches) {
-    elements.workbench.style.removeProperty("--workbench-max-height");
+    elements.workbench.style.removeProperty("--workbench-height");
     return;
   }
-  const editorHeight = Math.ceil(elements.editorPanel.scrollHeight);
-  if (editorHeight > 0) elements.workbench.style.setProperty("--workbench-max-height", `${editorHeight}px`);
+  const editorHeight = Math.ceil(elements.editorPanel.getBoundingClientRect().height);
+  if (editorHeight > 0) elements.workbench.style.setProperty("--workbench-height", `${editorHeight}px`);
 }
 
 function scheduleWorkbenchHeightSync() {
