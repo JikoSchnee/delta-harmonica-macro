@@ -6,6 +6,13 @@
 
 直接打开 `index.html`，或在此目录运行任意静态文件服务器。
 
+## 在线站点与 QQ 群
+
+- 在线站点：[三角洲口琴演奏家](https://jikoschnee.github.io/delta-harmonica-macro/)
+- QQ 群号：`1102489399`
+- 加群方式：在 QQ 中搜索群号 `1102489399`，或打开在线站点后点击顶部「分享曲目、反馈问题请加群：1102489399」按钮，使用弹窗中的二维码加入。
+- 也可以直接查看[入群二维码](assets/qq-group-qr.jpeg)。
+
 ## GitHub Pages 自动部署
 
 仓库已配置 `.github/workflows/deploy-pages.yml`：推送到 `main` 分支后，GitHub Actions 会自动发布当前静态文件到 GitHub Pages。
