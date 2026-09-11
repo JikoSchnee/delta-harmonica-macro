@@ -1,6 +1,8 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 3, razer: 3 }, R: { name: "右键升调", ghub: 2, razer: 2 } };
+const BREATH_GAP_MS = 18;
+const MIN_NOTE_HOLD_MS = 24;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
 const KEY_TO_NOTE = { z: "1", x: "2", c: "3", v: "4", b: "5", n: "6", m: "7", ",": "1'" };
@@ -344,6 +346,8 @@ const elements = {
 let currentSequence = null;
 let audioContext = null;
 let masterGain = null;
+const harmonicaWaveCache = new WeakMap();
+const harmonicaNoiseCache = new WeakMap();
 let activePreview = null;
 let workbenchHeightSyncFrame = 0;
 let pendingMacroDownload = null;
@@ -459,7 +463,20 @@ function enrichNotes(notes, bpm) {
     cursor += durationMs;
     return event;
   });
+  enriched.forEach((event, index) => {
+    const next = enriched[index + 1];
+    if (event.isRest || !next || next.isRest || macroMidi(event) !== macroMidi(next)) return;
+    const breathMs = Math.min(BREATH_GAP_MS, Math.max(0, event.durationMs - MIN_NOTE_HOLD_MS));
+    event.pressMs = event.durationMs - breathMs;
+    event.waitMs = breathMs;
+  });
   return { notes: enriched, beatMs: Math.round(beatMs), totalMs: cursor, events: enriched.reduce((sum, item) => sum + item.eventCount, 0) };
+}
+
+function macroMidi(item) {
+  const baseMidi = PREVIEW_MIDI[item.note];
+  if (!Number.isFinite(baseMidi)) return null;
+  return [...(item.modifier || "")].reduce((midi, modifier) => midi + (PREVIEW_OFFSETS[modifier] || 0), baseMidi);
 }
 
 function parseScore(source, bpm) {
@@ -774,7 +791,7 @@ function updateMonitor(sequence) {
   elements.monitorDot.classList.add("active");
   elements.timeline.innerHTML = sequence.notes.map((item) => {
     const modifier = item.modifier ? `${item.modifier} + ` : "";
-    const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · 按住 ${item.pressMs}ms · 紧接下一音`;
+    const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · 按住 ${item.pressMs}ms${item.waitMs ? ` · 气口 ${item.waitMs}ms` : ""}`;
     return `<li data-note-index="${item.index ?? 0}"><span class="time">${formatTime(item.timeMs)}</span><span class="timeline-key${item.isRest ? " rest" : item.modifier ? " modifier" : ""}">${item.isRest ? "休" : item.note}</span><span class="event-detail">${detail}</span></li>`;
   }).join("");
 }
@@ -836,37 +853,95 @@ function previewFrequency(item) {
   return 440 * (2 ** ((midi - 69) / 12));
 }
 
+function getHarmonicaWave(context) {
+  if (harmonicaWaveCache.has(context)) return harmonicaWaveCache.get(context);
+  const real = new Float32Array(12);
+  const imag = new Float32Array([0, 1, 0.42, 0.23, 0.14, 0.085, 0.052, 0.034, 0.022, 0.015, 0.01, 0.007]);
+  const wave = context.createPeriodicWave(real, imag);
+  harmonicaWaveCache.set(context, wave);
+  return wave;
+}
+
+function getHarmonicaNoiseBuffer(context) {
+  if (harmonicaNoiseCache.has(context)) return harmonicaNoiseCache.get(context);
+  const length = Math.ceil(context.sampleRate * 0.35);
+  const buffer = context.createBuffer(1, length, context.sampleRate);
+  const data = buffer.getChannelData(0);
+  let seed = 0x6d2b79f5;
+  let filtered = 0;
+  for (let index = 0; index < data.length; index += 1) {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    const white = (seed / 0xffffffff) * 2 - 1;
+    filtered = filtered * 0.94 + white * 0.06;
+    data[index] = (white * 0.3 + filtered * 0.7) * 0.6;
+  }
+  harmonicaNoiseCache.set(context, buffer);
+  return buffer;
+}
+
 function createHarmonicaVoice(context, startAt, duration, frequency) {
   const gain = context.createGain();
-  const filter = context.createBiquadFilter();
-  const oscillator = context.createOscillator();
-  const shimmer = context.createOscillator();
-  const shimmerGain = context.createGain();
+  const toneFilter = context.createBiquadFilter();
+  const resonance = context.createBiquadFilter();
+  const reed = context.createOscillator();
+  const reedColor = context.createOscillator();
+  const reedGain = context.createGain();
+  const colorGain = context.createGain();
+  const breath = context.createBufferSource();
+  const breathFilter = context.createBiquadFilter();
+  const breathGain = context.createGain();
   const hasScheduledEnd = Number.isFinite(duration) && duration > 0;
   const endAt = hasScheduledEnd ? startAt + duration : null;
+  const wave = getHarmonicaWave(context);
+  const noiseBuffer = getHarmonicaNoiseBuffer(context);
 
-  oscillator.type = "sawtooth";
-  oscillator.frequency.setValueAtTime(frequency, startAt);
-  shimmer.type = "sine";
-  shimmer.frequency.setValueAtTime(frequency * 2.01, startAt);
-  shimmerGain.gain.value = 0.085;
-  filter.type = "lowpass";
-  filter.frequency.setValueAtTime(Math.min(4100, frequency * 14), startAt);
-  filter.Q.value = 1.6;
+  reed.setPeriodicWave(wave);
+  reed.frequency.setValueAtTime(frequency, startAt);
+  reed.detune.setValueAtTime(-2, startAt);
+  reedColor.type = "sine";
+  reedColor.frequency.setValueAtTime(frequency * 2.003, startAt);
+  reedColor.detune.setValueAtTime(3, startAt);
+  reedGain.gain.value = 0.78;
+  colorGain.gain.value = 0.12;
+  toneFilter.type = "lowpass";
+  toneFilter.frequency.setValueAtTime(Math.min(6200, Math.max(2200, frequency * 10.5)), startAt);
+  toneFilter.Q.value = 0.8;
+  resonance.type = "peaking";
+  resonance.frequency.setValueAtTime(Math.min(3400, Math.max(900, frequency * 2.2)), startAt);
+  resonance.Q.value = 1.1;
+  resonance.gain.setValueAtTime(3.5, startAt);
+  breath.buffer = noiseBuffer;
+  breath.loop = true;
+  breathFilter.type = "bandpass";
+  breathFilter.frequency.setValueAtTime(Math.min(5200, Math.max(1800, frequency * 3.6)), startAt);
+  breathFilter.Q.value = 0.7;
 
+  const attackAt = hasScheduledEnd ? Math.min(endAt - 0.008, startAt + 0.02) : startAt + 0.02;
+  const sustainAt = hasScheduledEnd
+    ? Math.min(endAt - 0.005, Math.max(attackAt + 0.005, startAt + 0.11))
+    : startAt + 0.11;
   gain.gain.setValueAtTime(0.0001, startAt);
-  gain.gain.exponentialRampToValueAtTime(0.16, startAt + 0.018);
-  gain.gain.exponentialRampToValueAtTime(0.1, hasScheduledEnd ? Math.min(endAt - 0.018, startAt + 0.11) : startAt + 0.11);
+  gain.gain.exponentialRampToValueAtTime(0.15, attackAt);
+  if (sustainAt < endAt || !hasScheduledEnd) gain.gain.exponentialRampToValueAtTime(0.095, sustainAt);
   if (hasScheduledEnd) gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
-  oscillator.connect(filter).connect(gain).connect(masterGain);
-  shimmer.connect(shimmerGain).connect(filter);
-  oscillator.start(startAt);
-  shimmer.start(startAt);
+  breathGain.gain.setValueAtTime(0.0001, startAt);
+  breathGain.gain.exponentialRampToValueAtTime(0.018, startAt + 0.012);
+  breathGain.gain.exponentialRampToValueAtTime(0.006, hasScheduledEnd ? Math.min(endAt - 0.012, startAt + 0.09) : startAt + 0.09);
+  if (hasScheduledEnd) breathGain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+
+  reed.connect(reedGain).connect(toneFilter);
+  reedColor.connect(colorGain).connect(toneFilter);
+  toneFilter.connect(resonance).connect(gain).connect(masterGain);
+  breath.connect(breathFilter).connect(breathGain).connect(gain);
+  reed.start(startAt);
+  reedColor.start(startAt);
+  breath.start(startAt);
   if (hasScheduledEnd) {
-    oscillator.stop(endAt + 0.02);
-    shimmer.stop(endAt + 0.02);
+    reed.stop(endAt + 0.025);
+    reedColor.stop(endAt + 0.025);
+    breath.stop(endAt + 0.025);
   }
-  return { context, gain, nodes: [oscillator, shimmer] };
+  return { context, gain, nodes: [reed, reedColor, breath] };
 }
 
 function scheduleHarmonicaTone(context, startAt, duration, frequency) {
@@ -1007,7 +1082,7 @@ async function playPreview() {
     const timers = [];
     const startAt = context.currentTime + 0.045;
     sequence.notes.forEach((item, index) => {
-      const noteLength = Math.max(0.055, item.durationMs / 1000 + 0.028);
+      const noteLength = Math.max(0.035, item.pressMs / 1000);
       if (!item.isRest) nodes.push(...scheduleHarmonicaTone(context, startAt + item.timeMs / 1000, noteLength, previewFrequency(item)));
     });
     activePreview = { context, nodes, timers, sequence, startAt, positionMs: 0, state: "playing" };
