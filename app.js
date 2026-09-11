@@ -1,6 +1,11 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 3, razer: 3 }, R: { name: "右键升调", ghub: 2, razer: 2 } };
+// Games commonly sample mouse and keyboard state once per frame. Give pitch buttons
+// time to reach the game before pressing the note, while keeping the note's total beat.
+const MODIFIER_STEP_MS = 12;
+const MODIFIER_SETTLE_MS = 24;
+const MIN_NOTE_HOLD_MS = 20;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
 const KEY_TO_NOTE = { z: "1", x: "2", c: "3", v: "4", b: "5", n: "6", m: "7", ",": "1'" };
@@ -1089,6 +1094,8 @@ function generateLua(sequence, triggerSettings) {
     "local stopRequested = false",
     "local activeKey = nil",
     "local activeModifiers = {}",
+    `local MODIFIER_STEP_MS = ${MODIFIER_STEP_MS}`,
+    `local MODIFIER_SETTLE_MS = ${MODIFIER_SETTLE_MS}`,
     "",
     "local function ReleaseHeldInputs()",
     "  if activeKey ~= nil then",
@@ -1135,13 +1142,21 @@ function generateLua(sequence, triggerSettings) {
       lines.push(`    if not SleepInterruptible(${item.durationMs}) then stopRequested = true end`);
     } else {
       const modifierButtons = [...(item.modifier || "")].map((modifier) => MOUSE_BUTTONS[modifier].ghub);
+      const modifierLeadMs = modifierButtons.length
+        ? Math.min(Math.max(0, item.pressMs - MIN_NOTE_HOLD_MS), MODIFIER_SETTLE_MS + ((modifierButtons.length - 1) * MODIFIER_STEP_MS))
+        : 0;
+      const keyHoldMs = Math.max(MIN_NOTE_HOLD_MS, item.pressMs - modifierLeadMs);
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
       lines.push("    for index = 1, #activeModifiers do");
       lines.push("      PressMouseButton(activeModifiers[index])");
+      lines.push("      if index < #activeModifiers and not SleepInterruptible(MODIFIER_STEP_MS) then stopRequested = true break end");
       lines.push("    end");
-      lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
-      lines.push("    PressKey(activeKey)");
-      lines.push(`    if not SleepInterruptible(${item.pressMs}) then stopRequested = true end`);
+      if (modifierLeadMs > 0) lines.push(`    if not stopRequested and not SleepInterruptible(${modifierLeadMs - ((modifierButtons.length - 1) * MODIFIER_STEP_MS)}) then stopRequested = true end`);
+      lines.push("    if not stopRequested then");
+      lines.push(`      activeKey = ${JSON.stringify(item.key)}`);
+      lines.push("      PressKey(activeKey)");
+      lines.push(`      if not SleepInterruptible(${keyHoldMs}) then stopRequested = true end`);
+      lines.push("    end");
       lines.push("    ReleaseHeldInputs()");
       if (item.waitMs > 0) lines.push(`    if not stopRequested and not SleepInterruptible(${item.waitMs}) then stopRequested = true end`);
     }
@@ -1190,18 +1205,32 @@ function razerMouseEvent(type, delay, button) {
   return `    <MacroEvent><Type>${type}</Type><Delay>${delay}</Delay><Mouse><MouseEvent><Type>${type}</Type><Button>${button}</Button></MouseEvent></Mouse></MacroEvent>`;
 }
 
+function razerDelay(delay) {
+  return `    <MacroEvent><Type>0</Type><Delay>${delay}</Delay></MacroEvent>`;
+}
+
 function generateRazerXml(sequence, version) {
   const events = [];
   sequence.notes.forEach((item) => {
     if (item.isRest) {
-      events.push(`    <MacroEvent><Type>0</Type><Delay>${item.durationMs}</Delay></MacroEvent>`);
+      events.push(razerDelay(item.durationMs));
       return;
     }
-    [...(item.modifier || "")].forEach((modifier) => events.push(razerMouseEvent(1, 0, MOUSE_BUTTONS[modifier].razer)));
+    const modifiers = [...(item.modifier || "")];
+    const modifierLeadMs = modifiers.length
+      ? Math.min(Math.max(0, item.pressMs - MIN_NOTE_HOLD_MS), MODIFIER_SETTLE_MS + ((modifiers.length - 1) * MODIFIER_STEP_MS))
+      : 0;
+    const keyHoldMs = Math.max(MIN_NOTE_HOLD_MS, item.pressMs - modifierLeadMs);
+    modifiers.forEach((modifier, index) => {
+      events.push(razerMouseEvent(1, 0, MOUSE_BUTTONS[modifier].razer));
+      if (index < modifiers.length - 1) events.push(razerDelay(MODIFIER_STEP_MS));
+    });
+    const settleMs = modifierLeadMs - ((modifiers.length - 1) * MODIFIER_STEP_MS);
+    if (settleMs > 0) events.push(razerDelay(settleMs));
     events.push(razerKeyboardEvent(1, 0, MAKE_CODES[item.key]));
-    events.push(razerKeyboardEvent(2, item.pressMs, MAKE_CODES[item.key]));
-    [...(item.modifier || "")].reverse().forEach((modifier) => events.push(razerMouseEvent(2, 0, MOUSE_BUTTONS[modifier].razer)));
-    if (item.waitMs > 0) events.push(`    <MacroEvent><Type>0</Type><Delay>${item.waitMs}</Delay></MacroEvent>`);
+    events.push(razerKeyboardEvent(2, keyHoldMs, MAKE_CODES[item.key]));
+    modifiers.reverse().forEach((modifier) => events.push(razerMouseEvent(2, 0, MOUSE_BUTTONS[modifier].razer)));
+    if (item.waitMs > 0) events.push(razerDelay(item.waitMs));
   });
   const name = escapedXml(`${safeName()} · Synapse ${version}`);
   return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Harmonica Deck experimental Synapse ${version} macro. Synapse 3 and 4 files are not interchangeable. -->\n<Macro xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n  <Name>${name}</Name>\n  <Guid>${makeUuid()}</Guid>\n  <MacroEvents>\n${events.join("\n")}\n  </MacroEvents>\n  <IsFolder>false</IsFolder>\n  <FolderGuid>00000000-0000-0000-0000-000000000000</FolderGuid>\n</Macro>\n`;
