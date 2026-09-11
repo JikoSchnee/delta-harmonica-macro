@@ -364,6 +364,19 @@ main {
 .exports { margin-top: 28px; padding: 0 22px 22px; animation: rise .45s .2s ease both; }
 .exports > .window-titlebar { margin: 0 -22px 20px; }
 .section-heading p { max-width: 290px; margin: 0; color: #333; font-size: 12px; line-height: 1.7; text-align: right; }
+.macro-settings { display: grid; grid-template-columns: minmax(220px, .78fr) minmax(0, 1.22fr); align-items: center; gap: 12px 24px; margin-top: 18px; padding: 14px 16px; color: var(--screen-text); background: var(--screen-soft); border: 2px inset var(--surface); }
+.macro-settings-heading { min-width: 0; }
+.macro-settings-heading h3 { margin: 7px 0 0; color: var(--white); font: 700 18px/1.15 var(--pixel); }
+.macro-settings-heading p { margin: 7px 0 0; color: #abc5c2; font-size: 10px; line-height: 1.6; }
+.macro-settings-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); min-width: 0; gap: 12px; }
+.macro-settings label { min-width: 0; color: #c4d7d5; font: 10px/1.4 var(--mono); }
+.macro-settings .unit { color: #b1ccca; font-size: 9px; }
+.macro-settings input, .macro-settings select { display: block; width: 100%; min-width: 0; margin-top: 6px; padding: 9px 10px; color: var(--screen-text); background: var(--screen); border: 2px inset var(--surface); outline: 0; font: 500 13px var(--mono); }
+.macro-settings input:focus, .macro-settings select:focus { border-color: var(--teal); box-shadow: inset 0 0 0 1px #69b5b5; }
+.macro-settings input[aria-invalid="true"] { border-color: var(--danger); box-shadow: inset 0 0 0 1px #ff9f9f; }
+.macro-settings-hint { grid-column: 1 / -1; margin: 0; color: #abc5c2; font-size: 10px; line-height: 1.6; }
+.macro-settings-validation { grid-column: 1 / -1; margin: 0; padding: 7px 9px; color: #ffe0d0; background: #4e2525; border: 1px solid var(--danger); font: 700 10px/1.5 var(--mono); }
+.macro-settings-validation[hidden] { display: none; }
 .export-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 20px; }
 .export-card { position: relative; min-height: 248px; padding: 18px; overflow: hidden; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); }
 .export-card::after { position: absolute; right: -25px; bottom: -70px; color: rgba(0, 128, 128, .09); font: 700 180px/1 var(--pixel); content: attr(data-sigil); }
@@ -492,7 +505,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .topbar-actions { width: 100%; justify-content: flex-end; margin-left: 0; }
   .qq-group-link { max-width: 155px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; }
   .controls-grid { grid-template-columns: 1fr 1fr; }
-  .song-title-label, .trigger-label { grid-column: span 2; }
+  .song-title-label { grid-column: span 2; }
   .record-toolbar { align-items: start; flex-wrap: wrap; }
   .record-modifiers { width: 100%; margin-left: 0; }
   .modifier-choice { flex: 1; padding: 6px 3px; }
@@ -508,6 +521,8 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .song-card { min-height: 140px; padding: 13px; }
   .export-form-grid { grid-template-columns: 1fr; }
   .export-form-grid label:first-child { grid-column: auto; }
+  .macro-settings { grid-template-columns: 1fr; }
+  .macro-settings-controls { grid-template-columns: 1fr; }
   .score-export-body { padding: 16px; }
   .macro-download-body { padding: 16px; }
   footer { flex-direction: column; gap: 8px; padding: 16px 14px; }

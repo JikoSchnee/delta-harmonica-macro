@@ -321,9 +321,15 @@ const COMMUNITY_SONG_LIBRARY = Array.isArray(globalThis.COMMUNITY_SONGS) ? globa
 const SONG_FILE_FORMAT = "harmonica-deck-score";
 const SONG_FILE_VERSION = 1;
 const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...PDMX_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY].map((song) => normalizeSong(song));
+const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", toggle: "切换播放" };
+const MACRO_TRIGGER_MODE_HINTS = {
+  once: "单次播放：按下后完整播放一次。播放中再次按下会忽略。",
+  hold: "长按播放：按住绑定键播放，松开后立即停止并释放当前按键。",
+  toggle: "切换播放：按一下开始，再按一下停止并释放当前按键。"
+};
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), trigger: document.querySelector("#triggerButton"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -1029,32 +1035,150 @@ function makeUuid() {
   });
 }
 
-function generateLua(sequence) {
-  const triggerValue = Number(elements.trigger.value);
-  const trigger = Number.isInteger(triggerValue) && triggerValue > 0 ? triggerValue : 0;
+function setMacroTriggerValidation(message = "") {
+  elements.macroTriggerValidation.textContent = message;
+  elements.macroTriggerValidation.hidden = !message;
+  elements.macroTriggerButton.setAttribute("aria-invalid", String(Boolean(message)));
+}
+
+function clearMacroTriggerValidation() {
+  setMacroTriggerValidation("");
+}
+
+function updateMacroTriggerHint() {
+  const mode = elements.macroTriggerMode.value;
+  elements.macroSettingsHint.textContent = MACRO_TRIGGER_MODE_HINTS[mode] || MACRO_TRIGGER_MODE_HINTS.once;
+}
+
+function readMacroTriggerSettings() {
+  const rawButton = String(elements.macroTriggerButton.value).trim();
+  const button = Number(rawButton);
+  const mode = elements.macroTriggerMode.value;
+  if (!rawButton || !Number.isInteger(button) || button < 1 || button > 20) {
+    setMacroTriggerValidation("请输入 1 到 20 之间的鼠标绑定键。");
+    return null;
+  }
+  if (!Object.prototype.hasOwnProperty.call(MACRO_TRIGGER_MODE_LABELS, mode)) {
+    setMacroTriggerValidation("请选择有效的触发模式。");
+    return null;
+  }
+  clearMacroTriggerValidation();
+  return { button, mode };
+}
+
+function requireMacroTriggerSettings() {
+  const settings = readMacroTriggerSettings();
+  if (settings) return settings;
+  elements.macroSettings.scrollIntoView({ behavior: "smooth", block: "center" });
+  elements.macroTriggerButton.focus();
+  toast("请先设置 G HUB 宏绑定键。 ");
+  return null;
+}
+
+function generateLua(sequence, triggerSettings) {
+  const { button, mode } = triggerSettings;
   const lines = [
     "-- Harmonica Deck · Delta Force harmonica sequence",
     `-- Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
-    "-- Set TRIGGER_BUTTON to your mouse button code before use (0 disables playback).",
-    "-- Each key is held for its full score duration, then released immediately before the next note.",
-    `local TRIGGER_BUTTON = ${trigger}`,
+    `-- Trigger: mouse button ${button} · ${MACRO_TRIGGER_MODE_LABELS[mode]}`,
+    "-- once = play once; hold = play while the trigger is held; toggle = press to start and press again to stop.",
+    "-- Stop handling releases the current note and any mouse modifier buttons.",
+    `local TRIGGER_BUTTON = ${button}`,
+    `local TRIGGER_MODE = ${JSON.stringify(mode)}`,
+    "local isPlaying = false",
+    "local stopRequested = false",
+    "local activeKey = nil",
+    "local activeModifiers = {}",
     "",
-    "function PlayHarmonica()"
+    "local function ReleaseHeldInputs()",
+    "  if activeKey ~= nil then",
+    "    ReleaseKey(activeKey)",
+    "    activeKey = nil",
+    "  end",
+    "  for index = #activeModifiers, 1, -1 do",
+    "    ReleaseMouseButton(activeModifiers[index])",
+    "  end",
+    "  activeModifiers = {}",
+    "end",
+    "",
+    "local function RequestStop()",
+    "  stopRequested = true",
+    "  ReleaseHeldInputs()",
+    "  isPlaying = false",
+    "  AbortMacro()",
+    "end",
+    "",
+    "local function SleepInterruptible(duration)",
+    "  local remaining = duration",
+    "  while remaining > 0 do",
+    "    if stopRequested then return false end",
+    "    if TRIGGER_MODE == \"hold\" and not IsMouseButtonPressed(TRIGGER_BUTTON) then",
+    "      stopRequested = true",
+    "      return false",
+    "    end",
+    "    local slice = math.min(remaining, 10)",
+    "    Sleep(slice)",
+    "    remaining = remaining - slice",
+    "  end",
+    "  return not stopRequested",
+    "end",
+    "",
+    "function PlayHarmonica()",
+    "  if isPlaying then return end",
+    "  isPlaying = true",
+    "  stopRequested = false",
   ];
   sequence.notes.forEach((item, index) => {
-    lines.push(`  -- ${String(index + 1).padStart(2, "0")}: ${item.modifier ? `${item.modifier}+` : ""}${item.note}, ${item.beats} beat(s)`);
+    lines.push("  if not stopRequested then");
+    lines.push(`    -- ${String(index + 1).padStart(2, "0")}: ${item.modifier ? `${item.modifier}+` : ""}${item.note}, ${item.beats} beat(s)`);
     if (item.isRest) {
-      lines.push(`  Sleep(${item.durationMs})`);
-      return;
+      lines.push(`    if not SleepInterruptible(${item.durationMs}) then stopRequested = true end`);
+    } else {
+      const modifierButtons = [...(item.modifier || "")].map((modifier) => MOUSE_BUTTONS[modifier].ghub);
+      lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
+      lines.push("    for index = 1, #activeModifiers do");
+      lines.push("      PressMouseButton(activeModifiers[index])");
+      lines.push("    end");
+      lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
+      lines.push("    PressKey(activeKey)");
+      lines.push(`    if not SleepInterruptible(${item.pressMs}) then stopRequested = true end`);
+      lines.push("    ReleaseHeldInputs()");
+      if (item.waitMs > 0) lines.push(`    if not stopRequested and not SleepInterruptible(${item.waitMs}) then stopRequested = true end`);
     }
-    [...(item.modifier || "")].forEach((modifier) => lines.push(`  PressMouseButton(${MOUSE_BUTTONS[modifier].ghub})`));
-    lines.push(`  PressKey(\"${item.key}\")`);
-    lines.push(`  Sleep(${item.pressMs})`);
-    lines.push(`  ReleaseKey(\"${item.key}\")`);
-    [...(item.modifier || "")].reverse().forEach((modifier) => lines.push(`  ReleaseMouseButton(${MOUSE_BUTTONS[modifier].ghub})`));
-    if (item.waitMs > 0) lines.push(`  Sleep(${item.waitMs})`);
+    lines.push("  end");
   });
-  lines.push("end", "", "function OnEvent(event, arg)", "  if event == \"MOUSE_BUTTON_PRESSED\" and arg == TRIGGER_BUTTON then", "    PlayHarmonica()", "  end", "end", "");
+  lines.push(
+    "  ReleaseHeldInputs()",
+    "  isPlaying = false",
+    "  stopRequested = false",
+    "end",
+    "",
+    "function OnEvent(event, arg)",
+    "  if event == \"PROFILE_ACTIVATED\" then",
+    "    -- Required for button 1 because it is the primary mouse button.",
+    "    EnablePrimaryMouseButtonEvents(true)",
+    "    isPlaying = false",
+    "    stopRequested = true",
+    "    ReleaseHeldInputs()",
+    "    AbortMacro()",
+    "    stopRequested = false",
+    "    return",
+    "  end",
+    "  if arg ~= TRIGGER_BUTTON then return end",
+    "  if TRIGGER_MODE == \"once\" and event == \"MOUSE_BUTTON_PRESSED\" then",
+    "    PlayHarmonica()",
+    "  elseif TRIGGER_MODE == \"hold\" then",
+    "    if event == \"MOUSE_BUTTON_PRESSED\" then",
+    "      PlayHarmonica()",
+    "    elseif event == \"MOUSE_BUTTON_RELEASED\" then",
+    "      RequestStop()",
+    "    end",
+    "  elseif TRIGGER_MODE == \"toggle\" and event == \"MOUSE_BUTTON_PRESSED\" then",
+    "    if isPlaying then RequestStop() else PlayHarmonica() end",
+    "  end",
+    "end",
+    ""
+  );
   return lines.join("\n");
 }
 
@@ -1099,18 +1223,21 @@ const MACRO_DOWNLOAD_CONFIG = {
   "download-lua": {
     suffix: ".lua",
     type: "text/plain",
-    build: (sequence) => generateLua(sequence),
+    requiresTriggerSettings: true,
+    build: (sequence, triggerSettings) => generateLua(sequence, triggerSettings),
     success: "Lua 脚本已下载。"
   },
   "download-rz3": {
     suffix: "-synapse-3.xml",
     type: "application/xml",
+    requiresTriggerSettings: false,
     build: (sequence) => generateRazerXml(sequence, 3),
     success: "Synapse 3 XML 已下载。"
   },
   "download-rz4": {
     suffix: "-synapse-4.xml",
     type: "application/xml",
+    requiresTriggerSettings: false,
     build: (sequence) => generateRazerXml(sequence, 4),
     success: "Synapse 4 XML 已下载。"
   }
@@ -1138,11 +1265,14 @@ function openMacroDownloadDialog(action) {
     toast("请先修正谱子错误。 ");
     return;
   }
+  const triggerSettings = config.requiresTriggerSettings ? requireMacroTriggerSettings() : null;
+  if (config.requiresTriggerSettings && !triggerSettings) return;
   const fileBase = safeName().replace(/\s+/g, "-").toLowerCase();
   pendingMacroDownload = {
     config,
     filename: `${fileBase || "delta-harmonica"}${config.suffix}`,
-    sequence
+    sequence,
+    triggerSettings
   };
   resetMacroDownloadProgress();
   elements.macroDownloadFilename.textContent = pendingMacroDownload.filename;
@@ -1170,7 +1300,7 @@ function startMacroDownload() {
     clearMacroDownloadTimers();
     macroDownloadFinalizeTimer = window.setTimeout(() => {
       if (pendingMacroDownload !== pending) return;
-      download(pending.config.build(pending.sequence), pending.filename, pending.config.type);
+      download(pending.config.build(pending.sequence, pending.triggerSettings), pending.filename, pending.config.type);
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
@@ -1295,7 +1425,9 @@ function toast(message) {
 }
 
 async function copyLua(sequence) {
-  const lua = generateLua(sequence);
+  const triggerSettings = requireMacroTriggerSettings();
+  if (!triggerSettings) return;
+  const lua = generateLua(sequence, triggerSettings);
   try {
     await navigator.clipboard.writeText(lua);
     toast("Lua 已复制到剪贴板。");
@@ -1362,6 +1494,11 @@ elements.stopButton.addEventListener("click", stopPreview);
 elements.volume.addEventListener("input", () => {
   if (audioContext && masterGain) masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, audioContext.currentTime, 0.01);
 });
+elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
+elements.macroTriggerMode.addEventListener("change", () => {
+  updateMacroTriggerHint();
+  clearMacroTriggerValidation();
+});
 elements.confirmMacroDownload.addEventListener("click", startMacroDownload);
 elements.macroDownloadDialog.addEventListener("close", () => {
   clearMacroDownloadTimers();
@@ -1407,6 +1544,7 @@ elements.uploadScoreButton.addEventListener("click", () => {
 });
 
 renderSongLibrary();
+updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0]);

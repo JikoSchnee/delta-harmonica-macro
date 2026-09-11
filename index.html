@@ -75,7 +75,6 @@
             <label>调号<input id="keySignature" type="text" maxlength="8" value="1=C" placeholder="例如：1=C" /></label>
             <label>拍号<input id="timeSignature" type="text" maxlength="5" value="4/4" placeholder="例如：4/4" inputmode="numeric" /></label>
             <label>速度 <span class="unit">BPM</span><input id="bpm" type="number" min="30" max="300" step="1" value="120" inputmode="numeric" /></label>
-            <label class="trigger-label">G HUB 触发键 <span class="unit">可选</span><input id="triggerButton" type="number" min="1" max="20" step="1" placeholder="例如 5" inputmode="numeric" /></label>
           </div>
 
           <section class="input-pane" data-input-pane="jianpu" role="tabpanel" aria-label="简谱模式">
@@ -169,20 +168,33 @@
         <div class="section-heading">
           <div><span class="index">04</span><h2 id="exportTitle">导出为宏</h2></div>
         </div>
+        <div class="macro-settings" id="macroSettings" aria-labelledby="macroSettingsTitle">
+          <div class="macro-settings-heading">
+            <span class="index">TRIGGER CONFIG</span>
+            <h3 id="macroSettingsTitle">G HUB 宏触发设置</h3>
+            <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
+          </div>
+          <div class="macro-settings-controls">
+            <label for="macroTriggerButton">绑定鼠标键 <span class="unit">必填 · 1–20</span><input id="macroTriggerButton" type="number" min="1" max="20" step="1" required placeholder="例如 5" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label for="macroTriggerMode">触发模式<select id="macroTriggerMode" aria-describedby="macroSettingsHint"><option value="once">单次播放</option><option value="hold">长按播放</option><option value="toggle">切换播放</option></select></label>
+          </div>
+          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。</p>
+          <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
+        </div>
         <div class="export-grid">
           <article class="export-card logitech">
             <div class="export-top"><span class="driver-mark">G</span><div><h3>Logitech G HUB</h3><p>Lua 脚本 · 手动粘贴</p></div></div>
-            <p class="export-copy">生成可审阅的 Lua。将脚本粘贴到对应配置文件的脚本编辑器，并在开头填写触发键编号。</p>
+            <p class="export-copy">按上方设置生成可审阅的 Lua。脚本会携带绑定鼠标键与触发模式，并在停止时释放正在按住的琴键。</p>
             <div class="export-actions"><button data-action="copy-lua" type="button">复制 Lua</button><button data-action="download-lua" type="button">下载 .lua</button></div>
           </article>
           <article class="export-card razer">
             <div class="export-top"><span class="driver-mark">R</span><div><h3>Razer Synapse 3</h3><p>XML · 实验性兼容</p></div></div>
-            <p class="export-copy">在 Macro 模块选择 Import 导入。Synapse 3 文件不能导入 Synapse 4。</p>
+            <p class="export-copy">仅导出事件序列；导入后请在 Synapse 3 的 Macro 模块内手动绑定鼠标键和触发模式。Synapse 3 文件不能导入 Synapse 4。</p>
             <div class="export-actions"><button data-action="download-rz3" type="button">下载 Synapse 3 XML</button></div>
           </article>
           <article class="export-card razer-four">
             <div class="export-top"><span class="driver-mark">R4</span><div><h3>Razer Synapse 4</h3><p>XML · 实验性兼容</p></div></div>
-            <p class="export-copy">在 Macro 列表的更多菜单中选择 Import；导入后再由你绑定到鼠标按键。</p>
+            <p class="export-copy">仅导出事件序列；在 Macro 列表的更多菜单中选择 Import，导入后再手动绑定鼠标键和触发模式。</p>
             <div class="export-actions"><button data-action="download-rz4" type="button">下载 Synapse 4 XML</button></div>
           </article>
         </div>
