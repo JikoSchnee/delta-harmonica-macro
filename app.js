@@ -1105,6 +1105,7 @@ function generateLua(sequence, triggerSettings) {
     "local activeKey = nil",
     "local activeModifiers = {}",
     "local toggleTriggerArmed = false",
+    "local playbackStartedAt = 0",
     "",
     "local function ReleaseHeldInputs()",
     "  if activeKey ~= nil then",
@@ -1128,9 +1129,9 @@ function generateLua(sequence, triggerSettings) {
     "  return STOP_BUTTON > 0 and IsMouseButtonPressed(STOP_BUTTON)",
     "end",
     "",
-    "local function SleepInterruptible(duration)",
-    "  local remaining = duration",
-    "  while remaining > 0 do",
+    "-- Wait against absolute score time so driver call overhead cannot accumulate.",
+    "local function WaitUntil(targetMs)",
+    "  while true do",
     "    if stopRequested then return false end",
     "    if StopButtonPressed() then",
     "      stopRequested = true",
@@ -1149,11 +1150,11 @@ function generateLua(sequence, triggerSettings) {
     "      stopRequested = true",
     "      return false",
     "    end",
+    "    local remaining = targetMs - (GetRunningTime() - playbackStartedAt)",
+    "    if remaining <= 0 then return true end",
     "    local slice = math.min(remaining, 10)",
     "    Sleep(slice)",
-    "    remaining = remaining - slice",
     "  end",
-    "  return not stopRequested",
     "end",
     "",
     "function PlayHarmonica()",
@@ -1161,12 +1162,14 @@ function generateLua(sequence, triggerSettings) {
     "  isPlaying = true",
     "  stopRequested = false",
     "  toggleTriggerArmed = not IsMouseButtonPressed(TRIGGER_BUTTON)",
+    "  playbackStartedAt = GetRunningTime()",
   ];
   sequence.notes.forEach((item, index) => {
+    lines.push(`  if not WaitUntil(${item.timeMs}) then stopRequested = true end`);
     lines.push("  if not stopRequested then");
     lines.push(`    -- ${String(index + 1).padStart(2, "0")}: ${item.modifier ? `${item.modifier}+` : ""}${item.note}, ${item.beats} beat(s)`);
     if (item.isRest) {
-      lines.push(`    if not SleepInterruptible(${item.durationMs}) then stopRequested = true end`);
+      lines.push(`    if not WaitUntil(${item.timeMs + item.durationMs}) then stopRequested = true end`);
     } else {
       const modifierButtons = [...(item.modifier || "")].map((modifier) => MOUSE_BUTTONS[modifier].ghub);
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
@@ -1175,9 +1178,8 @@ function generateLua(sequence, triggerSettings) {
       lines.push("    end");
       lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
       lines.push("    PressKey(activeKey)");
-      lines.push(`    if not SleepInterruptible(${item.pressMs}) then stopRequested = true end`);
+      lines.push(`    if not WaitUntil(${item.timeMs + item.pressMs}) then stopRequested = true end`);
       lines.push("    ReleaseHeldInputs()");
-      if (item.waitMs > 0) lines.push(`    if not stopRequested and not SleepInterruptible(${item.waitMs}) then stopRequested = true end`);
     }
     lines.push("  end");
   });
@@ -1186,6 +1188,7 @@ function generateLua(sequence, triggerSettings) {
     "  isPlaying = false",
     "  stopRequested = false",
     "  toggleTriggerArmed = false",
+    "  playbackStartedAt = 0",
     "end",
     "",
     "function OnEvent(event, arg)",
