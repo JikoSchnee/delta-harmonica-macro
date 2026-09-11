@@ -328,13 +328,13 @@ const SONG_FILE_VERSION = 1;
 const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...PDMX_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY].map((song) => normalizeSong(song));
 const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", toggle: "切换播放" };
 const MACRO_TRIGGER_MODE_HINTS = {
-  once: "单次播放：按下后完整播放一次。播放中再次按下会忽略。",
-  hold: "长按播放：按住绑定键播放，松开后立即停止并释放当前按键。",
-  toggle: "切换播放：按一下开始，再按一下停止并释放当前按键。"
+  once: "单次播放：按下后完整播放一次。播放中再次按下会忽略；没有停止键时无法中途停止。",
+  hold: "长按播放：按住绑定键播放，松开后立即停止；也可用全局停止键中止。",
+  toggle: "切换播放：按一下开始，再按同一个绑定键停止；也可另设全局停止键。"
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -1040,10 +1040,11 @@ function makeUuid() {
   });
 }
 
-function setMacroTriggerValidation(message = "") {
+function setMacroTriggerValidation(message = "", invalidFields = []) {
   elements.macroTriggerValidation.textContent = message;
   elements.macroTriggerValidation.hidden = !message;
-  elements.macroTriggerButton.setAttribute("aria-invalid", String(Boolean(message)));
+  elements.macroTriggerButton.setAttribute("aria-invalid", String(invalidFields.includes(elements.macroTriggerButton)));
+  elements.macroStopButton.setAttribute("aria-invalid", String(invalidFields.includes(elements.macroStopButton)));
 }
 
 function clearMacroTriggerValidation() {
@@ -1058,9 +1059,19 @@ function updateMacroTriggerHint() {
 function readMacroTriggerSettings() {
   const rawButton = String(elements.macroTriggerButton.value).trim();
   const button = Number(rawButton);
+  const rawStopButton = String(elements.macroStopButton.value).trim();
+  const stopButton = rawStopButton ? Number(rawStopButton) : 0;
   const mode = elements.macroTriggerMode.value;
   if (!rawButton || !Number.isInteger(button) || button < 1 || button > 20) {
-    setMacroTriggerValidation("请输入 1 到 20 之间的鼠标绑定键。");
+    setMacroTriggerValidation("请输入 1 到 20 之间的鼠标绑定键。", [elements.macroTriggerButton]);
+    return null;
+  }
+  if (rawStopButton && (!Number.isInteger(stopButton) || stopButton < 1 || stopButton > 20)) {
+    setMacroTriggerValidation("全局停止键必须是 1 到 20 之间的鼠标键，或留空禁用。", [elements.macroStopButton]);
+    return null;
+  }
+  if (stopButton === button) {
+    setMacroTriggerValidation("全局停止键不能单独填写为播放绑定键；如需同键开关，请留空并选择“切换播放”。", [elements.macroTriggerButton, elements.macroStopButton]);
     return null;
   }
   if (!Object.prototype.hasOwnProperty.call(MACRO_TRIGGER_MODE_LABELS, mode)) {
@@ -1068,20 +1079,23 @@ function readMacroTriggerSettings() {
     return null;
   }
   clearMacroTriggerValidation();
-  return { button, mode };
+  return { button, stopButton, mode };
 }
 
 function requireMacroTriggerSettings() {
   const settings = readMacroTriggerSettings();
   if (settings) return settings;
   elements.macroSettings.scrollIntoView({ behavior: "smooth", block: "center" });
-  elements.macroTriggerButton.focus();
-  toast("请先设置 G HUB 宏绑定键。 ");
+  const invalidField = elements.macroStopButton.getAttribute("aria-invalid") === "true"
+    ? elements.macroStopButton
+    : elements.macroTriggerButton;
+  invalidField.focus();
+  toast("请先完成 G HUB 宏触发设置。 ");
   return null;
 }
 
 function generateLua(sequence, triggerSettings) {
-  const { button, mode } = triggerSettings;
+  const { button, stopButton, mode } = triggerSettings;
   const lines = [
     "-- Harmonica Deck · Delta Force harmonica sequence",
     `-- Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
@@ -1089,11 +1103,13 @@ function generateLua(sequence, triggerSettings) {
     "-- once = play once; hold = play while the trigger is held; toggle = press to start and press again to stop.",
     "-- Stop handling releases the current note and any mouse modifier buttons.",
     `local TRIGGER_BUTTON = ${button}`,
+    `local STOP_BUTTON = ${stopButton}`,
     `local TRIGGER_MODE = ${JSON.stringify(mode)}`,
     "local isPlaying = false",
     "local stopRequested = false",
     "local activeKey = nil",
     "local activeModifiers = {}",
+    "local toggleTriggerArmed = false",
     `local MODIFIER_STEP_MS = ${MODIFIER_STEP_MS}`,
     `local MODIFIER_SETTLE_MS = ${MODIFIER_SETTLE_MS}`,
     "",
@@ -1115,10 +1131,27 @@ function generateLua(sequence, triggerSettings) {
     "  AbortMacro()",
     "end",
     "",
+    "local function StopButtonPressed()",
+    "  return STOP_BUTTON > 0 and IsMouseButtonPressed(STOP_BUTTON)",
+    "end",
+    "",
     "local function SleepInterruptible(duration)",
     "  local remaining = duration",
     "  while remaining > 0 do",
     "    if stopRequested then return false end",
+    "    if StopButtonPressed() then",
+    "      stopRequested = true",
+    "      return false",
+    "    end",
+    "    if TRIGGER_MODE == \"toggle\" then",
+    "      local triggerPressed = IsMouseButtonPressed(TRIGGER_BUTTON)",
+    "      if not triggerPressed then",
+    "        toggleTriggerArmed = true",
+    "      elseif toggleTriggerArmed then",
+    "        stopRequested = true",
+    "        return false",
+    "      end",
+    "    end",
     "    if TRIGGER_MODE == \"hold\" and not IsMouseButtonPressed(TRIGGER_BUTTON) then",
     "      stopRequested = true",
     "      return false",
@@ -1134,6 +1167,7 @@ function generateLua(sequence, triggerSettings) {
     "  if isPlaying then return end",
     "  isPlaying = true",
     "  stopRequested = false",
+    "  toggleTriggerArmed = not IsMouseButtonPressed(TRIGGER_BUTTON)",
   ];
   sequence.notes.forEach((item, index) => {
     lines.push("  if not stopRequested then");
@@ -1166,6 +1200,7 @@ function generateLua(sequence, triggerSettings) {
     "  ReleaseHeldInputs()",
     "  isPlaying = false",
     "  stopRequested = false",
+    "  toggleTriggerArmed = false",
     "end",
     "",
     "function OnEvent(event, arg)",
@@ -1177,6 +1212,10 @@ function generateLua(sequence, triggerSettings) {
     "    ReleaseHeldInputs()",
     "    AbortMacro()",
     "    stopRequested = false",
+    "    return",
+    "  end",
+    "  if event == \"MOUSE_BUTTON_PRESSED\" and arg == STOP_BUTTON then",
+    "    RequestStop()",
     "    return",
     "  end",
     "  if arg ~= TRIGGER_BUTTON then return end",
@@ -1524,6 +1563,7 @@ elements.volume.addEventListener("input", () => {
   if (audioContext && masterGain) masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, audioContext.currentTime, 0.01);
 });
 elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
+elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
 elements.macroTriggerMode.addEventListener("change", () => {
   updateMacroTriggerHint();
   clearMacroTriggerValidation();
