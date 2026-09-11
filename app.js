@@ -1104,10 +1104,13 @@ function generateLua(sequence, triggerSettings) {
     "local stopRequested = false",
     "local activeKey = nil",
     "local activeModifiers = {}",
+    "local activePlaybackGeneration = 0",
     "local toggleTriggerArmed = false",
     "local playbackStartedAt = 0",
+    "local playbackGeneration = 0",
     "",
-    "local function ReleaseHeldInputs()",
+    "local function ReleaseHeldInputs(ownerGeneration)",
+    "  if ownerGeneration ~= nil and activePlaybackGeneration ~= ownerGeneration then return end",
     "  if activeKey ~= nil then",
     "    ReleaseKey(activeKey)",
     "    activeKey = nil",
@@ -1116,13 +1119,15 @@ function generateLua(sequence, triggerSettings) {
     "    ReleaseMouseButton(activeModifiers[index])",
     "  end",
     "  activeModifiers = {}",
+    "  activePlaybackGeneration = 0",
     "end",
     "",
     "local function RequestStop()",
+    "  playbackGeneration = playbackGeneration + 1",
     "  stopRequested = true",
     "  ReleaseHeldInputs()",
     "  isPlaying = false",
-    "  AbortMacro()",
+    "  playbackStartedAt = 0",
     "end",
     "",
     "local function StopButtonPressed()",
@@ -1130,11 +1135,11 @@ function generateLua(sequence, triggerSettings) {
     "end",
     "",
     "-- Wait against absolute score time so driver call overhead cannot accumulate.",
-    "local function WaitUntil(targetMs)",
+    "local function WaitUntil(targetMs, ownerGeneration)",
     "  while true do",
-    "    if stopRequested then return false end",
+    "    if stopRequested or playbackGeneration ~= ownerGeneration then return false end",
     "    if StopButtonPressed() then",
-    "      stopRequested = true",
+    "      RequestStop()",
     "      return false",
     "    end",
     "    if TRIGGER_MODE == \"toggle\" then",
@@ -1142,12 +1147,12 @@ function generateLua(sequence, triggerSettings) {
     "      if not triggerPressed then",
     "        toggleTriggerArmed = true",
     "      elseif toggleTriggerArmed then",
-    "        stopRequested = true",
+    "        RequestStop()",
     "        return false",
     "      end",
     "    end",
     "    if TRIGGER_MODE == \"hold\" and not IsMouseButtonPressed(TRIGGER_BUTTON) then",
-    "      stopRequested = true",
+    "      RequestStop()",
     "      return false",
     "    end",
     "    local remaining = targetMs - (GetRunningTime() - playbackStartedAt)",
@@ -1159,47 +1164,60 @@ function generateLua(sequence, triggerSettings) {
     "",
     "function PlayHarmonica()",
     "  if isPlaying then return end",
+    "  playbackGeneration = playbackGeneration + 1",
+    "  local ownerGeneration = playbackGeneration",
     "  isPlaying = true",
     "  stopRequested = false",
     "  toggleTriggerArmed = not IsMouseButtonPressed(TRIGGER_BUTTON)",
     "  playbackStartedAt = GetRunningTime()",
   ];
   sequence.notes.forEach((item, index) => {
-    lines.push(`  if not WaitUntil(${item.timeMs}) then stopRequested = true end`);
-    lines.push("  if not stopRequested then");
+    lines.push(`  if not WaitUntil(${item.timeMs}, ownerGeneration) then`);
+    lines.push("    if playbackGeneration == ownerGeneration then stopRequested = true end");
+    lines.push("  end");
+    lines.push("  if not stopRequested and playbackGeneration == ownerGeneration then");
     lines.push(`    -- ${String(index + 1).padStart(2, "0")}: ${item.modifier ? `${item.modifier}+` : ""}${item.note}, ${item.beats} beat(s)`);
     if (item.isRest) {
-      lines.push(`    if not WaitUntil(${item.timeMs + item.durationMs}) then stopRequested = true end`);
+      lines.push(`    if not WaitUntil(${item.timeMs + item.durationMs}, ownerGeneration) then`);
+      lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
+      lines.push("    end");
     } else {
       const modifierButtons = [...(item.modifier || "")].map((modifier) => MOUSE_BUTTONS[modifier].ghub);
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
+      lines.push("    activePlaybackGeneration = ownerGeneration");
       lines.push("    for index = 1, #activeModifiers do");
       lines.push("      PressMouseButton(activeModifiers[index])");
       lines.push("    end");
       lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
       lines.push("    PressKey(activeKey)");
-      lines.push(`    if not WaitUntil(${item.timeMs + item.pressMs}) then stopRequested = true end`);
-      lines.push("    ReleaseHeldInputs()");
+      lines.push(`    if not WaitUntil(${item.timeMs + item.pressMs}, ownerGeneration) then`);
+      lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
+      lines.push("    end");
+      lines.push("    ReleaseHeldInputs(ownerGeneration)");
     }
     lines.push("  end");
   });
   lines.push(
-    "  ReleaseHeldInputs()",
-    "  isPlaying = false",
-    "  stopRequested = false",
-    "  toggleTriggerArmed = false",
-    "  playbackStartedAt = 0",
+    "  if playbackGeneration == ownerGeneration then",
+    "    ReleaseHeldInputs(ownerGeneration)",
+    "    isPlaying = false",
+    "    stopRequested = false",
+    "    toggleTriggerArmed = false",
+    "    playbackStartedAt = 0",
+    "  end",
     "end",
     "",
     "function OnEvent(event, arg)",
     "  if event == \"PROFILE_ACTIVATED\" then",
     "    -- Required for button 1 because it is the primary mouse button.",
     "    EnablePrimaryMouseButtonEvents(true)",
+    "    playbackGeneration = playbackGeneration + 1",
     "    isPlaying = false",
     "    stopRequested = true",
     "    ReleaseHeldInputs()",
     "    AbortMacro()",
     "    stopRequested = false",
+    "    playbackStartedAt = 0",
     "    return",
     "  end",
     "  if event == \"MOUSE_BUTTON_PRESSED\" and arg == STOP_BUTTON then",
