@@ -316,7 +316,7 @@ const SECTION_GUIDES = {
     steps: [
       ["01", "先看教程", "点击「教程」打开视频占位与完整文字说明；其中包含曲库试听流程和 Logitech G HUB 配置方式。"],
       ["02", "使用曲库", "打开内置及社区曲目。每张卡片可直接进入编辑器，或先载入后跳到导出区。"],
-      ["03", "导入 MIDI", "选择 MIDI 文件后工具会提取单旋律；可按需要关闭「流畅演奏」，保留短断音。"],
+      ["03", "导入 MIDI", "选择 MIDI 文件后，先在音轨条状图中选择旋律与截取范围，再确认生成；可按需要关闭「流畅演奏」，保留短断音。"],
       ["04", "手动打谱", "从简谱模式开始输入数字简谱；也可在编辑器内切换到录制、精确或三角洲键盘模式。"]
     ]
   },
@@ -338,7 +338,7 @@ const SECTION_GUIDES = {
     title: "编辑器 · 输入与校验",
     intro: "编辑器会把不同写法统一为同一套按键事件。每次输入后会校验，并同步播放器与导出数据。",
     steps: [
-      ["01", "选择输入来源", "可导入 MIDI 或 <code>.deltamusic</code>；也可以直接手动编辑。导入后请先检查歌名、调号、拍号和 BPM。"],
+      ["01", "选择输入来源", "可导入 MIDI 或 <code>.deltamusic</code>；也可以直接手动编辑。MIDI 会先显示全部音轨与截取范围，确认后才写入曲谱。"],
       ["02", "选择合适模式", "简谱模式适合日常编辑；录制模式用于实时弹奏；精确模式使用音符/拍数；三角洲键盘模式使用「按键 / 毫秒」。"],
       ["03", "查看校验状态", "底部会提示错误位置或显示预计时长。出现错误时，先按行号与提示修正，再试听或导出。"],
       ["04", "试听与分享", "「试听」会播放当前序列；「导出为宏」前往导出设置；「分享 .deltamusic」会打包当前曲谱和元信息。"]
@@ -353,7 +353,7 @@ const SECTION_GUIDES = {
       ["01", "试听整段", "点击「试听整段」从当前序列开始播放；「从头播放」可重新开始，「停止」会立即结束试听。"],
       ["02", "调节音量", "使用 VOL 滑杆调整浏览器试听音量，不会影响导出的 Lua、XML 或键盘谱时值。"],
       ["03", "核对统计", "总时长、音符数和输入事件数会随谱子更新；它们可帮助发现意外的休止或重复。"],
-      ["04", "查看事件时间线", "时间线逐项显示按键、变调键、按住时长与气口。若听感不对，可回编辑器定位相应音符。"]
+      ["04", "查看事件时间线", "时间线逐项显示按键、变调键、按住时长与气口。点击任一行可跳到该时刻并开始试听。"]
     ]
   },
   export: {
@@ -373,11 +373,11 @@ const SECTION_GUIDES = {
 const elements = {
   score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
-  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
-  previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"),
+  previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tutorialButtons: [...document.querySelectorAll("[data-tutorial-action]")], tutorialDialog: document.querySelector("#tutorialDialog"), guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput")
@@ -395,6 +395,9 @@ let macroDownloadTimer = null;
 let macroDownloadFinalizeTimer = null;
 let inputMode = "jianpu";
 let lastMidiFile = null;
+let midiImportState = null;
+let previewCursorMs = 0;
+let previewProgressFrame = 0;
 
 function syncWorkbenchHeight() {
   if (!elements.workbench || !elements.editorPanel) return;
@@ -739,6 +742,14 @@ function selectMidiMelodyTrack(tracks) {
   }).sort((left, right) => right.rank - left.rank || right.notes.length - left.notes.length || right.index - left.index)[0];
 }
 
+function midiTrackCandidates(tracks) {
+  return tracks.map((track, index) => ({ ...track, index, notes: track.notes.filter((note) => note.channel !== 9) })).filter((track) => track.notes.length);
+}
+
+function midiDurationTicks(parsed) {
+  return Math.max(parsed.division, ...parsed.tracks.flatMap((track) => track.notes.map((note) => note.end)), ...parsed.tempos.map((tempo) => tempo.tick), ...parsed.meters.map((meter) => meter.tick));
+}
+
 function chooseMidiTranspose(notes) {
   const playable = new Set(PLAYABLE_PITCHES.map((item) => item.midi));
   const median = midiMedian(notes.map((note) => note.midi));
@@ -766,9 +777,21 @@ function collapseMidiChords(notes, division) {
   return { notes: melody, collapsedNotes: Math.max(0, notes.length - melody.length) };
 }
 
-function midiToSequence(parsed) {
-  const track = selectMidiMelodyTrack(parsed.tracks);
-  const collapsed = collapseMidiChords(track.notes, parsed.division);
+function midiToSequence(parsed, { trackIndex = null, startTick = 0, endTick = null } = {}) {
+  const candidates = midiTrackCandidates(parsed.tracks);
+  if (!candidates.length) throw new Error("MIDI 中没有可演奏的非打击乐音符。");
+  const track = trackIndex === null ? selectMidiMelodyTrack(parsed.tracks) : candidates.find((candidate) => candidate.index === trackIndex);
+  if (!track) throw new Error("所选 MIDI 音轨没有可演奏的非打击乐音符。");
+  const durationTicks = midiDurationTicks(parsed);
+  const from = Math.max(0, Math.min(durationTicks - 1, Math.round(startTick)));
+  const to = Math.max(from + 1, Math.min(durationTicks, Math.round(endTick ?? durationTicks)));
+  const sourceNotes = track.notes.filter((note) => note.end > from && note.start < to).map((note) => ({
+    ...note,
+    start: Math.max(note.start, from) - from,
+    end: Math.min(note.end, to) - from
+  }));
+  if (!sourceNotes.length) throw new Error("所选音轨在这个截取范围内没有可转换的音符。");
+  const collapsed = collapseMidiChords(sourceNotes, parsed.division);
   const melody = collapsed.notes;
   const transpose = chooseMidiTranspose(melody);
   const notes = [];
@@ -798,6 +821,9 @@ function midiToSequence(parsed) {
     key: key ? midiKeySignature(key.sharpsFlats, key.isMinor) : "1=C",
     trackName: track.name,
     selectedNotes: melody.length,
+    sourceNoteCount: sourceNotes.length,
+    startTick: from,
+    endTick: to,
     collapsedChordNotes: collapsed.collapsedNotes,
     ignoredInvalidNonNoteEvents: parsed.ignoredInvalidNonNoteEvents,
     transpose,
@@ -828,6 +854,99 @@ function describeIgnoredMidiEvents(events = {}) {
   if (events.program) descriptions.push(`${events.program} 个无效程序切换事件`);
   if (events.other) descriptions.push(`${events.other} 个无效非音符事件`);
   return descriptions.length ? ` · 已忽略 ${descriptions.join("、")}` : "";
+}
+
+function midiStartBpm(parsed) {
+  const tempo = [...parsed.tempos].sort((left, right) => left.tick - right.tick || left.trackIndex - right.trackIndex)[0]?.value || 500000;
+  return Math.max(30, Math.min(300, Math.round(60000000 / tempo)));
+}
+
+function midiTickToTime(parsed, tick) {
+  return formatTime((Math.max(0, tick) / parsed.division) * (60000 / midiStartBpm(parsed)));
+}
+
+function midiPitchLabel(midi) {
+  const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+  return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
+}
+
+function midiTrackBounds(parsed, trackIndex, durationTicks = midiDurationTicks(parsed)) {
+  const notes = parsed.tracks[trackIndex]?.notes.filter((note) => note.channel !== 9) || [];
+  if (!notes.length) return { startTick: 0, endTick: durationTicks };
+  return {
+    startTick: Math.min(...notes.map((note) => note.start)),
+    endTick: Math.max(...notes.map((note) => note.end))
+  };
+}
+
+function resetMidiTrackPicker() {
+  midiImportState = null;
+  elements.midiTrackPicker.hidden = true;
+  elements.midiTrackList.innerHTML = "";
+}
+
+function updateMidiRangeUi() {
+  if (!midiImportState) return;
+  const { parsed, durationTicks } = midiImportState;
+  let startTick = Number(elements.midiRangeStartInput.value);
+  let endTick = Number(elements.midiRangeEndInput.value);
+  if (startTick >= endTick) {
+    if (document.activeElement === elements.midiRangeStartInput) startTick = Math.max(0, endTick - 1);
+    else endTick = Math.min(durationTicks, startTick + 1);
+  }
+  midiImportState.startTick = startTick;
+  midiImportState.endTick = endTick;
+  elements.midiRangeStartInput.value = startTick;
+  elements.midiRangeEndInput.value = endTick;
+  const left = (startTick / durationTicks) * 100;
+  const width = ((endTick - startTick) / durationTicks) * 100;
+  const windowBar = elements.midiRangeSliders.querySelector(".midi-range-window");
+  windowBar.style.left = `${left}%`;
+  windowBar.style.width = `${width}%`;
+  elements.midiRangeStart.textContent = `开始 ${midiTickToTime(parsed, startTick)}`;
+  elements.midiRangeEnd.textContent = `结束 ${midiTickToTime(parsed, endTick)}`;
+  elements.midiRangeSummary.textContent = `截取 ${midiTickToTime(parsed, endTick - startTick)}`;
+}
+
+function renderMidiTrackPicker() {
+  if (!midiImportState) return;
+  const { parsed, selectedTrackIndex, durationTicks } = midiImportState;
+  const playableTracks = midiTrackCandidates(parsed.tracks);
+  const tracks = parsed.tracks.map((track, index) => ({ ...track, index, playableNotes: track.notes.filter((note) => note.channel !== 9) }));
+  const pitches = tracks.flatMap((track) => track.notes.map((note) => note.midi));
+  const lowestPitch = Math.floor((Math.min(...pitches) - 2) / 12) * 12;
+  const highestPitch = Math.ceil((Math.max(...pitches) + 2) / 12) * 12;
+  const pitchSpan = Math.max(12, highestPitch - lowestPitch);
+  elements.midiTrackPicker.hidden = false;
+  const rangeHint = midiImportState.rangeAutoTrimmed ? "已自动裁去所选轨首尾空白" : "已手动调整范围";
+  elements.midiPickerStatus.textContent = `${tracks.length} 条音轨 · ${playableTracks.length} 条可转换 · ${rangeHint}`;
+  elements.midiTrackList.innerHTML = tracks.map((track) => {
+    const noteBars = track.notes.map((note) => {
+      const left = (note.start / durationTicks) * 100;
+      const width = Math.max(.35, ((note.end - note.start) / durationTicks) * 100);
+      const top = Math.max(2, Math.min(94, ((highestPitch - note.midi) / pitchSpan) * 100));
+      return `<i style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;top:${top.toFixed(3)}%"></i>`;
+    }).join("");
+    const label = track.name || `音轨 ${String(track.index + 1).padStart(2, "0")}`;
+    const selectable = track.playableNotes.length > 0;
+    const noteDescription = selectable ? `${track.playableNotes.length} 个可转换音符` : track.notes.length ? "仅打击乐，无法转换" : "无音符";
+    return `<button class="midi-track" data-midi-track-index="${track.index}" type="button" role="radio" aria-checked="${selectable && track.index === selectedTrackIndex}" aria-label="选择 ${escapeHtml(label)}，${noteDescription}"${selectable ? "" : " disabled"}><span class="midi-track-index">${String(track.index + 1).padStart(2, "0")}</span><span class="midi-track-name">${escapeHtml(label)}<small>${noteDescription}</small></span><span class="midi-track-bar" aria-hidden="true"><b>${midiPitchLabel(highestPitch)}</b>${noteBars}<b>${midiPitchLabel(lowestPitch)}</b></span><span class="midi-track-count">${track.notes.length} NOTES</span></button>`;
+  }).join("");
+  [elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => {
+    input.max = durationTicks;
+    input.value = input === elements.midiRangeStartInput ? midiImportState.startTick : midiImportState.endTick;
+  });
+  updateMidiRangeUi();
+}
+
+function openMidiTrackPicker(file, parsed) {
+  const defaultTrack = selectMidiMelodyTrack(parsed.tracks);
+  const durationTicks = midiDurationTicks(parsed);
+  const bounds = midiTrackBounds(parsed, defaultTrack.index, durationTicks);
+  midiImportState = { file, parsed, title: file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目", selectedTrackIndex: defaultTrack.index, durationTicks, ...bounds, rangeAutoTrimmed: true };
+  renderMidiTrackPicker();
+  elements.midiTrackPicker.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  toast("请选择需要转换的音轨与片段，然后点击“确定并生成谱子”。");
 }
 
 function formatTime(milliseconds) {
@@ -971,6 +1090,7 @@ function loadSong(song, { destination = "editor" } = {}) {
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
+  resetMidiTrackPicker();
   elements.macroName.value = song.title;
   elements.artistName.value = song.artist || "";
   elements.keySignature.value = song.key || "1=C";
@@ -1122,6 +1242,27 @@ function setValidation(message, type = "") {
   elements.validation.className = `validation ${type}`;
 }
 
+function setPreviewProgress(positionMs = 0, sequence = currentSequence) {
+  const totalMs = sequence?.totalMs || 0;
+  const safePosition = Math.max(0, Math.min(totalMs, Math.round(positionMs)));
+  previewCursorMs = safePosition;
+  elements.previewProgress.max = totalMs;
+  elements.previewProgress.value = safePosition;
+  elements.previewProgress.disabled = !totalMs;
+  elements.previewProgressLabel.textContent = `${formatTime(safePosition)} / ${totalMs ? formatTime(totalMs) : "--:--.---"}`;
+}
+
+function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
+  const sequence = currentSequence;
+  if (!sequence) return;
+  const index = sequence.notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
+  clearTimelinePlayback();
+  if (index < 0) return;
+  const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
+  row?.classList.add("playing");
+  if (scroll) keepTimelineRowVisible(row);
+}
+
 function updateMonitor(sequence) {
   if (!sequence) {
     elements.totalTime.textContent = "--:--.---";
@@ -1130,6 +1271,7 @@ function updateMonitor(sequence) {
     elements.beatMs.textContent = "-- MS / BEAT";
     elements.timeline.innerHTML = '<li class="empty-state">转换后将在这里显示每个音符的按键时刻。</li>';
     elements.monitorDot.classList.remove("active");
+    setPreviewProgress(0, null);
     return;
   }
   elements.totalTime.textContent = formatTime(sequence.totalMs);
@@ -1140,8 +1282,9 @@ function updateMonitor(sequence) {
   elements.timeline.innerHTML = sequence.notes.map((item) => {
     const modifier = item.modifier ? `${item.modifier} + ` : "";
     const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · 按住 ${item.pressMs}ms${item.waitMs ? ` · 气口 ${item.waitMs}ms` : ""}`;
-    return `<li data-note-index="${item.index ?? 0}"><span class="time">${formatTime(item.timeMs)}</span><span class="timeline-key${item.isRest ? " rest" : item.modifier ? " modifier" : ""}">${item.isRest ? "休" : item.note}</span><span class="event-detail">${detail}</span></li>`;
+    return `<li data-note-index="${item.index ?? 0}" data-time-ms="${item.timeMs}" tabindex="0" role="button" aria-label="跳转到 ${formatTime(item.timeMs)}，${escapeHtml(detail)}"><span class="time">${formatTime(item.timeMs)}</span><span class="timeline-key${item.isRest ? " rest" : item.modifier ? " modifier" : ""}">${item.isRest ? "休" : item.note}</span><span class="event-detail">${detail}</span></li>`;
   }).join("");
+  setPreviewProgress(0, sequence);
 }
 
 function convert() {
@@ -1405,18 +1548,20 @@ function clearPreviewTimers(preview) {
   preview.timers = [];
 }
 
-function stopPreview() {
+function stopPreview({ resetProgress = true } = {}) {
   if (!activePreview) return;
   activePreview.nodes.forEach((node) => { try { node.stop(); } catch {} });
   clearPreviewTimers(activePreview);
   activePreview = null;
+  window.cancelAnimationFrame(previewProgressFrame);
   clearTimelinePlayback();
+  if (resetProgress) setPreviewProgress(0);
   setPreviewUi("ready");
 }
 
 function previewPositionMs(preview) {
-  const position = (preview.context.currentTime - preview.startAt) * 1000;
-  return Math.max(0, Math.min(preview.sequence.totalMs, position));
+  const elapsedMs = Math.max(0, (preview.context.currentTime - preview.startAt) * 1000);
+  return Math.max(preview.positionMs, Math.min(preview.sequence.totalMs, preview.positionMs + elapsedMs));
 }
 
 function schedulePreviewTimers(preview, positionMs, isInitial = false) {
@@ -1435,13 +1580,22 @@ function schedulePreviewTimers(preview, positionMs, isInitial = false) {
   preview.timers.push(window.setTimeout(() => stopPreview(), Math.max(0, preview.sequence.totalMs - positionMs) + 110));
 }
 
+function refreshPreviewProgress() {
+  if (!activePreview || activePreview.state !== "playing") return;
+  const position = previewPositionMs(activePreview);
+  setPreviewProgress(position, activePreview.sequence);
+  previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
+}
+
 async function pausePreview() {
   if (!activePreview || activePreview.state !== "playing") return;
   const preview = activePreview;
   clearPreviewTimers(preview);
+  window.cancelAnimationFrame(previewProgressFrame);
   try {
     await preview.context.suspend();
     preview.positionMs = previewPositionMs(preview);
+    setPreviewProgress(preview.positionMs, preview.sequence);
     preview.state = "paused";
     setPreviewUi("paused");
   } catch (error) {
@@ -1455,9 +1609,10 @@ async function resumePreview() {
   const preview = activePreview;
   try {
     await preview.context.resume();
-    preview.startAt = preview.context.currentTime - preview.positionMs / 1000;
+    preview.startAt = preview.context.currentTime;
     preview.state = "playing";
     schedulePreviewTimers(preview, preview.positionMs);
+    previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
     setPreviewUi("playing");
   } catch (error) {
     toast(error.message || "无法继续试听。 ");
@@ -1465,28 +1620,36 @@ async function resumePreview() {
 }
 
 function togglePreview() {
-  if (!activePreview) return playPreview();
+  if (!activePreview) return playPreview(previewCursorMs);
   if (activePreview.state === "playing") return pausePreview();
   return resumePreview();
 }
 
-async function playPreview() {
+async function playPreview(positionMs = 0) {
   if (recording) { toast("请先完成录制，再播放谱子。 "); return; }
   const sequence = convert();
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
-  stopPreview();
+  const startPosition = Math.max(0, Math.min(sequence.totalMs, Number(positionMs) || 0));
+  stopPreview({ resetProgress: false });
   try {
     const context = await wakeAudioEngine();
     masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
     const nodes = [];
     const timers = [];
     const startAt = context.currentTime + 0.045;
-    sequence.notes.forEach((item, index) => {
-      const noteLength = Math.max(0.035, item.pressMs / 1000);
-      if (!item.isRest) nodes.push(...scheduleHarmonicaTone(context, startAt + item.timeMs / 1000, noteLength, previewFrequency(item)));
+    sequence.notes.forEach((item) => {
+      const noteEnd = item.timeMs + item.pressMs;
+      if (item.isRest || noteEnd <= startPosition) return;
+      const skippedMs = Math.max(0, startPosition - item.timeMs);
+      const noteLength = Math.max(0.035, (item.pressMs - skippedMs) / 1000);
+      nodes.push(...scheduleHarmonicaTone(context, startAt + Math.max(0, item.timeMs - startPosition) / 1000, noteLength, previewFrequency(item)));
     });
-    activePreview = { context, nodes, timers, sequence, startAt, positionMs: 0, state: "playing" };
-    schedulePreviewTimers(activePreview, 0, true);
+    activePreview = { context, nodes, timers, sequence, startAt, positionMs: startPosition, state: "playing" };
+    setPreviewProgress(startPosition, sequence);
+    highlightTimelinePosition(startPosition);
+    schedulePreviewTimers(activePreview, startPosition, true);
+    window.cancelAnimationFrame(previewProgressFrame);
+    previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
     setPreviewUi("playing");
   } catch (error) {
     setPreviewUi("ready");
@@ -2005,19 +2168,31 @@ async function importScorePackage(file) {
 async function importMidiFile(file, { refreshed = false } = {}) {
   if (!file) return;
   try {
-    const converted = midiToSequence(parseMidiData(await file.arrayBuffer()));
+    openMidiTrackPicker(file, parseMidiData(await file.arrayBuffer()));
+    lastMidiFile = file;
+    if (refreshed) toast("已重新载入 MIDI；请确认音轨与片段。 ");
+  } catch (error) {
+    toast(error.message || "无法读取这个 MIDI 文件。 ");
+  } finally {
+    elements.importMidiInput.value = "";
+  }
+}
+
+function applyMidiSelection() {
+  if (!midiImportState) return;
+  try {
+    const selection = midiImportState;
+    const converted = midiToSequence(selection.parsed, { trackIndex: selection.selectedTrackIndex, startTick: selection.startTick, endTick: selection.endTick });
     const smoothing = elements.midiSmoothing.checked ? smoothMidiSequence(converted.sequence, converted.bpm) : { sequence: converted.sequence, connectedGaps: 0 };
     converted.sequence = smoothing.sequence;
-    const title = file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目";
     stopPreview();
     finishRecording({ apply: false });
-    elements.macroName.value = title;
+    elements.macroName.value = selection.title;
     elements.artistName.value = "";
     elements.keySignature.value = converted.key;
     elements.timeSignature.value = converted.meter;
     elements.bpm.value = converted.bpm;
     currentScoreCredit = { artist: "", sharedBy: "" };
-    lastMidiFile = file;
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
     [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
@@ -2031,12 +2206,10 @@ async function importMidiFile(file, { refreshed = false } = {}) {
     const chordMessage = converted.collapsedChordNotes ? ` · 和弦已取最高音（合并 ${converted.collapsedChordNotes} 个和声音）` : "";
     const ignoredEventMessage = describeIgnoredMidiEvents(converted.ignoredInvalidNonNoteEvents);
     const smoothingMessage = elements.midiSmoothing.checked ? ` · 流畅演奏已连接 ${smoothing.connectedGaps} 处短断音` : " · 保留原始 MIDI 断音";
-    setValidation(`MIDI 转换完成 · 自动提取 ${converted.selectedNotes} 个主旋律音符${chordMessage}${ignoredEventMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
-    toast(refreshed ? `已按“流畅演奏”设置重新转换《${title}》。` : `已将《${title}》转换为可编辑简谱。`);
+    setValidation(`MIDI 转换完成 · 已选音轨 ${String(selection.selectedTrackIndex + 1).padStart(2, "0")} · 截取 ${midiTickToTime(selection.parsed, selection.endTick - selection.startTick)} · ${converted.selectedNotes} 个旋律音符${chordMessage}${ignoredEventMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
+    toast(`已将《${selection.title}》选定片段转换为可编辑简谱。`);
   } catch (error) {
-    toast(error.message || "无法读取这个 MIDI 文件。 ");
-  } finally {
-    elements.importMidiInput.value = "";
+    toast(error.message || "无法转换所选 MIDI 片段。 ");
   }
 }
 
@@ -2060,15 +2233,37 @@ async function copyLua(sequence) {
   }
 }
 
-[elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; stopPreview(); updateLineNumbers(); convert(); }));
+[elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; resetMidiTrackPicker(); stopPreview(); updateLineNumbers(); convert(); }));
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
 elements.bpm.addEventListener("input", handleBpmChange);
 elements.convertButton.addEventListener("click", playPreview);
 elements.importMidiButton.addEventListener("click", () => elements.importMidiInput.click());
 elements.importMidiInput.addEventListener("change", () => importMidiFile(elements.importMidiInput.files?.[0]));
 elements.midiSmoothing.addEventListener("change", () => {
-  if (lastMidiFile) importMidiFile(lastMidiFile, { refreshed: true });
+  if (midiImportState?.applied) applyMidiSelection();
+  else if (midiImportState) toast("流畅演奏设置将在确认选定音轨与片段时生效。 ");
   else toast("流畅演奏设置将在下次导入 MIDI 时生效。 ");
+});
+elements.midiTrackList.addEventListener("click", (event) => {
+  const track = event.target.closest("[data-midi-track-index]");
+  if (!track || !midiImportState) return;
+  midiImportState.selectedTrackIndex = Number(track.dataset.midiTrackIndex);
+  Object.assign(midiImportState, midiTrackBounds(midiImportState.parsed, midiImportState.selectedTrackIndex, midiImportState.durationTicks));
+  midiImportState.rangeAutoTrimmed = true;
+  midiImportState.applied = false;
+  renderMidiTrackPicker();
+});
+[elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => input.addEventListener("input", () => {
+  if (midiImportState) {
+    midiImportState.applied = false;
+    midiImportState.rangeAutoTrimmed = false;
+  }
+  updateMidiRangeUi();
+}));
+elements.confirmMidiSelection.addEventListener("click", () => {
+  if (!midiImportState) return;
+  midiImportState.applied = true;
+  applyMidiSelection();
 });
 elements.importScoreButton.addEventListener("click", () => elements.importScoreInput.click());
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
@@ -2082,6 +2277,7 @@ elements.clearButton.addEventListener("click", () => {
   finishRecording({ apply: false });
   stopPreview();
   lastMidiFile = null;
+  resetMidiTrackPicker();
   const activeEditor = inputMode === "jianpu" ? elements.jianpuScore : inputMode === "record" ? elements.recordedScore : inputMode === "keyboard" ? elements.keyboardScore : elements.score;
   [elements.jianpuScore, elements.recordedScore, elements.score, elements.keyboardScore].forEach((editor) => { editor.value = ""; });
   updateLineNumbers();
@@ -2123,8 +2319,25 @@ window.addEventListener("keyup", (event) => {
 window.addEventListener("blur", () => finishActiveRecordPress());
 elements.previewButton.addEventListener("click", togglePreview);
 elements.previewButton.addEventListener("pointerdown", prewarmAudioEngine, { passive: true });
-elements.restartButton.addEventListener("click", () => playPreview());
+elements.restartButton.addEventListener("click", () => playPreview(0));
 elements.stopButton.addEventListener("click", stopPreview);
+elements.previewProgress.addEventListener("input", () => {
+  const position = Number(elements.previewProgress.value);
+  setPreviewProgress(position);
+  highlightTimelinePosition(position);
+});
+elements.previewProgress.addEventListener("change", () => playPreview(Number(elements.previewProgress.value)));
+elements.timeline.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-time-ms]");
+  if (row) playPreview(Number(row.dataset.timeMs));
+});
+elements.timeline.addEventListener("keydown", (event) => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  const row = event.target.closest("[data-time-ms]");
+  if (!row) return;
+  event.preventDefault();
+  playPreview(Number(row.dataset.timeMs));
+});
 elements.volume.addEventListener("input", () => {
   if (audioContext && masterGain) masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, audioContext.currentTime, 0.01);
 });

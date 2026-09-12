@@ -88,6 +88,23 @@
             <input id="importScoreInput" type="file" accept=".deltamusic,.harmonica-score.json,application/json" hidden />
             <input id="importMidiInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
           </section>
+          <section class="midi-track-picker" id="midiTrackPicker" aria-labelledby="midiTrackPickerTitle" hidden>
+            <div class="midi-picker-heading">
+              <div><span class="index">MIDI ARRANGEMENT</span><h3 id="midiTrackPickerTitle">选择音轨与演奏片段</h3></div>
+              <span class="midi-picker-status" id="midiPickerStatus">等待 MIDI 文件</span>
+            </div>
+            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。选轨后会自动裁去头尾无音区；仍可拖动范围两端，把这些空白也纳入片段。</p>
+            <div class="midi-track-list" id="midiTrackList" role="radiogroup" aria-label="MIDI 音轨列表"></div>
+            <div class="midi-range-editor">
+              <div class="midi-range-labels"><span id="midiRangeStart">开始 00:00.000</span><strong id="midiRangeSummary">选中整段</strong><span id="midiRangeEnd">结束 00:00.000</span></div>
+              <div class="midi-range-sliders" id="midiRangeSliders">
+                <input id="midiRangeStartInput" type="range" min="0" max="1000" value="0" step="1" aria-label="截取开始位置" />
+                <input id="midiRangeEndInput" type="range" min="0" max="1000" value="1000" step="1" aria-label="截取结束位置" />
+                <span class="midi-range-window" aria-hidden="true"></span>
+              </div>
+            </div>
+            <div class="midi-picker-actions"><button class="primary-button" id="confirmMidiSelection" type="button"><span>确定并生成谱子</span><b>✓</b></button><span>确认后播放器、简谱与导出将只使用此片段。</span></div>
+          </section>
           <div class="input-mode-switch" role="tablist" aria-label="谱子输入方式">
             <button class="input-mode active" data-input-mode="jianpu" type="button" role="tab" aria-selected="true"><b>1</b><span>简谱模式<small>常用符号</small></span></button>
             <button class="input-mode" data-input-mode="record" type="button" role="tab" aria-selected="false"><b>2</b><span>录制模式<small>实时弹奏</small></span></button>
@@ -190,6 +207,7 @@
               <button class="stop-button" id="stopButton" type="button" disabled><span>■</span> 停止</button>
               <label class="volume-control" for="volume"><span>VOL</span><input id="volume" type="range" min="0" max="100" value="64" /></label>
             </div>
+            <div class="preview-progress"><input id="previewProgress" type="range" min="0" max="0" value="0" step="1" aria-label="播放进度" disabled /><span id="previewProgressLabel">00:00.000 / --:--.---</span></div>
             <p>口琴音色试听：簧片泛音 + 气流噪声 · L −12 / M +1 / R +12 半音</p>
           </div>
           <div class="timeline-heading"><span>EVENT TIMELINE</span><span id="beatMs">-- MS / BEAT</span></div>
