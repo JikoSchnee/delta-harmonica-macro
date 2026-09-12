@@ -314,10 +314,9 @@ const SECTION_GUIDES = {
     title: "目录 · 从这里开始",
     intro: "目录只负责把你带到正确的起点；曲谱和导出内容始终在当前浏览器中处理。",
     steps: [
-      ["01", "先看教程", "点击「教程」打开视频占位与完整文字说明；其中包含曲库试听流程和 Logitech G HUB 配置方式。"],
-      ["02", "使用曲库", "打开内置及社区曲目。每张卡片可直接进入编辑器，或先载入后跳到导出区。"],
-      ["03", "导入 MIDI", "选择 MIDI 文件后，先在音轨条状图中选择旋律与截取范围，再确认生成；可按需要关闭「流畅演奏」，保留短断音。"],
-      ["04", "手动打谱", "从简谱模式开始输入数字简谱；也可在编辑器内切换到录制、精确或三角洲键盘模式。"]
+      ["01", "使用曲库", "点击卡片主体可载入编辑器；右上角「导出」会载入该曲并直接前往最后的导出区。卡片内的「教程」会带你逐步完成此路径。"],
+      ["02", "导入 MIDI", "选择 MIDI 文件后，先选择旋律音轨与截取范围，再确认生成；可按需要关闭「流畅演奏」，保留短断音。"],
+      ["03", "手动打谱", "从简谱模式开始输入数字简谱；也可在编辑器内切换到录制、精确或三角洲键盘模式。每张入口卡内都有对应教程。"]
     ]
   },
   library: {
@@ -338,10 +337,15 @@ const SECTION_GUIDES = {
     title: "编辑器 · 输入与校验",
     intro: "编辑器会把不同写法统一为同一套按键事件。每次输入后会校验，并同步播放器与导出数据。",
     steps: [
-      ["01", "选择输入来源", "可导入 MIDI 或 <code>.deltamusic</code>；也可以直接手动编辑。MIDI 会先显示全部音轨与截取范围，确认后才写入曲谱。"],
-      ["02", "选择合适模式", "简谱模式适合日常编辑；录制模式用于实时弹奏；精确模式使用音符/拍数；三角洲键盘模式使用「按键 / 毫秒」。"],
-      ["03", "查看校验状态", "底部会提示错误位置或显示预计时长。出现错误时，先按行号与提示修正，再试听或导出。"],
-      ["04", "试听与分享", "「试听」会播放当前序列；「导出为宏」前往导出设置；「分享 .deltamusic」会打包当前曲谱和元信息。"]
+      ["01", "导入来源与流畅演奏", "「导入 MIDI」会先显示每条音轨和截取范围；确认后才写入曲谱。「导入 .deltamusic」恢复已保存的曲谱；流畅演奏会连接 MIDI 的短断音。"],
+      ["02", "简谱模式", "适合日常打谱：数字为音级，<code>0</code> 为休止，<code>-</code> 延长一拍，<code>_</code> 为半拍，<code>.</code> 为附点；可写升降号与高低音。"],
+      ["03", "录制模式", "点击开始录制后，使用 Z–M、逗号或页面琴键实时弹奏；松开按键结束当前音，录制结果会量化到当前 BPM。"],
+      ["04", "精确模式", "使用 <code>音符/拍数</code> 逐音控制时值，例如 <code>L4/0.5</code>。L、M、R 分别代表左键降调、中键半音、右键升调，可组合使用。"],
+      ["05", "三角洲键盘模式", "每行输入一个「按键 / 毫秒」事件，例如 <code>左键 + Z / 250ms</code> 或 <code>等待 / 500ms</code>，方便对照第三方宏工具。"],
+      ["06", "曲目信息与编辑区", "歌名、作者、调号、拍号和 BPM 会随导出保存。编辑区左侧行号与下方语法提示用于定位和修正输入。"],
+      ["07", "校验、试听与分享", "底部校验会给出错误行列或预计时长；「试听」播放当前序列，「分享 .deltamusic」保存曲谱，「导出为宏」前往导出区。"],
+      ["08", "播放器", "总时长、音符与事件统计用于核对；试听、从头播放、停止、音量与进度控制只影响浏览器试听。事件时间线可点击跳转到指定时刻。"],
+      ["09", "导出目标", "导出区提供 Logitech G HUB Lua、Razer Synapse 3 XML、Synapse 4 XML 和手动键盘谱；请按设备与软件版本选择，并确认使用环境允许宏。"]
     ]
   },
   player: {
@@ -378,9 +382,10 @@ const elements = {
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tutorialButtons: [...document.querySelectorAll("[data-tutorial-action]")], tutorialDialog: document.querySelector("#tutorialDialog"), guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput")
+  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
 let currentSequence = null;
@@ -398,6 +403,126 @@ let lastMidiFile = null;
 let midiImportState = null;
 let previewCursorMs = 0;
 let previewProgressFrame = 0;
+let activeTour = null;
+
+const TOUR_FLOWS = {
+  library: [
+    { index: "曲库教程 · 01", target: ".library-deck", title: "从曲库开始", copy: "这里收录内置与社区曲目。搜索后，在任意曲目卡片右上角使用「导出」可直接带着该曲进入最后的导出区。" },
+    { index: "曲库教程 · 02", target: "#songGrid", title: "选择一首曲目并导出", copy: "请选择想要的曲目，然后点击它右上角的「导出」。工具会自动载入曲谱、同步编辑器与播放器，并跳到导出为宏。", action: "library-export", status: "等待你点击任意曲目右上角的「导出」。" },
+    { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
+  ],
+  midi: [
+    { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
+    { index: "MIDI 教程 · 02", target: "#midiTrackList", title: "选择旋律音轨", copy: "每一行是一条 MIDI 音轨，横条显示音符分布。请选择包含主旋律的一条，工具会自动裁去头尾无音区域。", action: "midi-track", status: "等待你选择一条 MIDI 音轨。" },
+    { index: "MIDI 教程 · 03", target: ".midi-range-editor", title: "截取需要的片段", copy: "拖动开始与结束手柄，只保留要演奏的段落。数值会实时显示在上方；首次调整后教程会继续。", action: "midi-range", status: "等待你调整截取范围。" },
+    { index: "MIDI 教程 · 04", target: "#confirmMidiSelection", title: "确认并生成谱子", copy: "确认后选定音轨与片段会转换成可编辑简谱，并同步到播放器与其他输入格式。", action: "midi-confirm", status: "等待你确认当前音轨与片段。" },
+    { index: "MIDI 教程 · 05", target: "#macroExportButton", title: "前往宏导出", copy: "可以先试听或微调生成的简谱；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
+    { index: "MIDI 教程 · 06", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
+  ],
+  manual: [
+    { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的四种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
+    { index: "打谱教程 · 02", target: "[data-input-mode='jianpu']", title: "简谱模式", copy: "适合日常打谱。数字代表音级；0 为休止，- 延长一拍，_ 为半拍，. 为附点，可加入升降号和高低音。" },
+    { index: "打谱教程 · 03", target: "[data-input-mode='record']", title: "录制模式", copy: "适合边弹边记。开始录制后使用 Z–M、逗号或页面琴键演奏，松开按键结束当前音；结果按 BPM 量化。" },
+    { index: "打谱教程 · 04", target: "[data-input-mode='precise']", title: "精确模式", copy: "适合校谱和微调时值。以「音符/拍数」输入，例如 L4/0.5；L、M、R 分别代表左、中、右鼠标变调键。" },
+    { index: "打谱教程 · 05", target: "[data-input-mode='keyboard']", title: "三角洲键盘模式", copy: "适合对照第三方宏工具。每行写一个「按键 / 毫秒」事件，例如「左键 + Z / 250ms」或「等待 / 500ms」。" },
+    { index: "打谱教程 · 06", target: ".editor-panel .panel-guide-button", title: "完整打谱文档", copy: "右上角问号会打开完整参考，包含四种模式的语法、导入与截取、编辑器、播放器和导出功能。" },
+    { index: "打谱教程 · 07", target: ".source-import-panel", title: "导入与演奏设置", copy: "可导入 MIDI 或 .deltamusic；MIDI 会先让你选音轨和片段。「流畅演奏」会自动连接短断音。" },
+    { index: "打谱教程 · 08", target: ".controls-grid", title: "曲目信息", copy: "歌名、作者、调号、拍号和 BPM 会跟随当前曲谱。BPM 同时影响简谱、精确谱和录制结果的时值。" },
+    { index: "打谱教程 · 09", target: ".input-pane:not([hidden])", title: "当前编辑区", copy: "在这里输入或微调曲谱；左侧行号和下方语法说明帮助定位格式问题。切换模式不会改变同一旋律的实际时值。" },
+    { index: "打谱教程 · 10", target: ".editor-actions", title: "校验、试听与导出", copy: "「试听」播放当前序列；下方校验提示错误位置或预计时长。「分享」保存 .deltamusic；导出为宏会带你到最终导出区。" },
+    { index: "打谱教程 · 11", target: ".meter-grid", title: "播放器统计", copy: "总时长、音符数和输入事件数随曲谱更新，可帮助发现意外休止、重复或时值问题。" },
+    { index: "打谱教程 · 12", target: ".preview-console", title: "播放器控制", copy: "这里可以试听、从头播放、停止、调节音量和拖动播放进度。这些控制只影响浏览器试听，不会修改导出的宏。" },
+    { index: "打谱教程 · 13", target: "#timeline", title: "事件时间线", copy: "每一行显示一个按键时刻、变调键、按住时长与气口。点击任意一行可从该位置开始试听。" },
+    { index: "打谱教程 · 14", target: "#macroExportButton", title: "进入导出", copy: "完成打谱和试听后，点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
+    { index: "打谱教程 · 15", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别使用自己的 XML；其他宏工具可使用手动输入的键盘谱。", terminal: true }
+  ]
+};
+
+function resolveTourTarget(step) {
+  return typeof step.target === "function" ? step.target() : document.querySelector(step.target);
+}
+
+function updateTourPosition() {
+  if (!activeTour) return;
+  const target = resolveTourTarget(activeTour.steps[activeTour.stepIndex]);
+  if (!target) return;
+  const rect = target.getBoundingClientRect();
+  const padding = 7;
+  Object.assign(elements.tourSpotlight.style, {
+    left: `${Math.max(4, rect.left - padding)}px`, top: `${Math.max(4, rect.top - padding)}px`,
+    width: `${Math.min(window.innerWidth - 8, rect.width + padding * 2)}px`, height: `${Math.min(window.innerHeight - 8, rect.height + padding * 2)}px`
+  });
+  const popoverRect = elements.tourPopover.getBoundingClientRect();
+  const fitsBelow = rect.bottom + popoverRect.height + 18 < window.innerHeight;
+  const top = fitsBelow ? rect.bottom + 16 : Math.max(12, rect.top - popoverRect.height - 16);
+  const left = Math.max(12, Math.min(window.innerWidth - popoverRect.width - 12, rect.left));
+  elements.tourPopover.style.top = `${top}px`;
+  elements.tourPopover.style.left = `${left}px`;
+}
+
+function renderTourStep({ scroll = true } = {}) {
+  if (!activeTour) return;
+  document.querySelectorAll(".tour-target").forEach((element) => element.classList.remove("tour-target"));
+  const step = activeTour.steps[activeTour.stepIndex];
+  const target = resolveTourTarget(step);
+  if (!target) { endTour(); return; }
+  if (scroll) target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  target.classList.add("tour-target");
+  elements.tourIndex.textContent = step.index;
+  elements.tourTitle.textContent = step.title;
+  elements.tourCopy.textContent = step.copy;
+  elements.tourStatus.textContent = step.status || "";
+  elements.tourStatus.hidden = !step.status;
+  elements.tourProgress.innerHTML = activeTour.steps.map((_, index) => `<i class="${index === activeTour.stepIndex ? "active" : ""}"></i>`).join("");
+  elements.tourPrevious.hidden = activeTour.stepIndex === 0;
+  elements.tourNext.disabled = Boolean(step.action);
+  elements.tourNext.querySelector("span").textContent = step.terminal ? "完成" : "下一步";
+  elements.tourNext.querySelector("b").textContent = step.terminal ? "✓" : "→";
+  window.setTimeout(updateTourPosition, scroll ? 320 : 0);
+}
+
+function startTour(name, returnFocus = document.activeElement) {
+  const steps = TOUR_FLOWS[name];
+  if (!steps) return;
+  stopPreview();
+  if (name === "manual") setInputMode("jianpu", { force: true, silent: true });
+  activeTour = { name, steps, stepIndex: 0, returnFocus };
+  elements.tourLayer.hidden = false;
+  elements.tourLayer.setAttribute("aria-hidden", "false");
+  renderTourStep();
+  window.setTimeout(() => elements.tourSkip.focus(), 350);
+}
+
+function endTour() {
+  document.querySelectorAll(".tour-target").forEach((element) => element.classList.remove("tour-target"));
+  const returnFocus = activeTour?.returnFocus;
+  activeTour = null;
+  elements.tourLayer.hidden = true;
+  elements.tourLayer.setAttribute("aria-hidden", "true");
+  returnFocus?.focus?.({ preventScroll: true });
+}
+
+function moveTour(delta) {
+  if (!activeTour) return;
+  const nextIndex = activeTour.stepIndex + delta;
+  if (nextIndex >= activeTour.steps.length) { endTour(); return; }
+  if (nextIndex < 0) return;
+  activeTour.stepIndex = nextIndex;
+  renderTourStep();
+}
+
+function completeTourAction(action, status = "操作完成，正在进入下一步。") {
+  if (!activeTour || activeTour.steps[activeTour.stepIndex].action !== action) return;
+  elements.tourStatus.textContent = status;
+  elements.tourStatus.hidden = false;
+  window.setTimeout(() => moveTour(1), 140);
+}
+
+function setTourStatus(status) {
+  if (!activeTour) return;
+  elements.tourStatus.textContent = status;
+  elements.tourStatus.hidden = false;
+}
 
 function syncWorkbenchHeight() {
   if (!elements.workbench || !elements.editorPanel) return;
@@ -2166,13 +2291,17 @@ async function importScorePackage(file) {
 }
 
 async function importMidiFile(file, { refreshed = false } = {}) {
-  if (!file) return;
+  if (!file) return false;
   try {
     openMidiTrackPicker(file, parseMidiData(await file.arrayBuffer()));
     lastMidiFile = file;
     if (refreshed) toast("已重新载入 MIDI；请确认音轨与片段。 ");
+    completeTourAction("midi-file", "MIDI 已读取，请选择包含主旋律的音轨。");
+    return true;
   } catch (error) {
     toast(error.message || "无法读取这个 MIDI 文件。 ");
+    setTourStatus("无法读取该 MIDI 文件，请重新点击「导入 MIDI」选择有效文件。");
+    return false;
   } finally {
     elements.importMidiInput.value = "";
   }
@@ -2237,7 +2366,10 @@ async function copyLua(sequence) {
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
 elements.bpm.addEventListener("input", handleBpmChange);
 elements.convertButton.addEventListener("click", playPreview);
-elements.importMidiButton.addEventListener("click", () => elements.importMidiInput.click());
+elements.importMidiButton.addEventListener("click", () => {
+  if (activeTour?.steps[activeTour.stepIndex]?.action === "midi-file") setTourStatus("系统文件选择器已打开；请选择 MIDI 文件。若取消，可再次点击导入。");
+  elements.importMidiInput.click();
+});
 elements.importMidiInput.addEventListener("change", () => importMidiFile(elements.importMidiInput.files?.[0]));
 elements.midiSmoothing.addEventListener("change", () => {
   if (midiImportState?.applied) applyMidiSelection();
@@ -2252,6 +2384,7 @@ elements.midiTrackList.addEventListener("click", (event) => {
   midiImportState.rangeAutoTrimmed = true;
   midiImportState.applied = false;
   renderMidiTrackPicker();
+  completeTourAction("midi-track", "已选中音轨，请调整需要导出的片段。");
 });
 [elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => input.addEventListener("input", () => {
   if (midiImportState) {
@@ -2259,15 +2392,20 @@ elements.midiTrackList.addEventListener("click", (event) => {
     midiImportState.rangeAutoTrimmed = false;
   }
   updateMidiRangeUi();
+  completeTourAction("midi-range", "截取范围已更新，请确认并生成谱子。");
 }));
 elements.confirmMidiSelection.addEventListener("click", () => {
   if (!midiImportState) return;
   midiImportState.applied = true;
   applyMidiSelection();
+  completeTourAction("midi-confirm", "谱子已生成，接下来前往宏导出。");
 });
 elements.importScoreButton.addEventListener("click", () => elements.importScoreInput.click());
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
-elements.macroExportButton.addEventListener("click", () => elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" }));
+elements.macroExportButton.addEventListener("click", () => {
+  elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  completeTourAction("macro-export", "已进入导出区。");
+});
 elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
 elements.confirmScoreExport.addEventListener("click", () => {
   if (scoreExportMode === "local-library") saveScoreToLocalLibrary();
@@ -2366,7 +2504,6 @@ elements.guideButtons.forEach((button) => button.addEventListener("click", () =>
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));
 elements.directoryButtons.forEach((button) => button.addEventListener("click", () => {
   const action = button.dataset.directoryAction;
-  if (action === "tutorial") elements.tutorialDialog.showModal();
   if (action === "library") {
     document.querySelector(".library-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
     elements.songSearch.focus({ preventScroll: true });
@@ -2377,21 +2514,29 @@ elements.directoryButtons.forEach((button) => button.addEventListener("click", (
     elements.jianpuScore.focus({ preventScroll: true });
   }
 }));
-elements.tutorialButtons.forEach((button) => button.addEventListener("click", () => {
-  const action = button.dataset.tutorialAction;
-  elements.tutorialDialog.close();
-  if (action === "library") {
-    document.querySelector(".library-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    elements.songSearch.focus({ preventScroll: true });
+elements.tourStartButtons.forEach((button) => button.addEventListener("click", () => startTour(button.dataset.tourStart, button)));
+elements.tourPrevious.addEventListener("click", () => moveTour(-1));
+elements.tourNext.addEventListener("click", () => {
+  if (!activeTour) return;
+  if (activeTour.steps[activeTour.stepIndex].terminal) endTour();
+  else moveTour(1);
+});
+elements.tourSkip.addEventListener("click", endTour);
+elements.tourClose.addEventListener("click", endTour);
+window.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && activeTour) {
+    event.preventDefault();
+    endTour();
   }
-  if (action === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
-}));
+});
 elements.songSearch.addEventListener("input", () => renderSongLibrary(elements.songSearch.value));
 elements.songGrid.addEventListener("click", (event) => {
   const actionButton = event.target.closest("[data-song-action]");
   const card = actionButton?.closest("[data-song-index]");
   if (!actionButton || !card) return;
-  loadSong(SONG_LIBRARY[Number(card.dataset.songIndex)], { destination: actionButton.dataset.songAction === "export" ? "export" : "editor" });
+  const destination = actionButton.dataset.songAction === "export" ? "export" : "editor";
+  loadSong(SONG_LIBRARY[Number(card.dataset.songIndex)], { destination });
+  if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
 });
 elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
 function openUploadHelpDialog(status = "") {
@@ -2423,7 +2568,11 @@ updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0]);
-window.addEventListener("resize", scheduleWorkbenchHeightSync);
+window.addEventListener("resize", () => {
+  scheduleWorkbenchHeightSync();
+  updateTourPosition();
+});
+window.addEventListener("scroll", updateTourPosition, { passive: true });
 if (typeof ResizeObserver === "function") {
   new ResizeObserver(scheduleWorkbenchHeightSync).observe(elements.editorPanel);
 }

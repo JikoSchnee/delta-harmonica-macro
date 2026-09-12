@@ -46,10 +46,18 @@
         <div class="window-titlebar"><span>DIRECTORY.EXE — START HERE</span><button class="panel-guide-button" data-guide="directory" type="button" aria-label="查看目录帮助" aria-haspopup="dialog">?</button></div>
         <div class="directory-heading"><div><span class="index">00 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
         <div class="directory-actions" role="navigation" aria-label="快速开始">
-          <button class="directory-button tutorial" data-directory-action="tutorial" type="button" aria-haspopup="dialog"><b>01</b><span><strong>教程</strong><small>视频占位与文字说明</small></span><i>→</i></button>
-          <button class="directory-button library" data-directory-action="library" type="button"><b>02</b><span><strong>曲库-使用制作好的谱子（推荐）</strong><small>打开内置与社区曲库</small></span><i>→</i></button>
-          <button class="directory-button midi" data-directory-action="midi" type="button"><b>03</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>自动提取单旋律</small></span><i>→</i></button>
-          <button class="directory-button manual" data-directory-action="manual" type="button"><b>04</b><span><strong>打谱器-我是打谱人</strong><small>从数字简谱开始</small></span><i>→</i></button>
+          <div class="directory-action-card library">
+            <button class="directory-button" data-directory-action="library" type="button"><b>01</b><span><strong>曲库-使用制作好的谱子（推荐）</strong><small>打开内置与社区曲库</small></span></button>
+            <button class="directory-tutorial-link" data-tour-start="library" type="button">教程</button><i aria-hidden="true">→</i>
+          </div>
+          <div class="directory-action-card midi">
+            <button class="directory-button" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>自动提取单旋律</small></span></button>
+            <button class="directory-tutorial-link" data-tour-start="midi" type="button">教程</button><i aria-hidden="true">→</i>
+          </div>
+          <div class="directory-action-card manual">
+            <button class="directory-button" data-directory-action="manual" type="button"><b>03</b><span><strong>打谱器-我是打谱人</strong><small>从数字简谱开始</small></span></button>
+            <button class="directory-tutorial-link" data-tour-start="manual" type="button">教程</button><i aria-hidden="true">→</i>
+          </div>
         </div>
       </section>
 
@@ -301,47 +309,6 @@
         </div>
       </form>
     </dialog>
-    <dialog class="tutorial-dialog" id="tutorialDialog" aria-labelledby="tutorialTitle">
-      <form method="dialog" class="tutorial-form">
-        <div class="window-titlebar"><span>FIELD_MANUAL.EXE — TUTORIALS</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭教程">×</button></div>
-        <div class="tutorial-dialog-body">
-          <div class="tutorial-heading">
-            <div><span class="index">01 · FIELD MANUAL</span><h2 id="tutorialTitle">教程</h2></div>
-            <p>先用曲库试听，再把确认无误的旋律导出到鼠标配置。所有曲谱都只在本地浏览器处理。</p>
-          </div>
-          <div class="tutorial-layout">
-            <article class="video-placeholder" aria-labelledby="videoTutorialTitle">
-              <div class="video-screen" role="img" aria-label="视频教程占位，录制完成后将在此展示">
-                <span class="video-play">▶</span><span>VIDEO FEED · STANDBY</span>
-              </div>
-              <div><span class="index">COMING SOON</span><h3 id="videoTutorialTitle">视频教程</h3><p>录制完成后会在这里放入完整操作视频。</p></div>
-            </article>
-            <div class="tutorial-guides">
-              <article class="tutorial-card quick-guide">
-                <div class="tutorial-card-title"><span class="tutorial-step">01</span><div><span class="index">FASTEST WAY</span><h3>最简单的使用方式</h3></div></div>
-                <ol class="tutorial-steps">
-                  <li><b>选曲</b><span>在下方<strong>曲库</strong>中搜索或直接点击一首曲目。</span></li>
-                  <li><b>看谱</b><span>曲目会自动载入<strong>编辑器</strong>；可修改歌名、BPM 或简谱内容。</span></li>
-                  <li><b>试听</b><span>在右侧<strong>播放器</strong>点击「试听整段」，确认旋律与节奏。</span></li>
-                </ol>
-                <button class="tutorial-jump" data-tutorial-action="library" type="button">打开曲库 <i>→</i></button>
-              </article>
-              <article class="tutorial-card import-guide">
-                <div class="tutorial-card-title"><span class="tutorial-step">02</span><div><span class="index">LOGITECH G HUB</span><h3>导入与鼠标配置</h3></div></div>
-                <ol class="tutorial-steps">
-                  <li><b>生成 Lua</b><span>试听确认后，在<strong>导出为宏</strong>填写「绑定鼠标键」与触发模式，点击「下载 .lua」或「复制 Lua」。</span></li>
-                  <li><b>安装 G HUB</b><span>下载并打开 <strong>Logitech G HUB</strong>，选择你的罗技鼠标与用于游戏的配置文件。</span></li>
-                  <li><b>设置脚本</b><span>进入该配置文件的<strong>脚本 / Scripting</strong>页面，新建或打开 Lua 脚本；粘贴本页复制的内容，或用下载的 <code>.lua</code> 文件替换脚本内容并保存。</span></li>
-                  <li><b>核对按键</b><span>脚本中的鼠标键号必须与此页填写的绑定键一致；回到 G HUB 的<strong>分配 / Assignments</strong>确认对应侧键可用，再在允许宏的环境中测试。</span></li>
-                </ol>
-                <p class="tutorial-note"><b>提示：</b>不同鼠标与 G HUB 版本的入口名称可能略有不同；若没有「脚本」入口，说明该设备或当前配置文件未提供 Lua 脚本功能。不要把 Lua 当作普通「宏」录制导入。</p>
-                <button class="tutorial-jump" data-tutorial-action="export" type="button">前往导出设置 <i>→</i></button>
-              </article>
-            </div>
-          </div>
-        </div>
-      </form>
-    </dialog>
     <dialog class="keyboard-macro-dialog" id="keyboardMacroDialog" aria-labelledby="keyboardMacroTitle">
       <form method="dialog" class="keyboard-macro-form">
         <div class="window-titlebar"><span>DELTA_KEYBOARD.EXE — MANUAL MACRO</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭键盘谱">×</button></div>
@@ -384,6 +351,21 @@
         </div>
       </form>
     </dialog>
+    <div class="tour-layer" id="tourLayer" hidden aria-hidden="true">
+      <div class="tour-shield" aria-hidden="true"></div>
+      <div class="tour-spotlight" id="tourSpotlight" aria-hidden="true"></div>
+      <section class="tour-popover" id="tourPopover" role="dialog" aria-modal="true" aria-labelledby="tourTitle" aria-describedby="tourCopy tourStatus">
+        <div class="tour-popover-titlebar"><span>FIELD_MANUAL.EXE — GUIDED TOUR</span><button class="tour-close" id="tourClose" type="button" aria-label="退出教程">×</button></div>
+        <div class="tour-popover-body">
+          <span class="index" id="tourIndex">GUIDE</span>
+          <h2 id="tourTitle">教程</h2>
+          <p id="tourCopy"></p>
+          <p class="tour-status" id="tourStatus" role="status" aria-live="polite" hidden></p>
+          <div class="tour-progress" id="tourProgress" aria-hidden="true"></div>
+          <div class="tour-actions"><button class="text-button" id="tourSkip" type="button">跳过教程</button><span></span><button class="text-button" id="tourPrevious" type="button">上一步</button><button class="primary-button" id="tourNext" type="button"><span>下一步</span><b>→</b></button></div>
+        </div>
+      </section>
+    </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/pdmx-top-1000.js"></script>
     <script src="./data/community-songs.js"></script>

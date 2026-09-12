@@ -174,17 +174,21 @@ main {
 .directory-heading h2 { margin: 8px 0 0; color: var(--black); font: 700 27px/1 var(--pixel); }
 .directory-heading p { max-width: 330px; margin: 0; color: #526767; font-size: 11px; line-height: 1.65; text-align: right; }
 .directory-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 15px; }
-.directory-button { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; min-width: 0; gap: 10px; padding: 12px 11px; color: var(--black); background: var(--surface-light); border: 2px outset var(--surface); text-align: left; transition: background .15s, transform .15s; }
-.directory-button:hover { background: #d2e8e8; transform: translateY(-1px); }
-.directory-button:active { transform: translate(1px, 1px); border-style: inset; }
+.directory-action-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; min-width: 0; gap: 8px; padding: 0 11px; color: var(--black); background: var(--surface-light); border: 2px outset var(--surface); transition: background .15s, transform .15s; }
+.directory-action-card:hover { background: #d2e8e8; transform: translateY(-1px); }
+.directory-action-card:focus-within { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+.directory-button { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; min-width: 0; gap: 10px; min-height: 66px; padding: 12px 0; color: inherit; background: transparent; border: 0; text-align: left; }
+.directory-button:active { transform: translate(1px, 1px); }
 .directory-button b { display: grid; width: 27px; height: 27px; place-items: center; color: var(--white); background: var(--teal); border: 1px solid var(--teal-dark); font: 700 10px/1 var(--mono); }
-.directory-button.tutorial b { background: #536e92; border-color: #35516e; }
-.directory-button.midi b { background: #38677a; border-color: #1d4658; }
-.directory-button.manual b { background: var(--teal-dark); }
+.directory-action-card.midi .directory-button b { background: #38677a; border-color: #1d4658; }
+.directory-action-card.manual .directory-button b { background: var(--teal-dark); }
 .directory-button span { display: grid; min-width: 0; gap: 4px; }
 .directory-button strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .directory-button small { overflow: hidden; color: #526767; font: 9px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.directory-button i { color: var(--teal-dark); font: 700 17px/1 var(--mono); font-style: normal; }
+.directory-tutorial-link { padding: 3px 0; color: var(--teal-dark); background: transparent; border: 0; font: 700 10px/1 var(--mono); text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; white-space: nowrap; }
+.directory-tutorial-link:hover { color: var(--teal); }
+.directory-tutorial-link:active { transform: translateY(1px); }
+.directory-action-card > i { color: var(--teal-dark); font: 700 17px/1 var(--mono); font-style: normal; }
 
 .tutorial-dialog { width: min(980px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .tutorial-dialog::backdrop { background: rgba(0, 35, 35, .68); }
@@ -615,6 +619,26 @@ main {
 .section-guide-step h3 { margin: 0; color: var(--teal-dark); font: 700 11px/1.4 var(--mono); }
 .section-guide-step p { margin: 4px 0 0; color: #405d5a; font-size: 11px; line-height: 1.7; }
 .section-guide-step code { padding: 1px 3px; color: #d8ffff; background: var(--screen); font: 10px var(--mono); }
+.tour-layer { position: fixed; z-index: 100; inset: 0; overflow: hidden; }
+.tour-shield { position: absolute; inset: 0; z-index: 1; cursor: not-allowed; }
+.tour-spotlight { position: fixed; z-index: 2; box-sizing: border-box; border: 2px solid #bffff9; box-shadow: 0 0 0 5px rgba(0, 128, 128, .6), 0 0 0 100vmax rgba(0, 27, 27, .78), 0 0 18px rgba(142, 255, 244, .8); pointer-events: none; transition: left .22s ease, top .22s ease, width .22s ease, height .22s ease; }
+.tour-target { position: relative !important; z-index: 102 !important; outline: 2px solid #bffff9; outline-offset: 4px; }
+.tour-popover { position: fixed; z-index: 103; width: min(390px, calc(100vw - 24px)); color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .72); }
+.tour-popover-titlebar { display: flex; align-items: center; justify-content: space-between; min-height: 27px; padding: 3px 4px 3px 9px; color: var(--white); background: var(--teal); font: 700 10px/1 var(--mono); letter-spacing: .07em; }
+.tour-close { width: 22px; height: 20px; padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); font: 700 15px/1 var(--mono); }
+.tour-close:active { border-style: inset; }
+.tour-popover-body { padding: 16px; }
+.tour-popover h2 { margin: 8px 0 7px; font: 700 21px/1.08 var(--pixel); }
+.tour-popover-body > p:not(.tour-status) { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
+.tour-status { margin: 11px 0 0; padding: 7px 9px; color: #d8ffff; background: var(--screen); border: 1px solid #46706d; font: 700 10px/1.5 var(--mono); }
+.tour-status[hidden] { display: none; }
+.tour-progress { display: flex; gap: 4px; margin-top: 15px; }
+.tour-progress i { display: block; width: 100%; height: 4px; background: #91a6a4; border: 1px solid #435c59; }
+.tour-progress i.active { background: var(--teal); border-color: var(--teal-dark); }
+.tour-actions { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 9px; margin-top: 16px; }
+.tour-actions .text-button { font-size: 11px; }
+.tour-actions .primary-button { padding: 7px 9px; box-shadow: none; font-size: 11px; }
+.tour-actions .primary-button:disabled { cursor: wait; opacity: .55; }
 .score-export-body > p b { color: var(--teal-dark); font-family: var(--mono); }
 .export-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
 .export-form-grid label:first-child { grid-column: 1 / -1; }
@@ -667,6 +691,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .directory-deck > .window-titlebar, .library-deck .window-titlebar, .exports > .window-titlebar { margin-left: -14px; margin-right: -14px; }
   .directory-heading, .tutorial-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
   .directory-heading p, .tutorial-heading > p, .source-import-copy p { max-width: none; text-align: left; }
+  .directory-action-card { padding: 0 9px; gap: 7px; }
   .directory-button { min-height: 54px; }
   .source-import-actions { align-items: stretch; }
   .source-import-actions .primary-button { justify-content: space-between; }
@@ -712,6 +737,9 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .macro-download-body { padding: 16px; }
   .tutorial-dialog-body, .keyboard-macro-body { padding: 16px; }
   .section-guide-body { padding: 16px; }
+  .tour-popover-body { padding: 14px; }
+  .tour-popover h2 { font-size: 19px; }
+  .tour-actions { gap: 7px; }
   .keyboard-macro-body textarea { min-height: 230px; }
   footer { flex-direction: column; gap: 8px; padding: 16px 14px; }
 }
