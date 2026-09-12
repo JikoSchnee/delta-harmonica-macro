@@ -42,12 +42,22 @@
         <div class="notice warning disclaimer"><span>!</span><p><strong id="disclaimerTitle">免责声明</strong> 本项目仅提供用于鼠标软件的宏脚本与配置文件生成、导出功能，不提供外挂、注入、改包或游戏内操作服务。请在使用前确认目标游戏、平台及服务器规则是否允许鼠标宏；因使用宏引起的封号、限制、处罚、数据损失或其他后果，均由使用者自行承担，与本项目及维护者无关。</p></div>
       </section>
 
+      <section class="directory-deck panel" aria-labelledby="directoryTitle">
+        <div class="window-titlebar"><span>DIRECTORY.EXE — START HERE</span></div>
+        <div class="directory-heading"><div><span class="index">00 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
+        <div class="directory-actions" role="navigation" aria-label="快速开始">
+          <button class="directory-button library" data-directory-action="library" type="button"><b>01</b><span><strong>使用曲库中内容</strong><small>打开内置与社区曲库</small></span><i>→</i></button>
+          <button class="directory-button midi" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI 导入</strong><small>自动提取单旋律</small></span><i>→</i></button>
+          <button class="directory-button manual" data-directory-action="manual" type="button"><b>03</b><span><strong>手动打谱</strong><small>从数字简谱开始</small></span><i>→</i></button>
+        </div>
+      </section>
+
       <section class="library-deck panel" aria-labelledby="libraryTitle">
         <div class="window-titlebar"><span>SCORE_ARCHIVE.EXE — SONG LIBRARY</span></div>
         <div class="library-deck-copy">
           <span class="index">01 · SCORE ARCHIVE</span>
           <h2 id="libraryTitle">曲库</h2>
-          <p><button class="upload-link" id="uploadScoreButton" type="button" aria-haspopup="dialog">我要上传</button></p>
+          <p class="library-actions"><button class="upload-link" id="uploadScoreButton" type="button" aria-haspopup="dialog">我要上传</button><button class="local-library-button" id="localLibraryButton" type="button" aria-haspopup="dialog" hidden>收录当前曲目</button></p>
         </div>
         <div class="library-deck-browser">
           <label class="song-search"><span>⌕</span><input id="songSearch" type="search" placeholder="查找曲名、拍号或版本" aria-label="搜索曲库" /></label>
@@ -63,6 +73,20 @@
             <div><span class="index">02</span><h2>谱子输入</h2></div>
             <span class="status-label" id="parseStatus">等待输入</span>
           </div>
+          <section class="source-import-panel" aria-labelledby="sourceImportTitle">
+            <div class="source-import-copy"><div><span class="index">IMPORT SOURCES</span><h3 id="sourceImportTitle">导入与演奏设置</h3></div><p>先导入已有内容，或关闭流畅演奏保留 MIDI 原始断音。</p></div>
+            <div class="source-import-actions">
+              <button class="primary-button midi-import-button" id="importMidiButton" type="button"><span>导入 MIDI</span><b>♫</b></button>
+              <label class="midi-smoothing-control" for="midiSmoothing">
+                <input id="midiSmoothing" type="checkbox" checked />
+                <span class="midi-smoothing-switch" aria-hidden="true"></span>
+                <span><b>流畅演奏</b><small>自动连接 MIDI 短断音</small></span>
+              </label>
+              <button class="primary-button deltamusic-import-button" id="importScoreButton" type="button"><span>导入 .deltamusic</span><b>↓</b></button>
+            </div>
+            <input id="importScoreInput" type="file" accept=".deltamusic,.harmonica-score.json,application/json" hidden />
+            <input id="importMidiInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
+          </section>
           <div class="input-mode-switch" role="tablist" aria-label="谱子输入方式">
             <button class="input-mode active" data-input-mode="jianpu" type="button" role="tab" aria-selected="true"><b>1</b><span>简谱模式<small>常用符号</small></span></button>
             <button class="input-mode" data-input-mode="record" type="button" role="tab" aria-selected="false"><b>2</b><span>录制模式<small>实时弹奏</small></span></button>
@@ -126,18 +150,9 @@
           </section>
             <div class="editor-actions">
               <button class="primary-button" id="convertButton" type="button"><span>试听</span><b>▶</b></button>
-              <button class="primary-button midi-import-button" id="importMidiButton" type="button"><span>导入 MIDI</span><b>♫</b></button>
-              <label class="midi-smoothing-control" for="midiSmoothing">
-                <input id="midiSmoothing" type="checkbox" checked />
-                <span class="midi-smoothing-switch" aria-hidden="true"></span>
-                <span><b>流畅演奏</b><small>自动连接 MIDI 短断音</small></span>
-              </label>
-              <button class="primary-button" id="importScoreButton" type="button">导入谱子</button>
               <button class="primary-button" id="macroExportButton" type="button" aria-controls="macro-export">导出为宏</button>
-              <button class="primary-button" id="exportScoreButton" type="button">分享给别人</button>
+              <button class="primary-button" id="exportScoreButton" type="button">分享 .deltamusic</button>
               <button class="primary-button" id="clearButton" type="button">清空</button>
-              <input id="importScoreInput" type="file" accept=".harmonica-score.json,application/json" hidden />
-              <input id="importMidiInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
             </div>
             <div class="validation" id="validation" role="status" aria-live="polite"></div>
         </div>
@@ -232,18 +247,18 @@
     </dialog>
     <dialog class="score-export-dialog" id="scoreExportDialog" aria-labelledby="scoreExportTitle">
       <form method="dialog" class="score-export-form">
-        <div class="window-titlebar"><span id="scoreExportTitle">SCORE_PACKAGE.EXE — SHARE YOUR SCORE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭导出窗口">×</button></div>
+        <div class="window-titlebar"><span id="scoreExportTitle">DELTA_MUSIC.EXE — SHARE YOUR SCORE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭导出窗口">×</button></div>
         <div class="score-export-body">
           <span class="index">COMMUNITY SCORE · JSON EXPORT</span>
-          <h2>填写共享信息</h2>
-          <p>导出文件可再次导入本工具。请加入 QQ 群 <b>1102489399</b>，把文件发给维护者审核入库。</p>
+          <h2 id="scoreExportHeading">填写共享信息</h2>
+          <p id="scoreExportDescription">导出为 <code>.deltamusic</code> 后可再次导入本工具。请加入 QQ 群 <b>1102489399</b>，把文件发给维护者审核入库。</p>
           <div class="export-form-grid">
             <label>歌名<input id="exportSongTitle" type="text" maxlength="48" required /></label>
             <label>歌手/作者<input id="exportArtistName" type="text" maxlength="64" required /></label>
             <label>共享人<input id="exportSharedBy" type="text" maxlength="48" required placeholder="你的昵称或 ID" /></label>
           </div>
           <p class="export-meta-preview" id="exportMetaPreview"></p>
-          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="confirmScoreExport" type="button"><span>下载谱子文件</span><b>↓</b></button></div>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="confirmScoreExport" type="button"><span id="confirmScoreExportLabel">下载 .deltamusic</span><b id="confirmScoreExportIcon">↓</b></button></div>
         </div>
       </form>
     </dialog>

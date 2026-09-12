@@ -9,33 +9,8 @@ const KEY_TO_NOTE = { z: "1", x: "2", c: "3", v: "4", b: "5", n: "6", m: "7", ",
 const RECORD_BEATS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 const DIATONIC_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71 };
 const BUILTIN_SONG_LIBRARY = [
- { title: "鸟之诗", detail: "1=D · 4/4 · 120 BPM · 双页图片识谱版", bpm: 120, jianpu: `(0 5'_ 6'_ 1'_ | 7' - 0 5'_ 6'_ 1'_ | 2' - 0 5'_ 6'_ 1'_ | 5' - - 0 4' | 3' - 0 5'_ 6'_ 1'_ |
-7' - 0 5'_ 6'_ 1'_ | 2' - 0 3'_ 5'_ 7'_ | 6' - - -) |
-0 0_ ,6_ ,7_ 1_ 5 | 3 3_ 2_ 3_ 3 - |
-0 2_ 3_ 5_ 3_ 5_ 1_ | ,7_. ,6_~ ,6_ ,3_~ ,3 0_ 2_ | 3 5 6 7 | 3 3_ 2_ 3_ 3 - |
-0 2_ 3_ 5_ 1_ ,7_ ,1_ | ,7_ ,7_ ,6_ ,3_ ,3 - | 0 0_ ,6_ ,7_ 1_ 5 | 3 3_ 2_ 3_ 3 - |
-0 2_ 3_ 5_ 3_ 5_ 1_ | 7 - - 7 6 | 6 - 0 6 | 7 - - 7 6 | 6 - - - |
-||: 0 0_ 6_ 6_. 6_ 6_ 6_ | 6_. 5_~ 5_~ 5_~ 5_ 6 7 | 1'. 7_~ 7_ 6_~ 6_ 3_ 3_ | 3 3 2_ 1_ 1_ |
-0 0_ 6_ 6_. 6_ 6_ 6_ | 6_. 5_~ 5_~ 5_~ 5_ 3 5 | 6_. 7_~ 7_ 1'~ 1' - | 1' 0 0 0 |
-0 0_ 6_ 6_. 6_ 6_ 6_ | 6_. 5_~ 5_~ 5_~ 5_ 6 7 | 1'. 7_~ 7_ 6_~ 6_ 3_ 3_ | 3 - 2_ 1_ 1_ |
-0 0_ 3_ 3_ 3_ 3_ 3_ | 2_. 3_ 3_ 5_ 3_ 3_ 5 | 6 - 1' 7 6 | 6 - 0 4 3 |
-3_ 3_ 3_ 2_ 3_ 3 - | 0 3 4 5 | 2_. 7_ 7_ - | 0 0_ 7_ 1' 2 0 |
-3_ 3_ 3_ 6_ 3_ 3 - | 3 - 0 2 1 | 2 2 1 2 5 | 5 - - 0 |
-3_ 3_ 3_ 2_ 3_ 3 - | 0 3 4 5 | 2_. 7_ 7_ - | 0 0_ 7_ 1' 2 0 |
-3_ 3_ 3_ 2_ 3_ 3 - | 3 - 0 2 1 | 2 2 1 2 3 3 | 3 0 0_ 6_ 7_ 1_ 5 |
-3 3_ 2_ 3_ 3 - | 0 2_ 3_ 5_ 1_ ,7_ ,1_ | ,7_ ,7_ ,6_ ,3_ ,3 - | 0 0_ ,6_ ,7_ 1_ 5 |
-3 3_ 2_ 3_ 3 - | 0 2_ 3_ 5_ 3_ 5_ 1_ | ,7_. ,6_~ ,6_ ,3_~ ,3 0_ 2_ | 3 5 6 7 |
-3 3_ 2_ 3_ 3 - | 0 2_ 3_ 5_ 1_ ,7_ ,1_ | ,7_ ,7_ ,6_ ,3_ ,3 - | 0 0_ ,6_ ,7_ 1_ 5 |
-3 3_ 2_ 3_ 3 - | 0 2_ 3_ 5_ 3_ 5_ 1_ | 7 - - 7 6 | 6 - 0 6 |
-7 - - 7 6 | 6 - - - | (6' 1' ,7 1' 2' | 0 1' 0 7' 0 6' 5' 2' | 2'. 3' 6' 0 |
-6' 7'_ 6'_ 7'_ 1' 2' 1' | 1' 7' 2' 7' 1' 2' | 1' 7' 2' 0 4' 3' 1' | 6' 7' 6' - 0 5' | 6 - - -) :||
-6' 0 0_ ,6_ ,7_ 1_ 5 || 7 - - - | 1' - - - | (6' 1' ,7 1' 2' | 0 1' 0 7' 0 6' 5' 2' |
-2' - 0 5' 0 6' | 0 7'_ 6'_ 7'_ 1' 2' 1' 7' | 1'. 2' 7' 1' 2' | 0 1' 0 7' 0 6' 5' 2' |
-3 - 0 3 4 3 | 6 7 1' 2' 0 1' 7 | 6 1' 7 1' 2' | 0 1' 0 7' 0 6' 5' 2' |
-2_. 3' 6_. 5 | 6 7_ 6_ 7_ 1' 2' 1' | 1' 7 1' 2' 7 1' 2' | 0 7' 0 3' 0 4 3 |
-6 7 6 - 0 5 | 6 - - - ||: 6 - - 6 5 | 6 - - - ||: 1' 7 6 2 1 0 |
-1' 7 6 2 1 0 | 1' 7 6 2 1 0 | 1' 7 6 2 1 0 | 1' 7 6 2 1 0 :|| 0 0) ||` },
-  { title: "天使爱美丽", detail: "1=G · 4/4 · 93 BPM · 双页图片校对版", bpm: 93, score: `0/0.5 1/0.25 7/0.25 1/0.5 3/0.25 4/0.25 3/2 |
+ { title: "鸟之诗", detail: "1=C · 4/4 · 122 BPM · MIDI 主旋律版", key: "1=C", meter: "4/4", bpm: 122, jianpu: ",7:0.96 0:0.04 #1:0.46 0:0.04 2:0.45999999999999996 0:0.04 6:0.475 0:0.025 |\n#4:0.96 0:0.04 #4:0.45999999999999996 0:0.04 3:0.21 0:0.04 #4:3.21 0:0.04 |\n3:0.46 0:0.04 #4:0.46 0:0.04 6:0.46 0:0.04 3:0.46 0:0.04 |\n#1:0.46 0:0.04 2:0.475 0:0.025 #1:0.9600000000000001 0:0.04 #1_ ,7:0.21 |\n0:0.04 #,4:2.25 0. ,7:0.975 0:0.025 #1:0.475 0:0.025 2:0.475 |\n0:0.025 6:0.45999999999999996 0:0.04 #4:0.96 0:0.04 #4_ 3:0.21 0:0.04 |\n#4:3.21 0:0.04 3:0.475 0:0.025 #4:0.475 0:0.025 6:0.475 0:0.025 |\n#4:0.475 0:0.025 6:0.46 0:0.04 2':0.475 0:0.025 #1':0.71 0:0.04 |\n7:0.71 0:0.04 #4:1.96 0:0.04 3:0.46 0:0.04 #4:0.975 0:0.025 |\n6:0.975 0:0.025 7:0.975 0:0.025 #1':0.975 0:0.025 #4:0.96 0:0.04 |\n#4:0.45999999999999996 0:0.04 3:0.21 0:0.04 #4:3.21 0:0.04 3:0.46 0:0.04 |\n#4:0.46 0:0.04 6:0.46 0:0.04 3:0.46 0:0.04 #1:0.46 0:0.04 |\n2:0.475 0:0.025 #1:0.9600000000000001 0:0.04 #1_ ,7:0.21 0:0.04 #,4:2.25 |\n0. ,7:0.975 0:0.025 #1:0.475 0:0.025 2:0.475 0:0.025 6:0.45999999999999996 |\n0:0.04 #4:0.96 0:0.04 #4_ 3:0.21 0:0.04 #4:3.21 0:0.04 |\n3:0.475 0:0.025 #4:0.475 0:0.025 6:0.475 0:0.025 #4:0.475 0:0.025 |\n6:0.46 0:0.04 2':0.475 0:0.025 #1':3.5 7:0.46 0:0.04 7:2.96 |\n0:0.04 7:0.9600000000000001 0:0.04 #1':3.475 0:0.025 7:0.46 0:0.04 7--- |\n0. #5:0.46 0:0.04 #5:0.7100000000000001 0:0.04 #5:0.725 0:0.025 #5:0.475 |\n0:0.025 #5:0.7100000000000001 0:0.04 #4:0.7100000000000001 0:0.04 #4:0.96 0:0.04 #5 |\n#6:0.46 0:0.04 7:0.71 0:0.04 #6:0.71 0:0.04 #5:0.9600000000000001 0:0.04 |\n#2:0.45999999999999996 0:0.04 #2:2.96 0:0.04 #1:0.96 0:0.04 ,7 0. |\n#5:0.46 0:0.04 #5:0.7100000000000001 0:0.04 #5:0.725 0:0.025 #5:0.475 0:0.025 |\n#5:0.7100000000000001 0:0.04 #4:0.7100000000000001 0:0.04 #4:0.96 0:0.04 #2:0.9600000000000001 0:0.04 |\n#4:0.45999999999999996 0:0.04 #5:0.725 0:0.025 #6:0.725 0:0.025 7:4.475 0:3.525 |\n#5:0.46 0:0.04 #5:0.7100000000000001 0:0.04 #5:0.725 0:0.025 #5:0.475 0:0.025 |\n#5:0.7100000000000001 0:0.04 #4:0.7100000000000001 0:0.04 #4:0.96 0:0.04 #5 #6:0.46 |\n0:0.04 7:0.71 0:0.04 #6:0.71 0:0.04 #5:0.9600000000000001 0:0.04 #2:0.45999999999999996 |\n0:0.04 #2:2.96 0:0.04 #1:0.96 0:0.04 ,7 0. #2:0.46 |\n0:0.04 #2:0.7100000000000001 0:0.04 #2:0.71 0:0.04 #2:0.46 0:0.04 #1:0.71 |\n0:0.04 #2:0.7100000000000001 0:0.04 #4:0.975 0:0.025 #2 #4:0.45999999999999996 0:0.04 |\n#5:1.96 0:0.04 7:0.9600000000000001 0:0.04 #6:0.96 0:0.04 #5:2.96 0:0.04 |\n#4:0.96 0:0.04 4:0.45999999999999996 0:0.04 4:0.45999999999999996 0:0.04 4:0.45999999999999996 0:0.04 |\n#2__ 4.. 0. 4:0.975 0:0.025 #4:0.975 0:0.025 #5:0.975 |\n0:0.025 #2:1.46 0:0.04 1:0.45999999999999996 0:0.04 1:3.46 0:0.04 1_ |\n#1:0.46 0:0.04 #2:1.46 0:0.04 4:0.45999999999999996 0:0.04 4:0.45999999999999996 0:0.04 |\n4:0.45999999999999996 0:0.04 #,6:0.225 0:0.025 4:5.21 0:0.04 #2:0.46 0:0.04 |\n#1:0.46 0:0.04 #2:0.975 0:0.025 #2:0.45999999999999996 0:0.04 #1:0.45999999999999996 0:0.04 |\n#2:0.45999999999999996 0:0.04 #5:0.96 0:0.04 #5:4.46 0:0.04 4:0.96 0:0.04 |\n4:0.46 0:0.04 #2:0.21000000000000002 0:0.04 4.. 0. 4:0.975 0:0.025 |\n#4:0.975 0:0.025 #5:0.975 0:0.025 #2:1.46 0:0.04 1:0.45999999999999996 0:0.04 |\n1:3.46 0:0.04 1_ #1:0.46 0:0.04 #2:1.46 0:0.04 #5:0.96 |\n0:0.04 #5:0.46 0:0.04 #4:0.21000000000000002 0:0.04 #5:5.21 0:0.04 #4:0.46 |\n0:0.04 3:0.46 0:0.04 #4:0.96 0:0.04 #4:0.45999999999999996 0:0.04 3_ |\n#4:0.475 0:0.025 #5:0.96 0:0.04 #5:1.96 0:0.04 ,7:0.96 0:0.04 |\n#1:0.46 0:0.04 2:0.45999999999999996 0:0.04 6:0.46 0:0.04 #4:0.96 0:0.04 |\n#4:0.45999999999999996 0:0.04 3:0.21 0:0.04 #4:3.21 0:0.04 3:0.46 0:0.04 |\n#4:0.46 0:0.04 6:0.46 0:0.04 3:0.46 0:0.04 #1:0.46 0:0.04 |\n2:0.475 0:0.025 #1:0.9600000000000001 0:0.04 #1_ ,7:0.21 0:0.04 #,4:2.25 |\n0. ,7:0.975 0:0.025 #1:0.475 0:0.025 2:0.475 0:0.025 6:0.45999999999999996 |\n0:0.04 #4:0.96 0:0.04 #4_ 3:0.21 0:0.04 #4:3.21 0:0.04 |\n3:0.475 0:0.025 #4:0.475 0:0.025 6:0.475 0:0.025 #4:0.475 0:0.025 |\n6:0.46 0:0.04 2':0.475 0:0.025 #1':0.71 0:0.04 7:0.71 0:0.04 |\n#4:1.96 0:0.04 3:0.46 0:0.04 #4:0.975 0:0.025 6:0.975 0:0.025 |\n7:0.975 0:0.025 #1':0.975 0:0.025 #4:0.96 0:0.04 #4:0.45999999999999996 0:0.04 |\n3:0.21 0:0.04 #4:3.21 0:0.04 3:0.46 0:0.04 #4:0.46 0:0.04 |\n6:0.46 0:0.04 3:0.46 0:0.04 #1:0.46 0:0.04 2:0.475 0:0.025 |\n#1:0.9600000000000001 0:0.04 #1_ ,7:0.21 0:0.04 #,4:2.25 0. ,7:0.975 |\n0:0.025 #1:0.475 0:0.025 2:0.475 0:0.025 6:0.45999999999999996 0:0.04 #4:0.96 |\n0:0.04 #4_ 3:0.21 0:0.04 #4:3.21 0:0.04 3:0.475 0:0.025 |\n#4:0.475 0:0.025 6:0.475 0:0.025 #4:0.475 0:0.025 6:0.46 0:0.04 |\n2':0.475 0:0.025 #1':3.5 7:0.46 0:0.04 7:2.96 0:0.04 7:0.9600000000000001 |\n0:0.04 #1':3.475 0:0.025 7:0.46 0:0.04 7:10 |" },
+ { title: "天使爱美丽", detail: "1=G · 4/4 · 93 BPM · 双页图片校对版", bpm: 93, score: `0/0.5 1/0.25 7/0.25 1/0.5 3/0.25 4/0.25 3/2 |
 0/0.5 7/0.25 1/0.25 7/0.5 1/0.25 2/0.25 1/2 |
 0/0.5 7/0.25 6/0.25 7/0.5 3/0.25 4/0.25 3/2 |
 0/0.5 7/0.25 6/0.25 7/1 0/2 |
@@ -320,7 +295,8 @@ const BUILTIN_SONG_METADATA = {
 };
 const PDMX_SONG_LIBRARY = Array.isArray(globalThis.PDMX_SONGS) ? globalThis.PDMX_SONGS : [];
 const COMMUNITY_SONG_LIBRARY = Array.isArray(globalThis.COMMUNITY_SONGS) ? globalThis.COMMUNITY_SONGS : [];
-const SONG_FILE_FORMAT = "harmonica-deck-score";
+const SONG_FILE_FORMAT = "delta-music";
+const LEGACY_SONG_FILE_FORMAT = "harmonica-deck-score";
 const SONG_FILE_VERSION = 1;
 const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
 const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", toggle: "切换播放" };
@@ -338,9 +314,9 @@ const elements = {
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport")
+  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon")
 };
 
 let currentSequence = null;
@@ -374,6 +350,7 @@ let recording = null;
 let selectedRecordModifier = "";
 let liveRecordingVoice = null;
 let currentScoreCredit = { artist: "", sharedBy: "" };
+let scoreExportMode = "download";
 
 function tokenPosition(source, offset) {
   const before = source.slice(0, offset);
@@ -540,6 +517,7 @@ function parseMidiData(buffer) {
   const meters = [];
   const keys = [];
   const tracks = [];
+  const ignoredInvalidNonNoteEvents = { controller: 0, program: 0, other: 0 };
   let offset = 8 + headerLength;
 
   function readVariable(cursor, end) {
@@ -607,7 +585,13 @@ function parseMidiData(buffer) {
       const data1 = firstData ?? bytes[cursor++];
       if (data1 === undefined || (dataLength === 2 && cursor >= end)) throw new Error("MIDI 通道事件被意外截断。");
       const data2 = dataLength === 2 ? bytes[cursor++] : 0;
-      if (data1 > 127 || data2 > 127) throw new Error("MIDI 通道事件数据无效。");
+      if (data1 > 127 || data2 > 127) {
+        if (type === 0x80 || type === 0x90) throw new Error("MIDI 音符事件数据无效。");
+        if (type === 0xb0) ignoredInvalidNonNoteEvents.controller += 1;
+        else if (type === 0xc0) ignoredInvalidNonNoteEvents.program += 1;
+        else ignoredInvalidNonNoteEvents.other += 1;
+        continue;
+      }
       if (type !== 0x80 && type !== 0x90) continue;
       const noteKey = `${channel}:${data1}`;
       if (type === 0x90 && data2 > 0) {
@@ -624,7 +608,7 @@ function parseMidiData(buffer) {
     tracks.push({ name, notes });
   }
   if (!tracks.length) throw new Error("MIDI 文件中没有可读取的音轨。");
-  return { division, tracks, tempos, meters, keys };
+  return { division, tracks, tempos, meters, keys, ignoredInvalidNonNoteEvents };
 }
 
 function selectMidiMelodyTrack(tracks) {
@@ -698,6 +682,7 @@ function midiToSequence(parsed) {
     trackName: track.name,
     selectedNotes: melody.length,
     collapsedChordNotes: collapsed.collapsedNotes,
+    ignoredInvalidNonNoteEvents: parsed.ignoredInvalidNonNoteEvents,
     transpose,
     hasTempoChanges: parsed.tempos.length > 1
   };
@@ -718,6 +703,14 @@ function smoothMidiSequence(sequence, bpm) {
   const smoothed = enrichNotes(notes, bpm);
   if (smoothed.error) throw new Error(smoothed.error.message);
   return { sequence: smoothed, connectedGaps };
+}
+
+function describeIgnoredMidiEvents(events = {}) {
+  const descriptions = [];
+  if (events.controller) descriptions.push(`${events.controller} 个无效控制器事件`);
+  if (events.program) descriptions.push(`${events.program} 个无效程序切换事件`);
+  if (events.other) descriptions.push(`${events.other} 个无效非音符事件`);
+  return descriptions.length ? ` · 已忽略 ${descriptions.join("、")}` : "";
 }
 
 function formatTime(milliseconds) {
@@ -1689,7 +1682,7 @@ function validateScoreMetadata(metadata) {
 
 function validateScorePackage(payload) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return { error: "导入文件必须是 JSON 对象。" };
-  if (payload.format !== SONG_FILE_FORMAT) return { error: "这不是 Harmonica Deck 谱子文件。" };
+  if (![SONG_FILE_FORMAT, LEGACY_SONG_FILE_FORMAT].includes(payload.format)) return { error: "这不是 Delta Music 谱子文件。" };
   if (payload.version !== SONG_FILE_VERSION) return { error: `暂不支持谱子文件版本 ${payload.version ?? "未知"}。` };
   const metadata = validateScoreMetadata(payload);
   if (metadata.error) return metadata;
@@ -1711,7 +1704,7 @@ function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy) {
   });
 }
 
-function openScoreExportDialog() {
+function openScoreExportDialog(mode = "download") {
   const sequence = convert();
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const key = String(elements.keySignature.value).trim();
@@ -1724,13 +1717,22 @@ function openScoreExportDialog() {
   elements.exportArtistName.value = elements.artistName.value.trim() || currentScoreCredit.artist;
   elements.exportSharedBy.value = currentScoreCredit.sharedBy;
   elements.exportMetaPreview.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · 简谱将自动标准化保存`;
+  scoreExportMode = mode;
+  const localLibrary = mode === "local-library";
+  elements.scoreExportTitle.textContent = localLibrary ? "LOCAL_LIBRARY.EXE — MAINTAINER MODE" : "DELTA_MUSIC.EXE — SHARE YOUR SCORE";
+  elements.scoreExportHeading.textContent = localLibrary ? "收录当前曲目" : "填写共享信息";
+  elements.scoreExportDescription.innerHTML = localLibrary
+    ? "将当前谱子写入本地工作区并重建社区曲库。不会自动提交或推送 GitHub。"
+    : "导出为 <code>.deltamusic</code> 后可再次导入本工具。请加入 QQ 群 <b>1102489399</b>，把文件发给维护者审核入库。";
+  elements.confirmScoreExportLabel.textContent = localLibrary ? "收录到本地曲库" : "下载 .deltamusic";
+  elements.confirmScoreExportIcon.textContent = localLibrary ? "+" : "↓";
   elements.scoreExportDialog.showModal();
   elements.exportSongTitle.focus();
 }
 
-function exportScorePackage() {
+function scorePackageFromDialog() {
   const sequence = convert();
-  if (!sequence) { toast("请先修正谱子错误。 "); return; }
+  if (!sequence) return { error: "请先修正谱子错误。" };
   const metadata = validateScoreMetadata({
     title: elements.exportSongTitle.value,
     artist: elements.exportArtistName.value,
@@ -1739,19 +1741,61 @@ function exportScorePackage() {
     meter: elements.timeSignature.value,
     bpm: elements.bpm.value
   });
-  if (metadata.error) { toast(metadata.error); return; }
-  const exported = {
+  if (metadata.error) return metadata;
+  return { value: {
     format: SONG_FILE_FORMAT,
     version: SONG_FILE_VERSION,
     ...metadata.value,
     jianpu: sequenceToJianpu(sequence)
-  };
-  elements.macroName.value = metadata.value.title;
-  elements.artistName.value = metadata.value.artist;
-  currentScoreCredit = { artist: metadata.value.artist, sharedBy: metadata.value.sharedBy };
-  download(`${JSON.stringify(exported, null, 2)}\n`, `${safeName().replace(/\s+/g, "-").toLowerCase() || "harmonica-score"}.harmonica-score.json`, "application/json");
+  }};
+}
+
+function applyScorePackageMetadata(score) {
+  elements.macroName.value = score.title;
+  elements.artistName.value = score.artist;
+  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy };
+}
+
+function exportScorePackage() {
+  const packaged = scorePackageFromDialog();
+  if (packaged.error) { toast(packaged.error); return; }
+  applyScorePackageMetadata(packaged.value);
+  download(`${JSON.stringify(packaged.value, null, 2)}\n`, `${safeName().replace(/\s+/g, "-").toLowerCase() || "delta-music"}.deltamusic`, "application/json");
   elements.scoreExportDialog.close();
-  toast("谱子文件已下载。加入 QQ 群 1102489399 分享给维护者吧。 ");
+  toast(".deltamusic 文件已下载。加入 QQ 群 1102489399 分享给维护者吧。 ");
+}
+
+async function saveScoreToLocalLibrary() {
+  const packaged = scorePackageFromDialog();
+  if (packaged.error) { toast(packaged.error); return; }
+  elements.confirmScoreExport.disabled = true;
+  try {
+    const response = await fetch("/api/local-library/songs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(packaged.value)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "写入本地曲库失败。");
+    if (!Array.isArray(result.songs)) throw new Error("本地服务返回的曲库数据无效。");
+    applyScorePackageMetadata(packaged.value);
+    SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONG_LIBRARY, ...result.songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
+    renderSongLibrary(elements.songSearch.value);
+    elements.scoreExportDialog.close();
+    toast(`《${packaged.value.title}》已${result.action === "updated" ? "更新" : "收录"}到本地工作区，待手动提交。`);
+  } catch (error) {
+    toast(error.message || "写入本地曲库失败。");
+  } finally {
+    elements.confirmScoreExport.disabled = false;
+  }
+}
+
+async function enableLocalLibraryEntry() {
+  try {
+    const response = await fetch("/api/local-library/status", { headers: { Accept: "application/json" } });
+    const status = await response.json();
+    if (response.ok && status.localLibrary === true) elements.localLibraryButton.hidden = false;
+  } catch {}
 }
 
 async function importScorePackage(file) {
@@ -1795,8 +1839,9 @@ async function importMidiFile(file, { refreshed = false } = {}) {
     const transposeMessage = converted.transpose ? ` · 已移调 ${converted.transpose > 0 ? "+" : ""}${converted.transpose} 半音以适配口琴音域` : "";
     const tempoWarning = converted.hasTempoChanges ? " · 原文件含变速，已采用起始 BPM" : "";
     const chordMessage = converted.collapsedChordNotes ? ` · 和弦已取最高音（合并 ${converted.collapsedChordNotes} 个和声音）` : "";
+    const ignoredEventMessage = describeIgnoredMidiEvents(converted.ignoredInvalidNonNoteEvents);
     const smoothingMessage = elements.midiSmoothing.checked ? ` · 流畅演奏已连接 ${smoothing.connectedGaps} 处短断音` : " · 保留原始 MIDI 断音";
-    setValidation(`MIDI 转换完成 · 自动提取 ${converted.selectedNotes} 个主旋律音符${chordMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
+    setValidation(`MIDI 转换完成 · 自动提取 ${converted.selectedNotes} 个主旋律音符${chordMessage}${ignoredEventMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
     toast(refreshed ? `已按“流畅演奏”设置重新转换《${title}》。` : `已将《${title}》转换为可编辑简谱。`);
   } catch (error) {
     toast(error.message || "无法读取这个 MIDI 文件。 ");
@@ -1839,7 +1884,10 @@ elements.importScoreButton.addEventListener("click", () => elements.importScoreI
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
 elements.macroExportButton.addEventListener("click", () => elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" }));
 elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
-elements.confirmScoreExport.addEventListener("click", exportScorePackage);
+elements.confirmScoreExport.addEventListener("click", () => {
+  if (scoreExportMode === "local-library") saveScoreToLocalLibrary();
+  else exportScorePackage();
+});
 elements.clearButton.addEventListener("click", () => {
   finishRecording({ apply: false });
   stopPreview();
@@ -1912,6 +1960,18 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   if (["download-lua", "download-rz3", "download-rz4"].includes(action)) openMacroDownloadDialog(action);
 }));
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));
+elements.directoryButtons.forEach((button) => button.addEventListener("click", () => {
+  const action = button.dataset.directoryAction;
+  if (action === "library") {
+    document.querySelector(".library-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    elements.songSearch.focus({ preventScroll: true });
+  }
+  if (action === "midi") elements.importMidiInput.click();
+  if (action === "manual" && setInputMode("jianpu")) {
+    elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    elements.jianpuScore.focus({ preventScroll: true });
+  }
+}));
 elements.songSearch.addEventListener("input", () => renderSongLibrary(elements.songSearch.value));
 elements.songGrid.addEventListener("click", (event) => {
   const card = event.target.closest("[data-song-index]");
@@ -1939,8 +1999,10 @@ elements.qqGroupButton.addEventListener("click", async () => {
 elements.uploadScoreButton.addEventListener("click", () => {
   openUploadHelpDialog();
 });
+elements.localLibraryButton.addEventListener("click", () => openScoreExportDialog("local-library"));
 
 renderSongLibrary();
+enableLocalLibraryEntry();
 updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });

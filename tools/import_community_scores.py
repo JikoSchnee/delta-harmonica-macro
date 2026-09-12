@@ -3,7 +3,7 @@
 
 Examples:
   python3 tools/import_community_scores.py submissions --report review.json
-  python3 tools/import_community_scores.py approved/*.harmonica-score.json \
+  python3 tools/import_community_scores.py approved/*.deltamusic \
     --report review.json --output data/community-songs.js
 """
 
@@ -17,7 +17,8 @@ from pathlib import Path
 from typing import Any
 
 
-FORMAT = "harmonica-deck-score"
+FORMAT = "delta-music"
+LEGACY_FORMAT = "harmonica-deck-score"
 VERSION = 1
 KEY_PATTERN = re.compile(r"^(?:1=)?[A-G](?:[#b♯♭])?$", re.IGNORECASE)
 METER_PATTERN = re.compile(r"^(\d{1,2})/(\d{1,2})$")
@@ -57,8 +58,8 @@ def validate_jianpu(value: Any) -> str:
 def validate_package(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("JSON 根节点必须是对象")
-    if payload.get("format") != FORMAT:
-        raise ValueError("不是 Harmonica Deck 谱子文件")
+    if payload.get("format") not in {FORMAT, LEGACY_FORMAT}:
+        raise ValueError("不是 Delta Music 谱子文件")
     if payload.get("version") != VERSION:
         raise ValueError(f"不支持的文件版本：{payload.get('version')!r}")
     key = compact_text(payload.get("key"), "调号", 8)
@@ -87,7 +88,7 @@ def paths_from_inputs(inputs: list[Path]) -> list[Path]:
     paths: list[Path] = []
     for item in inputs:
         if item.is_dir():
-            paths.extend(sorted(item.rglob("*.harmonica-score.json")))
+            paths.extend(sorted([*item.rglob("*.deltamusic"), *item.rglob("*.harmonica-score.json")]))
         elif item.is_file():
             paths.append(item)
         else:
@@ -96,7 +97,10 @@ def paths_from_inputs(inputs: list[Path]) -> list[Path]:
 
 
 def dedupe_key(song: dict[str, Any]) -> str:
-    return f"{song['title'].casefold().strip()}|{song['artist'].casefold().strip()}"
+    return "|".join(
+        str(song[field]).casefold().strip()
+        for field in ("title", "artist", "sharedBy")
+    )
 
 
 def write_json(path: Path, value: Any) -> None:
@@ -130,7 +134,7 @@ def main() -> int:
             song = validate_package(payload)
             key = dedupe_key(song)
             if key in seen:
-                raise ValueError("与本批次另一首曲目同名且歌手/作者相同，请人工审核后保留一个版本")
+                raise ValueError("与本批次另一首曲目的歌名、歌手/作者和共享人均相同，请人工审核后保留一个版本")
             seen.add(key)
             accepted.append((path, song))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
