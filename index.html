@@ -126,11 +126,18 @@
           </section>
             <div class="editor-actions">
               <button class="primary-button" id="convertButton" type="button"><span>试听</span><b>▶</b></button>
+              <button class="primary-button midi-import-button" id="importMidiButton" type="button"><span>导入 MIDI</span><b>♫</b></button>
+              <label class="midi-smoothing-control" for="midiSmoothing">
+                <input id="midiSmoothing" type="checkbox" checked />
+                <span class="midi-smoothing-switch" aria-hidden="true"></span>
+                <span><b>流畅演奏</b><small>自动连接 MIDI 短断音</small></span>
+              </label>
               <button class="primary-button" id="importScoreButton" type="button">导入谱子</button>
               <button class="primary-button" id="macroExportButton" type="button" aria-controls="macro-export">导出为宏</button>
               <button class="primary-button" id="exportScoreButton" type="button">分享给别人</button>
               <button class="primary-button" id="clearButton" type="button">清空</button>
               <input id="importScoreInput" type="file" accept=".harmonica-score.json,application/json" hidden />
+              <input id="importMidiInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
             </div>
             <div class="validation" id="validation" role="status" aria-live="polite"></div>
         </div>

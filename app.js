@@ -322,7 +322,7 @@ const PDMX_SONG_LIBRARY = Array.isArray(globalThis.PDMX_SONGS) ? globalThis.PDMX
 const COMMUNITY_SONG_LIBRARY = Array.isArray(globalThis.COMMUNITY_SONGS) ? globalThis.COMMUNITY_SONGS : [];
 const SONG_FILE_FORMAT = "harmonica-deck-score";
 const SONG_FILE_VERSION = 1;
-const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...PDMX_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY].map((song) => normalizeSong(song));
+const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
 const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", toggle: "切换播放" };
 const MACRO_TRIGGER_MODE_HINTS = {
   once: "单次播放：按下后完整播放一次。播放中再次按下会忽略；没有停止键时无法中途停止。",
@@ -333,7 +333,7 @@ const MACRO_TRIGGER_MODE_HINTS = {
 const elements = {
   score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
-  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
@@ -354,6 +354,7 @@ let pendingMacroDownload = null;
 let macroDownloadTimer = null;
 let macroDownloadFinalizeTimer = null;
 let inputMode = "jianpu";
+let lastMidiFile = null;
 
 function syncWorkbenchHeight() {
   if (!elements.workbench || !elements.editorPanel) return;
@@ -504,6 +505,221 @@ function parseScore(source, bpm) {
   return enrichNotes(notes, bpm);
 }
 
+function readMidiText(bytes) {
+  if (!bytes?.length) return "";
+  try { return new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/\0/g, "").trim(); } catch {}
+  return Array.from(bytes, (byte) => String.fromCharCode(byte)).join("").replace(/\0/g, "").trim();
+}
+
+function midiKeySignature(sharpsFlats, isMinor) {
+  const majorKeys = ["Cb", "Gb", "Db", "Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#"];
+  const minorKeys = ["Ab", "Eb", "Bb", "F", "C", "G", "D", "A", "E", "B", "F#", "C#", "G#", "D#", "A#"];
+  const index = Math.max(0, Math.min(14, sharpsFlats + 7));
+  return `1=${(isMinor ? minorKeys : majorKeys)[index]}`;
+}
+
+function midiMedian(values) {
+  if (!values.length) return 0;
+  const ordered = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(ordered.length / 2);
+  return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
+}
+
+function parseMidiData(buffer) {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 14 || readMidiText(bytes.slice(0, 4)) !== "MThd") throw new Error("这不是有效的标准 MIDI 文件。");
+  const readU16 = (offset) => (bytes[offset] << 8) | bytes[offset + 1];
+  const readU32 = (offset) => ((bytes[offset] * 0x1000000) + (bytes[offset + 1] << 16) + (bytes[offset + 2] << 8) + bytes[offset + 3]) >>> 0;
+  const headerLength = readU32(4);
+  if (headerLength < 6 || 8 + headerLength > bytes.length) throw new Error("MIDI 文件头损坏。");
+  const division = readU16(12);
+  if (division & 0x8000) throw new Error("暂不支持 SMPTE 时间码 MIDI，请先另存为常规节拍（PPQN）MIDI。");
+  if (!division) throw new Error("MIDI 的节拍分辨率无效。");
+  const trackCount = readU16(10);
+  const tempos = [];
+  const meters = [];
+  const keys = [];
+  const tracks = [];
+  let offset = 8 + headerLength;
+
+  function readVariable(cursor, end) {
+    let value = 0;
+    for (let count = 0; count < 4; count += 1) {
+      if (cursor >= end) throw new Error("MIDI 事件被意外截断。");
+      const byte = bytes[cursor++];
+      value = (value << 7) | (byte & 0x7f);
+      if (!(byte & 0x80)) return { value, cursor };
+    }
+    throw new Error("MIDI 事件长度无效。");
+  }
+
+  for (let trackIndex = 0; trackIndex < trackCount && offset + 8 <= bytes.length; trackIndex += 1) {
+    const chunkType = readMidiText(bytes.slice(offset, offset + 4));
+    const chunkLength = readU32(offset + 4);
+    const start = offset + 8;
+    const end = start + chunkLength;
+    if (end > bytes.length) throw new Error("MIDI 音轨数据被意外截断。");
+    offset = end;
+    if (chunkType !== "MTrk") continue;
+    let cursor = start;
+    let tick = 0;
+    let runningStatus = null;
+    let name = "";
+    const active = new Map();
+    const notes = [];
+    while (cursor < end) {
+      const delta = readVariable(cursor, end);
+      tick += delta.value;
+      cursor = delta.cursor;
+      if (cursor >= end) throw new Error("MIDI 事件缺少状态字节。");
+      let status = bytes[cursor++];
+      let firstData = null;
+      if (status < 0x80) {
+        if (!runningStatus) throw new Error("MIDI 的运行状态无效。 ");
+        firstData = status;
+        status = runningStatus;
+      }
+      if (status === 0xff) {
+        if (cursor >= end) throw new Error("MIDI 元事件损坏。");
+        const type = bytes[cursor++];
+        const length = readVariable(cursor, end);
+        cursor = length.cursor;
+        if (cursor + length.value > end) throw new Error("MIDI 元事件被意外截断。");
+        const data = bytes.slice(cursor, cursor + length.value);
+        cursor += length.value;
+        if (type === 0x03 && !name) name = readMidiText(data);
+        if (type === 0x51 && data.length === 3) tempos.push({ tick, value: (data[0] << 16) | (data[1] << 8) | data[2], trackIndex });
+        if (type === 0x58 && data.length >= 2) meters.push({ tick, numerator: data[0], denominator: 2 ** data[1], trackIndex });
+        if (type === 0x59 && data.length >= 2) keys.push({ tick, sharpsFlats: data[0] > 127 ? data[0] - 256 : data[0], isMinor: data[1] === 1, trackIndex });
+        continue;
+      }
+      if (status === 0xf0 || status === 0xf7) {
+        const length = readVariable(cursor, end);
+        cursor = length.cursor + length.value;
+        if (cursor > end) throw new Error("MIDI 系统事件被意外截断。");
+        continue;
+      }
+      if (status < 0x80 || status > 0xef) throw new Error("MIDI 包含不支持的系统事件。");
+      runningStatus = status;
+      const type = status & 0xf0;
+      const channel = status & 0x0f;
+      const dataLength = type === 0xc0 || type === 0xd0 ? 1 : 2;
+      const data1 = firstData ?? bytes[cursor++];
+      if (data1 === undefined || (dataLength === 2 && cursor >= end)) throw new Error("MIDI 通道事件被意外截断。");
+      const data2 = dataLength === 2 ? bytes[cursor++] : 0;
+      if (data1 > 127 || data2 > 127) throw new Error("MIDI 通道事件数据无效。");
+      if (type !== 0x80 && type !== 0x90) continue;
+      const noteKey = `${channel}:${data1}`;
+      if (type === 0x90 && data2 > 0) {
+        const pending = active.get(noteKey) || [];
+        pending.push({ start: tick, midi: data1, channel });
+        active.set(noteKey, pending);
+      } else {
+        const pending = active.get(noteKey);
+        const started = pending?.shift();
+        if (!pending?.length) active.delete(noteKey);
+        if (started && tick > started.start) notes.push({ ...started, end: tick });
+      }
+    }
+    tracks.push({ name, notes });
+  }
+  if (!tracks.length) throw new Error("MIDI 文件中没有可读取的音轨。");
+  return { division, tracks, tempos, meters, keys };
+}
+
+function selectMidiMelodyTrack(tracks) {
+  const candidates = tracks.map((track, index) => ({ ...track, index, notes: track.notes.filter((note) => note.channel !== 9) })).filter((track) => track.notes.length);
+  if (!candidates.length) throw new Error("MIDI 中没有可演奏的非打击乐音符。");
+  return candidates.map((track) => {
+    const starts = new Set(track.notes.map((note) => note.start)).size;
+    const median = midiMedian(track.notes.map((note) => note.midi));
+    const monophonicRatio = starts / track.notes.length;
+    return { ...track, rank: track.notes.length * (0.6 + monophonicRatio) + median / 3 };
+  }).sort((left, right) => right.rank - left.rank || right.notes.length - left.notes.length || right.index - left.index)[0];
+}
+
+function chooseMidiTranspose(notes) {
+  const playable = new Set(PLAYABLE_PITCHES.map((item) => item.midi));
+  const median = midiMedian(notes.map((note) => note.midi));
+  return [-36, -24, -12, 0, 12, 24, 36].map((shift) => {
+    const covered = notes.filter((note) => playable.has(note.midi + shift)).length;
+    return { shift, rank: covered * 100 - Math.abs(shift) * 3 - Math.abs(median + shift - 66) * 0.2 };
+  }).sort((left, right) => right.rank - left.rank || Math.abs(left.shift) - Math.abs(right.shift))[0].shift;
+}
+
+function collapseMidiChords(notes, division) {
+  const chordWindowTicks = Math.max(1, Math.round(division / 64));
+  const ordered = [...notes].sort((left, right) => left.start - right.start || right.midi - left.midi || right.end - left.end);
+  const melody = [];
+  let chord = [];
+  const flush = () => {
+    if (!chord.length) return;
+    melody.push([...chord].sort((left, right) => right.midi - left.midi || right.end - left.end)[0]);
+    chord = [];
+  };
+  ordered.forEach((note) => {
+    if (chord.length && note.start - chord[0].start > chordWindowTicks) flush();
+    chord.push(note);
+  });
+  flush();
+  return { notes: melody, collapsedNotes: Math.max(0, notes.length - melody.length) };
+}
+
+function midiToSequence(parsed) {
+  const track = selectMidiMelodyTrack(parsed.tracks);
+  const collapsed = collapseMidiChords(track.notes, parsed.division);
+  const melody = collapsed.notes;
+  const transpose = chooseMidiTranspose(melody);
+  const notes = [];
+  const ticksToBeats = (ticks) => Math.round((ticks / parsed.division) * 1000000) / 1000000;
+  let cursor = 0;
+  melody.forEach((source, index) => {
+    const start = Math.max(cursor, source.start);
+    if (start > cursor) notes.push({ note: "0", modifier: null, beats: ticksToBeats(start - cursor), line: Math.floor(notes.length / 8) + 1 });
+    const nextStart = melody[index + 1]?.start;
+    const end = nextStart ? Math.min(source.end, Math.max(start + 1, nextStart)) : source.end;
+    const midi = source.midi + transpose;
+    const mapped = PLAYABLE_PITCHES.find((candidate) => candidate.midi === midi);
+    if (mapped) notes.push({ note: mapped.note, modifier: mapped.modifier, beats: ticksToBeats(Math.max(1, end - start)), line: Math.floor(notes.length / 8) + 1 });
+    cursor = Math.max(cursor, end);
+  });
+  if (!notes.length) throw new Error("MIDI 主旋律没有落在可转换的音域内。");
+  const firstTempo = [...parsed.tempos].sort((left, right) => left.tick - right.tick || left.trackIndex - right.trackIndex)[0]?.value || 500000;
+  const bpm = Math.max(30, Math.min(300, Math.round(60000000 / firstTempo)));
+  const sequence = enrichNotes(notes, bpm);
+  if (sequence.error) throw new Error(sequence.error.message);
+  const meter = [...parsed.meters].sort((left, right) => left.tick - right.tick || left.trackIndex - right.trackIndex)[0];
+  const key = [...parsed.keys].sort((left, right) => left.tick - right.tick || left.trackIndex - right.trackIndex)[0];
+  return {
+    sequence,
+    bpm,
+    meter: meter ? `${meter.numerator}/${meter.denominator}` : "4/4",
+    key: key ? midiKeySignature(key.sharpsFlats, key.isMinor) : "1=C",
+    trackName: track.name,
+    selectedNotes: melody.length,
+    collapsedChordNotes: collapsed.collapsedNotes,
+    transpose,
+    hasTempoChanges: parsed.tempos.length > 1
+  };
+}
+
+function smoothMidiSequence(sequence, bpm) {
+  const notes = sequence.notes.map((item) => ({ note: item.note, modifier: item.modifier, beats: item.beats, line: item.line }));
+  let connectedGaps = 0;
+  notes.forEach((item, index) => {
+    const previous = notes[index - 1];
+    const next = notes[index + 1];
+    if (item.note !== "0" || !previous || previous.note === "0" || !next || next.note === "0" || item.beats > 1) return;
+    const breathBeats = Math.min(item.beats, 0.04);
+    previous.beats += item.beats - breathBeats;
+    item.beats = breathBeats;
+    connectedGaps += 1;
+  });
+  const smoothed = enrichNotes(notes, bpm);
+  if (smoothed.error) throw new Error(smoothed.error.message);
+  return { sequence: smoothed, connectedGaps };
+}
+
 function formatTime(milliseconds) {
   const ms = Math.max(0, Math.round(milliseconds));
   const minutes = Math.floor(ms / 60000);
@@ -626,6 +842,7 @@ function syncSequenceToEditors(sequence, { except = null } = {}) {
 function loadSong(song) {
   stopPreview();
   finishRecording({ apply: false });
+  lastMidiFile = null;
   elements.macroName.value = song.title;
   elements.artistName.value = song.artist || "";
   elements.keySignature.value = song.key || "1=C";
@@ -678,7 +895,8 @@ function setInputMode(mode, { force = false, silent = false } = {}) {
 }
 
 function formatRecordedBeat(value) {
-  return Number.isInteger(value) ? String(value) : String(value).replace(/0+$/, "").replace(/\.$/, "");
+  const rounded = Math.round(Number(value) * 1000000) / 1000000;
+  return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function quantizeRecordedBeat(rawBeat) {
@@ -1551,6 +1769,42 @@ async function importScorePackage(file) {
   }
 }
 
+async function importMidiFile(file, { refreshed = false } = {}) {
+  if (!file) return;
+  try {
+    const converted = midiToSequence(parseMidiData(await file.arrayBuffer()));
+    const smoothing = elements.midiSmoothing.checked ? smoothMidiSequence(converted.sequence, converted.bpm) : { sequence: converted.sequence, connectedGaps: 0 };
+    converted.sequence = smoothing.sequence;
+    const title = file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目";
+    stopPreview();
+    finishRecording({ apply: false });
+    elements.macroName.value = title;
+    elements.artistName.value = "";
+    elements.keySignature.value = converted.key;
+    elements.timeSignature.value = converted.meter;
+    elements.bpm.value = converted.bpm;
+    currentScoreCredit = { artist: "", sharedBy: "" };
+    lastMidiFile = file;
+    converted.sequence.notes.forEach((item, index) => { item.index = index; });
+    syncSequenceToEditors(converted.sequence);
+    [elements.jianpuScore, elements.score, elements.recordedScore].forEach((editor) => { editor.scrollTop = 0; });
+    elements.jianpuLineNumbers.scrollTop = 0;
+    elements.lineNumbers.scrollTop = 0;
+    setInputMode("jianpu", { force: true, silent: true });
+    elements.jianpuScore.focus();
+    const transposeMessage = converted.transpose ? ` · 已移调 ${converted.transpose > 0 ? "+" : ""}${converted.transpose} 半音以适配口琴音域` : "";
+    const tempoWarning = converted.hasTempoChanges ? " · 原文件含变速，已采用起始 BPM" : "";
+    const chordMessage = converted.collapsedChordNotes ? ` · 和弦已取最高音（合并 ${converted.collapsedChordNotes} 个和声音）` : "";
+    const smoothingMessage = elements.midiSmoothing.checked ? ` · 流畅演奏已连接 ${smoothing.connectedGaps} 处短断音` : " · 保留原始 MIDI 断音";
+    setValidation(`MIDI 转换完成 · 自动提取 ${converted.selectedNotes} 个主旋律音符${chordMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
+    toast(refreshed ? `已按“流畅演奏”设置重新转换《${title}》。` : `已将《${title}》转换为可编辑简谱。`);
+  } catch (error) {
+    toast(error.message || "无法读取这个 MIDI 文件。 ");
+  } finally {
+    elements.importMidiInput.value = "";
+  }
+}
+
 let toastTimer;
 function toast(message) {
   elements.toast.textContent = message;
@@ -1571,10 +1825,16 @@ async function copyLua(sequence) {
   }
 }
 
-[elements.score, elements.jianpuScore, elements.recordedScore].forEach((textarea) => textarea.addEventListener("input", () => { stopPreview(); updateLineNumbers(); convert(); }));
+[elements.score, elements.jianpuScore, elements.recordedScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; stopPreview(); updateLineNumbers(); convert(); }));
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
 elements.bpm.addEventListener("input", () => { stopPreview(); convert(); });
 elements.convertButton.addEventListener("click", playPreview);
+elements.importMidiButton.addEventListener("click", () => elements.importMidiInput.click());
+elements.importMidiInput.addEventListener("change", () => importMidiFile(elements.importMidiInput.files?.[0]));
+elements.midiSmoothing.addEventListener("change", () => {
+  if (lastMidiFile) importMidiFile(lastMidiFile, { refreshed: true });
+  else toast("流畅演奏设置将在下次导入 MIDI 时生效。 ");
+});
 elements.importScoreButton.addEventListener("click", () => elements.importScoreInput.click());
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
 elements.macroExportButton.addEventListener("click", () => elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" }));
@@ -1583,6 +1843,7 @@ elements.confirmScoreExport.addEventListener("click", exportScorePackage);
 elements.clearButton.addEventListener("click", () => {
   finishRecording({ apply: false });
   stopPreview();
+  lastMidiFile = null;
   const activeEditor = inputMode === "jianpu" ? elements.jianpuScore : inputMode === "record" ? elements.recordedScore : elements.score;
   [elements.jianpuScore, elements.recordedScore, elements.score].forEach((editor) => { editor.value = ""; });
   updateLineNumbers();

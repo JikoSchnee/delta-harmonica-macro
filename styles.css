@@ -327,6 +327,18 @@ main {
 .primary-button:hover, .preview-button:hover { background: #007070; border-bottom-color: var(--teal-dark); }
 .primary-button:active, .preview-button:active { transform: translate(2px, 2px); box-shadow: none; }
 .primary-button b, .preview-button b { font: 700 15px/1 var(--mono); }
+.midi-import-button { background: #38677a; border-top-color: #7cb5c4; border-left-color: #7cb5c4; border-right-color: #1d4658; border-bottom-color: #1d4658; }
+.midi-import-button:hover { background: #2d7a87; border-bottom-color: #1d4658; }
+.midi-smoothing-control { display: inline-flex; align-items: center; min-height: 38px; gap: 8px; padding: 5px 9px; color: #405d5a; background: var(--surface-light); border: 1px solid var(--surface-dark); cursor: pointer; user-select: none; }
+.midi-smoothing-control input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.midi-smoothing-control > span:last-child { display: grid; gap: 2px; }
+.midi-smoothing-control b { color: var(--teal-dark); font-size: 11px; line-height: 1; }
+.midi-smoothing-control small { color: #657777; font: 9px/1.1 var(--mono); }
+.midi-smoothing-switch { position: relative; width: 30px; height: 16px; background: #7d9290; border: 1px solid #435c59; box-shadow: inset 1px 1px rgba(0, 0, 0, .22); transition: background .15s; }
+.midi-smoothing-switch::after { position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; background: var(--surface-light); border: 1px solid var(--surface-deep); content: ""; transition: transform .15s; }
+.midi-smoothing-control input:checked + .midi-smoothing-switch { background: var(--teal); }
+.midi-smoothing-control input:checked + .midi-smoothing-switch::after { transform: translateX(14px); }
+.midi-smoothing-control input:focus-visible + .midi-smoothing-switch { outline: 2px solid var(--signal); outline-offset: 2px; }
 .text-button { padding: 7px 0; color: var(--teal-dark); background: transparent; border: 0; font-size: 12px; }
 .text-button:hover { color: var(--black); text-decoration: underline; }
 .validation { min-height: 19px; margin-top: 14px; color: #405d5a; font: 11px/1.6 var(--mono); }
