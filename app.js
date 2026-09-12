@@ -404,6 +404,8 @@ let midiImportState = null;
 let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let activeTour = null;
+const PREVIEW_SCHEDULE_AHEAD_MS = 2500;
+const PREVIEW_SCHEDULER_INTERVAL_MS = 100;
 
 const TOUR_FLOWS = {
   library: [
@@ -1726,10 +1728,22 @@ function clearPreviewTimers(preview) {
   preview.timers = [];
 }
 
+function stopPreviewNodes(preview) {
+  preview.nodes.forEach((node) => { try { node.stop(); } catch {} });
+  preview.nodes.clear();
+}
+
+function clearPreviewScheduler(preview) {
+  if (!preview.schedulerTimer) return;
+  window.clearInterval(preview.schedulerTimer);
+  preview.schedulerTimer = null;
+}
+
 function stopPreview({ resetProgress = true } = {}) {
   if (!activePreview) return;
-  activePreview.nodes.forEach((node) => { try { node.stop(); } catch {} });
+  stopPreviewNodes(activePreview);
   clearPreviewTimers(activePreview);
+  clearPreviewScheduler(activePreview);
   activePreview = null;
   window.cancelAnimationFrame(previewProgressFrame);
   clearTimelinePlayback();
@@ -1742,42 +1756,79 @@ function previewPositionMs(preview) {
   return Math.max(preview.positionMs, Math.min(preview.sequence.totalMs, preview.positionMs + elapsedMs));
 }
 
-function schedulePreviewTimers(preview, positionMs, isInitial = false) {
-  clearPreviewTimers(preview);
-  const leadMs = isInitial ? 45 : 0;
-  preview.sequence.notes.forEach((item, index) => {
-    const remainingMs = item.timeMs - positionMs;
-    if (remainingMs < -1) return;
-    preview.timers.push(window.setTimeout(() => {
-      clearTimelinePlayback();
-      const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
-      row?.classList.add("playing");
-      keepTimelineRowVisible(row);
-    }, Math.max(0, remainingMs + leadMs)));
+function nextPreviewNoteIndex(sequence, positionMs) {
+  const index = sequence.notes.findIndex((item) => item.timeMs + item.pressMs > positionMs);
+  return index < 0 ? sequence.notes.length : index;
+}
+
+function updatePreviewTimeline(preview, positionMs) {
+  const { notes } = preview.sequence;
+  let index = preview.timelineIndex;
+  if (!Number.isInteger(index) || positionMs < notes[index]?.timeMs || positionMs >= notes[index]?.timeMs + notes[index]?.durationMs) {
+    index = notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
+  }
+  if (index < 0 || index === preview.timelineIndex) return;
+  preview.timelineIndex = index;
+  clearTimelinePlayback();
+  const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
+  row?.classList.add("playing");
+  keepTimelineRowVisible(row);
+}
+
+function registerPreviewNodes(preview, nodes) {
+  nodes.forEach((node) => {
+    preview.nodes.add(node);
+    node.addEventListener("ended", () => preview.nodes.delete(node), { once: true });
   });
-  preview.timers.push(window.setTimeout(() => stopPreview(), Math.max(0, preview.sequence.totalMs - positionMs) + 110));
+}
+
+function schedulePreviewWindow(preview) {
+  if (activePreview !== preview || preview.state !== "playing") return;
+  const positionMs = previewPositionMs(preview);
+  const windowEndMs = Math.min(preview.sequence.totalMs, positionMs + PREVIEW_SCHEDULE_AHEAD_MS);
+  while (preview.nextNoteIndex < preview.sequence.notes.length) {
+    const item = preview.sequence.notes[preview.nextNoteIndex];
+    if (item.timeMs > windowEndMs) break;
+    preview.nextNoteIndex += 1;
+    const noteEnd = item.timeMs + item.pressMs;
+    if (item.isRest || noteEnd <= preview.positionMs) continue;
+    const skippedMs = Math.max(0, preview.positionMs - item.timeMs);
+    const noteLength = Math.max(0.035, (item.pressMs - skippedMs) / 1000);
+    const startAt = preview.startAt + Math.max(0, item.timeMs - preview.positionMs) / 1000;
+    registerPreviewNodes(preview, scheduleHarmonicaTone(preview.context, startAt, noteLength, previewFrequency(item)));
+  }
+  if (positionMs >= preview.sequence.totalMs) stopPreview();
+}
+
+function startPreviewScheduler(preview) {
+  schedulePreviewWindow(preview);
+  preview.schedulerTimer = window.setInterval(() => schedulePreviewWindow(preview), PREVIEW_SCHEDULER_INTERVAL_MS);
 }
 
 function refreshPreviewProgress() {
   if (!activePreview || activePreview.state !== "playing") return;
   const position = previewPositionMs(activePreview);
   setPreviewProgress(position, activePreview.sequence);
+  updatePreviewTimeline(activePreview, position);
   previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
 }
 
 async function pausePreview() {
   if (!activePreview || activePreview.state !== "playing") return;
   const preview = activePreview;
-  clearPreviewTimers(preview);
+  const positionMs = previewPositionMs(preview);
+  stopPreviewNodes(preview);
+  clearPreviewScheduler(preview);
   window.cancelAnimationFrame(previewProgressFrame);
   try {
     await preview.context.suspend();
-    preview.positionMs = previewPositionMs(preview);
+    preview.positionMs = positionMs;
+    preview.nextNoteIndex = nextPreviewNoteIndex(preview.sequence, positionMs);
     setPreviewProgress(preview.positionMs, preview.sequence);
     preview.state = "paused";
     setPreviewUi("paused");
   } catch (error) {
-    schedulePreviewTimers(preview, previewPositionMs(preview));
+    startPreviewScheduler(preview);
     toast(error.message || "无法暂停试听。 ");
   }
 }
@@ -1789,7 +1840,8 @@ async function resumePreview() {
     await preview.context.resume();
     preview.startAt = preview.context.currentTime;
     preview.state = "playing";
-    schedulePreviewTimers(preview, preview.positionMs);
+    preview.nextNoteIndex = nextPreviewNoteIndex(preview.sequence, preview.positionMs);
+    startPreviewScheduler(preview);
     previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
     setPreviewUi("playing");
   } catch (error) {
@@ -1812,24 +1864,19 @@ async function playPreview(positionMs = 0) {
   try {
     const context = await wakeAudioEngine();
     masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
-    const nodes = [];
-    const timers = [];
     const startAt = context.currentTime + 0.045;
-    sequence.notes.forEach((item) => {
-      const noteEnd = item.timeMs + item.pressMs;
-      if (item.isRest || noteEnd <= startPosition) return;
-      const skippedMs = Math.max(0, startPosition - item.timeMs);
-      const noteLength = Math.max(0.035, (item.pressMs - skippedMs) / 1000);
-      nodes.push(...scheduleHarmonicaTone(context, startAt + Math.max(0, item.timeMs - startPosition) / 1000, noteLength, previewFrequency(item)));
-    });
-    activePreview = { context, nodes, timers, sequence, startAt, positionMs: startPosition, state: "playing" };
+    activePreview = {
+      context, nodes: new Set(), timers: [], schedulerTimer: null, sequence, startAt, positionMs: startPosition,
+      state: "playing", nextNoteIndex: nextPreviewNoteIndex(sequence, startPosition), timelineIndex: -1
+    };
     setPreviewProgress(startPosition, sequence);
     highlightTimelinePosition(startPosition);
-    schedulePreviewTimers(activePreview, startPosition, true);
+    startPreviewScheduler(activePreview);
     window.cancelAnimationFrame(previewProgressFrame);
     previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
     setPreviewUi("playing");
   } catch (error) {
+    stopPreview({ resetProgress: false });
     setPreviewUi("ready");
     toast(error.message || "无法启动试听。 ");
   }
@@ -2624,6 +2671,7 @@ window.addEventListener("resize", () => {
   updateTourPosition();
 });
 window.addEventListener("scroll", updateTourPosition, { passive: true });
+document.addEventListener("scroll", updateTourPosition, { capture: true, passive: true });
 if (typeof ResizeObserver === "function") {
   new ResizeObserver(scheduleWorkbenchHeightSync).observe(elements.editorPanel);
 }
@@ -2631,4 +2679,3 @@ if (typeof MutationObserver === "function") {
   new MutationObserver(scheduleWorkbenchHeightSync).observe(elements.editorPanel, { attributes: true, childList: true, subtree: true });
 }
 scheduleWorkbenchHeightSync();
-document.addEventListener("scroll", updateTourPosition, { capture: true, passive: true });
