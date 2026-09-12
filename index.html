@@ -202,9 +202,11 @@
           <div class="preview-console">
             <div class="preview-topline"><span>HARMONICA PREVIEW</span><span id="previewState">READY</span></div>
             <div class="preview-controls">
-              <button class="preview-button" id="previewButton" type="button" aria-label="试听整段简谱"><b>▶</b><span>试听整段</span></button>
-              <button class="stop-button restart-button" id="restartButton" type="button"><span>↺</span> 从头播放</button>
-              <button class="stop-button" id="stopButton" type="button" disabled><span>■</span> 停止</button>
+              <div class="preview-playback-actions">
+                <button class="preview-button" id="previewButton" type="button" aria-label="试听整段简谱"><b>▶</b><span class="button-label">试听整段</span></button>
+                <button class="stop-button restart-button" id="restartButton" type="button" aria-label="从头播放"><span>↺</span><span class="button-label">从头播放</span></button>
+                <button class="stop-button" id="stopButton" type="button" aria-label="停止" disabled><span>■</span><span class="button-label">停止</span></button>
+              </div>
               <label class="volume-control" for="volume"><span>VOL</span><input id="volume" type="range" min="0" max="100" value="64" /></label>
             </div>
             <div class="preview-progress"><input id="previewProgress" type="range" min="0" max="0" value="0" step="1" aria-label="播放进度" disabled /><span id="previewProgressLabel">00:00.000 / --:--.---</span></div>
