@@ -408,16 +408,14 @@ let activeTour = null;
 const TOUR_FLOWS = {
   library: [
     { index: "曲库教程 · 01", target: ".library-deck", title: "从曲库开始", copy: "这里收录内置与社区曲目。搜索后，在任意曲目卡片右上角使用「导出」可直接带着该曲进入最后的导出区。" },
-    { index: "曲库教程 · 02", target: "#songGrid", title: "选择一首曲目并导出", copy: "请选择想要的曲目，然后点击它右上角的「导出」。工具会自动载入曲谱、同步编辑器与播放器，并跳到导出为宏。", action: "library-export", status: "等待你点击任意曲目右上角的「导出」。" },
+    { index: "曲库教程 · 02", target: () => document.querySelector("[data-song-action='export']"), interactiveSelector: "[data-song-action='export']", title: "选择一首曲目并导出", copy: "请选择想要的曲目，然后点击它右上角的「导出」。工具会自动载入曲谱、同步编辑器与播放器，并跳到导出为宏。", action: "library-export", status: "等待你点击任意曲目右上角的「导出」。" },
     { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
   ],
   midi: [
     { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
-    { index: "MIDI 教程 · 02", target: "#midiTrackList", title: "选择旋律音轨", copy: "每一行是一条 MIDI 音轨，横条显示音符分布。请选择包含主旋律的一条，工具会自动裁去头尾无音区域。", action: "midi-track", status: "等待你选择一条 MIDI 音轨。" },
-    { index: "MIDI 教程 · 03", target: ".midi-range-editor", title: "截取需要的片段", copy: "拖动开始与结束手柄，只保留要演奏的段落。数值会实时显示在上方；首次调整后教程会继续。", action: "midi-range", status: "等待你调整截取范围。" },
-    { index: "MIDI 教程 · 04", target: "#confirmMidiSelection", title: "确认并生成谱子", copy: "确认后选定音轨与片段会转换成可编辑简谱，并同步到播放器与其他输入格式。", action: "midi-confirm", status: "等待你确认当前音轨与片段。" },
-    { index: "MIDI 教程 · 05", target: "#macroExportButton", title: "前往宏导出", copy: "可以先试听或微调生成的简谱；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "MIDI 教程 · 06", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
+    { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择旋律音轨并截取", copy: "先选含主旋律的音轨，再拖动开始与结束手柄保留所需片段。音轨与截取可以反复调整；完成后点击「确定并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「确定并生成谱子」。" },
+    { index: "MIDI 教程 · 03", target: ".editor-actions", title: "查看谱子、试播和导出", copy: "生成的简谱会同步显示在编辑器中。可先点击「试听」检查效果；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
+    { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
   ],
   manual: [
     { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的四种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
@@ -444,20 +442,71 @@ function resolveTourTarget(step) {
 
 function updateTourPosition() {
   if (!activeTour) return;
-  const target = resolveTourTarget(activeTour.steps[activeTour.stepIndex]);
+  const step = activeTour.steps[activeTour.stepIndex];
+  const target = resolveTourTarget(step);
   if (!target) return;
   const rect = target.getBoundingClientRect();
   const padding = 7;
+  const margin = 12;
+  const gap = 16;
   Object.assign(elements.tourSpotlight.style, {
     left: `${Math.max(4, rect.left - padding)}px`, top: `${Math.max(4, rect.top - padding)}px`,
     width: `${Math.min(window.innerWidth - 8, rect.width + padding * 2)}px`, height: `${Math.min(window.innerHeight - 8, rect.height + padding * 2)}px`
   });
+  const safeLeft = Math.max(0, rect.left - padding);
+  const safeTop = Math.max(0, rect.top - padding);
+  const safeRight = Math.min(window.innerWidth, rect.right + padding);
+  const safeBottom = Math.min(window.innerHeight, rect.bottom + padding);
+  const safeHeight = Math.max(0, safeBottom - safeTop);
+  const shieldBounds = {
+    ".tour-shield-top": [0, 0, window.innerWidth, safeTop],
+    ".tour-shield-right": [safeRight, safeTop, Math.max(0, window.innerWidth - safeRight), safeHeight],
+    ".tour-shield-bottom": [0, safeBottom, window.innerWidth, Math.max(0, window.innerHeight - safeBottom)],
+    ".tour-shield-left": [0, safeTop, safeLeft, safeHeight]
+  };
+  Object.entries(shieldBounds).forEach(([selector, [left, top, width, height]]) => {
+    Object.assign(document.querySelector(selector).style, { left: `${left}px`, top: `${top}px`, width: `${width}px`, height: `${height}px` });
+  });
+
+  // Informational steps do not require an underlying click. Center their card
+  // so a large panel target cannot collapse the tutorial controls.
+  if (!step.action) {
+    elements.tourPopover.style.removeProperty("--tour-popover-max-height");
+    const infoPopover = elements.tourPopover.getBoundingClientRect();
+    elements.tourPopover.style.top = `${Math.max(margin, (window.innerHeight - infoPopover.height) / 2)}px`;
+    elements.tourPopover.style.left = `${Math.max(margin, (window.innerWidth - infoPopover.width) / 2)}px`;
+    return;
+  }
+
+  // Reset the size constraint before measuring the next target. A tall tour
+  // card previously overlapped the very control it asked the user to click.
+  elements.tourPopover.style.removeProperty("--tour-popover-max-height");
   const popoverRect = elements.tourPopover.getBoundingClientRect();
-  const fitsBelow = rect.bottom + popoverRect.height + 18 < window.innerHeight;
-  const top = fitsBelow ? rect.bottom + 16 : Math.max(12, rect.top - popoverRect.height - 16);
-  const left = Math.max(12, Math.min(window.innerWidth - popoverRect.width - 12, rect.left));
+  const below = window.innerHeight - rect.bottom - gap - margin;
+  const above = rect.top - gap - margin;
+  const right = window.innerWidth - rect.right - gap - margin;
+  const left = rect.left - gap - margin;
+  const needsSidePlacement = Math.max(above, below) < 260 && Math.max(left, right) >= popoverRect.width;
+
+  let top;
+  let horizontal;
+  if (needsSidePlacement) {
+    const placeRight = right >= left && right >= popoverRect.width;
+    horizontal = placeRight ? rect.right + gap : rect.left - gap - popoverRect.width;
+    const availableHeight = window.innerHeight - margin * 2;
+    elements.tourPopover.style.setProperty("--tour-popover-max-height", `${availableHeight}px`);
+    const constrainedHeight = elements.tourPopover.getBoundingClientRect().height;
+    top = Math.max(margin, Math.min(window.innerHeight - constrainedHeight - margin, rect.top + (rect.height - constrainedHeight) / 2));
+  } else {
+    const placeBelow = below >= above;
+    const availableHeight = Math.max(0, placeBelow ? below : above);
+    elements.tourPopover.style.setProperty("--tour-popover-max-height", `${availableHeight}px`);
+    const constrainedHeight = elements.tourPopover.getBoundingClientRect().height;
+    top = placeBelow ? rect.bottom + gap : rect.top - gap - constrainedHeight;
+    horizontal = Math.max(margin, Math.min(window.innerWidth - popoverRect.width - margin, rect.left));
+  }
   elements.tourPopover.style.top = `${top}px`;
-  elements.tourPopover.style.left = `${left}px`;
+  elements.tourPopover.style.left = `${horizontal}px`;
 }
 
 function renderTourStep({ scroll = true } = {}) {
@@ -466,7 +515,9 @@ function renderTourStep({ scroll = true } = {}) {
   const step = activeTour.steps[activeTour.stepIndex];
   const target = resolveTourTarget(step);
   if (!target) { endTour(); return; }
-  if (scroll) target.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+  // Smooth scrolling can leave the popover positioned for an intermediate
+  // target location, covering the control once the scroll finishes.
+  if (scroll) target.scrollIntoView({ behavior: "auto", block: "center", inline: "nearest" });
   target.classList.add("tour-target");
   elements.tourIndex.textContent = step.index;
   elements.tourTitle.textContent = step.title;
@@ -478,7 +529,9 @@ function renderTourStep({ scroll = true } = {}) {
   elements.tourNext.disabled = Boolean(step.action);
   elements.tourNext.querySelector("span").textContent = step.terminal ? "完成" : "下一步";
   elements.tourNext.querySelector("b").textContent = step.terminal ? "✓" : "→";
-  window.setTimeout(updateTourPosition, scroll ? 320 : 0);
+  window.requestAnimationFrame(updateTourPosition);
+  window.setTimeout(updateTourPosition, scroll ? 120 : 0);
+  window.setTimeout(updateTourPosition, scroll ? 520 : 0);
 }
 
 function startTour(name, returnFocus = document.activeElement) {
@@ -2384,7 +2437,6 @@ elements.midiTrackList.addEventListener("click", (event) => {
   midiImportState.rangeAutoTrimmed = true;
   midiImportState.applied = false;
   renderMidiTrackPicker();
-  completeTourAction("midi-track", "已选中音轨，请调整需要导出的片段。");
 });
 [elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => input.addEventListener("input", () => {
   if (midiImportState) {
@@ -2392,7 +2444,6 @@ elements.midiTrackList.addEventListener("click", (event) => {
     midiImportState.rangeAutoTrimmed = false;
   }
   updateMidiRangeUi();
-  completeTourAction("midi-range", "截取范围已更新，请确认并生成谱子。");
 }));
 elements.confirmMidiSelection.addEventListener("click", () => {
   if (!midiImportState) return;
@@ -2580,3 +2631,4 @@ if (typeof MutationObserver === "function") {
   new MutationObserver(scheduleWorkbenchHeightSync).observe(elements.editorPanel, { attributes: true, childList: true, subtree: true });
 }
 scheduleWorkbenchHeightSync();
+document.addEventListener("scroll", updateTourPosition, { capture: true, passive: true });

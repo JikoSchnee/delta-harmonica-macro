@@ -619,15 +619,15 @@ main {
 .section-guide-step h3 { margin: 0; color: var(--teal-dark); font: 700 11px/1.4 var(--mono); }
 .section-guide-step p { margin: 4px 0 0; color: #405d5a; font-size: 11px; line-height: 1.7; }
 .section-guide-step code { padding: 1px 3px; color: #d8ffff; background: var(--screen); font: 10px var(--mono); }
-.tour-layer { position: fixed; z-index: 100; inset: 0; overflow: hidden; }
-.tour-shield { position: absolute; inset: 0; z-index: 1; cursor: not-allowed; }
+.tour-layer { position: fixed; z-index: 100; inset: 0; overflow: hidden; pointer-events: none; }
+.tour-shield { position: fixed; z-index: 1; cursor: not-allowed; pointer-events: auto; }
 .tour-spotlight { position: fixed; z-index: 2; box-sizing: border-box; border: 2px solid #bffff9; box-shadow: 0 0 0 5px rgba(0, 128, 128, .6), 0 0 0 100vmax rgba(0, 27, 27, .78), 0 0 18px rgba(142, 255, 244, .8); pointer-events: none; transition: left .22s ease, top .22s ease, width .22s ease, height .22s ease; }
 .tour-target { position: relative !important; z-index: 102 !important; outline: 2px solid #bffff9; outline-offset: 4px; }
-.tour-popover { position: fixed; z-index: 103; width: min(390px, calc(100vw - 24px)); color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .72); }
+.tour-popover { position: fixed; z-index: 103; display: flex; flex-direction: column; width: min(390px, calc(100vw - 24px)); max-height: var(--tour-popover-max-height, calc(100vh - 24px)); color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .72); pointer-events: auto; }
 .tour-popover-titlebar { display: flex; align-items: center; justify-content: space-between; min-height: 27px; padding: 3px 4px 3px 9px; color: var(--white); background: var(--teal); font: 700 10px/1 var(--mono); letter-spacing: .07em; }
 .tour-close { width: 22px; height: 20px; padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); font: 700 15px/1 var(--mono); }
 .tour-close:active { border-style: inset; }
-.tour-popover-body { padding: 16px; }
+.tour-popover-body { min-height: 0; padding: 16px; overflow: auto; }
 .tour-popover h2 { margin: 8px 0 7px; font: 700 21px/1.08 var(--pixel); }
 .tour-popover-body > p:not(.tour-status) { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
 .tour-status { margin: 11px 0 0; padding: 7px 9px; color: #d8ffff; background: var(--screen); border: 1px solid #46706d; font: 700 10px/1.5 var(--mono); }
