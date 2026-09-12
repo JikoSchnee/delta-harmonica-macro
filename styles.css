@@ -472,9 +472,10 @@ main {
   .preview-playback-actions > button { display: grid; width: 33px; padding: 0; place-items: center; }
   .preview-playback-actions .button-label { display: none; }
 }
-.preview-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; margin-top: 10px; color: #b1ccca; font: 9px var(--mono); }
+.preview-progress { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 4px; margin-top: 10px; color: #b1ccca; font: 9px var(--mono); }
 .preview-progress input { width: 100%; accent-color: #73d8d0; cursor: pointer; }
 .preview-progress input:disabled { cursor: not-allowed; opacity: .45; }
+.preview-progress span { text-align: right; }
 .preview-console p { margin: 9px 0 0; color: #abc5c2; font-size: 10px; line-height: 1.5; }
 .timeline-heading { display: flex; justify-content: space-between; padding: 17px 25px 12px; color: var(--teal-dark); background: var(--surface); }
 .timeline-heading span:last-child { color: #526767; }
@@ -675,7 +676,6 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .midi-track-count { grid-column: 3; grid-row: 1; }
   .midi-range-labels { align-items: start; flex-wrap: wrap; }
   .midi-range-labels strong { order: 3; width: 100%; text-align: left; }
-  .preview-progress { grid-template-columns: 1fr; gap: 4px; }
   .library-deck-browser { grid-template-columns: 1fr auto; }
   .library-grid { grid-template-columns: 1fr; max-height: 390px; }
   .editor-panel { padding-left: 14px; padding-right: 14px; }
