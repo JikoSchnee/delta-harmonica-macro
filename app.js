@@ -6,6 +6,8 @@ const MIN_NOTE_HOLD_MS = 24;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
 const KEY_TO_NOTE = { z: "1", x: "2", c: "3", v: "4", b: "5", n: "6", m: "7", ",": "1'" };
+const KEYBOARD_MODIFIER_LABELS = { L: "左键", M: "中键", R: "右键" };
+const KEYBOARD_LABEL_TO_MODIFIER = Object.fromEntries(Object.entries(KEYBOARD_MODIFIER_LABELS).map(([modifier, label]) => [label, modifier]));
 const RECORD_BEATS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 const DIATONIC_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71 };
 const BUILTIN_SONG_LIBRARY = [
@@ -305,18 +307,80 @@ const MACRO_TRIGGER_MODE_HINTS = {
   hold: "长按播放：按住绑定键播放，松开后立即停止；也可用全局停止键中止。",
   toggle: "切换播放：按一下开始，再按同一个绑定键停止；也可另设全局停止键。"
 };
+const SECTION_GUIDES = {
+  directory: {
+    windowTitle: "HELP.EXE — QUICK START",
+    index: "00 · QUICK START",
+    title: "目录 · 从这里开始",
+    intro: "目录只负责把你带到正确的起点；曲谱和导出内容始终在当前浏览器中处理。",
+    steps: [
+      ["01", "先看教程", "点击「教程」打开视频占位与完整文字说明；其中包含曲库试听流程和 Logitech G HUB 配置方式。"],
+      ["02", "使用曲库", "打开内置及社区曲目。每张卡片可直接进入编辑器，或先载入后跳到导出区。"],
+      ["03", "导入 MIDI", "选择 MIDI 文件后工具会提取单旋律；可按需要关闭「流畅演奏」，保留短断音。"],
+      ["04", "手动打谱", "从简谱模式开始输入数字简谱；也可在编辑器内切换到录制、精确或三角洲键盘模式。"]
+    ]
+  },
+  library: {
+    windowTitle: "HELP.EXE — SONG LIBRARY",
+    index: "02 · SCORE ARCHIVE",
+    title: "曲库 · 选曲与载入",
+    intro: "曲库用于快速载入现成曲谱。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
+    steps: [
+      ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
+      ["02", "点击卡片或「编辑」", "两种操作都会载入该曲并定位到编辑器。随后可修改谱子、歌曲信息与速度。"],
+      ["03", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
+      ["04", "提交作品", "点击「我要上传」查看群聊提交方式；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
+    ]
+  },
+  editor: {
+    windowTitle: "HELP.EXE — SCORE EDITOR",
+    index: "03 · INPUT WORKBENCH",
+    title: "编辑器 · 输入与校验",
+    intro: "编辑器会把不同写法统一为同一套按键事件。每次输入后会校验，并同步播放器与导出数据。",
+    steps: [
+      ["01", "选择输入来源", "可导入 MIDI 或 <code>.deltamusic</code>；也可以直接手动编辑。导入后请先检查歌名、调号、拍号和 BPM。"],
+      ["02", "选择合适模式", "简谱模式适合日常编辑；录制模式用于实时弹奏；精确模式使用音符/拍数；三角洲键盘模式使用「按键 / 毫秒」。"],
+      ["03", "查看校验状态", "底部会提示错误位置或显示预计时长。出现错误时，先按行号与提示修正，再试听或导出。"],
+      ["04", "试听与分享", "「试听」会播放当前序列；「导出为宏」前往导出设置；「分享 .deltamusic」会打包当前曲谱和元信息。"]
+    ]
+  },
+  player: {
+    windowTitle: "HELP.EXE — PLAYBACK",
+    index: "04 · PLAYBACK STATUS",
+    title: "播放器 · 听谱与检查",
+    intro: "播放器用于在导出前确认旋律和节奏。它不控制游戏或鼠标软件，只在浏览器内试听当前曲谱。",
+    steps: [
+      ["01", "试听整段", "点击「试听整段」从当前序列开始播放；「从头播放」可重新开始，「停止」会立即结束试听。"],
+      ["02", "调节音量", "使用 VOL 滑杆调整浏览器试听音量，不会影响导出的 Lua、XML 或键盘谱时值。"],
+      ["03", "核对统计", "总时长、音符数和输入事件数会随谱子更新；它们可帮助发现意外的休止或重复。"],
+      ["04", "查看事件时间线", "时间线逐项显示按键、变调键、按住时长与气口。若听感不对，可回编辑器定位相应音符。"]
+    ]
+  },
+  export: {
+    windowTitle: "HELP.EXE — MACRO EXPORT",
+    index: "05 · DRIVER FILES",
+    title: "导出为宏 · 配置与交付",
+    intro: "在这里将已校验的曲谱输出为鼠标软件脚本、XML 文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
+    steps: [
+      ["01", "设置 G HUB 触发", "填写绑定鼠标键并选择单次、长按或切换播放。全局停止键可选，用于随时终止正在播放的 Lua。"],
+      ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
+      ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
+      ["04", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
+    ]
+  }
+};
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
-  lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
+  lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tutorialButtons: [...document.querySelectorAll("[data-tutorial-action]")], tutorialDialog: document.querySelector("#tutorialDialog"), guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon")
+  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput")
 };
 
 let currentSequence = null;
@@ -479,6 +543,59 @@ function parseScore(source, bpm) {
     notes.push({ note, key: NOTE_KEYS[note] || null, modifier, isRest: note === "0", beats, start: match.index, ...position });
   }
   if (!notes.length) return { error: { message: "小节线不是音符，请输入例如 1/1。", line: 1, column: 1 } };
+  return enrichNotes(notes, bpm);
+}
+
+function parseKeyboardScore(source, bpm) {
+  if (!source.trim()) return { error: { message: "请先输入至少一项按键或等待时值。", line: 1, column: 1 } };
+  if (!Number.isFinite(bpm) || bpm < 30 || bpm > 300) return { error: { message: "BPM 必须在 30 到 300 之间。", line: 1, column: 1 } };
+  const notes = [];
+  const beatMs = 60000 / bpm;
+  const lines = source.split("\n");
+
+  for (let lineIndex = 0; lineIndex < lines.length; lineIndex += 1) {
+    const rawLine = lines[lineIndex];
+    const value = rawLine.trim();
+    if (!value) continue;
+    const position = { line: lineIndex + 1, column: rawLine.indexOf(value) + 1 };
+    const found = value.match(/^(.+?)\s*\/\s*(\d+)\s*ms$/);
+    if (!found) {
+      return { error: { message: "请使用“按键组合 / 正整数ms”格式，例如 Z / 500ms。", ...position } };
+    }
+
+    const input = found[1].trim();
+    const durationMs = Number(found[2]);
+    if (!Number.isSafeInteger(durationMs) || durationMs <= 0) {
+      return { error: { message: "时值必须是正整数毫秒。", ...position } };
+    }
+
+    if (input === "等待") {
+      notes.push({ note: "0", key: null, modifier: null, isRest: true, beats: durationMs / beatMs, ...position });
+      continue;
+    }
+
+    const parts = input.split(/\s*\+\s*/).map((part) => part.trim());
+    if (!parts.length || parts.some((part) => !part)) {
+      return { error: { message: "按键组合中的“+”两侧都必须有内容。", ...position } };
+    }
+    const keyToken = parts.at(-1).toLowerCase();
+    const note = KEY_TO_NOTE[keyToken];
+    if (!note) {
+      return { error: { message: "按键只能使用 Z、X、C、V、B、N、M 或英文逗号 ,。", ...position } };
+    }
+    const modifierTokens = parts.slice(0, -1);
+    const modifiers = modifierTokens.map((label) => KEYBOARD_LABEL_TO_MODIFIER[label]);
+    if (modifiers.some((modifier) => !modifier)) {
+      return { error: { message: "变调键只能使用“左键”、“中键”或“右键”，且必须写在键盘按键前。", ...position } };
+    }
+    if (new Set(modifiers).size !== modifiers.length || (modifiers.includes("L") && modifiers.includes("R"))) {
+      return { error: { message: "变调键不能重复，也不能同时使用左键与右键。", ...position } };
+    }
+    const modifier = ["L", "M", "R"].filter((candidate) => modifiers.includes(candidate)).join("") || null;
+    notes.push({ note, key: NOTE_KEYS[note], modifier, isRest: false, beats: durationMs / beatMs, ...position });
+  }
+
+  if (!notes.length) return { error: { message: "请至少输入一项按键或等待时值。", line: 1, column: 1 } };
   return enrichNotes(notes, bpm);
 }
 
@@ -722,7 +839,8 @@ function formatTime(milliseconds) {
 
 const editorLineNumberPairs = [
   [elements.score, elements.lineNumbers],
-  [elements.jianpuScore, elements.jianpuLineNumbers]
+  [elements.jianpuScore, elements.jianpuLineNumbers],
+  [elements.keyboardScore, elements.keyboardLineNumbers]
 ];
 
 function syncLineNumbers(textarea, gutter) {
@@ -772,13 +890,19 @@ function renderSongLibrary(query = "") {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const songs = SONG_LIBRARY.map((song, index) => ({ ...song, index })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm}`.toLocaleLowerCase().includes(normalizedQuery));
   elements.songGrid.innerHTML = songs.length ? songs.map((song) => `
-    <button class="song-card" data-song-index="${song.index}" data-index="${String(song.index + 1).padStart(2, "0")}" type="button">
+    <article class="song-card" data-song-index="${song.index}" data-index="${String(song.index + 1).padStart(2, "0")}">
+      <button class="song-card-main" data-song-action="edit" type="button" aria-label="编辑《${escapeHtml(song.title)}》">
       <span class="song-number">TRACK ${String(song.index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
       <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span></div>
       <span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>
-    </button>
+      </button>
+      <div class="song-card-actions" aria-label="曲目操作">
+        <button class="song-card-action" data-song-action="edit" type="button">编辑</button>
+        <button class="song-card-action export" data-song-action="export" type="button">导出</button>
+      </div>
+    </article>
   `).join("") : '<p class="library-empty">没有匹配的曲目，换个关键词试试。</p>';
 }
 
@@ -824,15 +948,26 @@ function sequenceToJianpu(sequence) {
   return serializeSequence(sequence, (item) => `${jianpuPitch(item.note, item.modifier)}${beatsToJianpu(item.beats)}`);
 }
 
+function keyboardLabel(item) {
+  if (item.isRest) return "等待";
+  const modifiers = [...(item.modifier || "")].map((modifier) => KEYBOARD_MODIFIER_LABELS[modifier]);
+  return [...modifiers, item.key.toUpperCase()].join(" + ");
+}
+
+function sequenceToKeyboard(sequence) {
+  return sequence.notes.map((item) => `${keyboardLabel(item)} / ${item.durationMs}ms`).join("\n");
+}
+
 function syncSequenceToEditors(sequence, { except = null } = {}) {
   if (except !== "jianpu") elements.jianpuScore.value = sequenceToJianpu(sequence);
   const precise = sequenceToPrecise(sequence);
   if (except !== "precise") elements.score.value = precise;
   if (except !== "record") elements.recordedScore.value = precise;
+  if (except !== "keyboard") elements.keyboardScore.value = sequenceToKeyboard(sequence);
   updateLineNumbers();
 }
 
-function loadSong(song) {
+function loadSong(song, { destination = "editor" } = {}) {
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -849,17 +984,19 @@ function loadSong(song) {
   }
   sequence.notes.forEach((item, index) => { item.index = index; });
   syncSequenceToEditors(sequence);
-  [elements.jianpuScore, elements.score, elements.recordedScore].forEach((editor) => { editor.scrollTop = 0; });
+  [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
   elements.jianpuLineNumbers.scrollTop = 0;
   elements.lineNumbers.scrollTop = 0;
+  elements.keyboardLineNumbers.scrollTop = 0;
   setInputMode("jianpu", { force: true, silent: true });
   elements.jianpuScore.focus();
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
-  document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  else document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
 
-const MODE_LABELS = { jianpu: "简谱模式", record: "录制模式", precise: "精确模式" };
+const MODE_LABELS = { jianpu: "简谱模式", record: "录制模式", precise: "精确模式", keyboard: "三角洲键盘模式" };
 
 function setInputMode(mode, { force = false, silent = false } = {}) {
   if (!MODE_LABELS[mode]) return false;
@@ -1010,7 +1147,11 @@ function updateMonitor(sequence) {
 function convert() {
   updateLineNumbers();
   const bpm = Number(elements.bpm.value);
-  const sequence = inputMode === "jianpu" ? parseJianpu(elements.jianpuScore.value, bpm) : parseScore(inputMode === "record" ? elements.recordedScore.value : elements.score.value, bpm);
+  const sequence = inputMode === "jianpu"
+    ? parseJianpu(elements.jianpuScore.value, bpm)
+    : inputMode === "keyboard"
+      ? parseKeyboardScore(elements.keyboardScore.value, bpm)
+      : parseScore(inputMode === "record" ? elements.recordedScore.value : elements.score.value, bpm);
   if (sequence.error) {
     currentSequence = null;
     updateMonitor(null);
@@ -1024,6 +1165,54 @@ function convert() {
   elements.status.textContent = "序列已就绪";
   setValidation(`校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, "success");
   return sequence;
+}
+
+function openKeyboardMacroDialog() {
+  const sequence = convert();
+  if (!sequence) {
+    toast("请先修正谱子错误。");
+    return;
+  }
+  elements.keyboardMacroTitle.textContent = `${elements.macroName.value.trim() || "当前曲谱"} · 手动输入宏`;
+  elements.keyboardMacroMeta.textContent = `三角洲键盘模式 · ${sequence.notes.length} 个事件 · ${formatTime(sequence.totalMs)}`;
+  elements.keyboardMacroOutput.value = sequenceToKeyboard(sequence);
+  elements.keyboardMacroDialog.showModal();
+}
+
+function openSectionGuide(key) {
+  const guide = SECTION_GUIDES[key];
+  if (!guide) return;
+  elements.sectionGuideWindowTitle.textContent = guide.windowTitle;
+  elements.sectionGuideIndex.textContent = guide.index;
+  elements.sectionGuideHeading.textContent = guide.title;
+  elements.sectionGuideIntro.textContent = guide.intro;
+  elements.sectionGuideSteps.innerHTML = guide.steps.map(([number, title, copy]) => `
+    <article class="section-guide-step">
+      <b>${number}</b>
+      <div><h3>${title}</h3><p>${copy}</p></div>
+    </article>
+  `).join("");
+  elements.sectionGuideDialog.showModal();
+}
+
+function handleBpmChange() {
+  stopPreview();
+  if (inputMode !== "keyboard" || !currentSequence) {
+    convert();
+    return;
+  }
+  const sequence = enrichNotes(currentSequence.notes, Number(elements.bpm.value));
+  if (sequence.error) {
+    elements.status.textContent = `错误 · ${sequence.error.line}:${sequence.error.column}`;
+    setValidation(`第 ${sequence.error.line} 行，第 ${sequence.error.column} 列：${sequence.error.message}`, "error");
+    return;
+  }
+  sequence.notes.forEach((item, index) => { item.index = index; });
+  currentSequence = sequence;
+  syncSequenceToEditors(sequence);
+  updateMonitor(sequence);
+  elements.status.textContent = "序列已就绪";
+  setValidation(`校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, "success");
 }
 
 function getAudioEngine() {
@@ -1831,9 +2020,10 @@ async function importMidiFile(file, { refreshed = false } = {}) {
     lastMidiFile = file;
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
-    [elements.jianpuScore, elements.score, elements.recordedScore].forEach((editor) => { editor.scrollTop = 0; });
+    [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
     elements.jianpuLineNumbers.scrollTop = 0;
     elements.lineNumbers.scrollTop = 0;
+    elements.keyboardLineNumbers.scrollTop = 0;
     setInputMode("jianpu", { force: true, silent: true });
     elements.jianpuScore.focus();
     const transposeMessage = converted.transpose ? ` · 已移调 ${converted.transpose > 0 ? "+" : ""}${converted.transpose} 半音以适配口琴音域` : "";
@@ -1870,9 +2060,9 @@ async function copyLua(sequence) {
   }
 }
 
-[elements.score, elements.jianpuScore, elements.recordedScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; stopPreview(); updateLineNumbers(); convert(); }));
+[elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; stopPreview(); updateLineNumbers(); convert(); }));
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
-elements.bpm.addEventListener("input", () => { stopPreview(); convert(); });
+elements.bpm.addEventListener("input", handleBpmChange);
 elements.convertButton.addEventListener("click", playPreview);
 elements.importMidiButton.addEventListener("click", () => elements.importMidiInput.click());
 elements.importMidiInput.addEventListener("change", () => importMidiFile(elements.importMidiInput.files?.[0]));
@@ -1892,8 +2082,8 @@ elements.clearButton.addEventListener("click", () => {
   finishRecording({ apply: false });
   stopPreview();
   lastMidiFile = null;
-  const activeEditor = inputMode === "jianpu" ? elements.jianpuScore : inputMode === "record" ? elements.recordedScore : elements.score;
-  [elements.jianpuScore, elements.recordedScore, elements.score].forEach((editor) => { editor.value = ""; });
+  const activeEditor = inputMode === "jianpu" ? elements.jianpuScore : inputMode === "record" ? elements.recordedScore : inputMode === "keyboard" ? elements.keyboardScore : elements.score;
+  [elements.jianpuScore, elements.recordedScore, elements.score, elements.keyboardScore].forEach((editor) => { editor.value = ""; });
   updateLineNumbers();
   convert();
   activeEditor.focus();
@@ -1959,9 +2149,11 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   if (action === "copy-lua") await copyLua(sequence);
   if (["download-lua", "download-rz3", "download-rz4"].includes(action)) openMacroDownloadDialog(action);
 }));
+elements.guideButtons.forEach((button) => button.addEventListener("click", () => openSectionGuide(button.dataset.guide)));
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));
 elements.directoryButtons.forEach((button) => button.addEventListener("click", () => {
   const action = button.dataset.directoryAction;
+  if (action === "tutorial") elements.tutorialDialog.showModal();
   if (action === "library") {
     document.querySelector(".library-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
     elements.songSearch.focus({ preventScroll: true });
@@ -1972,12 +2164,23 @@ elements.directoryButtons.forEach((button) => button.addEventListener("click", (
     elements.jianpuScore.focus({ preventScroll: true });
   }
 }));
+elements.tutorialButtons.forEach((button) => button.addEventListener("click", () => {
+  const action = button.dataset.tutorialAction;
+  elements.tutorialDialog.close();
+  if (action === "library") {
+    document.querySelector(".library-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    elements.songSearch.focus({ preventScroll: true });
+  }
+  if (action === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+}));
 elements.songSearch.addEventListener("input", () => renderSongLibrary(elements.songSearch.value));
 elements.songGrid.addEventListener("click", (event) => {
-  const card = event.target.closest("[data-song-index]");
-  if (!card) return;
-  loadSong(SONG_LIBRARY[Number(card.dataset.songIndex)]);
+  const actionButton = event.target.closest("[data-song-action]");
+  const card = actionButton?.closest("[data-song-index]");
+  if (!actionButton || !card) return;
+  loadSong(SONG_LIBRARY[Number(card.dataset.songIndex)], { destination: actionButton.dataset.songAction === "export" ? "export" : "editor" });
 });
+elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
 function openUploadHelpDialog(status = "") {
   elements.uploadCopyStatus.textContent = status;
   elements.uploadCopyStatus.hidden = !status;
