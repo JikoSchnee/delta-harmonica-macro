@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
-    <meta name="description" content="将三角洲行动口琴数字简谱转换为罗技 G HUB Lua 与雷蛇 Synapse 宏文件。" />
+    <meta name="description" content="将三角洲行动口琴数字简谱转换为 Logitech G HUB、Razer Synapse 与 ROG Armoury Crate 宏文件。" />
     <title>HARMONICA DECK.EXE · 口琴宏生成器</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -268,6 +268,11 @@
             <p class="export-copy">仅导出事件序列；在 Macro 列表的更多菜单中选择 Import，导入后再手动绑定鼠标键和触发模式。</p>
             <div class="export-actions"><button data-action="download-rz4" type="button">下载 Synapse 4 XML</button></div>
           </article>
+          <article class="export-card rog">
+            <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
+            <p class="export-copy">生成可导入的 Armoury Crate 宏事件。导入后请将宏绑定到支持宏功能的 ROG 外设按键；默认设置为单次播放。</p>
+            <div class="export-actions"><button data-action="download-rog" type="button">下载 ROG GMAC</button></div>
+          </article>
           <article class="export-card manual-entry">
             <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
             <p class="export-copy">以「按键 / 毫秒」展示当前曲谱，便于在支持手动录入的宏工具中逐项填写。</p>
@@ -278,6 +283,7 @@
 
       <section class="notice-grid">
         <div class="notice warning"><span>!</span><p><strong>雷蛇兼容说明</strong> 没有本机导出样本时，Synapse 3/4 XML 仅按公开社区结构生成。若导入失败，请先在你的版本中录制一个单键宏并导出，再用其作为格式校准样本。</p></div>
+        <div class="notice warning"><span>!</span><p><strong>ROG 兼容说明</strong> GMAC 格式按 Armoury Crate 当前导出结构生成。不同版本或外设的宏能力可能不同；若导入失败，请用该版本录制并导出一个单键宏后与生成文件比对。</p></div>
         <div class="notice"><span>◎</span><p><strong>使用前确认</strong> 请自行确认游戏规则与服务器政策是否允许宏。此工具不会连接游戏、鼠标软件或任何外部服务。</p></div>
       </section>
     </main>

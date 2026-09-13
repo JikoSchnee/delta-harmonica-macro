@@ -7,6 +7,19 @@ const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 // API (PressMouseButton / ReleaseMouseButton) uses left=1, middle=2, right=3.
 // Razer XML follows the raw physical-button order.
 const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 2, razer: 3 }, R: { name: "右键升调", ghub: 3, razer: 2 } };
+// Armoury Crate GMAC stores a display name alongside Linux input and Windows
+// virtual-key codes. Keep its mapping separate from the Razer event values.
+const ROG_KEYS = {
+  z: { name: "Z", linuxCode: 44, windowsCode: 90 }, x: { name: "X", linuxCode: 45, windowsCode: 88 },
+  c: { name: "C", linuxCode: 46, windowsCode: 67 }, v: { name: "V", linuxCode: 47, windowsCode: 86 },
+  b: { name: "B", linuxCode: 48, windowsCode: 66 }, n: { name: "N", linuxCode: 49, windowsCode: 78 },
+  m: { name: "M", linuxCode: 50, windowsCode: 77 }, ",": { name: "Comma", linuxCode: 51, windowsCode: 188 }
+};
+const ROG_MOUSE_BUTTONS = {
+  L: { name: "Left Mouse Button", linuxCode: 272, windowsCode: 1 },
+  M: { name: "Middle Mouse Button", linuxCode: 274, windowsCode: 4 },
+  R: { name: "Right Mouse Button", linuxCode: 273, windowsCode: 2 }
+};
 // Leave a short release window between every pair of played notes.  A gap only
 // between repeated notes works for a plain melody, but modifier changes (for
 // example `#1'` -> `7` in 鸟之诗) otherwise release and press several mouse /
@@ -367,7 +380,7 @@ const SECTION_GUIDES = {
       ["06", "曲目信息与编辑区", "歌名、作者、调号、拍号和 BPM 会随导出保存。编辑区左侧行号与下方语法提示用于定位和修正输入。"],
       ["07", "校验、试听与分享", "底部校验会给出错误行列或预计时长；「试听」播放当前序列，「分享 .deltamusic」保存曲谱，「导出为宏」前往导出区。"],
       ["08", "播放器", "总时长、音符与事件统计用于核对；试听、从头播放、停止、音量与进度控制只影响浏览器试听。事件时间线可点击跳转到指定时刻。"],
-      ["09", "导出目标", "导出区提供 Logitech G HUB Lua、Razer Synapse 3 XML、Synapse 4 XML 和手动键盘谱；请按设备与软件版本选择，并确认使用环境允许宏。"]
+      ["09", "导出目标", "导出区提供 Logitech G HUB Lua、Razer Synapse 3/4 XML、ROG Armoury Crate GMAC 和手动键盘谱；请按设备与软件版本选择，并确认使用环境允许宏。"]
     ]
   },
   player: {
@@ -386,12 +399,13 @@ const SECTION_GUIDES = {
     windowTitle: "HELP.EXE — MACRO EXPORT",
     index: "05 · DRIVER FILES",
     title: "导出为宏 · 配置与交付",
-    intro: "在这里将已校验的曲谱输出为鼠标软件脚本、XML 文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
+    intro: "在这里将已校验的曲谱输出为鼠标软件脚本、驱动配置文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
     steps: [
       ["01", "设置 G HUB 触发", "填写绑定鼠标键并选择单次、长按或切换播放。全局停止键可选，用于随时终止正在播放的 Lua。"],
       ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
-      ["04", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
+      ["04", "导出 ROG GMAC", "下载 <code>.gmac</code> 后，在 Armoury Crate 的 Macro 页面选择 Import；导入成功后再将该宏绑定到支持宏功能的 ROG 外设按键。"],
+      ["05", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
     ]
   }
 };
@@ -433,13 +447,13 @@ const TOUR_FLOWS = {
   library: [
     { index: "曲库教程 · 01", target: ".library-deck", title: "从曲库开始", copy: "这里收录内置与社区曲目。搜索后，在任意曲目卡片右上角使用「导出」可直接带着该曲进入最后的导出区。" },
     { index: "曲库教程 · 02", target: () => document.querySelector("[data-song-action='export']"), interactiveSelector: "[data-song-action='export']", title: "选择一首曲目并导出", copy: "请选择想要的曲目，然后点击它右上角的「导出」。工具会自动载入曲谱、同步编辑器与播放器，并跳到导出为宏。", action: "library-export", status: "等待你点击任意曲目右上角的「导出」。" },
-    { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
+    { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；ROG Armoury Crate 使用 GMAC；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
   ],
   midi: [
     { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
     { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择旋律音轨并截取", copy: "先选含主旋律的音轨，再拖动开始与结束手柄保留所需片段。音轨与截取可以反复调整；完成后点击「确定并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「确定并生成谱子」。" },
     { index: "MIDI 教程 · 03", target: ".editor-actions", title: "查看谱子、试播和导出", copy: "生成的简谱会同步显示在编辑器中。可先点击「试听」检查效果；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
+    { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；ROG Armoury Crate 导入 GMAC；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
   ],
   manual: [
     { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的四种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
@@ -456,7 +470,7 @@ const TOUR_FLOWS = {
     { index: "打谱教程 · 12", target: ".preview-console", title: "播放器控制", copy: "这里可以试听、从头播放、停止、调节音量和拖动播放进度。这些控制只影响浏览器试听，不会修改导出的宏。" },
     { index: "打谱教程 · 13", target: "#timeline", title: "事件时间线", copy: "每一行显示一个按键时刻、变调键、按住时长与气口。点击任意一行可从该位置开始试听。" },
     { index: "打谱教程 · 14", target: "#macroExportButton", title: "进入导出", copy: "完成打谱和试听后，点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "打谱教程 · 15", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别使用自己的 XML；其他宏工具可使用手动输入的键盘谱。", terminal: true }
+    { index: "打谱教程 · 15", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别使用自己的 XML；ROG Armoury Crate 使用 GMAC；其他宏工具可使用手动输入的键盘谱。", terminal: true }
   ]
 };
 
@@ -2232,6 +2246,35 @@ function generateRazerXml(sequence, version) {
   return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Harmonica Deck experimental Synapse ${version} macro. Synapse 3 and 4 files are not interchangeable. -->\n<Macro xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n  <Name>${name}</Name>\n  <Guid>${makeUuid()}</Guid>\n  <MacroEvents>\n${events.join("\n")}\n  </MacroEvents>\n  <IsFolder>false</IsFolder>\n  <FolderGuid>00000000-0000-0000-0000-000000000000</FolderGuid>\n</Macro>\n`;
 }
 
+function rogGmacEvent(action, input) {
+  return `${action},${input.name},${input.linuxCode},${input.windowsCode}`;
+}
+
+function rogDelay(delay) {
+  return delay > 0 ? `Delay,${Math.round(delay)}` : "";
+}
+
+function generateRogGmac(sequence) {
+  const events = [];
+  sequence.notes.forEach((item) => {
+    if (item.isRest) {
+      events.push(rogDelay(item.durationMs));
+      return;
+    }
+    [...(item.modifier || "")].forEach((modifier) => events.push(rogGmacEvent("Press", ROG_MOUSE_BUTTONS[modifier])));
+    const inputLeadMs = item.inputLeadMs || 0;
+    events.push(rogDelay(inputLeadMs));
+    const key = ROG_KEYS[item.key];
+    events.push(rogGmacEvent("Press", key));
+    events.push(rogDelay(item.pressMs - inputLeadMs));
+    events.push(rogGmacEvent("Release", key));
+    [...(item.modifier || "")].reverse().forEach((modifier) => events.push(rogGmacEvent("Release", ROG_MOUSE_BUTTONS[modifier])));
+    events.push(rogDelay(item.waitMs));
+  });
+  // The final value is Armoury Crate's repeat setting: 1 means play once.
+  return `${events.filter(Boolean).join("\n")}\n1\n`;
+}
+
 function download(content, filename, type) {
   const blob = new Blob([content], { type: `${type};charset=utf-8` });
   const url = URL.createObjectURL(blob);
@@ -2265,6 +2308,13 @@ const MACRO_DOWNLOAD_CONFIG = {
     requiresTriggerSettings: false,
     build: (sequence) => generateRazerXml(sequence, 4),
     success: "Synapse 4 XML 已下载。"
+  },
+  "download-rog": {
+    suffix: "-rog.gmac",
+    type: "text/plain",
+    requiresTriggerSettings: false,
+    build: (sequence) => generateRogGmac(sequence),
+    success: "ROG Armoury Crate GMAC 已下载。"
   }
 };
 
@@ -2723,7 +2773,7 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const action = button.dataset.action;
   if (action === "copy-lua") await copyLua(sequence);
-  if (["download-lua", "download-rz3", "download-rz4"].includes(action)) openMacroDownloadDialog(action);
+  if (["download-lua", "download-rz3", "download-rz4", "download-rog"].includes(action)) openMacroDownloadDialog(action);
 }));
 elements.guideButtons.forEach((button) => button.addEventListener("click", () => openSectionGuide(button.dataset.guide)));
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));

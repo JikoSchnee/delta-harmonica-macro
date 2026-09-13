@@ -517,17 +517,19 @@ main {
 .macro-settings-hint { grid-column: 1 / -1; margin: 0; color: #abc5c2; font-size: 10px; line-height: 1.6; }
 .macro-settings-validation { grid-column: 1 / -1; margin: 0; padding: 7px 9px; color: #ffe0d0; background: #4e2525; border: 1px solid var(--danger); font: 700 10px/1.5 var(--mono); }
 .macro-settings-validation[hidden] { display: none; }
-.export-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-top: 20px; }
+.export-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 20px; }
 .export-card { position: relative; min-height: 248px; padding: 18px; overflow: hidden; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); }
 .export-card::after { position: absolute; right: -25px; bottom: -70px; color: rgba(0, 128, 128, .09); font: 700 180px/1 var(--pixel); content: attr(data-sigil); }
 .export-card.logitech { border-top: 3px solid #607b9a; }
 .export-card.razer { border-top: 3px solid var(--teal); }
 .export-card.razer-four { border-top: 3px solid var(--teal-dark); }
+.export-card.rog { border-top: 3px solid #9b4c2f; }
 .export-card.manual-entry { border-top: 3px solid #536e92; }
 .export-top { display: flex; align-items: center; gap: 12px; }
 .driver-mark { display: grid; width: 36px; height: 36px; place-items: center; color: var(--white); background: var(--teal); border: 2px outset #69b5b5; font: 700 17px/1 var(--pixel); }
 .logitech .driver-mark { background: #607b9a; }
 .razer-four .driver-mark { background: var(--teal-dark); font-size: 13px; }
+.rog .driver-mark { width: 42px; background: #9b4c2f; font-size: 11px; }
 .manual-entry .driver-mark { background: #536e92; border-color: #35516e; font-size: 10px; }
 .export-top h3 { margin: 0; font-size: 15px; }
 .export-top p { margin: 3px 0 0; color: #526767; font: 10px var(--mono); }
