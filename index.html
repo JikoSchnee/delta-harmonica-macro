@@ -134,6 +134,10 @@
             <label>调号<input id="keySignature" type="text" maxlength="8" value="1=C" placeholder="例如：1=C" /></label>
             <label>拍号<input id="timeSignature" type="text" maxlength="5" value="4/4" placeholder="例如：4/4" inputmode="numeric" /></label>
             <label>速度 <span class="unit">BPM</span><input id="bpm" type="number" min="30" max="300" step="1" value="120" inputmode="numeric" /></label>
+            <section class="transpose-control" aria-label="全谱半音移调">
+              <span>全谱移调 <small>半音</small></span>
+              <div><button id="transposeDown" type="button" aria-label="整首谱子降低半音">−</button><output id="transposeStatus" aria-live="polite">等待曲谱</output><button id="transposeUp" type="button" aria-label="整首谱子升高半音">+</button></div>
+            </section>
           </div>
 
           <section class="input-pane" data-input-pane="jianpu" role="tabpanel" aria-label="简谱模式">
