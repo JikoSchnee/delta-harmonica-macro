@@ -1,7 +1,12 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 3, razer: 3 }, R: { name: "右键升调", ghub: 2, razer: 2 } };
-const BREATH_GAP_MS = 18;
+// Leave a short release window between every pair of played notes.  A gap only
+// between repeated notes works for a plain melody, but modifier changes (for
+// example `#1'` -> `7` in 鸟之诗) otherwise release and press several mouse /
+// keyboard inputs in the same driver tick.  Delta Force can then sample a
+// stale modifier, or miss the key press altogether.
+const INPUT_TRANSITION_GAP_MS = 18;
 const MIN_NOTE_HOLD_MS = 24;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
@@ -690,10 +695,10 @@ function enrichNotes(notes, bpm) {
   });
   enriched.forEach((event, index) => {
     const next = enriched[index + 1];
-    if (event.isRest || !next || next.isRest || macroMidi(event) !== macroMidi(next)) return;
-    const breathMs = Math.min(BREATH_GAP_MS, Math.max(0, event.durationMs - MIN_NOTE_HOLD_MS));
-    event.pressMs = event.durationMs - breathMs;
-    event.waitMs = breathMs;
+    if (event.isRest || !next || next.isRest) return;
+    const transitionMs = Math.min(INPUT_TRANSITION_GAP_MS, Math.max(0, event.durationMs - MIN_NOTE_HOLD_MS));
+    event.pressMs = event.durationMs - transitionMs;
+    event.waitMs = transitionMs;
   });
   return { notes: enriched, beatMs: Math.round(beatMs), totalMs: cursor, events: enriched.reduce((sum, item) => sum + item.eventCount, 0) };
 }
@@ -1571,8 +1576,7 @@ function prewarmAudioEngine() {
 }
 
 function previewFrequency(item) {
-  const offset = [...(item.modifier || "")].reduce((sum, modifier) => sum + PREVIEW_OFFSETS[modifier], 0);
-  const midi = PREVIEW_MIDI[item.note] + offset;
+  const midi = macroMidi(item);
   return 440 * (2 ** ((midi - 69) / 12));
 }
 
@@ -1930,6 +1934,14 @@ function readMacroTriggerSettings() {
   }
   if (stopButton === button) {
     setMacroTriggerValidation("全局停止键不能单独填写为播放绑定键；如需同键开关，请留空并选择“切换播放”。", [elements.macroTriggerButton, elements.macroStopButton]);
+    return null;
+  }
+  const pitchModifierButtons = new Set(Object.values(MOUSE_BUTTONS).map((modifier) => modifier.ghub));
+  if (pitchModifierButtons.has(button) || pitchModifierButtons.has(stopButton)) {
+    setMacroTriggerValidation("鼠标键 1、2、3 用于口琴变调，不能设为播放或停止键；请使用侧键 4–20。", [
+      ...(pitchModifierButtons.has(button) ? [elements.macroTriggerButton] : []),
+      ...(pitchModifierButtons.has(stopButton) ? [elements.macroStopButton] : [])
+    ]);
     return null;
   }
   if (!Object.prototype.hasOwnProperty.call(MACRO_TRIGGER_MODE_LABELS, mode)) {

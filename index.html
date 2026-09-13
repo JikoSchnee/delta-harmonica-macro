@@ -239,11 +239,11 @@
             <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
           </div>
           <div class="macro-settings-controls">
-            <label for="macroTriggerButton">绑定鼠标键 <span class="unit">必填 · 1–20</span><input id="macroTriggerButton" type="number" min="1" max="20" step="1" required placeholder="例如 5" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label for="macroTriggerButton">绑定鼠标键 <span class="unit">必填 · 4–20</span><input id="macroTriggerButton" type="number" min="4" max="20" step="1" required placeholder="例如 5" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
             <label for="macroTriggerMode">触发模式<select id="macroTriggerMode" aria-describedby="macroSettingsHint"><option value="once">单次播放</option><option value="hold">长按播放</option><option value="toggle" selected>切换播放</option></select></label>
-            <label class="macro-stop-control" for="macroStopButton">全局停止键 <span class="unit">可选 · 鼠标键 1–20</span><input id="macroStopButton" type="number" min="1" max="20" step="1" placeholder="例如 4" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label class="macro-stop-control" for="macroStopButton">全局停止键 <span class="unit">可选 · 鼠标键 4–20</span><input id="macroStopButton" type="number" min="4" max="20" step="1" placeholder="例如 4" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
           </div>
-          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。播放卡住时可用全局停止键中止当前 Lua。</p>
+          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。鼠标键 1–3 保留给低音、升半音与高音变调；请使用侧键。播放卡住时可用全局停止键中止当前 Lua。</p>
           <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="export-grid">
