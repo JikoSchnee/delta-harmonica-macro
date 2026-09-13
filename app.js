@@ -413,7 +413,7 @@ const SECTION_GUIDES = {
 const elements = {
   score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
-  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
@@ -437,6 +437,7 @@ let macroDownloadFinalizeTimer = null;
 let inputMode = "jianpu";
 let lastMidiFile = null;
 let midiImportState = null;
+let midiNotePickerState = null;
 let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
@@ -452,7 +453,7 @@ const TOUR_FLOWS = {
   ],
   midi: [
     { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
-    { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择旋律音轨并截取", copy: "先选含主旋律的音轨，再拖动开始与结束手柄保留所需片段。音轨与截取可以反复调整；完成后点击「确定并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「确定并生成谱子」。" },
+    { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择旋律音轨并截取", copy: "先选含主旋律的音轨，再拖动开始与结束手柄保留所需片段。需要逐音决定时，可点击音轨右侧「精确选中」打开钢琴卷帘；同一和弦组只能保留一个音。完成后点击「确定并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「确定并生成谱子」。" },
     { index: "MIDI 教程 · 03", target: ".editor-actions", title: "查看谱子、试播和导出", copy: "生成的简谱会同步显示在编辑器中。可先点击「试听」检查效果；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
     { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；ROG Armoury Crate 导入 GMAC；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
   ],
@@ -965,7 +966,7 @@ function parseMidiData(buffer) {
         const pending = active.get(noteKey);
         const started = pending?.shift();
         if (!pending?.length) active.delete(noteKey);
-        if (started && tick > started.start) notes.push({ ...started, end: tick });
+        if (started && tick > started.start) notes.push({ ...started, id: notes.length, end: tick });
       }
     }
     tracks.push({ name, notes });
@@ -1002,14 +1003,14 @@ function chooseMidiTranspose(notes) {
   }).sort((left, right) => right.rank - left.rank || Math.abs(left.shift) - Math.abs(right.shift))[0].shift;
 }
 
-function collapseMidiChords(notes, division) {
+function midiChordGroups(notes, division) {
   const chordWindowTicks = Math.max(1, Math.round(division / 64));
   const ordered = [...notes].sort((left, right) => left.start - right.start || right.midi - left.midi || right.end - left.end);
-  const melody = [];
+  const groups = [];
   let chord = [];
   const flush = () => {
     if (!chord.length) return;
-    melody.push([...chord].sort((left, right) => right.midi - left.midi || right.end - left.end)[0]);
+    groups.push(chord);
     chord = [];
   };
   ordered.forEach((note) => {
@@ -1017,10 +1018,19 @@ function collapseMidiChords(notes, division) {
     chord.push(note);
   });
   flush();
+  return groups;
+}
+
+function defaultMidiNoteSelection(notes, division) {
+  return new Set(midiChordGroups(notes, division).map((group) => [...group].sort((left, right) => right.midi - left.midi || right.end - left.end)[0].id));
+}
+
+function collapseMidiChords(notes, division) {
+  const melody = midiChordGroups(notes, division).map((group) => [...group].sort((left, right) => right.midi - left.midi || right.end - left.end)[0]);
   return { notes: melody, collapsedNotes: Math.max(0, notes.length - melody.length) };
 }
 
-function midiToSequence(parsed, { trackIndex = null, startTick = 0, endTick = null } = {}) {
+function midiToSequence(parsed, { trackIndex = null, startTick = 0, endTick = null, selectedNoteIds = null } = {}) {
   const candidates = midiTrackCandidates(parsed.tracks);
   if (!candidates.length) throw new Error("MIDI 中没有可演奏的非打击乐音符。");
   const track = trackIndex === null ? selectMidiMelodyTrack(parsed.tracks) : candidates.find((candidate) => candidate.index === trackIndex);
@@ -1028,13 +1038,15 @@ function midiToSequence(parsed, { trackIndex = null, startTick = 0, endTick = nu
   const durationTicks = midiDurationTicks(parsed);
   const from = Math.max(0, Math.min(durationTicks - 1, Math.round(startTick)));
   const to = Math.max(from + 1, Math.min(durationTicks, Math.round(endTick ?? durationTicks)));
-  const sourceNotes = track.notes.filter((note) => note.end > from && note.start < to).map((note) => ({
+  const hasPreciseSelection = selectedNoteIds !== null && selectedNoteIds !== undefined;
+  const selectedIds = hasPreciseSelection ? new Set(selectedNoteIds) : null;
+  const sourceNotes = track.notes.filter((note) => note.end > from && note.start < to && (!selectedIds || selectedIds.has(note.id))).map((note) => ({
     ...note,
     start: Math.max(note.start, from) - from,
     end: Math.min(note.end, to) - from
   }));
-  if (!sourceNotes.length) throw new Error("所选音轨在这个截取范围内没有可转换的音符。");
-  const collapsed = collapseMidiChords(sourceNotes, parsed.division);
+  if (!sourceNotes.length) throw new Error(hasPreciseSelection ? "精确选择中没有可转换的音符。" : "所选音轨在这个截取范围内没有可转换的音符。");
+  const collapsed = hasPreciseSelection ? { notes: [...sourceNotes].sort((left, right) => left.start - right.start || right.midi - left.midi || right.end - left.end), collapsedNotes: 0 } : collapseMidiChords(sourceNotes, parsed.division);
   const melody = collapsed.notes;
   const transpose = chooseMidiTranspose(melody);
   const notes = [];
@@ -1068,6 +1080,7 @@ function midiToSequence(parsed, { trackIndex = null, startTick = 0, endTick = nu
     startTick: from,
     endTick: to,
     collapsedChordNotes: collapsed.collapsedNotes,
+    precisionSelection: hasPreciseSelection,
     ignoredInvalidNonNoteEvents: parsed.ignoredInvalidNonNoteEvents,
     transpose,
     hasTempoChanges: parsed.tempos.length > 1
@@ -1113,8 +1126,9 @@ function midiPitchLabel(midi) {
   return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 }
 
-function midiTrackBounds(parsed, trackIndex, durationTicks = midiDurationTicks(parsed)) {
-  const notes = parsed.tracks[trackIndex]?.notes.filter((note) => note.channel !== 9) || [];
+function midiTrackBounds(parsed, trackIndex, durationTicks = midiDurationTicks(parsed), selectedNoteIds = null) {
+  const selectedIds = selectedNoteIds ? new Set(selectedNoteIds) : null;
+  const notes = (parsed.tracks[trackIndex]?.notes || []).filter((note) => note.channel !== 9 && (!selectedIds || selectedIds.has(note.id)));
   if (!notes.length) return { startTick: 0, endTick: durationTicks };
   return {
     startTick: Math.min(...notes.map((note) => note.start)),
@@ -1123,6 +1137,8 @@ function midiTrackBounds(parsed, trackIndex, durationTicks = midiDurationTicks(p
 }
 
 function resetMidiTrackPicker() {
+  if (elements.midiNotePickerDialog.open) elements.midiNotePickerDialog.close();
+  midiNotePickerState = null;
   midiImportState = null;
   elements.midiTrackPicker.hidden = true;
   elements.midiTrackList.innerHTML = "";
@@ -1172,8 +1188,10 @@ function renderMidiTrackPicker() {
     }).join("");
     const label = track.name || `音轨 ${String(track.index + 1).padStart(2, "0")}`;
     const selectable = track.playableNotes.length > 0;
-    const noteDescription = selectable ? `${track.playableNotes.length} 个可转换音符` : track.notes.length ? "仅打击乐，无法转换" : "无音符";
-    return `<button class="midi-track" data-midi-track-index="${track.index}" type="button" role="radio" aria-checked="${selectable && track.index === selectedTrackIndex}" aria-label="选择 ${escapeHtml(label)}，${noteDescription}"${selectable ? "" : " disabled"}><span class="midi-track-index">${String(track.index + 1).padStart(2, "0")}</span><span class="midi-track-name">${escapeHtml(label)}<small>${noteDescription}</small></span><span class="midi-track-bar" aria-hidden="true"><b>${midiPitchLabel(highestPitch)}</b>${noteBars}<b>${midiPitchLabel(lowestPitch)}</b></span><span class="midi-track-count">${track.notes.length} NOTES</span></button>`;
+    const preciseSelection = midiImportState.preciseSelections?.[track.index];
+    const preciseCount = Array.isArray(preciseSelection) ? preciseSelection.length : null;
+    const noteDescription = selectable ? `${track.playableNotes.length} 个可转换音符${preciseCount !== null ? ` · 已精确选 ${preciseCount} 音` : ""}` : track.notes.length ? "仅打击乐，无法转换" : "无音符";
+    return `<div class="midi-track-row"><button class="midi-track" data-midi-track-select-index="${track.index}" type="button" role="radio" aria-checked="${selectable && track.index === selectedTrackIndex}" aria-label="选择 ${escapeHtml(label)}，${noteDescription}"${selectable ? "" : " disabled"}><span class="midi-track-index">${String(track.index + 1).padStart(2, "0")}</span><span class="midi-track-name">${escapeHtml(label)}<small>${noteDescription}</small></span><span class="midi-track-bar" aria-hidden="true"><b>${midiPitchLabel(highestPitch)}</b>${noteBars}<b>${midiPitchLabel(lowestPitch)}</b></span><span class="midi-track-count">${track.notes.length} NOTES</span></button><button class="midi-track-precise" data-midi-track-precise-index="${track.index}" type="button" aria-haspopup="dialog" aria-label="精确选择 ${escapeHtml(label)} 的音符"${selectable ? "" : " disabled"}><span>精确选中</span><b>⌖</b></button></div>`;
   }).join("");
   [elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => {
     input.max = durationTicks;
@@ -1186,10 +1204,100 @@ function openMidiTrackPicker(file, parsed) {
   const defaultTrack = selectMidiMelodyTrack(parsed.tracks);
   const durationTicks = midiDurationTicks(parsed);
   const bounds = midiTrackBounds(parsed, defaultTrack.index, durationTicks);
-  midiImportState = { file, parsed, title: file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目", selectedTrackIndex: defaultTrack.index, durationTicks, ...bounds, rangeAutoTrimmed: true };
+  midiImportState = { file, parsed, title: file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目", selectedTrackIndex: defaultTrack.index, durationTicks, preciseSelections: {}, ...bounds, rangeAutoTrimmed: true };
   renderMidiTrackPicker();
   elements.midiTrackPicker.scrollIntoView({ behavior: "smooth", block: "nearest" });
   toast("请选择需要转换的音轨与片段，然后点击“确定并生成谱子”。");
+}
+
+function midiTrackLabel(trackIndex) {
+  const track = midiImportState?.parsed.tracks[trackIndex];
+  return track?.name || `音轨 ${String(trackIndex + 1).padStart(2, "0")}`;
+}
+
+function updateMidiNotePickerSelectionUi() {
+  if (!midiNotePickerState) return;
+  const { selection } = midiNotePickerState;
+  elements.midiNotePickerCount.textContent = `已选 ${selection.size} 音`;
+  elements.midiNoteRoll.querySelectorAll("[data-midi-note-id]").forEach((button) => {
+    const selected = selection.has(Number(button.dataset.midiNoteId));
+    button.classList.toggle("selected", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+}
+
+function renderMidiNotePicker() {
+  if (!midiNotePickerState || !midiImportState) return;
+  const { parsed } = midiImportState;
+  const { trackIndex, selection } = midiNotePickerState;
+  const notes = parsed.tracks[trackIndex].notes.filter((note) => note.channel !== 9);
+  const firstTick = Math.min(...notes.map((note) => note.start));
+  const lastTick = Math.max(...notes.map((note) => note.end));
+  const tickSpan = Math.max(parsed.division, lastTick - firstTick);
+  const lowestPitch = Math.max(0, Math.min(...notes.map((note) => note.midi)) - 1);
+  const highestPitch = Math.min(127, Math.max(...notes.map((note) => note.midi)) + 1);
+  const rows = highestPitch - lowestPitch + 1;
+  const rowHeight = 25;
+  const rollWidth = Math.max(860, Math.ceil((tickSpan / parsed.division) * 76));
+  const beatWidth = rollWidth / (tickSpan / parsed.division);
+  const noteButtons = notes.map((note) => {
+    const left = ((note.start - firstTick) / tickSpan) * rollWidth;
+    const width = Math.max(9, ((note.end - note.start) / tickSpan) * rollWidth);
+    const top = (highestPitch - note.midi) * rowHeight + 2;
+    const selected = selection.has(note.id);
+    const label = `${midiPitchLabel(note.midi)} · ${midiTickToTime(parsed, note.start)} · ${midiTickToTime(parsed, note.end - note.start)}${selected ? "，已选中" : "，未选中"}`;
+    return `<button class="midi-note-block${selected ? " selected" : ""}" data-midi-note-id="${note.id}" type="button" aria-pressed="${selected}" aria-label="${label}" title="${label}" style="left:${left.toFixed(1)}px;width:${width.toFixed(1)}px;top:${top}px"></button>`;
+  }).join("");
+  const pitchLabels = Array.from({ length: rows }, (_, index) => {
+    const pitch = highestPitch - index;
+    return `<span class="midi-note-pitch" style="top:${index * rowHeight + 6}px">${midiPitchLabel(pitch)}</span>`;
+  }).join("");
+  const rulerMarks = [];
+  const beatStep = tickSpan / parsed.division > 80 ? 16 : tickSpan / parsed.division > 32 ? 8 : 4;
+  for (let beat = 0; beat <= tickSpan / parsed.division; beat += beatStep) {
+    const left = beat * beatWidth;
+    rulerMarks.push(`<span style="left:${left.toFixed(1)}px">${midiTickToTime(parsed, firstTick + beat * parsed.division)}</span>`);
+  }
+  elements.midiNotePickerTitle.textContent = `精确选择 · ${midiTrackLabel(trackIndex)}`;
+  elements.midiNotePickerCopy.textContent = `点击 ${notes.length} 个原始 MIDI 音符中的任一项以保留或取消。相同起始时刻附近的和弦只能保留一个音，选择其他音会自动替换。`;
+  elements.midiNoteRuler.style.width = `${rollWidth}px`;
+  elements.midiNoteRuler.innerHTML = rulerMarks.join("");
+  elements.midiNoteRoll.style.width = `${rollWidth}px`;
+  elements.midiNoteRoll.style.height = `${rows * rowHeight}px`;
+  elements.midiNoteRoll.innerHTML = `${pitchLabels}${noteButtons}`;
+  updateMidiNotePickerSelectionUi();
+}
+
+function openMidiNotePicker(trackIndex, opener) {
+  if (!midiImportState) return;
+  const notes = midiImportState.parsed.tracks[trackIndex]?.notes.filter((note) => note.channel !== 9) || [];
+  if (!notes.length) { toast("这条音轨没有可精确选择的非打击乐音符。 "); return; }
+  const saved = midiImportState.preciseSelections?.[trackIndex];
+  const availableIds = new Set(notes.map((note) => note.id));
+  const selection = new Set(Array.isArray(saved) ? saved.filter((id) => availableIds.has(id)) : defaultMidiNoteSelection(notes, midiImportState.parsed.division));
+  const groupsById = new Map();
+  midiChordGroups(notes, midiImportState.parsed.division).forEach((group) => {
+    const ids = group.map((note) => note.id);
+    ids.forEach((id) => groupsById.set(id, ids));
+  });
+  midiNotePickerState = { trackIndex, selection, groupsById, opener };
+  renderMidiNotePicker();
+  elements.midiNotePickerDialog.showModal();
+  window.requestAnimationFrame(() => elements.midiNoteScroll.focus({ preventScroll: true }));
+}
+
+function applyMidiNotePickerSelection() {
+  if (!midiImportState || !midiNotePickerState) return;
+  const { trackIndex, selection } = midiNotePickerState;
+  if (!selection.size) { toast("请至少保留一个音符后再应用。 "); return; }
+  midiImportState.preciseSelections[trackIndex] = [...selection];
+  midiImportState.selectedTrackIndex = trackIndex;
+  Object.assign(midiImportState, midiTrackBounds(midiImportState.parsed, trackIndex, midiImportState.durationTicks, selection));
+  midiImportState.rangeAutoTrimmed = true;
+  midiImportState.applied = false;
+  renderMidiTrackPicker();
+  elements.midiNotePickerDialog.close();
+  toast(`已为${midiTrackLabel(trackIndex)}应用 ${selection.size} 个精确选择音符。`);
 }
 
 function formatTime(milliseconds) {
@@ -2595,7 +2703,8 @@ function applyMidiSelection() {
   if (!midiImportState) return;
   try {
     const selection = midiImportState;
-    const converted = midiToSequence(selection.parsed, { trackIndex: selection.selectedTrackIndex, startTick: selection.startTick, endTick: selection.endTick });
+    const preciseNoteIds = selection.preciseSelections?.[selection.selectedTrackIndex];
+    const converted = midiToSequence(selection.parsed, { trackIndex: selection.selectedTrackIndex, startTick: selection.startTick, endTick: selection.endTick, selectedNoteIds: Array.isArray(preciseNoteIds) ? preciseNoteIds : null });
     const smoothing = elements.midiSmoothing.checked ? smoothMidiSequence(converted.sequence, converted.bpm) : { sequence: converted.sequence, connectedGaps: 0 };
     converted.sequence = smoothing.sequence;
     stopPreview();
@@ -2616,7 +2725,7 @@ function applyMidiSelection() {
     elements.jianpuScore.focus();
     const transposeMessage = converted.transpose ? ` · 已移调 ${converted.transpose > 0 ? "+" : ""}${converted.transpose} 半音以适配口琴音域` : "";
     const tempoWarning = converted.hasTempoChanges ? " · 原文件含变速，已采用起始 BPM" : "";
-    const chordMessage = converted.collapsedChordNotes ? ` · 和弦已取最高音（合并 ${converted.collapsedChordNotes} 个和声音）` : "";
+    const chordMessage = converted.precisionSelection ? " · 已使用精确选中的原始音符" : converted.collapsedChordNotes ? ` · 和弦已取最高音（合并 ${converted.collapsedChordNotes} 个和声音）` : "";
     const ignoredEventMessage = describeIgnoredMidiEvents(converted.ignoredInvalidNonNoteEvents);
     const smoothingMessage = elements.midiSmoothing.checked ? ` · 流畅演奏已连接 ${smoothing.connectedGaps} 处短断音` : " · 保留原始 MIDI 断音";
     setValidation(`MIDI 转换完成 · 已选音轨 ${String(selection.selectedTrackIndex + 1).padStart(2, "0")} · 截取 ${midiTickToTime(selection.parsed, selection.endTick - selection.startTick)} · ${converted.selectedNotes} 个旋律音符${chordMessage}${ignoredEventMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
@@ -2661,13 +2770,44 @@ elements.midiSmoothing.addEventListener("change", () => {
   else toast("流畅演奏设置将在下次导入 MIDI 时生效。 ");
 });
 elements.midiTrackList.addEventListener("click", (event) => {
-  const track = event.target.closest("[data-midi-track-index]");
+  const preciseButton = event.target.closest("[data-midi-track-precise-index]");
+  if (preciseButton && midiImportState) {
+    openMidiNotePicker(Number(preciseButton.dataset.midiTrackPreciseIndex), preciseButton);
+    return;
+  }
+  const track = event.target.closest("[data-midi-track-select-index]");
   if (!track || !midiImportState) return;
-  midiImportState.selectedTrackIndex = Number(track.dataset.midiTrackIndex);
+  midiImportState.selectedTrackIndex = Number(track.dataset.midiTrackSelectIndex);
   Object.assign(midiImportState, midiTrackBounds(midiImportState.parsed, midiImportState.selectedTrackIndex, midiImportState.durationTicks));
   midiImportState.rangeAutoTrimmed = true;
   midiImportState.applied = false;
   renderMidiTrackPicker();
+});
+elements.midiNoteRoll.addEventListener("click", (event) => {
+  const note = event.target.closest("[data-midi-note-id]");
+  if (!note || !midiNotePickerState) return;
+  const id = Number(note.dataset.midiNoteId);
+  const { selection, groupsById } = midiNotePickerState;
+  if (selection.has(id)) selection.delete(id);
+  else {
+    (groupsById.get(id) || []).forEach((groupId) => selection.delete(groupId));
+    selection.add(id);
+  }
+  updateMidiNotePickerSelectionUi();
+});
+elements.resetMidiNoteSelection.addEventListener("click", () => {
+  if (!midiNotePickerState || !midiImportState) return;
+  const notes = midiImportState.parsed.tracks[midiNotePickerState.trackIndex].notes.filter((note) => note.channel !== 9);
+  midiNotePickerState.selection = defaultMidiNoteSelection(notes, midiImportState.parsed.division);
+  updateMidiNotePickerSelectionUi();
+});
+elements.applyMidiNoteSelection.addEventListener("click", applyMidiNotePickerSelection);
+elements.midiNotePickerDialog.addEventListener("close", () => {
+  const state = midiNotePickerState;
+  midiNotePickerState = null;
+  if (!state) return;
+  const fallback = elements.midiTrackList.querySelector(`[data-midi-track-precise-index="${state.trackIndex}"]`);
+  (state.opener?.isConnected ? state.opener : fallback)?.focus({ preventScroll: true });
 });
 [elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => input.addEventListener("input", () => {
   if (midiImportState) {

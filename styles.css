@@ -426,7 +426,8 @@ main {
 .midi-picker-status { color: #b7d9d5; font: 700 9px/1.4 var(--mono); letter-spacing: .06em; text-align: right; }
 .midi-picker-copy { margin: 9px 0 11px; color: #abc5c2; font-size: 10px; line-height: 1.55; }
 .midi-track-list { display: grid; gap: 6px; max-height: 212px; overflow: auto; padding-right: 3px; scrollbar-color: var(--teal) #0a3230; scrollbar-width: thin; }
-.midi-track { display: grid; grid-template-columns: 36px minmax(90px, .44fr) minmax(130px, 1.56fr) auto; align-items: center; gap: 9px; width: 100%; min-height: 62px; padding: 7px 9px; color: #c8e4e1; background: #0a3230; border: 1px solid #46706d; text-align: left; }
+.midi-track-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: stretch; }
+.midi-track { display: grid; grid-template-columns: 36px minmax(90px, .44fr) minmax(130px, 1.56fr) auto; align-items: center; gap: 9px; width: 100%; min-width: 0; min-height: 62px; padding: 7px 9px; color: #c8e4e1; background: #0a3230; border: 1px solid #46706d; text-align: left; }
 .midi-track:hover { background: #0e413e; border-color: #73aaa5; }
 .midi-track:disabled { cursor: not-allowed; opacity: .45; }
 .midi-track:disabled:hover { background: #0a3230; border-color: #46706d; }
@@ -442,6 +443,11 @@ main {
 .midi-track-bar b:first-child { top: 2px; }
 .midi-track-bar b:last-child { bottom: 2px; }
 .midi-track-count { color: #a7c7c4; font: 9px var(--mono); white-space: nowrap; }
+.midi-track-precise { display: grid; align-content: center; justify-items: center; gap: 5px; min-width: 66px; padding: 6px 7px; color: #d5ffff; background: #063b39; border: 2px outset #46706d; font: 700 9px/1.2 var(--mono); text-align: center; }
+.midi-track-precise b { color: #76d8d0; font-size: 14px; line-height: 1; }
+.midi-track-precise:hover:not(:disabled) { color: var(--white); background: var(--teal); border-bottom-color: #004a48; }
+.midi-track-precise:active:not(:disabled) { border-style: inset; transform: translateY(1px); }
+.midi-track-precise:disabled { cursor: not-allowed; opacity: .45; }
 .midi-range-editor { margin-top: 12px; padding: 9px; background: #0a3230; border: 1px solid #46706d; }
 .midi-range-labels { display: flex; justify-content: space-between; gap: 10px; color: #a8c7c4; font: 9px/1.3 var(--mono); }
 .midi-range-labels strong { color: #e1ffff; font-size: 10px; text-align: center; }
@@ -453,6 +459,27 @@ main {
 .midi-range-sliders input::-moz-range-thumb { width: 10px; height: 18px; background: var(--surface-light); border: 2px outset var(--surface); border-radius: 0; cursor: ew-resize; pointer-events: auto; }
 .midi-picker-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 11px; margin-top: 12px; color: #abc5c2; font: 9px/1.5 var(--mono); }
 .midi-picker-actions .primary-button { padding: 8px 10px; box-shadow: none; font-size: 11px; }
+.midi-note-picker-dialog { width: min(1280px, calc(100vw - 24px)); height: min(900px, calc(100dvh - 24px)); max-height: calc(100dvh - 24px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
+.midi-note-picker-dialog::backdrop { background: rgba(0, 35, 35, .78); }
+.midi-note-picker-form { display: flex; height: 100%; min-height: 0; flex-direction: column; }
+.midi-note-picker-form .window-titlebar { flex: 0 0 auto; padding-right: 4px; }
+.midi-note-picker-body { display: flex; min-height: 0; flex: 1; flex-direction: column; padding: 18px 20px; }
+.midi-note-picker-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+.midi-note-picker-heading h2 { margin: 6px 0 0; font: 700 24px/1.05 var(--pixel); }
+.midi-note-picker-heading > strong { flex: 0 0 auto; padding: 7px 9px; color: #d8ffff; background: var(--screen); border: 1px solid #46706d; font: 700 10px/1.3 var(--mono); }
+.midi-note-picker-body > p { margin: 10px 0 0; color: #405d5a; font-size: 11px; line-height: 1.65; }
+.midi-note-picker-tools { display: flex; align-items: center; gap: 12px; margin-top: 12px; padding: 7px 9px; color: #405d5a; background: var(--surface-light); border: 2px inset var(--surface); font: 10px/1.45 var(--mono); }
+.midi-note-picker-tools .text-button { padding: 0; font: 700 10px/1.3 var(--mono); }
+.midi-note-scroll { min-height: 0; flex: 1; margin-top: 12px; overflow: auto; color: #b7d9d5; background: #031a19; border: 2px inset var(--surface); outline-offset: -4px; scrollbar-color: var(--teal) #0a3230; scrollbar-width: thin; }
+.midi-note-ruler { position: relative; height: 25px; min-width: 100%; border-bottom: 1px solid #315956; background: #062827; }
+.midi-note-ruler span { position: absolute; top: 6px; padding-left: 4px; color: #82aaa6; border-left: 1px solid #46706d; font: 8px/1 var(--mono); white-space: nowrap; }
+.midi-note-roll { position: relative; min-width: 100%; background: repeating-linear-gradient(to bottom, transparent 0 24px, rgba(112, 193, 187, .16) 24px 25px), repeating-linear-gradient(to right, transparent 0 75px, rgba(112, 193, 187, .11) 75px 76px), #031a19; }
+.midi-note-pitch { position: absolute; left: 4px; z-index: 2; color: #5c8581; font: 8px/1 var(--mono); pointer-events: none; }
+.midi-note-block { position: absolute; z-index: 3; height: 20px; min-width: 9px; padding: 0; background: #376c68; border: 1px solid #75aaa4; box-shadow: inset 1px 1px rgba(255, 255, 255, .16); }
+.midi-note-block:hover { background: #5ca49d; border-color: #d0ffff; }
+.midi-note-block.selected { background: #d2ffff; border-color: var(--white); box-shadow: 0 0 5px rgba(118, 255, 243, .75); }
+.midi-note-block:focus-visible { z-index: 4; outline: 2px solid #ffd166; outline-offset: 2px; }
+.midi-note-picker-body .dialog-actions { flex: 0 0 auto; }
 .text-button { padding: 7px 0; color: var(--teal-dark); background: transparent; border: 0; font-size: 12px; }
 .text-button:hover { color: var(--black); text-decoration: underline; }
 .validation { min-height: 19px; margin-top: 14px; color: #405d5a; font: 11px/1.6 var(--mono); }
@@ -734,6 +761,13 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .midi-track { grid-template-columns: 31px minmax(0, 1fr) auto; gap: 7px; }
   .midi-track-bar { grid-column: 2 / -1; grid-row: 2; }
   .midi-track-count { grid-column: 3; grid-row: 1; }
+  .midi-track-precise { min-width: 58px; padding: 5px; font-size: 8px; }
+  .midi-note-picker-dialog { width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; }
+  .midi-note-picker-body { padding: 14px; }
+  .midi-note-picker-heading { align-items: start; flex-direction: column; gap: 8px; }
+  .midi-note-picker-heading h2 { font-size: 20px; }
+  .midi-note-picker-tools { align-items: start; flex-direction: column; gap: 5px; }
+  .midi-note-picker-body .dialog-actions { margin-top: 12px; }
   .midi-range-labels { align-items: start; flex-wrap: wrap; }
   .midi-range-labels strong { order: 3; width: 100%; text-align: left; }
   .library-deck-browser { grid-template-columns: 1fr auto; }

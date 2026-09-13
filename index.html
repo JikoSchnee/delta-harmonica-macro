@@ -109,7 +109,7 @@
               <div><span class="index">MIDI ARRANGEMENT</span><h3 id="midiTrackPickerTitle">选择音轨与演奏片段</h3></div>
               <span class="midi-picker-status" id="midiPickerStatus">等待 MIDI 文件</span>
             </div>
-            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。选轨后会自动裁去头尾无音区；仍可拖动范围两端，把这些空白也纳入片段。</p>
+            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。可直接选择音轨，或点击右侧「精确选中」逐个决定保留哪些音符；选轨后会自动裁去头尾无音区，仍可拖动范围两端调整片段。</p>
             <div class="midi-track-list" id="midiTrackList" role="radiogroup" aria-label="MIDI 音轨列表"></div>
             <div class="midi-range-editor">
               <div class="midi-range-labels"><span id="midiRangeStart">开始 00:00.000</span><strong id="midiRangeSummary">选中整段</strong><span id="midiRangeEnd">结束 00:00.000</span></div>
@@ -341,6 +341,24 @@
           <textarea id="keyboardMacroOutput" readonly spellcheck="false" aria-label="当前曲谱的三角洲键盘模式"></textarea>
           <p class="keyboard-macro-hint">每行对应一个按键或等待事件；可据此在其他宏工具中手动录入。</p>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="midi-note-picker-dialog" id="midiNotePickerDialog" aria-labelledby="midiNotePickerTitle" aria-describedby="midiNotePickerCopy">
+      <form method="dialog" class="midi-note-picker-form">
+        <div class="window-titlebar"><span>MIDI_NOTE_PICKER.EXE — PRECISE SELECTION</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭精确选音窗口">×</button></div>
+        <div class="midi-note-picker-body">
+          <div class="midi-note-picker-heading">
+            <div><span class="index">MIDI TRACK · NOTE BY NOTE</span><h2 id="midiNotePickerTitle">精确选择音符</h2></div>
+            <strong id="midiNotePickerCount" aria-live="polite">已选 0 音</strong>
+          </div>
+          <p id="midiNotePickerCopy">点击钢琴卷帘中的音符以保留或取消。相同起始时刻的和弦只能保留一个音，选择其他音会自动替换。</p>
+          <div class="midi-note-picker-tools"><button class="text-button" id="resetMidiNoteSelection" type="button">恢复自动预选</button><span>自动预选每组和弦中的最高音</span></div>
+          <div class="midi-note-scroll" id="midiNoteScroll" tabindex="0" aria-label="可横向滚动的 MIDI 音符钢琴卷帘">
+            <div class="midi-note-ruler" id="midiNoteRuler" aria-hidden="true"></div>
+            <div class="midi-note-roll" id="midiNoteRoll" role="group" aria-label="可逐个选择的 MIDI 音符"></div>
+          </div>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="applyMidiNoteSelection" type="button"><span>应用选择</span><b>✓</b></button></div>
         </div>
       </form>
     </dialog>
