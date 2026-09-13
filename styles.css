@@ -507,11 +507,13 @@ main {
 .macro-settings input:focus, .macro-settings select:focus { border-color: var(--teal); box-shadow: inset 0 0 0 1px #69b5b5; }
 .macro-settings input[aria-invalid="true"] { border-color: var(--danger); box-shadow: inset 0 0 0 1px #ff9f9f; }
 .macro-stop-control { grid-column: span 2; }
-.macro-button-layout { display: flex; grid-column: span 2; align-items: center; gap: 9px; padding: 9px 10px; color: #d0ffff !important; background: #0a3230; border: 1px solid #46706d; cursor: pointer; }
-.macro-settings .macro-button-layout input { display: block; flex: 0 0 auto; width: 15px; height: 15px; margin: 0; padding: 0; accent-color: var(--teal); }
-.macro-button-layout span { display: grid; gap: 2px; }
-.macro-button-layout b { font-size: 10px; }
-.macro-button-layout small { color: #abc5c2; font-size: 9px; line-height: 1.35; }
+.macro-pitch-map { display: grid; grid-column: span 2; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; min-width: 0; margin: 0; padding: 9px; color: #d0ffff; background: #0a3230; border: 1px solid #46706d; }
+.macro-pitch-map legend { padding: 0 4px; color: #d0ffff; font: 700 10px var(--mono); }
+.macro-pitch-map legend span { color: #86aaa7; font-weight: 500; }
+.macro-pitch-map label { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 2px 5px; padding: 5px 6px; background: #031a19; border: 1px solid #315956; }
+.macro-pitch-map label b { grid-row: span 2; display: grid; width: 19px; height: 19px; place-items: center; color: var(--white); background: var(--teal-dark); font-size: 10px; }
+.macro-pitch-map label span { color: #abc5c2; font: 9px var(--mono); }
+.macro-settings .macro-pitch-map input { grid-column: 2; width: 100%; margin: 0; padding: 4px 5px; font-size: 11px; }
 .macro-settings-hint { grid-column: 1 / -1; margin: 0; color: #abc5c2; font-size: 10px; line-height: 1.6; }
 .macro-settings-validation { grid-column: 1 / -1; margin: 0; padding: 7px 9px; color: #ffe0d0; background: #4e2525; border: 1px solid var(--danger); font: 700 10px/1.5 var(--mono); }
 .macro-settings-validation[hidden] { display: none; }
@@ -738,7 +740,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .macro-settings { grid-template-columns: 1fr; }
   .macro-settings-controls { grid-template-columns: 1fr; }
   .macro-stop-control { grid-column: auto; }
-  .macro-button-layout { grid-column: auto; }
+  .macro-pitch-map { grid-column: auto; }
   .score-export-body { padding: 16px; }
   .macro-download-body { padding: 16px; }
   .tutorial-dialog-body, .keyboard-macro-body { padding: 16px; }

@@ -1,9 +1,9 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
-// G HUB's simulated-input API uses the Windows order (left=1, middle=2,
-// right=3), while the raw mouse-event arguments and the Razer XML format use
-// left=1, right=2, middle=3.  Keep the two encodings separate.
-const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 2, razer: 3 }, R: { name: "右键升调", ghub: 3, razer: 2 } };
+// Logitech G HUB Lua and Razer XML both use Logitech's order: left=1,
+// right=2, middle=3. Keep the formats separate so their event syntax remains
+// independently defined.
+const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 3, razer: 3 }, R: { name: "右键升调", ghub: 2, razer: 2 } };
 // Leave a short release window between every pair of played notes.  A gap only
 // between repeated notes works for a plain melody, but modifier changes (for
 // example `#1'` -> `7` in 鸟之诗) otherwise release and press several mouse /
@@ -388,7 +388,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSwapPrimarySecondary: document.querySelector("#macroSwapPrimarySecondary"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -1930,8 +1930,13 @@ function makeUuid() {
 function setMacroTriggerValidation(message = "", invalidFields = []) {
   elements.macroTriggerValidation.textContent = message;
   elements.macroTriggerValidation.hidden = !message;
-  elements.macroTriggerButton.setAttribute("aria-invalid", String(invalidFields.includes(elements.macroTriggerButton)));
-  elements.macroStopButton.setAttribute("aria-invalid", String(invalidFields.includes(elements.macroStopButton)));
+  [
+    elements.macroTriggerButton,
+    elements.macroStopButton,
+    elements.macroLowButton,
+    elements.macroMiddleButton,
+    elements.macroHighButton
+  ].forEach((field) => field.setAttribute("aria-invalid", String(invalidFields.includes(field))));
 }
 
 function clearMacroTriggerValidation() {
@@ -1949,6 +1954,8 @@ function readMacroTriggerSettings() {
   const rawStopButton = String(elements.macroStopButton.value).trim();
   const stopButton = rawStopButton ? Number(rawStopButton) : 0;
   const mode = elements.macroTriggerMode.value;
+  const pitchButtonFields = { L: elements.macroLowButton, M: elements.macroMiddleButton, R: elements.macroHighButton };
+  const pitchButtons = Object.fromEntries(Object.entries(pitchButtonFields).map(([modifier, field]) => [modifier, Number(String(field.value).trim())]));
   if (!rawButton || !Number.isInteger(button) || button < 1 || button > 20) {
     setMacroTriggerValidation("请输入 1 到 20 之间的鼠标绑定键。", [elements.macroTriggerButton]);
     return null;
@@ -1961,9 +1968,18 @@ function readMacroTriggerSettings() {
     setMacroTriggerValidation("全局停止键不能单独填写为播放绑定键；如需同键开关，请留空并选择“切换播放”。", [elements.macroTriggerButton, elements.macroStopButton]);
     return null;
   }
-  const pitchModifierButtons = new Set(Object.values(MOUSE_BUTTONS).map((modifier) => modifier.ghub));
+  const invalidPitchFields = Object.entries(pitchButtons).filter(([, mappedButton]) => !Number.isInteger(mappedButton) || mappedButton < 1 || mappedButton > 20).map(([modifier]) => pitchButtonFields[modifier]);
+  if (invalidPitchFields.length) {
+    setMacroTriggerValidation("低音、半音和高音的映射必须分别填写 1 到 20 的整数。", invalidPitchFields);
+    return null;
+  }
+  const pitchModifierButtons = new Set(Object.values(pitchButtons));
+  if (pitchModifierButtons.size !== 3) {
+    setMacroTriggerValidation("低音、半音和高音必须使用三个不同的鼠标键。", Object.values(pitchButtonFields));
+    return null;
+  }
   if (pitchModifierButtons.has(button) || pitchModifierButtons.has(stopButton)) {
-    setMacroTriggerValidation("鼠标键 1、2、3 用于口琴变调，不能设为播放或停止键；请使用侧键 4–20。", [
+    setMacroTriggerValidation("播放键和停止键不能与当前变调键映射重复；请使用未分配给低音、半音或高音的侧键。", [
       ...(pitchModifierButtons.has(button) ? [elements.macroTriggerButton] : []),
       ...(pitchModifierButtons.has(stopButton) ? [elements.macroStopButton] : [])
     ]);
@@ -1974,7 +1990,7 @@ function readMacroTriggerSettings() {
     return null;
   }
   clearMacroTriggerValidation();
-  return { button, stopButton, mode, swapPrimarySecondary: elements.macroSwapPrimarySecondary.checked };
+  return { button, stopButton, mode, pitchButtons };
 }
 
 function requireMacroTriggerSettings() {
@@ -1990,12 +2006,12 @@ function requireMacroTriggerSettings() {
 }
 
 function generateLua(sequence, triggerSettings) {
-  const { button, stopButton, mode, swapPrimarySecondary = false } = triggerSettings;
+  const { button, stopButton, mode, pitchButtons = { L: 1, M: 3, R: 2 } } = triggerSettings;
   const lines = [
     "-- Harmonica Deck · Delta Force harmonica sequence",
     `-- Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
     `-- Trigger: mouse button ${button} · ${MACRO_TRIGGER_MODE_LABELS[mode]}`,
-    `-- Harmonica button layout: ${swapPrimarySecondary ? "left/right swapped" : "standard"}`,
+    `-- Harmonica modifiers: L=${pitchButtons.L} (low), M=${pitchButtons.M} (semitone), R=${pitchButtons.R} (high)`,
     "-- once = play once; hold = play while the trigger is held; toggle = press to start and press again to stop.",
     "-- Stop handling releases the current note and any mouse modifier buttons.",
     `local TRIGGER_BUTTON = ${button}`,
@@ -2089,11 +2105,7 @@ function generateLua(sequence, triggerSettings) {
       lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
       lines.push("    end");
     } else {
-      const modifierButtons = [...(item.modifier || "")].map((modifier) => {
-        const mouseButton = MOUSE_BUTTONS[modifier].ghub;
-        if (!swapPrimarySecondary || mouseButton === 2) return mouseButton;
-        return mouseButton === 1 ? 3 : 1;
-      });
+      const modifierButtons = [...(item.modifier || "")].map((modifier) => pitchButtons[modifier]);
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
       lines.push("    activePlaybackGeneration = ownerGeneration");
       lines.push("    for index = 1, #activeModifiers do");
@@ -2637,6 +2649,11 @@ elements.volume.addEventListener("input", () => {
 });
 elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
 elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
+[
+  elements.macroLowButton,
+  elements.macroMiddleButton,
+  elements.macroHighButton
+].forEach((field) => field.addEventListener("input", clearMacroTriggerValidation));
 elements.macroTriggerMode.addEventListener("change", () => {
   updateMacroTriggerHint();
   clearMacroTriggerValidation();
