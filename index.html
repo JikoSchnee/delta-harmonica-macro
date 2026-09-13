@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
-    <meta name="description" content="将三角洲行动口琴数字简谱转换为罗技 G HUB Lua 与雷蛇 Synapse 宏文件。" />
+    <meta name="description" content="将三角洲行动口琴数字简谱转换为 Logitech G HUB、Razer Synapse 与 ROG Armoury Crate 宏文件。" />
     <title>HARMONICA DECK.EXE · 口琴宏生成器</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -40,6 +40,14 @@
 
       <section class="hero-disclaimer" aria-labelledby="disclaimerTitle">
         <div class="notice warning disclaimer"><span>!</span><p><strong id="disclaimerTitle">免责声明</strong> 本项目仅提供用于鼠标软件的宏脚本与配置文件生成、导出功能，不提供外挂、注入、改包或游戏内操作服务。请在使用前确认目标游戏、平台及服务器规则是否允许鼠标宏；因使用宏引起的封号、限制、处罚、数据损失或其他后果，均由使用者自行承担，与本项目及维护者无关。</p></div>
+      </section>
+
+      <section class="tutorial-deck panel" aria-labelledby="featuredTutorialTitle">
+        <div class="window-titlebar"><span>VIDEO_GUIDE.EXE — FEATURED TUTORIAL</span></div>
+        <div class="tutorial-deck-content">
+          <div><span class="index">00 · FEATURED VIDEO</span><h2 id="featuredTutorialTitle">贝加尔湖畔一键自动演奏</h2><p>长弓吟游诗人 · 三角洲口琴演奏教程</p></div>
+          <a class="tutorial-video-link" href="https://v.douyin.com/mSGVHl9rimc/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
+        </div>
       </section>
 
       <section class="directory-deck panel" aria-labelledby="directoryTitle">
@@ -239,11 +247,17 @@
             <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
           </div>
           <div class="macro-settings-controls">
-            <label for="macroTriggerButton">绑定鼠标键 <span class="unit">必填 · 1–20</span><input id="macroTriggerButton" type="number" min="1" max="20" step="1" required placeholder="例如 5" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label for="macroTriggerButton">绑定鼠标键 <span class="unit">必填 · 4–20</span><input id="macroTriggerButton" type="number" min="4" max="20" step="1" required placeholder="例如 5" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
             <label for="macroTriggerMode">触发模式<select id="macroTriggerMode" aria-describedby="macroSettingsHint"><option value="once">单次播放</option><option value="hold">长按播放</option><option value="toggle" selected>切换播放</option></select></label>
-            <label class="macro-stop-control" for="macroStopButton">全局停止键 <span class="unit">可选 · 鼠标键 1–20</span><input id="macroStopButton" type="number" min="1" max="20" step="1" placeholder="例如 4" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label class="macro-stop-control" for="macroStopButton">全局停止键 <span class="unit">可选 · 鼠标键 4–20</span><input id="macroStopButton" type="number" min="4" max="20" step="1" placeholder="例如 4" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <fieldset class="macro-pitch-map" aria-describedby="macroSettingsHint macroTriggerValidation">
+              <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
+              <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="20" step="1" value="1" inputmode="numeric" /></label>
+              <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" /></label>
+              <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="20" step="1" value="3" inputmode="numeric" /></label>
+            </fieldset>
           </div>
-          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。播放卡住时可用全局停止键中止当前 Lua。</p>
+          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。变调键填写的是 Lua 的模拟按键编号，不是原始鼠标事件编号：模拟中键为 2、右键为 3；播放键和停止键不能与这些映射重复。播放卡住时可用全局停止键中止当前 Lua。</p>
           <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="export-grid">
@@ -262,6 +276,11 @@
             <p class="export-copy">仅导出事件序列；在 Macro 列表的更多菜单中选择 Import，导入后再手动绑定鼠标键和触发模式。</p>
             <div class="export-actions"><button data-action="download-rz4" type="button">下载 Synapse 4 XML</button></div>
           </article>
+          <article class="export-card rog">
+            <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
+            <p class="export-copy">生成可导入的 Armoury Crate 宏事件。导入后请将宏绑定到支持宏功能的 ROG 外设按键；默认设置为单次播放。</p>
+            <div class="export-actions"><button data-action="download-rog" type="button">下载 ROG GMAC</button></div>
+          </article>
           <article class="export-card manual-entry">
             <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
             <p class="export-copy">以「按键 / 毫秒」展示当前曲谱，便于在支持手动录入的宏工具中逐项填写。</p>
@@ -272,6 +291,7 @@
 
       <section class="notice-grid">
         <div class="notice warning"><span>!</span><p><strong>雷蛇兼容说明</strong> 没有本机导出样本时，Synapse 3/4 XML 仅按公开社区结构生成。若导入失败，请先在你的版本中录制一个单键宏并导出，再用其作为格式校准样本。</p></div>
+        <div class="notice warning"><span>!</span><p><strong>ROG 兼容说明</strong> GMAC 格式按 Armoury Crate 当前导出结构生成。不同版本或外设的宏能力可能不同；若导入失败，请用该版本录制并导出一个单键宏后与生成文件比对。</p></div>
         <div class="notice"><span>◎</span><p><strong>使用前确认</strong> 请自行确认游戏规则与服务器政策是否允许宏。此工具不会连接游戏、鼠标软件或任何外部服务。</p></div>
       </section>
     </main>
@@ -303,6 +323,7 @@
             <label>歌名<input id="exportSongTitle" type="text" maxlength="48" required /></label>
             <label>歌手/作者<input id="exportArtistName" type="text" maxlength="64" required /></label>
             <label>共享人<input id="exportSharedBy" type="text" maxlength="48" required placeholder="你的昵称或 ID" /></label>
+            <label class="export-display-url">展示视频链接（可不填）<input id="exportDisplayUrl" type="url" maxlength="2048" inputmode="url" placeholder="https://example.com/video" /></label>
           </div>
           <p class="export-meta-preview" id="exportMetaPreview"></p>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="confirmScoreExport" type="button"><span id="confirmScoreExportLabel">下载 .deltamusic</span><b id="confirmScoreExportIcon">↓</b></button></div>

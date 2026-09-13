@@ -1,7 +1,36 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
+// G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
+// for recording and Razer scancodes, then translate only for Lua export.
+const GHUB_KEY_NAMES = { ",": "comma" };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
-const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 3, razer: 3 }, R: { name: "右键升调", ghub: 2, razer: 2 } };
-const BREATH_GAP_MS = 18;
+// G HUB raw mouse events use left=1, right=2, middle=3. Its simulated-input
+// API (PressMouseButton / ReleaseMouseButton) uses left=1, middle=2, right=3.
+// Razer XML follows the raw physical-button order.
+const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 2, razer: 3 }, R: { name: "右键升调", ghub: 3, razer: 2 } };
+// Armoury Crate GMAC stores a display name alongside Linux input and Windows
+// virtual-key codes. Keep its mapping separate from the Razer event values.
+const ROG_KEYS = {
+  z: { name: "Z", linuxCode: 44, windowsCode: 90 }, x: { name: "X", linuxCode: 45, windowsCode: 88 },
+  c: { name: "C", linuxCode: 46, windowsCode: 67 }, v: { name: "V", linuxCode: 47, windowsCode: 86 },
+  b: { name: "B", linuxCode: 48, windowsCode: 66 }, n: { name: "N", linuxCode: 49, windowsCode: 78 },
+  m: { name: "M", linuxCode: 50, windowsCode: 77 }, ",": { name: "Comma", linuxCode: 51, windowsCode: 188 }
+};
+const ROG_MOUSE_BUTTONS = {
+  L: { name: "Left Mouse Button", linuxCode: 272, windowsCode: 1 },
+  M: { name: "Middle Mouse Button", linuxCode: 274, windowsCode: 4 },
+  R: { name: "Right Mouse Button", linuxCode: 273, windowsCode: 2 }
+};
+// Leave a short release window between every pair of played notes.  A gap only
+// between repeated notes works for a plain melody, but modifier changes (for
+// example `#1'` -> `7` in 鸟之诗) otherwise release and press several mouse /
+// keyboard inputs in the same driver tick.  Delta Force can then sample a
+// stale modifier, or miss the key press altogether.
+const INPUT_TRANSITION_GAP_MS = 18;
+// Delta Force samples the mouse octave / sharp state separately from the note
+// key.  Leave enough time for a modifier press to reach the game before the
+// note key is pressed; otherwise lower-register passages can play in the base
+// octave despite sounding correct in the browser preview.
+const MODIFIER_SETTLE_MS = 24;
 const MIN_NOTE_HOLD_MS = 24;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
@@ -11,6 +40,12 @@ const KEYBOARD_LABEL_TO_MODIFIER = Object.fromEntries(Object.entries(KEYBOARD_MO
 const RECORD_BEATS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 const DIATONIC_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71 };
 const BUILTIN_SONG_LIBRARY = [
+ { title: "口琴按键映射测试", detail: "1=C · 4/4 · 72 BPM · 六组共 48 音", artist: "HARMONICA DECK", sharedBy: "内置测试", key: "1=C", meter: "4/4", bpm: 72, score: `1/0.5 2/0.5 3/0.5 4/0.5 5/0.5 6/0.5 7/0.5 1'/0.5 |
+L1/0.5 L2/0.5 L3/0.5 L4/0.5 L5/0.5 L6/0.5 L7/0.5 L1'/0.5 |
+M1/0.5 M2/0.5 M3/0.5 M4/0.5 M5/0.5 M6/0.5 M7/0.5 M1'/0.5 |
+R1/0.5 R2/0.5 R3/0.5 R4/0.5 R5/0.5 R6/0.5 R7/0.5 R1'/0.5 |
+LM1/0.5 LM2/0.5 LM3/0.5 LM4/0.5 LM5/0.5 LM6/0.5 LM7/0.5 LM1'/0.5 |
+RM1/0.5 RM2/0.5 RM3/0.5 RM4/0.5 RM5/0.5 RM6/0.5 RM7/0.5 RM1'/0.5 |` },
  { title: "鸟之诗", detail: "1=C · 4/4 · 122 BPM · MIDI 主旋律版", key: "1=C", meter: "4/4", bpm: 122, jianpu: ",7:0.96 0:0.04 #1:0.46 0:0.04 2:0.45999999999999996 0:0.04 6:0.475 0:0.025 |\n#4:0.96 0:0.04 #4:0.45999999999999996 0:0.04 3:0.21 0:0.04 #4:3.21 0:0.04 |\n3:0.46 0:0.04 #4:0.46 0:0.04 6:0.46 0:0.04 3:0.46 0:0.04 |\n#1:0.46 0:0.04 2:0.475 0:0.025 #1:0.9600000000000001 0:0.04 #1_ ,7:0.21 |\n0:0.04 #,4:2.25 0. ,7:0.975 0:0.025 #1:0.475 0:0.025 2:0.475 |\n0:0.025 6:0.45999999999999996 0:0.04 #4:0.96 0:0.04 #4_ 3:0.21 0:0.04 |\n#4:3.21 0:0.04 3:0.475 0:0.025 #4:0.475 0:0.025 6:0.475 0:0.025 |\n#4:0.475 0:0.025 6:0.46 0:0.04 2':0.475 0:0.025 #1':0.71 0:0.04 |\n7:0.71 0:0.04 #4:1.96 0:0.04 3:0.46 0:0.04 #4:0.975 0:0.025 |\n6:0.975 0:0.025 7:0.975 0:0.025 #1':0.975 0:0.025 #4:0.96 0:0.04 |\n#4:0.45999999999999996 0:0.04 3:0.21 0:0.04 #4:3.21 0:0.04 3:0.46 0:0.04 |\n#4:0.46 0:0.04 6:0.46 0:0.04 3:0.46 0:0.04 #1:0.46 0:0.04 |\n2:0.475 0:0.025 #1:0.9600000000000001 0:0.04 #1_ ,7:0.21 0:0.04 #,4:2.25 |\n0. ,7:0.975 0:0.025 #1:0.475 0:0.025 2:0.475 0:0.025 6:0.45999999999999996 |\n0:0.04 #4:0.96 0:0.04 #4_ 3:0.21 0:0.04 #4:3.21 0:0.04 |\n3:0.475 0:0.025 #4:0.475 0:0.025 6:0.475 0:0.025 #4:0.475 0:0.025 |\n6:0.46 0:0.04 2':0.475 0:0.025 #1':3.5 7:0.46 0:0.04 7:2.96 |\n0:0.04 7:0.9600000000000001 0:0.04 #1':3.475 0:0.025 7:0.46 0:0.04 7--- |\n0. #5:0.46 0:0.04 #5:0.7100000000000001 0:0.04 #5:0.725 0:0.025 #5:0.475 |\n0:0.025 #5:0.7100000000000001 0:0.04 #4:0.7100000000000001 0:0.04 #4:0.96 0:0.04 #5 |\n#6:0.46 0:0.04 7:0.71 0:0.04 #6:0.71 0:0.04 #5:0.9600000000000001 0:0.04 |\n#2:0.45999999999999996 0:0.04 #2:2.96 0:0.04 #1:0.96 0:0.04 ,7 0. |\n#5:0.46 0:0.04 #5:0.7100000000000001 0:0.04 #5:0.725 0:0.025 #5:0.475 0:0.025 |\n#5:0.7100000000000001 0:0.04 #4:0.7100000000000001 0:0.04 #4:0.96 0:0.04 #2:0.9600000000000001 0:0.04 |\n#4:0.45999999999999996 0:0.04 #5:0.725 0:0.025 #6:0.725 0:0.025 7:4.475 0:3.525 |\n#5:0.46 0:0.04 #5:0.7100000000000001 0:0.04 #5:0.725 0:0.025 #5:0.475 0:0.025 |\n#5:0.7100000000000001 0:0.04 #4:0.7100000000000001 0:0.04 #4:0.96 0:0.04 #5 #6:0.46 |\n0:0.04 7:0.71 0:0.04 #6:0.71 0:0.04 #5:0.9600000000000001 0:0.04 #2:0.45999999999999996 |\n0:0.04 #2:2.96 0:0.04 #1:0.96 0:0.04 ,7 0. #2:0.46 |\n0:0.04 #2:0.7100000000000001 0:0.04 #2:0.71 0:0.04 #2:0.46 0:0.04 #1:0.71 |\n0:0.04 #2:0.7100000000000001 0:0.04 #4:0.975 0:0.025 #2 #4:0.45999999999999996 0:0.04 |\n#5:1.96 0:0.04 7:0.9600000000000001 0:0.04 #6:0.96 0:0.04 #5:2.96 0:0.04 |\n#4:0.96 0:0.04 4:0.45999999999999996 0:0.04 4:0.45999999999999996 0:0.04 4:0.45999999999999996 0:0.04 |\n#2__ 4.. 0. 4:0.975 0:0.025 #4:0.975 0:0.025 #5:0.975 |\n0:0.025 #2:1.46 0:0.04 1:0.45999999999999996 0:0.04 1:3.46 0:0.04 1_ |\n#1:0.46 0:0.04 #2:1.46 0:0.04 4:0.45999999999999996 0:0.04 4:0.45999999999999996 0:0.04 |\n4:0.45999999999999996 0:0.04 #,6:0.225 0:0.025 4:5.21 0:0.04 #2:0.46 0:0.04 |\n#1:0.46 0:0.04 #2:0.975 0:0.025 #2:0.45999999999999996 0:0.04 #1:0.45999999999999996 0:0.04 |\n#2:0.45999999999999996 0:0.04 #5:0.96 0:0.04 #5:4.46 0:0.04 4:0.96 0:0.04 |\n4:0.46 0:0.04 #2:0.21000000000000002 0:0.04 4.. 0. 4:0.975 0:0.025 |\n#4:0.975 0:0.025 #5:0.975 0:0.025 #2:1.46 0:0.04 1:0.45999999999999996 0:0.04 |\n1:3.46 0:0.04 1_ #1:0.46 0:0.04 #2:1.46 0:0.04 #5:0.96 |\n0:0.04 #5:0.46 0:0.04 #4:0.21000000000000002 0:0.04 #5:5.21 0:0.04 #4:0.46 |\n0:0.04 3:0.46 0:0.04 #4:0.96 0:0.04 #4:0.45999999999999996 0:0.04 3_ |\n#4:0.475 0:0.025 #5:0.96 0:0.04 #5:1.96 0:0.04 ,7:0.96 0:0.04 |\n#1:0.46 0:0.04 2:0.45999999999999996 0:0.04 6:0.46 0:0.04 #4:0.96 0:0.04 |\n#4:0.45999999999999996 0:0.04 3:0.21 0:0.04 #4:3.21 0:0.04 3:0.46 0:0.04 |\n#4:0.46 0:0.04 6:0.46 0:0.04 3:0.46 0:0.04 #1:0.46 0:0.04 |\n2:0.475 0:0.025 #1:0.9600000000000001 0:0.04 #1_ ,7:0.21 0:0.04 #,4:2.25 |\n0. ,7:0.975 0:0.025 #1:0.475 0:0.025 2:0.475 0:0.025 6:0.45999999999999996 |\n0:0.04 #4:0.96 0:0.04 #4_ 3:0.21 0:0.04 #4:3.21 0:0.04 |\n3:0.475 0:0.025 #4:0.475 0:0.025 6:0.475 0:0.025 #4:0.475 0:0.025 |\n6:0.46 0:0.04 2':0.475 0:0.025 #1':0.71 0:0.04 7:0.71 0:0.04 |\n#4:1.96 0:0.04 3:0.46 0:0.04 #4:0.975 0:0.025 6:0.975 0:0.025 |\n7:0.975 0:0.025 #1':0.975 0:0.025 #4:0.96 0:0.04 #4:0.45999999999999996 0:0.04 |\n3:0.21 0:0.04 #4:3.21 0:0.04 3:0.46 0:0.04 #4:0.46 0:0.04 |\n6:0.46 0:0.04 3:0.46 0:0.04 #1:0.46 0:0.04 2:0.475 0:0.025 |\n#1:0.9600000000000001 0:0.04 #1_ ,7:0.21 0:0.04 #,4:2.25 0. ,7:0.975 |\n0:0.025 #1:0.475 0:0.025 2:0.475 0:0.025 6:0.45999999999999996 0:0.04 #4:0.96 |\n0:0.04 #4_ 3:0.21 0:0.04 #4:3.21 0:0.04 3:0.475 0:0.025 |\n#4:0.475 0:0.025 6:0.475 0:0.025 #4:0.475 0:0.025 6:0.46 0:0.04 |\n2':0.475 0:0.025 #1':3.5 7:0.46 0:0.04 7:2.96 0:0.04 7:0.9600000000000001 |\n0:0.04 #1':3.475 0:0.025 7:0.46 0:0.04 7:10 |" },
  { title: "天使爱美丽", detail: "1=G · 4/4 · 93 BPM · 双页图片校对版", bpm: 93, score: `0/0.5 1/0.25 7/0.25 1/0.5 3/0.25 4/0.25 3/2 |
 0/0.5 7/0.25 1/0.25 7/0.5 1/0.25 2/0.25 1/2 |
@@ -305,7 +340,7 @@ const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", 
 const MACRO_TRIGGER_MODE_HINTS = {
   once: "单次播放：按下后完整播放一次。播放中再次按下会忽略；没有停止键时无法中途停止。",
   hold: "长按播放：按住绑定键播放，松开后立即停止；也可用全局停止键中止。",
-  toggle: "切换播放：按一下开始，再按同一个绑定键停止；也可另设全局停止键。"
+  toggle: "切换播放：按一下开始、松开后再按同一个绑定键停止；启动后的 150ms 会忽略触发键，避免首次点击被误判为停止。"
 };
 const SECTION_GUIDES = {
   directory: {
@@ -345,7 +380,7 @@ const SECTION_GUIDES = {
       ["06", "曲目信息与编辑区", "歌名、作者、调号、拍号和 BPM 会随导出保存。编辑区左侧行号与下方语法提示用于定位和修正输入。"],
       ["07", "校验、试听与分享", "底部校验会给出错误行列或预计时长；「试听」播放当前序列，「分享 .deltamusic」保存曲谱，「导出为宏」前往导出区。"],
       ["08", "播放器", "总时长、音符与事件统计用于核对；试听、从头播放、停止、音量与进度控制只影响浏览器试听。事件时间线可点击跳转到指定时刻。"],
-      ["09", "导出目标", "导出区提供 Logitech G HUB Lua、Razer Synapse 3 XML、Synapse 4 XML 和手动键盘谱；请按设备与软件版本选择，并确认使用环境允许宏。"]
+      ["09", "导出目标", "导出区提供 Logitech G HUB Lua、Razer Synapse 3/4 XML、ROG Armoury Crate GMAC 和手动键盘谱；请按设备与软件版本选择，并确认使用环境允许宏。"]
     ]
   },
   player: {
@@ -364,18 +399,19 @@ const SECTION_GUIDES = {
     windowTitle: "HELP.EXE — MACRO EXPORT",
     index: "05 · DRIVER FILES",
     title: "导出为宏 · 配置与交付",
-    intro: "在这里将已校验的曲谱输出为鼠标软件脚本、XML 文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
+    intro: "在这里将已校验的曲谱输出为鼠标软件脚本、驱动配置文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
     steps: [
       ["01", "设置 G HUB 触发", "填写绑定鼠标键并选择单次、长按或切换播放。全局停止键可选，用于随时终止正在播放的 Lua。"],
       ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
-      ["04", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
+      ["04", "导出 ROG GMAC", "下载 <code>.gmac</code> 后，在 Armoury Crate 的 Macro 页面选择 Import；导入成功后再将该宏绑定到支持宏功能的 ROG 外设按键。"],
+      ["05", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
     ]
   }
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -384,7 +420,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -411,13 +447,13 @@ const TOUR_FLOWS = {
   library: [
     { index: "曲库教程 · 01", target: ".library-deck", title: "从曲库开始", copy: "这里收录内置与社区曲目。搜索后，在任意曲目卡片右上角使用「导出」可直接带着该曲进入最后的导出区。" },
     { index: "曲库教程 · 02", target: () => document.querySelector("[data-song-action='export']"), interactiveSelector: "[data-song-action='export']", title: "选择一首曲目并导出", copy: "请选择想要的曲目，然后点击它右上角的「导出」。工具会自动载入曲谱、同步编辑器与播放器，并跳到导出为宏。", action: "library-export", status: "等待你点击任意曲目右上角的「导出」。" },
-    { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
+    { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；ROG Armoury Crate 使用 GMAC；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
   ],
   midi: [
     { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
     { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择旋律音轨并截取", copy: "先选含主旋律的音轨，再拖动开始与结束手柄保留所需片段。音轨与截取可以反复调整；完成后点击「确定并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「确定并生成谱子」。" },
     { index: "MIDI 教程 · 03", target: ".editor-actions", title: "查看谱子、试播和导出", copy: "生成的简谱会同步显示在编辑器中。可先点击「试听」检查效果；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
+    { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；ROG Armoury Crate 导入 GMAC；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
   ],
   manual: [
     { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的四种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
@@ -434,7 +470,7 @@ const TOUR_FLOWS = {
     { index: "打谱教程 · 12", target: ".preview-console", title: "播放器控制", copy: "这里可以试听、从头播放、停止、调节音量和拖动播放进度。这些控制只影响浏览器试听，不会修改导出的宏。" },
     { index: "打谱教程 · 13", target: "#timeline", title: "事件时间线", copy: "每一行显示一个按键时刻、变调键、按住时长与气口。点击任意一行可从该位置开始试听。" },
     { index: "打谱教程 · 14", target: "#macroExportButton", title: "进入导出", copy: "完成打谱和试听后，点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "打谱教程 · 15", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别使用自己的 XML；其他宏工具可使用手动输入的键盘谱。", terminal: true }
+    { index: "打谱教程 · 15", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别使用自己的 XML；ROG Armoury Crate 使用 GMAC；其他宏工具可使用手动输入的键盘谱。", terminal: true }
   ]
 };
 
@@ -596,7 +632,7 @@ function scheduleWorkbenchHeightSync() {
 let recording = null;
 let selectedRecordModifier = "";
 let liveRecordingVoice = null;
-let currentScoreCredit = { artist: "", sharedBy: "" };
+let currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "" };
 let scoreExportMode = "download";
 
 function tokenPosition(source, offset) {
@@ -605,7 +641,17 @@ function tokenPosition(source, offset) {
 }
 
 function pitchCandidates() {
-  const candidates = [{ midi: 72, note: "1'", modifier: null }];
+  // The comma key is the eighth base key (C5), not merely display sugar for
+  // right-click + Z.  Its altered forms are preferable to equivalent
+  // combinations on the lower row: #1' must be M + comma, rather than R + M
+  // + Z.  Besides matching the game input precisely, this avoids an
+  // unnecessary octave modifier in melodies such as 鸟之诗.
+  const candidates = [
+    { midi: 72, note: "1'", modifier: null },
+    { midi: 73, note: "1'", modifier: "M" },
+    { midi: 84, note: "1'", modifier: "R" },
+    { midi: 85, note: "1'", modifier: "RM" }
+  ];
   Object.entries(DIATONIC_MIDI).forEach(([note, midi]) => candidates.push({ midi, note, modifier: null }));
   Object.entries(DIATONIC_MIDI).forEach(([note, midi]) => candidates.push({ midi: midi + 1, note, modifier: "M" }));
   Object.entries(DIATONIC_MIDI).forEach(([note, midi]) => candidates.push({ midi: midi - 12, note, modifier: "L" }));
@@ -650,11 +696,23 @@ function parseJianpu(source, bpm) {
       tiePending = true;
       continue;
     }
+    const physicalFound = token.match(/^([LMR]{1,2})(0|1'|[1-7])(_{0,2})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/i);
     const found = token.match(/^([#b♯♭]?)(,?)(0|[1-7])('?)(_{0,2})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/);
-    if (!found) return { error: { message: `无法识别“${match[0]}”。可输入 5、0、#4、1'、,1、5_、5.，或用 5:1.25 写精确拍数。`, ...position } };
-    const [, accidental, lowMark, digit, highMark, underscores, dots, dashes, explicitBeats, tieMark] = found;
+    if (!found && !physicalFound) return { error: { message: `无法识别“${match[0]}”。可输入 5、0、#4、1'、,1、5_、5.，或用 5:1.25 写精确拍数。`, ...position } };
+    const [, accidental = "", lowMark = "", digit, highMark = "", standardUnderscores = "", standardDots = "", standardDashes = "", standardExplicitBeats, standardTieMark = ""] = found || [];
+    const [, physicalModifier = "", physicalDigit, physicalUnderscores = "", physicalDots = "", physicalDashes = "", physicalExplicitBeats, physicalTieMark = ""] = physicalFound || [];
+    const note = physicalDigit || digit;
+    const modifier = physicalModifier.toUpperCase();
+    const underscores = physicalFound ? physicalUnderscores : standardUnderscores;
+    const dots = physicalFound ? physicalDots : standardDots;
+    const dashes = physicalFound ? physicalDashes : standardDashes;
+    const explicitBeats = physicalFound ? physicalExplicitBeats : standardExplicitBeats;
+    const tieMark = physicalFound ? physicalTieMark : standardTieMark;
+    if (physicalFound && (note === "0" || new Set(modifier).size !== modifier.length || (modifier.includes("L") && modifier.includes("R")))) {
+      return { error: { message: "物理键位前缀不能用于休止符，且不能重复或同时包含 L 与 R。", ...position } };
+    }
     if (lowMark && highMark) return { error: { message: "同一个音不能同时标记高八度和低八度。", ...position } };
-    const pitch = encodeJianpuPitch(accidental, lowMark, digit, highMark);
+    const pitch = physicalFound ? { note, modifier } : encodeJianpuPitch(accidental, lowMark, note, highMark);
     if (!pitch) return { error: { message: `“${match[0]}”超出当前游戏键位可表达的音域。`, ...position } };
     if (explicitBeats && (underscores || dots || dashes)) return { error: { message: "精确拍数不能与下划线、附点或延音线同时使用。", ...position } };
     const baseBeats = 1 / (2 ** underscores.length);
@@ -684,16 +742,20 @@ function enrichNotes(notes, bpm) {
     const isRest = item.note === "0";
     const durationMs = Math.round(item.beats * beatMs);
     const eventCount = isRest ? 0 : 2 + (item.modifier?.length || 0) * 2;
-    const event = { ...item, key: NOTE_KEYS[item.note] || null, isRest, durationMs, pressMs: isRest ? 0 : durationMs, waitMs: 0, timeMs: cursor, eventCount };
+    const event = { ...item, key: NOTE_KEYS[item.note] || null, isRest, durationMs, pressMs: isRest ? 0 : durationMs, waitMs: 0, inputLeadMs: 0, timeMs: cursor, eventCount };
     cursor += durationMs;
     return event;
   });
   enriched.forEach((event, index) => {
     const next = enriched[index + 1];
-    if (event.isRest || !next || next.isRest || macroMidi(event) !== macroMidi(next)) return;
-    const breathMs = Math.min(BREATH_GAP_MS, Math.max(0, event.durationMs - MIN_NOTE_HOLD_MS));
-    event.pressMs = event.durationMs - breathMs;
-    event.waitMs = breathMs;
+    if (event.isRest || !next || next.isRest) return;
+    const transitionMs = Math.min(INPUT_TRANSITION_GAP_MS, Math.max(0, event.durationMs - MIN_NOTE_HOLD_MS));
+    event.pressMs = event.durationMs - transitionMs;
+    event.waitMs = transitionMs;
+  });
+  enriched.forEach((event) => {
+    if (event.isRest || !event.modifier) return;
+    event.inputLeadMs = Math.min(MODIFIER_SETTLE_MS, Math.max(0, event.pressMs - MIN_NOTE_HOLD_MS));
   });
   return { notes: enriched, beatMs: Math.round(beatMs), totalMs: cursor, events: enriched.reduce((sum, item) => sum + item.eventCount, 0) };
 }
@@ -1173,6 +1235,7 @@ function parseLegacyDetail(detail = "") {
 function normalizeSong(song) {
   const builtin = BUILTIN_SONG_METADATA[song.title] || {};
   const legacy = parseLegacyDetail(song.detail);
+  const displayUrl = validateDisplayUrl(song.displayUrl);
   return {
     ...song,
     title: String(song.title || "未命名曲目").trim() || "未命名曲目",
@@ -1180,7 +1243,8 @@ function normalizeSong(song) {
     sharedBy: String(song.sharedBy || "Jiko").trim() || "Jiko",
     key: String(song.key || builtin.key || legacy.key || "调待补").trim() || "调待补",
     meter: String(song.meter || builtin.meter || legacy.meter || "拍号待补").trim() || "拍号待补",
-    bpm: Number(song.bpm) || 120
+    bpm: Number(song.bpm) || 120,
+    displayUrl: displayUrl.value || ""
   };
 }
 
@@ -1195,8 +1259,8 @@ function renderSongLibrary(query = "") {
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
       <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span></div>
-      <span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>
       </button>
+      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
         <button class="song-card-action" data-song-action="edit" type="button">编辑</button>
         <button class="song-card-action export" data-song-action="export" type="button">导出</button>
@@ -1212,6 +1276,7 @@ function beatsToJianpu(beats) {
 
 function jianpuPitch(note, modifier) {
   if (note === "0") return "0";
+  if (note === "1'" && modifier && (modifier.includes("L") || modifier.includes("R"))) return `${modifier}${note}`;
   return modifier === "LM" || modifier === "ML" ? `#,${note}` : modifier === "RM" || modifier === "MR" ? `#${note}'` : modifier === "M" ? `#${note}` : modifier === "L" ? `,${note}` : modifier === "R" ? `${note}'` : note;
 }
 
@@ -1266,7 +1331,7 @@ function syncSequenceToEditors(sequence, { except = null } = {}) {
   updateLineNumbers();
 }
 
-function loadSong(song, { destination = "editor" } = {}) {
+function loadSong(song, { destination = "editor", scroll = true, focusEditor = true } = {}) {
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -1276,7 +1341,7 @@ function loadSong(song, { destination = "editor" } = {}) {
   elements.keySignature.value = song.key || "1=C";
   elements.timeSignature.value = song.meter || "4/4";
   elements.bpm.value = song.bpm;
-  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "" };
+  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "" };
   const sequence = song.jianpu ? parseJianpu(song.jianpu, song.bpm) : parseScore(song.score, song.bpm);
   if (sequence.error) {
     toast(`《${song.title}》的曲库数据无法载入。`);
@@ -1289,10 +1354,10 @@ function loadSong(song, { destination = "editor" } = {}) {
   elements.lineNumbers.scrollTop = 0;
   elements.keyboardLineNumbers.scrollTop = 0;
   setInputMode("jianpu", { force: true, silent: true });
-  elements.jianpuScore.focus();
+  if (focusEditor) elements.jianpuScore.focus({ preventScroll: !scroll });
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
-  if (destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  else document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll && destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  else if (scroll) document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
 
@@ -1436,11 +1501,7 @@ function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
   const sequence = currentSequence;
   if (!sequence) return;
   const index = sequence.notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
-  clearTimelinePlayback();
-  if (index < 0) return;
-  const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
-  row?.classList.add("playing");
-  if (scroll) keepTimelineRowVisible(row);
+  setTimelinePlaybackPosition(sequence, index, { scroll });
 }
 
 function updateMonitor(sequence) {
@@ -1461,7 +1522,9 @@ function updateMonitor(sequence) {
   elements.monitorDot.classList.add("active");
   elements.timeline.innerHTML = sequence.notes.map((item) => {
     const modifier = item.modifier ? `${item.modifier} + ` : "";
-    const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · 按住 ${item.pressMs}ms${item.waitMs ? ` · 气口 ${item.waitMs}ms` : ""}`;
+    const modifierLead = item.inputLeadMs ? `变调准备 ${item.inputLeadMs}ms · ` : "";
+    const keyHoldMs = Math.max(0, item.pressMs - (item.inputLeadMs || 0));
+    const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · ${modifierLead}按住 ${keyHoldMs}ms${item.waitMs ? ` · 气口 ${item.waitMs}ms` : ""}`;
     return `<li data-note-index="${item.index ?? 0}" data-time-ms="${item.timeMs}" tabindex="0" role="button" aria-label="跳转到 ${formatTime(item.timeMs)}，${escapeHtml(detail)}"><span class="time">${formatTime(item.timeMs)}</span><span class="timeline-key${item.isRest ? " rest" : item.modifier ? " modifier" : ""}">${item.isRest ? "休" : item.note}</span><span class="event-detail">${detail}</span></li>`;
   }).join("");
   setPreviewProgress(0, sequence);
@@ -1571,8 +1634,7 @@ function prewarmAudioEngine() {
 }
 
 function previewFrequency(item) {
-  const offset = [...(item.modifier || "")].reduce((sum, modifier) => sum + PREVIEW_OFFSETS[modifier], 0);
-  const midi = PREVIEW_MIDI[item.note] + offset;
+  const midi = macroMidi(item);
   return 440 * (2 ** ((midi - 69) / 12));
 }
 
@@ -1696,7 +1758,23 @@ function playLiveRecordingNote(note) {
 }
 
 function clearTimelinePlayback() {
-  elements.timeline.querySelectorAll(".playing").forEach((row) => row.classList.remove("playing"));
+  elements.timeline.querySelectorAll(".playing").forEach((row) => {
+    row.classList.remove("playing");
+    row.removeAttribute("aria-current");
+  });
+}
+
+function setTimelinePlaybackPosition(sequence, index, { scroll = false } = {}) {
+  const note = sequence?.notes[index];
+  clearTimelinePlayback();
+  if (!note) return false;
+  const rowIndex = note.index ?? index;
+  const row = elements.timeline.querySelector(`[data-note-index="${rowIndex}"]`);
+  if (!row) return false;
+  row.classList.add("playing");
+  row.setAttribute("aria-current", "true");
+  if (scroll) keepTimelineRowVisible(row);
+  return true;
 }
 
 function keepTimelineRowVisible(row) {
@@ -1768,11 +1846,7 @@ function updatePreviewTimeline(preview, positionMs) {
     index = notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
   }
   if (index < 0 || index === preview.timelineIndex) return;
-  preview.timelineIndex = index;
-  clearTimelinePlayback();
-  const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
-  row?.classList.add("playing");
-  keepTimelineRowVisible(row);
+  if (setTimelinePlaybackPosition(preview.sequence, index, { scroll: true })) preview.timelineIndex = index;
 }
 
 function registerPreviewNodes(preview, nodes) {
@@ -1790,11 +1864,12 @@ function schedulePreviewWindow(preview) {
     const item = preview.sequence.notes[preview.nextNoteIndex];
     if (item.timeMs > windowEndMs) break;
     preview.nextNoteIndex += 1;
+    const noteStart = item.timeMs + (item.inputLeadMs || 0);
     const noteEnd = item.timeMs + item.pressMs;
     if (item.isRest || noteEnd <= preview.positionMs) continue;
-    const skippedMs = Math.max(0, preview.positionMs - item.timeMs);
-    const noteLength = Math.max(0.035, (item.pressMs - skippedMs) / 1000);
-    const startAt = preview.startAt + Math.max(0, item.timeMs - preview.positionMs) / 1000;
+    const skippedMs = Math.max(0, preview.positionMs - noteStart);
+    const noteLength = Math.max(0.035, (item.pressMs - (item.inputLeadMs || 0) - skippedMs) / 1000);
+    const startAt = preview.startAt + Math.max(0, noteStart - preview.positionMs) / 1000;
     registerPreviewNodes(preview, scheduleHarmonicaTone(preview.context, startAt, noteLength, previewFrequency(item)));
   }
   if (positionMs >= preview.sequence.totalMs) stopPreview();
@@ -1870,7 +1945,7 @@ async function playPreview(positionMs = 0) {
       state: "playing", nextNoteIndex: nextPreviewNoteIndex(sequence, startPosition), timelineIndex: -1
     };
     setPreviewProgress(startPosition, sequence);
-    highlightTimelinePosition(startPosition);
+    updatePreviewTimeline(activePreview, startPosition);
     startPreviewScheduler(activePreview);
     window.cancelAnimationFrame(previewProgressFrame);
     previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
@@ -1901,8 +1976,13 @@ function makeUuid() {
 function setMacroTriggerValidation(message = "", invalidFields = []) {
   elements.macroTriggerValidation.textContent = message;
   elements.macroTriggerValidation.hidden = !message;
-  elements.macroTriggerButton.setAttribute("aria-invalid", String(invalidFields.includes(elements.macroTriggerButton)));
-  elements.macroStopButton.setAttribute("aria-invalid", String(invalidFields.includes(elements.macroStopButton)));
+  [
+    elements.macroTriggerButton,
+    elements.macroStopButton,
+    elements.macroLowButton,
+    elements.macroMiddleButton,
+    elements.macroHighButton
+  ].forEach((field) => field.setAttribute("aria-invalid", String(invalidFields.includes(field))));
 }
 
 function clearMacroTriggerValidation() {
@@ -1920,6 +2000,8 @@ function readMacroTriggerSettings() {
   const rawStopButton = String(elements.macroStopButton.value).trim();
   const stopButton = rawStopButton ? Number(rawStopButton) : 0;
   const mode = elements.macroTriggerMode.value;
+  const pitchButtonFields = { L: elements.macroLowButton, M: elements.macroMiddleButton, R: elements.macroHighButton };
+  const pitchButtons = Object.fromEntries(Object.entries(pitchButtonFields).map(([modifier, field]) => [modifier, Number(String(field.value).trim())]));
   if (!rawButton || !Number.isInteger(button) || button < 1 || button > 20) {
     setMacroTriggerValidation("请输入 1 到 20 之间的鼠标绑定键。", [elements.macroTriggerButton]);
     return null;
@@ -1932,12 +2014,29 @@ function readMacroTriggerSettings() {
     setMacroTriggerValidation("全局停止键不能单独填写为播放绑定键；如需同键开关，请留空并选择“切换播放”。", [elements.macroTriggerButton, elements.macroStopButton]);
     return null;
   }
+  const invalidPitchFields = Object.entries(pitchButtons).filter(([, mappedButton]) => !Number.isInteger(mappedButton) || mappedButton < 1 || mappedButton > 20).map(([modifier]) => pitchButtonFields[modifier]);
+  if (invalidPitchFields.length) {
+    setMacroTriggerValidation("低音、半音和高音的映射必须分别填写 1 到 20 的整数。", invalidPitchFields);
+    return null;
+  }
+  const pitchModifierButtons = new Set(Object.values(pitchButtons));
+  if (pitchModifierButtons.size !== 3) {
+    setMacroTriggerValidation("低音、半音和高音必须使用三个不同的鼠标键。", Object.values(pitchButtonFields));
+    return null;
+  }
+  if (pitchModifierButtons.has(button) || pitchModifierButtons.has(stopButton)) {
+    setMacroTriggerValidation("播放键和停止键不能与当前变调键映射重复；请使用未分配给低音、半音或高音的侧键。", [
+      ...(pitchModifierButtons.has(button) ? [elements.macroTriggerButton] : []),
+      ...(pitchModifierButtons.has(stopButton) ? [elements.macroStopButton] : [])
+    ]);
+    return null;
+  }
   if (!Object.prototype.hasOwnProperty.call(MACRO_TRIGGER_MODE_LABELS, mode)) {
     setMacroTriggerValidation("请选择有效的触发模式。");
     return null;
   }
   clearMacroTriggerValidation();
-  return { button, stopButton, mode };
+  return { button, stopButton, mode, pitchButtons };
 }
 
 function requireMacroTriggerSettings() {
@@ -1953,11 +2052,12 @@ function requireMacroTriggerSettings() {
 }
 
 function generateLua(sequence, triggerSettings) {
-  const { button, stopButton, mode } = triggerSettings;
+  const { button, stopButton, mode, pitchButtons = { L: 1, M: 2, R: 3 } } = triggerSettings;
   const lines = [
     "-- Harmonica Deck · Delta Force harmonica sequence",
     `-- Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
     `-- Trigger: mouse button ${button} · ${MACRO_TRIGGER_MODE_LABELS[mode]}`,
+    `-- Harmonica modifiers: L=${pitchButtons.L} (low), M=${pitchButtons.M} (semitone), R=${pitchButtons.R} (high)`,
     "-- once = play once; hold = play while the trigger is held; toggle = press to start and press again to stop.",
     "-- Stop handling releases the current note and any mouse modifier buttons.",
     `local TRIGGER_BUTTON = ${button}`,
@@ -1969,6 +2069,7 @@ function generateLua(sequence, triggerSettings) {
     "local activeModifiers = {}",
     "local activePlaybackGeneration = 0",
     "local toggleTriggerArmed = false",
+    "local toggleStartIgnoreUntil = 0",
     "local playbackStartedAt = 0",
     "local playbackGeneration = 0",
     "",
@@ -1990,6 +2091,8 @@ function generateLua(sequence, triggerSettings) {
     "  stopRequested = true",
     "  ReleaseHeldInputs()",
     "  isPlaying = false",
+    "  toggleTriggerArmed = false",
+    "  toggleStartIgnoreUntil = 0",
     "  playbackStartedAt = 0",
     "end",
     "",
@@ -2005,7 +2108,9 @@ function generateLua(sequence, triggerSettings) {
     "      RequestStop()",
     "      return false",
     "    end",
-    "    if TRIGGER_MODE == \"toggle\" then",
+    "    -- G HUB may briefly report the click that started this script again.",
+    "    -- Do not arm toggle-stop until that startup click has had time to clear.",
+    "    if TRIGGER_MODE == \"toggle\" and GetRunningTime() >= toggleStartIgnoreUntil then",
     "      local triggerPressed = IsMouseButtonPressed(TRIGGER_BUTTON)",
     "      if not triggerPressed then",
     "        toggleTriggerArmed = true",
@@ -2031,7 +2136,8 @@ function generateLua(sequence, triggerSettings) {
     "  local ownerGeneration = playbackGeneration",
     "  isPlaying = true",
     "  stopRequested = false",
-    "  toggleTriggerArmed = not IsMouseButtonPressed(TRIGGER_BUTTON)",
+    "  toggleTriggerArmed = false",
+    "  toggleStartIgnoreUntil = GetRunningTime() + 150",
     "  playbackStartedAt = GetRunningTime()",
   ];
   sequence.notes.forEach((item, index) => {
@@ -2045,17 +2151,24 @@ function generateLua(sequence, triggerSettings) {
       lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
       lines.push("    end");
     } else {
-      const modifierButtons = [...(item.modifier || "")].map((modifier) => MOUSE_BUTTONS[modifier].ghub);
+      const modifierButtons = [...(item.modifier || "")].map((modifier) => pitchButtons[modifier]);
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
       lines.push("    activePlaybackGeneration = ownerGeneration");
       lines.push("    for index = 1, #activeModifiers do");
       lines.push("      PressMouseButton(activeModifiers[index])");
       lines.push("    end");
-      lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
+      if (item.inputLeadMs > 0) {
+        lines.push(`    if not WaitUntil(${item.timeMs + item.inputLeadMs}, ownerGeneration) then`);
+        lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
+        lines.push("    end");
+        lines.push("    if not stopRequested and playbackGeneration == ownerGeneration then");
+      }
+      lines.push(`    activeKey = ${JSON.stringify(GHUB_KEY_NAMES[item.key] || item.key)}`);
       lines.push("    PressKey(activeKey)");
       lines.push(`    if not WaitUntil(${item.timeMs + item.pressMs}, ownerGeneration) then`);
       lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
       lines.push("    end");
+      if (item.inputLeadMs > 0) lines.push("    end");
       lines.push("    ReleaseHeldInputs(ownerGeneration)");
     }
     lines.push("  end");
@@ -2066,6 +2179,7 @@ function generateLua(sequence, triggerSettings) {
     "    isPlaying = false",
     "    stopRequested = false",
     "    toggleTriggerArmed = false",
+    "    toggleStartIgnoreUntil = 0",
     "    playbackStartedAt = 0",
     "  end",
     "end",
@@ -2080,6 +2194,7 @@ function generateLua(sequence, triggerSettings) {
     "    ReleaseHeldInputs()",
     "    AbortMacro()",
     "    stopRequested = false",
+    "    toggleStartIgnoreUntil = 0",
     "    playbackStartedAt = 0",
     "    return",
     "  end",
@@ -2121,13 +2236,43 @@ function generateRazerXml(sequence, version) {
       return;
     }
     [...(item.modifier || "")].forEach((modifier) => events.push(razerMouseEvent(1, 0, MOUSE_BUTTONS[modifier].razer)));
-    events.push(razerKeyboardEvent(1, 0, MAKE_CODES[item.key]));
-    events.push(razerKeyboardEvent(2, item.pressMs, MAKE_CODES[item.key]));
+    const inputLeadMs = item.inputLeadMs || 0;
+    events.push(razerKeyboardEvent(1, inputLeadMs, MAKE_CODES[item.key]));
+    events.push(razerKeyboardEvent(2, item.pressMs - inputLeadMs, MAKE_CODES[item.key]));
     [...(item.modifier || "")].reverse().forEach((modifier) => events.push(razerMouseEvent(2, 0, MOUSE_BUTTONS[modifier].razer)));
     if (item.waitMs > 0) events.push(`    <MacroEvent><Type>0</Type><Delay>${item.waitMs}</Delay></MacroEvent>`);
   });
   const name = escapedXml(`${safeName()} · Synapse ${version}`);
   return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Harmonica Deck experimental Synapse ${version} macro. Synapse 3 and 4 files are not interchangeable. -->\n<Macro xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n  <Name>${name}</Name>\n  <Guid>${makeUuid()}</Guid>\n  <MacroEvents>\n${events.join("\n")}\n  </MacroEvents>\n  <IsFolder>false</IsFolder>\n  <FolderGuid>00000000-0000-0000-0000-000000000000</FolderGuid>\n</Macro>\n`;
+}
+
+function rogGmacEvent(action, input) {
+  return `${action},${input.name},${input.linuxCode},${input.windowsCode}`;
+}
+
+function rogDelay(delay) {
+  return delay > 0 ? `Delay,${Math.round(delay)}` : "";
+}
+
+function generateRogGmac(sequence) {
+  const events = [];
+  sequence.notes.forEach((item) => {
+    if (item.isRest) {
+      events.push(rogDelay(item.durationMs));
+      return;
+    }
+    [...(item.modifier || "")].forEach((modifier) => events.push(rogGmacEvent("Press", ROG_MOUSE_BUTTONS[modifier])));
+    const inputLeadMs = item.inputLeadMs || 0;
+    events.push(rogDelay(inputLeadMs));
+    const key = ROG_KEYS[item.key];
+    events.push(rogGmacEvent("Press", key));
+    events.push(rogDelay(item.pressMs - inputLeadMs));
+    events.push(rogGmacEvent("Release", key));
+    [...(item.modifier || "")].reverse().forEach((modifier) => events.push(rogGmacEvent("Release", ROG_MOUSE_BUTTONS[modifier])));
+    events.push(rogDelay(item.waitMs));
+  });
+  // The final value is Armoury Crate's repeat setting: 1 means play once.
+  return `${events.filter(Boolean).join("\n")}\n1\n`;
 }
 
 function download(content, filename, type) {
@@ -2163,6 +2308,13 @@ const MACRO_DOWNLOAD_CONFIG = {
     requiresTriggerSettings: false,
     build: (sequence) => generateRazerXml(sequence, 4),
     success: "Synapse 4 XML 已下载。"
+  },
+  "download-rog": {
+    suffix: "-rog.gmac",
+    type: "text/plain",
+    requiresTriggerSettings: false,
+    build: (sequence) => generateRogGmac(sequence),
+    success: "ROG Armoury Crate GMAC 已下载。"
   }
 };
 
@@ -2242,11 +2394,25 @@ function compactText(value, field, limit) {
   return { value: text };
 }
 
+function validateDisplayUrl(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return { value: "" };
+  if (text.length > 2048) return { error: "展示视频链接不能超过 2048 个字符。" };
+  try {
+    const url = new URL(text);
+    if (url.protocol !== "https:" || !url.hostname) throw new Error();
+    return { value: url.href };
+  } catch {
+    return { error: "展示视频链接必须是有效的 HTTPS 地址。" };
+  }
+}
+
 function validateScoreMetadata(metadata) {
   const title = compactText(metadata.title, "歌名", 48);
   const artist = compactText(metadata.artist, "歌手/作者", 64);
   const sharedBy = compactText(metadata.sharedBy, "共享人", 48);
-  if (title.error || artist.error || sharedBy.error) return { error: title.error || artist.error || sharedBy.error };
+  const displayUrl = validateDisplayUrl(metadata.displayUrl);
+  if (title.error || artist.error || sharedBy.error || displayUrl.error) return { error: title.error || artist.error || sharedBy.error || displayUrl.error };
   const key = String(metadata.key ?? "").trim();
   if (!/^(?:1=)?[A-G](?:[#b♯♭])?$/i.test(key)) return { error: "调号格式应为 1=C、C、F♯ 或 A♭。" };
   const meter = String(metadata.meter ?? "").trim();
@@ -2254,7 +2420,7 @@ function validateScoreMetadata(metadata) {
   if (!meterParts || Number(meterParts[1]) < 1 || ![1, 2, 4, 8, 16].includes(Number(meterParts[2]))) return { error: "拍号格式应为例如 4/4 或 6/8。" };
   const bpm = Number(metadata.bpm);
   if (!Number.isInteger(bpm) || bpm < 30 || bpm > 300) return { error: "BPM 必须是 30 到 300 之间的整数。" };
-  return { value: { title: title.value, artist: artist.value, sharedBy: sharedBy.value, key, meter, bpm } };
+  return { value: { title: title.value, artist: artist.value, sharedBy: sharedBy.value, key, meter, bpm, displayUrl: displayUrl.value } };
 }
 
 function validateScorePackage(payload) {
@@ -2267,17 +2433,19 @@ function validateScorePackage(payload) {
   if (!jianpu) return { error: "导入文件缺少简谱内容。" };
   const sequence = parseJianpu(jianpu, metadata.value.bpm);
   if (sequence.error) return { error: `简谱无法载入：${sequence.error.message}` };
-  return { value: { ...metadata.value, jianpu: sequenceToJianpu(sequence), source: "社区投稿" } };
+  const { displayUrl, ...scoreMetadata } = metadata.value;
+  return { value: { ...scoreMetadata, ...(displayUrl ? { displayUrl } : {}), jianpu: sequenceToJianpu(sequence), source: "社区投稿" } };
 }
 
-function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy) {
+function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy, displayUrl = currentScoreCredit.displayUrl) {
   return validateScoreMetadata({
     title: elements.macroName.value,
     artist: elements.artistName.value,
     sharedBy,
     key: elements.keySignature.value,
     meter: elements.timeSignature.value,
-    bpm: elements.bpm.value
+    bpm: elements.bpm.value,
+    displayUrl
   });
 }
 
@@ -2293,6 +2461,7 @@ function openScoreExportDialog(mode = "download") {
   elements.exportSongTitle.value = elements.macroName.value.trim();
   elements.exportArtistName.value = elements.artistName.value.trim() || currentScoreCredit.artist;
   elements.exportSharedBy.value = currentScoreCredit.sharedBy;
+  elements.exportDisplayUrl.value = currentScoreCredit.displayUrl;
   elements.exportMetaPreview.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · 简谱将自动标准化保存`;
   scoreExportMode = mode;
   const localLibrary = mode === "local-library";
@@ -2316,13 +2485,16 @@ function scorePackageFromDialog() {
     sharedBy: elements.exportSharedBy.value,
     key: elements.keySignature.value,
     meter: elements.timeSignature.value,
-    bpm: elements.bpm.value
+    bpm: elements.bpm.value,
+    displayUrl: elements.exportDisplayUrl.value
   });
   if (metadata.error) return metadata;
+  const { displayUrl, ...scoreMetadata } = metadata.value;
   return { value: {
     format: SONG_FILE_FORMAT,
     version: SONG_FILE_VERSION,
-    ...metadata.value,
+    ...scoreMetadata,
+    ...(displayUrl ? { displayUrl } : {}),
     jianpu: sequenceToJianpu(sequence)
   }};
 }
@@ -2330,7 +2502,7 @@ function scorePackageFromDialog() {
 function applyScorePackageMetadata(score) {
   elements.macroName.value = score.title;
   elements.artistName.value = score.artist;
-  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy };
+  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy, displayUrl: score.displayUrl || "" };
 }
 
 function exportScorePackage() {
@@ -2421,7 +2593,7 @@ function applyMidiSelection() {
     elements.keySignature.value = converted.key;
     elements.timeSignature.value = converted.meter;
     elements.bpm.value = converted.bpm;
-    currentScoreCredit = { artist: "", sharedBy: "" };
+    currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "" };
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
     [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
@@ -2579,6 +2751,11 @@ elements.volume.addEventListener("input", () => {
 });
 elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
 elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
+[
+  elements.macroLowButton,
+  elements.macroMiddleButton,
+  elements.macroHighButton
+].forEach((field) => field.addEventListener("input", clearMacroTriggerValidation));
 elements.macroTriggerMode.addEventListener("change", () => {
   updateMacroTriggerHint();
   clearMacroTriggerValidation();
@@ -2596,7 +2773,7 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const action = button.dataset.action;
   if (action === "copy-lua") await copyLua(sequence);
-  if (["download-lua", "download-rz3", "download-rz4"].includes(action)) openMacroDownloadDialog(action);
+  if (["download-lua", "download-rz3", "download-rz4", "download-rog"].includes(action)) openMacroDownloadDialog(action);
 }));
 elements.guideButtons.forEach((button) => button.addEventListener("click", () => openSectionGuide(button.dataset.guide)));
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));
@@ -2665,7 +2842,7 @@ enableLocalLibraryEntry();
 updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
-if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0]);
+if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false });
 window.addEventListener("resize", () => {
   scheduleWorkbenchHeightSync();
   updateTourPosition();

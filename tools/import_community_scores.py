@@ -15,6 +15,7 @@ import re
 import sys
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 FORMAT = "delta-music"
@@ -23,6 +24,7 @@ VERSION = 1
 KEY_PATTERN = re.compile(r"^(?:1=)?[A-G](?:[#b♯♭])?$", re.IGNORECASE)
 METER_PATTERN = re.compile(r"^(\d{1,2})/(\d{1,2})$")
 TOKEN_PATTERN = re.compile(r"^(?:[#b♯♭]?[,]?(?:0|[1-7])['']?_{0,2}\.*-*(?::\d+(?:\.\d+)?)?~?|[-~]+)$")
+MAX_DISPLAY_URL_LENGTH = 2048
 
 
 def compact_text(value: Any, field: str, limit: int) -> str:
@@ -55,6 +57,28 @@ def validate_jianpu(value: Any) -> str:
     return value.strip()
 
 
+def validate_display_url(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("展示视频链接必须是文本")
+    text = value.strip()
+    if not text:
+        return None
+    if len(text) > MAX_DISPLAY_URL_LENGTH:
+        raise ValueError(f"展示视频链接不能超过 {MAX_DISPLAY_URL_LENGTH} 个字符")
+    if any(character.isspace() for character in text):
+        raise ValueError("展示视频链接必须是有效的 HTTPS 地址")
+    try:
+        parsed = urlparse(text)
+        _ = parsed.port
+    except ValueError as error:
+        raise ValueError("展示视频链接必须是有效的 HTTPS 地址") from error
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise ValueError("展示视频链接必须是有效的 HTTPS 地址")
+    return text
+
+
 def validate_package(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("JSON 根节点必须是对象")
@@ -72,7 +96,7 @@ def validate_package(payload: Any) -> dict[str, Any]:
     bpm = payload.get("bpm")
     if isinstance(bpm, bool) or not isinstance(bpm, int) or not 30 <= bpm <= 300:
         raise ValueError("BPM 必须是 30 到 300 的整数")
-    return {
+    score = {
         "title": compact_text(payload.get("title"), "歌名", 48),
         "artist": compact_text(payload.get("artist"), "歌手/作者", 64),
         "sharedBy": compact_text(payload.get("sharedBy"), "共享人", 48),
@@ -82,6 +106,10 @@ def validate_package(payload: Any) -> dict[str, Any]:
         "jianpu": validate_jianpu(payload.get("jianpu")),
         "source": "社区投稿",
     }
+    display_url = validate_display_url(payload.get("displayUrl"))
+    if display_url:
+        score["displayUrl"] = display_url
+    return score
 
 
 def paths_from_inputs(inputs: list[Path]) -> list[Path]:
