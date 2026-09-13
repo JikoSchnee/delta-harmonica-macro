@@ -1,6 +1,9 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
-const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 3, razer: 3 }, R: { name: "右键升调", ghub: 2, razer: 2 } };
+// G HUB's simulated-input API uses the Windows order (left=1, middle=2,
+// right=3), while the raw mouse-event arguments and the Razer XML format use
+// left=1, right=2, middle=3.  Keep the two encodings separate.
+const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 2, razer: 3 }, R: { name: "右键升调", ghub: 3, razer: 2 } };
 // Leave a short release window between every pair of played notes.  A gap only
 // between repeated notes works for a plain melody, but modifier changes (for
 // example `#1'` -> `7` in 鸟之诗) otherwise release and press several mouse /
@@ -2088,8 +2091,8 @@ function generateLua(sequence, triggerSettings) {
     } else {
       const modifierButtons = [...(item.modifier || "")].map((modifier) => {
         const mouseButton = MOUSE_BUTTONS[modifier].ghub;
-        if (!swapPrimarySecondary || mouseButton === 3) return mouseButton;
-        return mouseButton === 1 ? 2 : 1;
+        if (!swapPrimarySecondary || mouseButton === 2) return mouseButton;
+        return mouseButton === 1 ? 3 : 1;
       });
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
       lines.push("    activePlaybackGeneration = ownerGeneration");
