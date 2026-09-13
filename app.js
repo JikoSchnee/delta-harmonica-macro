@@ -363,7 +363,7 @@ const SECTION_GUIDES = {
       ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
       ["02", "点击卡片或「编辑」", "两种操作都会载入该曲并定位到编辑器。随后可修改谱子、歌曲信息与速度。"],
       ["03", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
-      ["04", "提交作品", "点击「我要上传」查看群聊提交方式；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
+      ["04", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
   },
   editor: {
@@ -418,7 +418,7 @@ const elements = {
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
@@ -2481,7 +2481,7 @@ function openScoreExportDialog(mode = "download") {
   elements.scoreExportHeading.textContent = localLibrary ? "收录当前曲目" : "填写共享信息";
   elements.scoreExportDescription.innerHTML = localLibrary
     ? "将当前谱子写入本地工作区并重建社区曲库。不会自动提交或推送 GitHub。"
-    : "导出为 <code>.deltamusic</code> 后可再次导入本工具。请加入 QQ 群 <b>1102489399</b>，把文件发给维护者审核入库。";
+    : "导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 QQ 群发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。";
   elements.confirmScoreExportLabel.textContent = localLibrary ? "收录到本地曲库" : "下载 .deltamusic";
   elements.confirmScoreExportIcon.textContent = localLibrary ? "+" : "↓";
   elements.scoreExportDialog.showModal();
@@ -2523,7 +2523,7 @@ function exportScorePackage() {
   applyScorePackageMetadata(packaged.value);
   download(`${JSON.stringify(packaged.value, null, 2)}\n`, `${safeName().replace(/\s+/g, "-").toLowerCase() || "delta-music"}.deltamusic`, "application/json");
   elements.scoreExportDialog.close();
-  toast(".deltamusic 文件已下载。加入 QQ 群 1102489399 分享给维护者吧。 ");
+  toast(".deltamusic 文件已下载。点击「我要上传」选择 QQ 群或 GitHub 投稿吧。 ");
 }
 
 async function saveScoreToLocalLibrary() {
@@ -2833,14 +2833,26 @@ elements.songGrid.addEventListener("click", (event) => {
   if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
 });
 elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
-function openUploadHelpDialog(status = "") {
+function setUploadMethod(method = "qq") {
+  const selectedMethod = method === "github" ? "github" : "qq";
+  elements.uploadMethodTabs.forEach((tab) => {
+    const selected = tab.dataset.uploadMethod === selectedMethod;
+    tab.classList.toggle("active", selected);
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  elements.uploadMethodPanels.forEach((panel) => { panel.hidden = panel.dataset.uploadPanel !== selectedMethod; });
+}
+
+function openUploadHelpDialog(status = "", method = "qq") {
+  setUploadMethod(method);
   elements.uploadCopyStatus.textContent = status;
   elements.uploadCopyStatus.hidden = !status;
   if (typeof elements.uploadHelpDialog.showModal === "function") {
     elements.uploadHelpDialog.showModal();
     return;
   }
-  toast(status || "请加入 QQ 群 1102489399 上传谱子。 ");
+  toast(status || "请选择 QQ 群或 GitHub Fork 投稿。 ");
 }
 
 elements.qqGroupButton.addEventListener("click", async () => {
@@ -2854,6 +2866,7 @@ elements.qqGroupButton.addEventListener("click", async () => {
 elements.uploadScoreButton.addEventListener("click", () => {
   openUploadHelpDialog();
 });
+elements.uploadMethodTabs.forEach((tab) => tab.addEventListener("click", () => setUploadMethod(tab.dataset.uploadMethod)));
 elements.localLibraryButton.addEventListener("click", () => openScoreExportDialog("local-library"));
 
 renderSongLibrary();

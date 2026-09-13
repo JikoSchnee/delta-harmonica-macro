@@ -1,0 +1,29 @@
+name: Validate community score submissions
+
+on:
+  pull_request:
+    paths:
+      - "data/community-scores/**/*.deltamusic"
+      - "data/community-scores/**/*.harmonica-score.json"
+      - "tools/import_community_scores.py"
+      - ".github/workflows/validate-community-submissions.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate submitted scores
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@v6
+      - name: Validate score packages
+        run: python3 tools/import_community_scores.py data/community-scores --report community-review.json
+      - name: Upload review report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: community-review
+          path: community-review.json
+          if-no-files-found: ignore

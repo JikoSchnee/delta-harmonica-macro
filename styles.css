@@ -299,6 +299,10 @@ main {
 .source-import-actions .primary-button { padding: 8px 10px; box-shadow: none; font-size: 12px; }
 .deltamusic-import-button { color: #d6f5f1; background: var(--teal-dark); border-top-color: #4d8884; border-left-color: #4d8884; border-right-color: #014b47; border-bottom-color: #014b47; }
 .deltamusic-import-button:hover { background: #087f77; border-bottom-color: #014b47; }
+.github-submit-link { display: inline-flex; align-items: center; gap: 9px; margin-top: 6px; text-decoration: none; }
+.github-submit-link b { font-size: 15px; line-height: 1; }
+.upload-steps { display: grid; gap: 7px; margin: 14px 0 10px; padding-left: 23px; color: #405d5a; font: 11px/1.5 var(--mono); }
+.upload-steps code { color: var(--teal-dark); font-size: .95em; }
 .source-import-actions .midi-smoothing-control { color: #c4d7d5; background: #062827; border-color: #46706d; }
 .source-import-actions .midi-smoothing-control b { color: #d0ffff; }
 .source-import-actions .midi-smoothing-control small { color: #abc5c2; }
@@ -586,7 +590,7 @@ main {
 .score-export-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .macro-download-dialog { width: min(560px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .macro-download-dialog::backdrop { background: rgba(0, 35, 35, .68); }
-.upload-help-dialog { width: min(430px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
+.upload-help-dialog { width: min(430px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .upload-help-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .keyboard-macro-dialog { width: min(680px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .keyboard-macro-dialog::backdrop { background: rgba(0, 35, 35, .68); }
@@ -620,9 +624,14 @@ main {
 .macro-download-progress progress::-webkit-progress-bar { background: var(--surface-dark); }
 .macro-download-progress progress::-webkit-progress-value { background: var(--teal); }
 .macro-download-progress progress::-moz-progress-bar { background: var(--teal); }
-.upload-help-body { padding: 20px; }
+.upload-help-body { max-height: calc(100vh - 74px); padding: 20px; overflow: auto; }
 .upload-help-body h2 { margin: 10px 0 7px; font: 700 25px/1 var(--pixel); }
 .upload-help-body > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
+.upload-method-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 16px 0 13px; padding: 4px; background: var(--surface-light); border: 2px inset var(--surface); }
+.upload-method-tab { min-width: 0; padding: 8px 6px; color: #405d5a; background: var(--surface-light); border: 2px outset var(--surface); font: 700 10px/1.2 var(--mono); white-space: nowrap; }
+.upload-method-tab.active { color: var(--white); background: var(--teal); border-top-color: #69b5b5; border-left-color: #69b5b5; border-right-color: var(--teal-dark); border-bottom-color: var(--teal-dark); }
+.upload-method-tab:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+.upload-method-panel > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
 .upload-copy-status { margin: 12px 0 0 !important; padding: 7px 9px; color: var(--teal-dark) !important; background: var(--surface-light); border: 1px solid var(--surface-dark); font: 700 10px/1.5 var(--mono) !important; }
 .upload-qr { display: grid; justify-items: center; gap: 7px; margin: 16px auto 0; }
 .upload-qr img { display: block; width: min(100%, 250px); height: auto; aspect-ratio: 903 / 948; object-fit: contain; background: var(--white); border: 3px inset var(--surface); }

@@ -146,7 +146,9 @@ python3 tools/import_pdmx.py --download-csv --download-mxl
 
 页面中的“分享 .deltamusic”会生成 `.deltamusic` 文件。文件包含歌名、歌手/作者、共享人、调号、拍号、BPM 与标准化数字简谱；还可选填展示视频 HTTPS 链接。链接会随导入、再次导出和社区收录保留，并在曲库卡片底部显示为「展示视频」。留空不会写入文件。旧版 `.harmonica-score.json` 仍可导入，但新的分享文件统一使用 `.deltamusic`。
 
-投稿者请加入 QQ 群 `1102489399`，把导出的文件交给维护者。网页不会直接上传文件到 GitHub；维护者审核后再统一发布到仓库。
+投稿者可任选两种方式：加入 QQ 群 `1102489399`，把导出的 `.deltamusic` 文件发送给维护者；或 Fork 本仓库，将文件上传到 `data/community-scores/` 后创建 Pull Request。每个 PR 会自动校验谱子格式；只有维护者审核并合并后，GitHub Pages 才会发布该谱子。请只提交你有权分享的原创或已获授权的谱面，并在 PR 描述中填写来源或授权说明。
+
+建议使用 `歌名-作者-你的昵称.deltamusic` 作为文件名。不要直接编辑 `data/community-songs.js`：部署时会从已审核的源文件自动生成它。维护者审核时可在 PR 的 Actions 里下载 `community-review` 报告，试听确认后再合并。
 
 维护者可先只生成审核报告：
 

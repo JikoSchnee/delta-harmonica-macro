@@ -25,6 +25,8 @@ jobs:
         uses: actions/checkout@v6
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Build reviewed community library
+        run: python3 tools/import_community_scores.py data/community-scores --report /tmp/community-review.json --output data/community-songs.js
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4
         with:

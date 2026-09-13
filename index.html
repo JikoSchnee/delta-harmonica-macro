@@ -318,7 +318,7 @@
         <div class="score-export-body">
           <span class="index">COMMUNITY SCORE · JSON EXPORT</span>
           <h2 id="scoreExportHeading">填写共享信息</h2>
-          <p id="scoreExportDescription">导出为 <code>.deltamusic</code> 后可再次导入本工具。请加入 QQ 群 <b>1102489399</b>，把文件发给维护者审核入库。</p>
+          <p id="scoreExportDescription">导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 QQ 群发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。</p>
           <div class="export-form-grid">
             <label>歌名<input id="exportSongTitle" type="text" maxlength="48" required /></label>
             <label>歌手/作者<input id="exportArtistName" type="text" maxlength="64" required /></label>
@@ -361,13 +361,28 @@
         <div class="window-titlebar"><span>UPLOAD_PORTAL.EXE — COMMUNITY</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭上传提示">×</button></div>
         <div class="upload-help-body">
           <span class="index">COMMUNITY UPLOAD</span>
-          <h2 id="uploadHelpTitle">加入 QQ 群上传</h2>
-          <p>请加入 QQ 群 <b>1102489399</b>，将谱子文件发送给维护者审核入库。</p>
+          <h2 id="uploadHelpTitle">投稿方式</h2>
+          <div class="upload-method-tabs" role="tablist" aria-label="投稿方式">
+            <button class="upload-method-tab active" id="uploadMethodQq" data-upload-method="qq" type="button" role="tab" aria-selected="true" aria-controls="uploadPanelQq">QQ 群投稿</button>
+            <button class="upload-method-tab" id="uploadMethodGithub" data-upload-method="github" type="button" role="tab" aria-selected="false" aria-controls="uploadPanelGithub">GitHub 投稿</button>
+          </div>
+          <section class="upload-method-panel" id="uploadPanelQq" data-upload-panel="qq" role="tabpanel" aria-labelledby="uploadMethodQq">
+            <p>加入 QQ 群 <b>1102489399</b>，把导出的 <code>.deltamusic</code> 文件发送给维护者审核入库。</p>
+            <figure class="upload-qr">
+              <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
+              <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
+            </figure>
+          </section>
+          <section class="upload-method-panel" id="uploadPanelGithub" data-upload-panel="github" role="tabpanel" aria-labelledby="uploadMethodGithub" hidden>
+            <p>先下载 <code>.deltamusic</code> 文件，再 Fork 项目，把文件上传到 <code>data/community-scores/</code> 并创建 Pull Request。合并前不会出现在公共曲库。</p>
+            <ol class="upload-steps">
+              <li>Fork 本项目到自己的 GitHub 账号。</li>
+              <li>上传谱子到 <code>data/community-scores/</code>。</li>
+              <li>提交 Pull Request，等待维护者审核。</li>
+            </ol>
+            <a class="primary-button github-submit-link" href="https://github.com/JikoSchnee/delta-harmonica-macro/fork" target="_blank" rel="noopener noreferrer"><span>Fork 后提交谱子</span><b aria-hidden="true">↗</b></a>
+          </section>
           <p class="upload-copy-status" id="uploadCopyStatus" role="status" aria-live="polite" hidden></p>
-          <figure class="upload-qr">
-            <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
-            <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
-          </figure>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">知道了</button></div>
         </div>
       </form>
