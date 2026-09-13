@@ -439,6 +439,7 @@ let lastMidiFile = null;
 let midiImportState = null;
 let previewCursorMs = 0;
 let previewProgressFrame = 0;
+let previewProgressSeeking = false;
 let activeTour = null;
 const PREVIEW_SCHEDULE_AHEAD_MS = 2500;
 const PREVIEW_SCHEDULER_INTERVAL_MS = 100;
@@ -1500,8 +1501,16 @@ function setPreviewProgress(positionMs = 0, sequence = currentSequence) {
 function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
   const sequence = currentSequence;
   if (!sequence) return;
-  const index = sequence.notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
+  const index = timelineNoteIndexAt(sequence, positionMs);
   setTimelinePlaybackPosition(sequence, index, { scroll });
+}
+
+function timelineNoteIndexAt(sequence, positionMs) {
+  if (!sequence?.notes?.length) return -1;
+  const safePosition = Math.max(0, Math.min(sequence.totalMs, Number(positionMs) || 0));
+  const index = sequence.notes.findIndex((item) => safePosition >= item.timeMs && safePosition < item.timeMs + item.durationMs);
+  // Keep the final note selected when the cursor reaches the end of the range.
+  return index >= 0 ? index : safePosition >= sequence.totalMs ? sequence.notes.length - 1 : -1;
 }
 
 function updateMonitor(sequence) {
@@ -1818,6 +1827,7 @@ function clearPreviewScheduler(preview) {
 }
 
 function stopPreview({ resetProgress = true } = {}) {
+  previewProgressSeeking = false;
   if (!activePreview) return;
   stopPreviewNodes(activePreview);
   clearPreviewTimers(activePreview);
@@ -1843,7 +1853,7 @@ function updatePreviewTimeline(preview, positionMs) {
   const { notes } = preview.sequence;
   let index = preview.timelineIndex;
   if (!Number.isInteger(index) || positionMs < notes[index]?.timeMs || positionMs >= notes[index]?.timeMs + notes[index]?.durationMs) {
-    index = notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
+    index = timelineNoteIndexAt(preview.sequence, positionMs);
   }
   if (index < 0 || index === preview.timelineIndex) return;
   if (setTimelinePlaybackPosition(preview.sequence, index, { scroll: true })) preview.timelineIndex = index;
@@ -1882,9 +1892,11 @@ function startPreviewScheduler(preview) {
 
 function refreshPreviewProgress() {
   if (!activePreview || activePreview.state !== "playing") return;
-  const position = previewPositionMs(activePreview);
-  setPreviewProgress(position, activePreview.sequence);
-  updatePreviewTimeline(activePreview, position);
+  if (!previewProgressSeeking) {
+    const position = previewPositionMs(activePreview);
+    setPreviewProgress(position, activePreview.sequence);
+    updatePreviewTimeline(activePreview, position);
+  }
   previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
 }
 
@@ -2730,11 +2742,18 @@ elements.previewButton.addEventListener("pointerdown", prewarmAudioEngine, { pas
 elements.restartButton.addEventListener("click", () => playPreview(0));
 elements.stopButton.addEventListener("click", stopPreview);
 elements.previewProgress.addEventListener("input", () => {
+  // A running animation frame used to overwrite the thumb while it was dragged,
+  // which made the latter part of a long score unreachable.
+  previewProgressSeeking = true;
   const position = Number(elements.previewProgress.value);
   setPreviewProgress(position);
   highlightTimelinePosition(position);
 });
-elements.previewProgress.addEventListener("change", () => playPreview(Number(elements.previewProgress.value)));
+elements.previewProgress.addEventListener("change", () => {
+  const position = Number(elements.previewProgress.value);
+  previewProgressSeeking = false;
+  playPreview(position);
+});
 elements.timeline.addEventListener("click", (event) => {
   const row = event.target.closest("[data-time-ms]");
   if (row) playPreview(Number(row.dataset.timeMs));
