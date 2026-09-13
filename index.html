@@ -243,13 +243,13 @@
             <label for="macroTriggerMode">触发模式<select id="macroTriggerMode" aria-describedby="macroSettingsHint"><option value="once">单次播放</option><option value="hold">长按播放</option><option value="toggle" selected>切换播放</option></select></label>
             <label class="macro-stop-control" for="macroStopButton">全局停止键 <span class="unit">可选 · 鼠标键 4–20</span><input id="macroStopButton" type="number" min="4" max="20" step="1" placeholder="例如 4" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
             <fieldset class="macro-pitch-map" aria-describedby="macroSettingsHint macroTriggerValidation">
-              <legend>变调键映射 <span>G HUB 按钮编号</span></legend>
+              <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
               <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="20" step="1" value="1" inputmode="numeric" /></label>
-              <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="20" step="1" value="3" inputmode="numeric" /></label>
-              <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" /></label>
+              <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="20" step="1" value="2" inputmode="numeric" /></label>
+              <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="20" step="1" value="3" inputmode="numeric" /></label>
             </fieldset>
           </div>
-          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。上方可按你的 G HUB 设备编号映射低音、半音与高音；播放键和停止键不能与这些映射重复。播放卡住时可用全局停止键中止当前 Lua。</p>
+          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次。变调键填写的是 Lua 的模拟按键编号，不是原始鼠标事件编号：模拟中键为 2、右键为 3；播放键和停止键不能与这些映射重复。播放卡住时可用全局停止键中止当前 Lua。</p>
           <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="export-grid">
