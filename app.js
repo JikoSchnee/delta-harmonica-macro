@@ -2446,25 +2446,63 @@ function rogDelay(delay) {
   return delay > 0 ? `Delay,${Math.round(delay)}` : "";
 }
 
-function generateRogGmac(sequence) {
-  const events = [];
+const ROG_MAX_OPERATIONS = 100;
+
+function generateRogGmacEventGroups(sequence) {
+  const groups = [];
   sequence.notes.forEach((item) => {
+    const events = [];
     if (item.isRest) {
       events.push(rogDelay(item.durationMs));
-      return;
+    } else {
+      [...(item.modifier || "")].forEach((modifier) => events.push(rogGmacEvent("Press", ROG_MOUSE_BUTTONS[modifier])));
+      const inputLeadMs = item.inputLeadMs || 0;
+      events.push(rogDelay(inputLeadMs));
+      const key = ROG_KEYS[item.key];
+      events.push(rogGmacEvent("Press", key));
+      events.push(rogDelay(item.pressMs - inputLeadMs));
+      events.push(rogGmacEvent("Release", key));
+      [...(item.modifier || "")].reverse().forEach((modifier) => events.push(rogGmacEvent("Release", ROG_MOUSE_BUTTONS[modifier])));
+      events.push(rogDelay(item.waitMs));
     }
-    [...(item.modifier || "")].forEach((modifier) => events.push(rogGmacEvent("Press", ROG_MOUSE_BUTTONS[modifier])));
-    const inputLeadMs = item.inputLeadMs || 0;
-    events.push(rogDelay(inputLeadMs));
-    const key = ROG_KEYS[item.key];
-    events.push(rogGmacEvent("Press", key));
-    events.push(rogDelay(item.pressMs - inputLeadMs));
-    events.push(rogGmacEvent("Release", key));
-    [...(item.modifier || "")].reverse().forEach((modifier) => events.push(rogGmacEvent("Release", ROG_MOUSE_BUTTONS[modifier])));
-    events.push(rogDelay(item.waitMs));
+    groups.push(events.filter(Boolean));
   });
+  return groups;
+}
+
+function splitRogGmacOperations(sequence, maxOperations = ROG_MAX_OPERATIONS) {
+  const batches = [];
+  let batch = [];
+
+  generateRogGmacEventGroups(sequence).forEach((group) => {
+    if (batch.length && batch.length + group.length > maxOperations) {
+      batches.push(batch);
+      batch = [];
+    }
+    batch.push(...group);
+  });
+  if (batch.length || !batches.length) batches.push(batch);
+  return batches;
+}
+
+function formatRogGmac(events) {
   // The final value is Armoury Crate's repeat setting: 1 means play once.
-  return `${events.filter(Boolean).join("\n")}\n1\n`;
+  return `${events.join("\n")}\n1\n`;
+}
+
+function generateRogGmac(sequence) {
+  return formatRogGmac(generateRogGmacEventGroups(sequence).flat());
+}
+
+function generateRogGmacFiles(sequence, fileBase) {
+  const batches = splitRogGmacOperations(sequence);
+  const digits = String(batches.length).length;
+  return batches.map((batch, index) => ({
+    content: formatRogGmac(batch),
+    filename: batches.length === 1
+      ? `${fileBase}-rog.gmac`
+      : `${fileBase}-rog-${String(index + 1).padStart(digits, "0")}-of-${batches.length}.gmac`
+  }));
 }
 
 function download(content, filename, type) {
@@ -2506,7 +2544,10 @@ const MACRO_DOWNLOAD_CONFIG = {
     type: "text/plain",
     requiresTriggerSettings: false,
     build: (sequence) => generateRogGmac(sequence),
-    success: "ROG Armoury Crate GMAC 已下载。"
+    buildFiles: (sequence, fileBase) => generateRogGmacFiles(sequence, fileBase),
+    success: (files) => files.length === 1
+      ? "ROG Armoury Crate GMAC 已下载。"
+      : `ROG Armoury Crate GMAC 已分为 ${files.length} 个文件下载。`
   }
 };
 
@@ -2535,14 +2576,23 @@ function openMacroDownloadDialog(action) {
   const triggerSettings = config.requiresTriggerSettings ? requireMacroTriggerSettings() : null;
   if (config.requiresTriggerSettings && !triggerSettings) return;
   const fileBase = safeName().replace(/\s+/g, "-").toLowerCase();
+  const normalizedFileBase = fileBase || "delta-harmonica";
+  const files = config.buildFiles
+    ? config.buildFiles(sequence, normalizedFileBase, triggerSettings)
+    : [{
+      content: config.build(sequence, triggerSettings),
+      filename: `${normalizedFileBase}${config.suffix}`
+    }];
   pendingMacroDownload = {
     config,
-    filename: `${fileBase || "delta-harmonica"}${config.suffix}`,
+    files,
     sequence,
     triggerSettings
   };
   resetMacroDownloadProgress();
-  elements.macroDownloadFilename.textContent = pendingMacroDownload.filename;
+  elements.macroDownloadFilename.textContent = files.length === 1
+    ? files[0].filename
+    : `共 ${files.length} 个文件：${files[0].filename} 至 ${files[files.length - 1].filename}`;
   if (typeof elements.macroDownloadDialog.showModal === "function") {
     elements.macroDownloadDialog.showModal();
     elements.confirmMacroDownload.focus();
@@ -2567,14 +2617,14 @@ function startMacroDownload() {
     clearMacroDownloadTimers();
     macroDownloadFinalizeTimer = window.setTimeout(() => {
       if (pendingMacroDownload !== pending) return;
-      download(pending.config.build(pending.sequence, pending.triggerSettings), pending.filename, pending.config.type);
+      pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
         pendingMacroDownload = null;
         resetMacroDownloadProgress();
       }
-      toast(pending.config.success);
+      toast(typeof pending.config.success === "function" ? pending.config.success(pending.files) : pending.config.success);
     }, 180);
   }, 70);
 }
