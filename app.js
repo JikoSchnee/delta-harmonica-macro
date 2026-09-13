@@ -1463,11 +1463,7 @@ function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
   const sequence = currentSequence;
   if (!sequence) return;
   const index = sequence.notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
-  clearTimelinePlayback();
-  if (index < 0) return;
-  const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
-  row?.classList.add("playing");
-  if (scroll) keepTimelineRowVisible(row);
+  setTimelinePlaybackPosition(sequence, index, { scroll });
 }
 
 function updateMonitor(sequence) {
@@ -1724,7 +1720,23 @@ function playLiveRecordingNote(note) {
 }
 
 function clearTimelinePlayback() {
-  elements.timeline.querySelectorAll(".playing").forEach((row) => row.classList.remove("playing"));
+  elements.timeline.querySelectorAll(".playing").forEach((row) => {
+    row.classList.remove("playing");
+    row.removeAttribute("aria-current");
+  });
+}
+
+function setTimelinePlaybackPosition(sequence, index, { scroll = false } = {}) {
+  const note = sequence?.notes[index];
+  clearTimelinePlayback();
+  if (!note) return false;
+  const rowIndex = note.index ?? index;
+  const row = elements.timeline.querySelector(`[data-note-index="${rowIndex}"]`);
+  if (!row) return false;
+  row.classList.add("playing");
+  row.setAttribute("aria-current", "true");
+  if (scroll) keepTimelineRowVisible(row);
+  return true;
 }
 
 function keepTimelineRowVisible(row) {
@@ -1796,11 +1808,7 @@ function updatePreviewTimeline(preview, positionMs) {
     index = notes.findIndex((item) => positionMs >= item.timeMs && positionMs < item.timeMs + item.durationMs);
   }
   if (index < 0 || index === preview.timelineIndex) return;
-  preview.timelineIndex = index;
-  clearTimelinePlayback();
-  const row = elements.timeline.querySelector(`[data-note-index="${index}"]`);
-  row?.classList.add("playing");
-  keepTimelineRowVisible(row);
+  if (setTimelinePlaybackPosition(preview.sequence, index, { scroll: true })) preview.timelineIndex = index;
 }
 
 function registerPreviewNodes(preview, nodes) {
@@ -1899,7 +1907,7 @@ async function playPreview(positionMs = 0) {
       state: "playing", nextNoteIndex: nextPreviewNoteIndex(sequence, startPosition), timelineIndex: -1
     };
     setPreviewProgress(startPosition, sequence);
-    highlightTimelinePosition(startPosition);
+    updatePreviewTimeline(activePreview, startPosition);
     startPreviewScheduler(activePreview);
     window.cancelAnimationFrame(previewProgressFrame);
     previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
