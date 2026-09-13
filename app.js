@@ -7,6 +7,11 @@ const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { nam
 // keyboard inputs in the same driver tick.  Delta Force can then sample a
 // stale modifier, or miss the key press altogether.
 const INPUT_TRANSITION_GAP_MS = 18;
+// Delta Force samples the mouse octave / sharp state separately from the note
+// key.  Leave enough time for a modifier press to reach the game before the
+// note key is pressed; otherwise lower-register passages can play in the base
+// octave despite sounding correct in the browser preview.
+const MODIFIER_SETTLE_MS = 24;
 const MIN_NOTE_HOLD_MS = 24;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
@@ -699,7 +704,7 @@ function enrichNotes(notes, bpm) {
     const isRest = item.note === "0";
     const durationMs = Math.round(item.beats * beatMs);
     const eventCount = isRest ? 0 : 2 + (item.modifier?.length || 0) * 2;
-    const event = { ...item, key: NOTE_KEYS[item.note] || null, isRest, durationMs, pressMs: isRest ? 0 : durationMs, waitMs: 0, timeMs: cursor, eventCount };
+    const event = { ...item, key: NOTE_KEYS[item.note] || null, isRest, durationMs, pressMs: isRest ? 0 : durationMs, waitMs: 0, inputLeadMs: 0, timeMs: cursor, eventCount };
     cursor += durationMs;
     return event;
   });
@@ -709,6 +714,10 @@ function enrichNotes(notes, bpm) {
     const transitionMs = Math.min(INPUT_TRANSITION_GAP_MS, Math.max(0, event.durationMs - MIN_NOTE_HOLD_MS));
     event.pressMs = event.durationMs - transitionMs;
     event.waitMs = transitionMs;
+  });
+  enriched.forEach((event) => {
+    if (event.isRest || !event.modifier) return;
+    event.inputLeadMs = Math.min(MODIFIER_SETTLE_MS, Math.max(0, event.pressMs - MIN_NOTE_HOLD_MS));
   });
   return { notes: enriched, beatMs: Math.round(beatMs), totalMs: cursor, events: enriched.reduce((sum, item) => sum + item.eventCount, 0) };
 }
@@ -1476,7 +1485,9 @@ function updateMonitor(sequence) {
   elements.monitorDot.classList.add("active");
   elements.timeline.innerHTML = sequence.notes.map((item) => {
     const modifier = item.modifier ? `${item.modifier} + ` : "";
-    const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · 按住 ${item.pressMs}ms${item.waitMs ? ` · 气口 ${item.waitMs}ms` : ""}`;
+    const modifierLead = item.inputLeadMs ? `变调准备 ${item.inputLeadMs}ms · ` : "";
+    const keyHoldMs = Math.max(0, item.pressMs - (item.inputLeadMs || 0));
+    const detail = item.isRest ? `休止 ${item.durationMs}ms` : `${modifier}${item.key.toUpperCase()} · ${modifierLead}按住 ${keyHoldMs}ms${item.waitMs ? ` · 气口 ${item.waitMs}ms` : ""}`;
     return `<li data-note-index="${item.index ?? 0}" data-time-ms="${item.timeMs}" tabindex="0" role="button" aria-label="跳转到 ${formatTime(item.timeMs)}，${escapeHtml(detail)}"><span class="time">${formatTime(item.timeMs)}</span><span class="timeline-key${item.isRest ? " rest" : item.modifier ? " modifier" : ""}">${item.isRest ? "休" : item.note}</span><span class="event-detail">${detail}</span></li>`;
   }).join("");
   setPreviewProgress(0, sequence);
@@ -1804,11 +1815,12 @@ function schedulePreviewWindow(preview) {
     const item = preview.sequence.notes[preview.nextNoteIndex];
     if (item.timeMs > windowEndMs) break;
     preview.nextNoteIndex += 1;
+    const noteStart = item.timeMs + (item.inputLeadMs || 0);
     const noteEnd = item.timeMs + item.pressMs;
     if (item.isRest || noteEnd <= preview.positionMs) continue;
-    const skippedMs = Math.max(0, preview.positionMs - item.timeMs);
-    const noteLength = Math.max(0.035, (item.pressMs - skippedMs) / 1000);
-    const startAt = preview.startAt + Math.max(0, item.timeMs - preview.positionMs) / 1000;
+    const skippedMs = Math.max(0, preview.positionMs - noteStart);
+    const noteLength = Math.max(0.035, (item.pressMs - (item.inputLeadMs || 0) - skippedMs) / 1000);
+    const startAt = preview.startAt + Math.max(0, noteStart - preview.positionMs) / 1000;
     registerPreviewNodes(preview, scheduleHarmonicaTone(preview.context, startAt, noteLength, previewFrequency(item)));
   }
   if (positionMs >= preview.sequence.totalMs) stopPreview();
@@ -2079,11 +2091,18 @@ function generateLua(sequence, triggerSettings) {
       lines.push("    for index = 1, #activeModifiers do");
       lines.push("      PressMouseButton(activeModifiers[index])");
       lines.push("    end");
+      if (item.inputLeadMs > 0) {
+        lines.push(`    if not WaitUntil(${item.timeMs + item.inputLeadMs}, ownerGeneration) then`);
+        lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
+        lines.push("    end");
+        lines.push("    if not stopRequested and playbackGeneration == ownerGeneration then");
+      }
       lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
       lines.push("    PressKey(activeKey)");
       lines.push(`    if not WaitUntil(${item.timeMs + item.pressMs}, ownerGeneration) then`);
       lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
       lines.push("    end");
+      if (item.inputLeadMs > 0) lines.push("    end");
       lines.push("    ReleaseHeldInputs(ownerGeneration)");
     }
     lines.push("  end");
@@ -2151,8 +2170,9 @@ function generateRazerXml(sequence, version) {
       return;
     }
     [...(item.modifier || "")].forEach((modifier) => events.push(razerMouseEvent(1, 0, MOUSE_BUTTONS[modifier].razer)));
-    events.push(razerKeyboardEvent(1, 0, MAKE_CODES[item.key]));
-    events.push(razerKeyboardEvent(2, item.pressMs, MAKE_CODES[item.key]));
+    const inputLeadMs = item.inputLeadMs || 0;
+    events.push(razerKeyboardEvent(1, inputLeadMs, MAKE_CODES[item.key]));
+    events.push(razerKeyboardEvent(2, item.pressMs - inputLeadMs, MAKE_CODES[item.key]));
     [...(item.modifier || "")].reverse().forEach((modifier) => events.push(razerMouseEvent(2, 0, MOUSE_BUTTONS[modifier].razer)));
     if (item.waitMs > 0) events.push(`    <MacroEvent><Type>0</Type><Delay>${item.waitMs}</Delay></MacroEvent>`);
   });
