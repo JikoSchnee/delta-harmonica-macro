@@ -1,4 +1,7 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
+// G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
+// for recording and Razer scancodes, then translate only for Lua export.
+const GHUB_KEY_NAMES = { ",": "comma" };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 // G HUB raw mouse events use left=1, right=2, middle=3. Its simulated-input
 // API (PressMouseButton / ReleaseMouseButton) uses left=1, middle=2, right=3.
@@ -2144,7 +2147,7 @@ function generateLua(sequence, triggerSettings) {
         lines.push("    end");
         lines.push("    if not stopRequested and playbackGeneration == ownerGeneration then");
       }
-      lines.push(`    activeKey = ${JSON.stringify(item.key)}`);
+      lines.push(`    activeKey = ${JSON.stringify(GHUB_KEY_NAMES[item.key] || item.key)}`);
       lines.push("    PressKey(activeKey)");
       lines.push(`    if not WaitUntil(${item.timeMs + item.pressMs}, ownerGeneration) then`);
       lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
