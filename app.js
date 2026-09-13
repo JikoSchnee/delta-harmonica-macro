@@ -385,7 +385,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroSwapPrimarySecondary: document.querySelector("#macroSwapPrimarySecondary"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -1971,7 +1971,7 @@ function readMacroTriggerSettings() {
     return null;
   }
   clearMacroTriggerValidation();
-  return { button, stopButton, mode };
+  return { button, stopButton, mode, swapPrimarySecondary: elements.macroSwapPrimarySecondary.checked };
 }
 
 function requireMacroTriggerSettings() {
@@ -1987,11 +1987,12 @@ function requireMacroTriggerSettings() {
 }
 
 function generateLua(sequence, triggerSettings) {
-  const { button, stopButton, mode } = triggerSettings;
+  const { button, stopButton, mode, swapPrimarySecondary = false } = triggerSettings;
   const lines = [
     "-- Harmonica Deck · Delta Force harmonica sequence",
     `-- Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
     `-- Trigger: mouse button ${button} · ${MACRO_TRIGGER_MODE_LABELS[mode]}`,
+    `-- Harmonica button layout: ${swapPrimarySecondary ? "left/right swapped" : "standard"}`,
     "-- once = play once; hold = play while the trigger is held; toggle = press to start and press again to stop.",
     "-- Stop handling releases the current note and any mouse modifier buttons.",
     `local TRIGGER_BUTTON = ${button}`,
@@ -2085,7 +2086,11 @@ function generateLua(sequence, triggerSettings) {
       lines.push("      if playbackGeneration == ownerGeneration then stopRequested = true end");
       lines.push("    end");
     } else {
-      const modifierButtons = [...(item.modifier || "")].map((modifier) => MOUSE_BUTTONS[modifier].ghub);
+      const modifierButtons = [...(item.modifier || "")].map((modifier) => {
+        const mouseButton = MOUSE_BUTTONS[modifier].ghub;
+        if (!swapPrimarySecondary || mouseButton === 3) return mouseButton;
+        return mouseButton === 1 ? 2 : 1;
+      });
       lines.push(`    activeModifiers = {${modifierButtons.join(", ")}}`);
       lines.push("    activePlaybackGeneration = ownerGeneration");
       lines.push("    for index = 1, #activeModifiers do");
