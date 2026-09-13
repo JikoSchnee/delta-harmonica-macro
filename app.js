@@ -310,7 +310,7 @@ const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", 
 const MACRO_TRIGGER_MODE_HINTS = {
   once: "单次播放：按下后完整播放一次。播放中再次按下会忽略；没有停止键时无法中途停止。",
   hold: "长按播放：按住绑定键播放，松开后立即停止；也可用全局停止键中止。",
-  toggle: "切换播放：按一下开始，再按同一个绑定键停止；也可另设全局停止键。"
+  toggle: "切换播放：按一下开始、松开后再按同一个绑定键停止；启动后的 150ms 会忽略触发键，避免首次点击被误判为停止。"
 };
 const SECTION_GUIDES = {
   directory: {
@@ -610,7 +610,17 @@ function tokenPosition(source, offset) {
 }
 
 function pitchCandidates() {
-  const candidates = [{ midi: 72, note: "1'", modifier: null }];
+  // The comma key is the eighth base key (C5), not merely display sugar for
+  // right-click + Z.  Its altered forms are preferable to equivalent
+  // combinations on the lower row: #1' must be M + comma, rather than R + M
+  // + Z.  Besides matching the game input precisely, this avoids an
+  // unnecessary octave modifier in melodies such as 鸟之诗.
+  const candidates = [
+    { midi: 72, note: "1'", modifier: null },
+    { midi: 73, note: "1'", modifier: "M" },
+    { midi: 84, note: "1'", modifier: "R" },
+    { midi: 85, note: "1'", modifier: "RM" }
+  ];
   Object.entries(DIATONIC_MIDI).forEach(([note, midi]) => candidates.push({ midi, note, modifier: null }));
   Object.entries(DIATONIC_MIDI).forEach(([note, midi]) => candidates.push({ midi: midi + 1, note, modifier: "M" }));
   Object.entries(DIATONIC_MIDI).forEach(([note, midi]) => candidates.push({ midi: midi - 12, note, modifier: "L" }));
@@ -1981,6 +1991,7 @@ function generateLua(sequence, triggerSettings) {
     "local activeModifiers = {}",
     "local activePlaybackGeneration = 0",
     "local toggleTriggerArmed = false",
+    "local toggleStartIgnoreUntil = 0",
     "local playbackStartedAt = 0",
     "local playbackGeneration = 0",
     "",
@@ -2002,6 +2013,8 @@ function generateLua(sequence, triggerSettings) {
     "  stopRequested = true",
     "  ReleaseHeldInputs()",
     "  isPlaying = false",
+    "  toggleTriggerArmed = false",
+    "  toggleStartIgnoreUntil = 0",
     "  playbackStartedAt = 0",
     "end",
     "",
@@ -2017,7 +2030,9 @@ function generateLua(sequence, triggerSettings) {
     "      RequestStop()",
     "      return false",
     "    end",
-    "    if TRIGGER_MODE == \"toggle\" then",
+    "    -- G HUB may briefly report the click that started this script again.",
+    "    -- Do not arm toggle-stop until that startup click has had time to clear.",
+    "    if TRIGGER_MODE == \"toggle\" and GetRunningTime() >= toggleStartIgnoreUntil then",
     "      local triggerPressed = IsMouseButtonPressed(TRIGGER_BUTTON)",
     "      if not triggerPressed then",
     "        toggleTriggerArmed = true",
@@ -2043,7 +2058,8 @@ function generateLua(sequence, triggerSettings) {
     "  local ownerGeneration = playbackGeneration",
     "  isPlaying = true",
     "  stopRequested = false",
-    "  toggleTriggerArmed = not IsMouseButtonPressed(TRIGGER_BUTTON)",
+    "  toggleTriggerArmed = false",
+    "  toggleStartIgnoreUntil = GetRunningTime() + 150",
     "  playbackStartedAt = GetRunningTime()",
   ];
   sequence.notes.forEach((item, index) => {
@@ -2078,6 +2094,7 @@ function generateLua(sequence, triggerSettings) {
     "    isPlaying = false",
     "    stopRequested = false",
     "    toggleTriggerArmed = false",
+    "    toggleStartIgnoreUntil = 0",
     "    playbackStartedAt = 0",
     "  end",
     "end",
@@ -2092,6 +2109,7 @@ function generateLua(sequence, triggerSettings) {
     "    ReleaseHeldInputs()",
     "    AbortMacro()",
     "    stopRequested = false",
+    "    toggleStartIgnoreUntil = 0",
     "    playbackStartedAt = 0",
     "    return",
     "  end",
