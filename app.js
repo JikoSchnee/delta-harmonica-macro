@@ -1331,7 +1331,7 @@ function syncSequenceToEditors(sequence, { except = null } = {}) {
   updateLineNumbers();
 }
 
-function loadSong(song, { destination = "editor" } = {}) {
+function loadSong(song, { destination = "editor", scroll = true, focusEditor = true } = {}) {
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -1354,10 +1354,10 @@ function loadSong(song, { destination = "editor" } = {}) {
   elements.lineNumbers.scrollTop = 0;
   elements.keyboardLineNumbers.scrollTop = 0;
   setInputMode("jianpu", { force: true, silent: true });
-  elements.jianpuScore.focus();
+  if (focusEditor) elements.jianpuScore.focus({ preventScroll: !scroll });
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
-  if (destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
-  else document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll && destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  else if (scroll) document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
 
@@ -2842,7 +2842,7 @@ enableLocalLibraryEntry();
 updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
-if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0]);
+if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false });
 window.addEventListener("resize", () => {
   scheduleWorkbenchHeightSync();
   updateTourPosition();
