@@ -679,11 +679,23 @@ function parseJianpu(source, bpm) {
       tiePending = true;
       continue;
     }
+    const physicalFound = token.match(/^([LMR]{1,2})(0|1'|[1-7])(_{0,2})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/i);
     const found = token.match(/^([#b♯♭]?)(,?)(0|[1-7])('?)(_{0,2})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/);
-    if (!found) return { error: { message: `无法识别“${match[0]}”。可输入 5、0、#4、1'、,1、5_、5.，或用 5:1.25 写精确拍数。`, ...position } };
-    const [, accidental, lowMark, digit, highMark, underscores, dots, dashes, explicitBeats, tieMark] = found;
+    if (!found && !physicalFound) return { error: { message: `无法识别“${match[0]}”。可输入 5、0、#4、1'、,1、5_、5.，或用 5:1.25 写精确拍数。`, ...position } };
+    const [, accidental = "", lowMark = "", digit, highMark = "", standardUnderscores = "", standardDots = "", standardDashes = "", standardExplicitBeats, standardTieMark = ""] = found || [];
+    const [, physicalModifier = "", physicalDigit, physicalUnderscores = "", physicalDots = "", physicalDashes = "", physicalExplicitBeats, physicalTieMark = ""] = physicalFound || [];
+    const note = physicalDigit || digit;
+    const modifier = physicalModifier.toUpperCase();
+    const underscores = physicalFound ? physicalUnderscores : standardUnderscores;
+    const dots = physicalFound ? physicalDots : standardDots;
+    const dashes = physicalFound ? physicalDashes : standardDashes;
+    const explicitBeats = physicalFound ? physicalExplicitBeats : standardExplicitBeats;
+    const tieMark = physicalFound ? physicalTieMark : standardTieMark;
+    if (physicalFound && (note === "0" || new Set(modifier).size !== modifier.length || (modifier.includes("L") && modifier.includes("R")))) {
+      return { error: { message: "物理键位前缀不能用于休止符，且不能重复或同时包含 L 与 R。", ...position } };
+    }
     if (lowMark && highMark) return { error: { message: "同一个音不能同时标记高八度和低八度。", ...position } };
-    const pitch = encodeJianpuPitch(accidental, lowMark, digit, highMark);
+    const pitch = physicalFound ? { note, modifier } : encodeJianpuPitch(accidental, lowMark, note, highMark);
     if (!pitch) return { error: { message: `“${match[0]}”超出当前游戏键位可表达的音域。`, ...position } };
     if (explicitBeats && (underscores || dots || dashes)) return { error: { message: "精确拍数不能与下划线、附点或延音线同时使用。", ...position } };
     const baseBeats = 1 / (2 ** underscores.length);
@@ -1245,6 +1257,7 @@ function beatsToJianpu(beats) {
 
 function jianpuPitch(note, modifier) {
   if (note === "0") return "0";
+  if (note === "1'" && modifier && (modifier.includes("L") || modifier.includes("R"))) return `${modifier}${note}`;
   return modifier === "LM" || modifier === "ML" ? `#,${note}` : modifier === "RM" || modifier === "MR" ? `#${note}'` : modifier === "M" ? `#${note}` : modifier === "L" ? `,${note}` : modifier === "R" ? `${note}'` : note;
 }
 
