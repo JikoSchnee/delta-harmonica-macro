@@ -143,7 +143,7 @@ python3 tools/import_pdmx.py --download-csv --download-mxl
 
 ## 社区谱子投稿与维护
 
-页面中的“分享 .deltamusic”会生成 `.deltamusic` 文件。文件包含歌名、歌手/作者、共享人、调号、拍号、BPM 与标准化数字简谱；可由其他用户用“导入 .deltamusic”直接载入、试听和继续编辑。旧版 `.harmonica-score.json` 仍可导入，但新的分享文件统一使用 `.deltamusic`。
+页面中的“分享 .deltamusic”会生成 `.deltamusic` 文件。文件包含歌名、歌手/作者、共享人、调号、拍号、BPM 与标准化数字简谱；还可选填展示视频 HTTPS 链接。链接会随导入、再次导出和社区收录保留，并在曲库卡片底部显示为「展示视频」。留空不会写入文件。旧版 `.harmonica-score.json` 仍可导入，但新的分享文件统一使用 `.deltamusic`。
 
 投稿者请加入 QQ 群 `1102489399`，把导出的文件交给维护者。网页不会直接上传文件到 GitHub；维护者审核后再统一发布到仓库。
 
@@ -162,7 +162,7 @@ python3 tools/import_community_scores.py approved \
   --output data/community-songs.js
 ```
 
-脚本会校验文件版本、必填元数据、调号、拍号、BPM 与简谱符号，并拒绝本批次中歌名、歌手/作者和共享人均相同的重复投稿。将生成的 `data/community-songs.js` 提交到 GitHub 后，GitHub Pages 会随部署更新公共曲库。
+脚本会校验文件版本、必填元数据、调号、拍号、BPM、可选展示视频 HTTPS 链接与简谱符号，并拒绝本批次中歌名、歌手/作者和共享人均相同的重复投稿。将生成的 `data/community-songs.js` 提交到 GitHub 后，GitHub Pages 会随部署更新公共曲库。
 
 ### 本地维护者快速入库
 
@@ -172,6 +172,6 @@ python3 tools/import_community_scores.py approved \
 python3 tools/local_library_server.py
 ```
 
-然后打开 `http://127.0.0.1:8765/`。曲库标题旁会出现仅本地可见的「收录当前曲目」按钮；它会复用当前谱子及共享信息，写入 `data/community-scores/` 并重建 `data/community-songs.js`。歌名、歌手/作者、共享人三项都相同的曲目会覆盖原版本；共享人不同的版本会同时保留。
+然后打开 `http://127.0.0.1:8765/`。曲库标题旁会出现仅本地可见的「收录当前曲目」按钮；它会复用当前谱子、共享信息和可选展示视频链接，写入 `data/community-scores/` 并重建 `data/community-songs.js`。歌名、歌手/作者、共享人三项都相同的曲目会覆盖原版本；共享人不同的版本会同时保留。
 
 该按钮不会创建 Git 提交或推送远程仓库。确认改动后请自行执行 `git status`、`git add`、`git commit` 和 `git push`。GitHub Pages 与直接打开 `index.html` 时不会显示这个维护入口，也不会提供任何远程写入能力。

@@ -94,6 +94,7 @@ def save_score(payload: Any) -> tuple[str, list[dict[str, Any]]]:
         "format": "delta-music",
         "version": 1,
         **{field: score[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+        **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
     }
     write_json_atomically(destination, package)
     if existing_path and existing_path != destination:

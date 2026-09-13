@@ -406,7 +406,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"),
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -618,7 +618,7 @@ function scheduleWorkbenchHeightSync() {
 let recording = null;
 let selectedRecordModifier = "";
 let liveRecordingVoice = null;
-let currentScoreCredit = { artist: "", sharedBy: "" };
+let currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "" };
 let scoreExportMode = "download";
 
 function tokenPosition(source, offset) {
@@ -1221,6 +1221,7 @@ function parseLegacyDetail(detail = "") {
 function normalizeSong(song) {
   const builtin = BUILTIN_SONG_METADATA[song.title] || {};
   const legacy = parseLegacyDetail(song.detail);
+  const displayUrl = validateDisplayUrl(song.displayUrl);
   return {
     ...song,
     title: String(song.title || "未命名曲目").trim() || "未命名曲目",
@@ -1228,7 +1229,8 @@ function normalizeSong(song) {
     sharedBy: String(song.sharedBy || "Jiko").trim() || "Jiko",
     key: String(song.key || builtin.key || legacy.key || "调待补").trim() || "调待补",
     meter: String(song.meter || builtin.meter || legacy.meter || "拍号待补").trim() || "拍号待补",
-    bpm: Number(song.bpm) || 120
+    bpm: Number(song.bpm) || 120,
+    displayUrl: displayUrl.value || ""
   };
 }
 
@@ -1243,8 +1245,8 @@ function renderSongLibrary(query = "") {
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
       <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span></div>
-      <span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>
       </button>
+      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
         <button class="song-card-action" data-song-action="edit" type="button">编辑</button>
         <button class="song-card-action export" data-song-action="export" type="button">导出</button>
@@ -1325,7 +1327,7 @@ function loadSong(song, { destination = "editor" } = {}) {
   elements.keySignature.value = song.key || "1=C";
   elements.timeSignature.value = song.meter || "4/4";
   elements.bpm.value = song.bpm;
-  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "" };
+  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "" };
   const sequence = song.jianpu ? parseJianpu(song.jianpu, song.bpm) : parseScore(song.score, song.bpm);
   if (sequence.error) {
     toast(`《${song.title}》的曲库数据无法载入。`);
@@ -2342,11 +2344,25 @@ function compactText(value, field, limit) {
   return { value: text };
 }
 
+function validateDisplayUrl(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return { value: "" };
+  if (text.length > 2048) return { error: "展示视频链接不能超过 2048 个字符。" };
+  try {
+    const url = new URL(text);
+    if (url.protocol !== "https:" || !url.hostname) throw new Error();
+    return { value: url.href };
+  } catch {
+    return { error: "展示视频链接必须是有效的 HTTPS 地址。" };
+  }
+}
+
 function validateScoreMetadata(metadata) {
   const title = compactText(metadata.title, "歌名", 48);
   const artist = compactText(metadata.artist, "歌手/作者", 64);
   const sharedBy = compactText(metadata.sharedBy, "共享人", 48);
-  if (title.error || artist.error || sharedBy.error) return { error: title.error || artist.error || sharedBy.error };
+  const displayUrl = validateDisplayUrl(metadata.displayUrl);
+  if (title.error || artist.error || sharedBy.error || displayUrl.error) return { error: title.error || artist.error || sharedBy.error || displayUrl.error };
   const key = String(metadata.key ?? "").trim();
   if (!/^(?:1=)?[A-G](?:[#b♯♭])?$/i.test(key)) return { error: "调号格式应为 1=C、C、F♯ 或 A♭。" };
   const meter = String(metadata.meter ?? "").trim();
@@ -2354,7 +2370,7 @@ function validateScoreMetadata(metadata) {
   if (!meterParts || Number(meterParts[1]) < 1 || ![1, 2, 4, 8, 16].includes(Number(meterParts[2]))) return { error: "拍号格式应为例如 4/4 或 6/8。" };
   const bpm = Number(metadata.bpm);
   if (!Number.isInteger(bpm) || bpm < 30 || bpm > 300) return { error: "BPM 必须是 30 到 300 之间的整数。" };
-  return { value: { title: title.value, artist: artist.value, sharedBy: sharedBy.value, key, meter, bpm } };
+  return { value: { title: title.value, artist: artist.value, sharedBy: sharedBy.value, key, meter, bpm, displayUrl: displayUrl.value } };
 }
 
 function validateScorePackage(payload) {
@@ -2367,17 +2383,19 @@ function validateScorePackage(payload) {
   if (!jianpu) return { error: "导入文件缺少简谱内容。" };
   const sequence = parseJianpu(jianpu, metadata.value.bpm);
   if (sequence.error) return { error: `简谱无法载入：${sequence.error.message}` };
-  return { value: { ...metadata.value, jianpu: sequenceToJianpu(sequence), source: "社区投稿" } };
+  const { displayUrl, ...scoreMetadata } = metadata.value;
+  return { value: { ...scoreMetadata, ...(displayUrl ? { displayUrl } : {}), jianpu: sequenceToJianpu(sequence), source: "社区投稿" } };
 }
 
-function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy) {
+function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy, displayUrl = currentScoreCredit.displayUrl) {
   return validateScoreMetadata({
     title: elements.macroName.value,
     artist: elements.artistName.value,
     sharedBy,
     key: elements.keySignature.value,
     meter: elements.timeSignature.value,
-    bpm: elements.bpm.value
+    bpm: elements.bpm.value,
+    displayUrl
   });
 }
 
@@ -2393,6 +2411,7 @@ function openScoreExportDialog(mode = "download") {
   elements.exportSongTitle.value = elements.macroName.value.trim();
   elements.exportArtistName.value = elements.artistName.value.trim() || currentScoreCredit.artist;
   elements.exportSharedBy.value = currentScoreCredit.sharedBy;
+  elements.exportDisplayUrl.value = currentScoreCredit.displayUrl;
   elements.exportMetaPreview.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · 简谱将自动标准化保存`;
   scoreExportMode = mode;
   const localLibrary = mode === "local-library";
@@ -2416,13 +2435,16 @@ function scorePackageFromDialog() {
     sharedBy: elements.exportSharedBy.value,
     key: elements.keySignature.value,
     meter: elements.timeSignature.value,
-    bpm: elements.bpm.value
+    bpm: elements.bpm.value,
+    displayUrl: elements.exportDisplayUrl.value
   });
   if (metadata.error) return metadata;
+  const { displayUrl, ...scoreMetadata } = metadata.value;
   return { value: {
     format: SONG_FILE_FORMAT,
     version: SONG_FILE_VERSION,
-    ...metadata.value,
+    ...scoreMetadata,
+    ...(displayUrl ? { displayUrl } : {}),
     jianpu: sequenceToJianpu(sequence)
   }};
 }
@@ -2430,7 +2452,7 @@ function scorePackageFromDialog() {
 function applyScorePackageMetadata(score) {
   elements.macroName.value = score.title;
   elements.artistName.value = score.artist;
-  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy };
+  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy, displayUrl: score.displayUrl || "" };
 }
 
 function exportScorePackage() {
@@ -2521,7 +2543,7 @@ function applyMidiSelection() {
     elements.keySignature.value = converted.key;
     elements.timeSignature.value = converted.meter;
     elements.bpm.value = converted.bpm;
-    currentScoreCredit = { artist: "", sharedBy: "" };
+    currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "" };
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
     [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });

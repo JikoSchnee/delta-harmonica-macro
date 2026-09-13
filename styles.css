@@ -550,14 +550,18 @@ main {
 .song-grid { display: grid; gap: 10px; }
 .song-card { position: relative; min-height: 140px; overflow: hidden; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); transition: transform .15s, background .15s; }
 .song-card:hover { background: #d2e8e8; transform: translateY(-1px); }
-.song-card-main { display: block; width: 100%; min-height: 140px; padding: 14px; color: inherit; background: transparent; border: 0; text-align: left; }
+.song-card-main { display: block; width: 100%; min-height: 140px; padding: 14px 14px 42px; color: inherit; background: transparent; border: 0; text-align: left; }
 .song-card-main:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: -4px; }
 .song-card .song-number { display: block; color: var(--teal-dark); font: 700 10px/1 var(--mono); }
 .song-card h3 { position: relative; max-width: calc(100% - 104px); margin: 11px 0 3px; overflow: hidden; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .song-card .song-artist { position: relative; min-height: 16px; margin: 0; overflow: hidden; color: #405d5a; font: 10px/1.5 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
-.song-card .song-meta { position: relative; display: flex; flex-wrap: wrap; gap: 3px 7px; margin-top: 7px; padding-bottom: 17px; color: #526767; font: 9px/1.35 var(--mono); }
+.song-card .song-meta { position: relative; display: flex; flex-wrap: wrap; gap: 3px 7px; margin-top: 7px; color: #526767; font: 9px/1.35 var(--mono); }
 .song-card .song-meta span + span::before { margin-right: 7px; color: var(--teal); content: "·"; }
-.song-card .song-share { position: absolute; right: 12px; bottom: 10px; z-index: 1; max-width: calc(100% - 24px); overflow: hidden; padding: 3px 5px; color: var(--teal-dark); background: rgba(223, 223, 223, .9); border: 1px solid #99aaaa; font: 700 9px/1 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.song-card-footer { position: absolute; right: 12px; bottom: 10px; left: 12px; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-width: 0; }
+.song-card .song-share, .song-showcase-link { min-width: 0; overflow: hidden; padding: 3px 5px; color: var(--teal-dark); background: rgba(223, 223, 223, .9); border: 1px solid #99aaaa; font: 700 9px/1 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.song-showcase-link { flex: 0 0 auto; color: var(--teal-dark); text-decoration: none; }
+.song-showcase-link:hover, .song-showcase-link:focus-visible { color: var(--white); background: var(--teal); border-color: var(--teal-dark); }
+.song-showcase-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
 .song-card::after { position: absolute; right: -8px; bottom: -31px; color: rgba(0, 128, 128, .08); font: 700 90px/1 var(--pixel); content: attr(data-index); }
 .song-card-actions { position: absolute; z-index: 2; top: 10px; right: 10px; display: flex; gap: 5px; }
 .song-card-action { padding: 5px 7px; color: var(--teal-dark); background: var(--surface); border: 2px outset var(--surface); font: 700 9px/1 var(--mono); }
@@ -649,6 +653,7 @@ main {
 .score-export-body > p b { color: var(--teal-dark); font-family: var(--mono); }
 .export-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
 .export-form-grid label:first-child { grid-column: 1 / -1; }
+.export-form-grid .export-display-url { grid-column: 1 / -1; }
 .export-form-grid label { color: #333; font-size: 11px; }
 .export-form-grid input { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; color: var(--screen-text); background: var(--screen); border: 2px inset var(--surface); outline: 0; font: 500 13px var(--mono); }
 .export-form-grid input:focus { border-color: var(--teal); box-shadow: inset 0 0 0 1px #69b5b5; }
