@@ -1,16 +1,12 @@
 # Harmonica Deck
 
-一个不依赖后端的静态网页工具：将三角洲行动口琴数字简谱转换为 Logitech G HUB Lua 脚本、实验性的 Razer Synapse 3/4 XML 宏文件，以及 ROG Armoury Crate GMAC 宏配置文件。
-
-## 本地预览
-
-直接打开 `index.html`，或在此目录运行任意静态文件服务器。
+将三角洲行动口琴数字简谱转换为 Logitech G HUB Lua 脚本、实验性的 Razer Synapse 3/4 XML 宏文件，以及 ROG Armoury Crate GMAC 宏配置文件。
 
 ## 在线站点与 QQ 群
 
-- 在线站点：[三角洲口琴演奏家](https://jikoschnee.github.io/delta-harmonica-macro/)
+- 在线站点：[三角洲口琴演奏家](https://jiko-official.top/delta/)
+- 备用站点(可能需要翻墙)：[备用站点](https://jikoschnee.github.io/delta-harmonica-macro/)
 - QQ 群号：`1102489399`
-- 加群方式：在 QQ 中搜索群号 `1102489399`，或打开在线站点后点击顶部「分享曲目、反馈问题请加群：1102489399」按钮，使用弹窗中的二维码加入。
 - 也可以直接查看[入群二维码](assets/qq-group-qr.jpeg)。
 
 ## 静态部署与公共上传
@@ -56,6 +52,26 @@ python3 tools/local_library_server.py --public --trust-proxy --port 8765
 ```
 
 Docker 部署时增加 `-e DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌'`。随后访问 `/admin/analytics.html`，输入该令牌即可查看最近 7、30 或 90 天的数据。令牌只在浏览器当前页面提交给本站接口，不会写入网页代码或 Git。
+
+### 本地预览访问数据
+
+不要直接双击 `index.html`：它没有统计接口，Header 中的访问量会保持隐藏。在项目根目录运行：
+
+```bash
+./preview.sh
+```
+
+然后打开脚本输出的本地站点地址。统计会立刻记录本机浏览器访问，Header 会显示当前/今日访问量；在 `http://127.0.0.1:8765/admin/analytics.html` 输入 `local-preview-analytics` 可预览完整分析后台。该令牌仅用于本机；要换端口或令牌，可分别设置 `DELTA_PREVIEW_PORT` 与 `DELTA_LOCAL_ANALYTICS_TOKEN`。
+
+### 一键部署到服务器
+
+本项目根目录的 `deploy.sh` 已写入当前服务器地址、容器名称和 Caddy 所用 Docker 网络。首次运行一次即可授权 SSH，之后在本机项目根目录执行：
+
+```bash
+./deploy.sh
+```
+
+脚本会打包、上传、在服务器构建镜像、替换容器，并请求 `https://jiko-official.top/delta/api/public-library/status` 验证结果。它会在替换容器前自动保留已有的 `DELTA_ANALYTICS_ADMIN_TOKEN`，不会把令牌写入项目或压缩包。
 
 分析只记录临时匿名会话 ID、访问来源类别（直接、搜索、社交、引荐）、入口选择、曲库来源类别、输入模式、试听、导出格式及投稿成功等允许的事件。不会记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。事件按天保存在 `data/analytics/`，默认 90 天自动清除；可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客这一匿名统计用途。
 
