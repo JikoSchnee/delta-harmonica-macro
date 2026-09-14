@@ -496,7 +496,7 @@ def issue_session(server: ThreadingHTTPServer, account_id: str) -> str:
     return token
 
 
-def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any) -> sqlite3.Row:
+def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any, mode: Any = None) -> sqlite3.Row:
     value = str(code or "").strip()
     if not re.fullmatch(r"\d{6}", value):
         raise ValueError("请输入 6 位验证码。")
@@ -511,6 +511,8 @@ def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any
             raise ValueError("验证码不正确，请重试。")
         account = connection.execute("SELECT id, email, user_id FROM accounts WHERE email = ?", (email,)).fetchone()
         if account is None:
+            if mode == "login":
+                raise ValueError("该邮箱尚未注册，请切换到注册。")
             user_id = validate_user_id(requested_user_id)
             account_id = str(uuid.uuid4())
             try:
@@ -522,6 +524,8 @@ def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any
             except sqlite3.IntegrityError as error:
                 raise ValueError("该用户 ID 已被使用或保留。") from error
             account = connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
+        elif mode == "register":
+            raise ValueError("该邮箱已注册，请切换到登录。")
         connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
         return account
 
@@ -752,7 +756,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 payload = self.read_payload()
                 if not isinstance(payload, dict):
                     raise ValueError("认证请求格式无效。")
-                account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"))
+                account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"), payload.get("mode"))
                 token = issue_session(self.server, account["id"])
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法完成登录。"})

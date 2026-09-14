@@ -166,7 +166,7 @@ Z / 500ms
 - **G HUB**：导出的 Lua 固定为单次播放。“启动真实按键事件号”填写实体鼠标键在日志中的原始 `arg`，例如实体 G10 常为 `10`；这是唯一需要按真实按键填写的项目。“停止 Lua 状态号”默认是 `5`，只能填写 `1–5`，它不是 G11 等实体按键编号，通常无需修改。只有按住你选定的实体停止键时，探测日志没有出现 `states=5`，才按日志改为 `1–4`。播放中该状态会中止当前 Lua 并释放正在按住的琴键和变调键。
 - **Synapse 3/4**：两套驱动导出格式不互通。本项目未使用实机样本，XML 仅导出原始事件序列；导入后请在对应 Synapse 版本中手动绑定鼠标键与触发模式。导入失败时请用你自己驱动版本导出的最小宏文件校准。
 - **ROG Armoury Crate**：下载 `.gmac` 后，在 Macro 页面选择 Import，再将导入的宏绑定给支持宏功能的 ROG 外设按键。导出保留音符、鼠标变调、时值和换气间隔，并将重复次数固定为单次播放。不同 Armoury Crate 版本或外设支持的宏事件可能不同；导入失败时，请录制并导出一个单键宏作为格式校准样本。
-- **口琴鼠标宏录制助手（测试版）**：下载 `.ahk` 后使用 **AutoHotkey v2** 运行（不兼容 v1）。导出区提供本站镜像的 [AutoHotkey v2.0.28 便携 ZIP](downloads/AutoHotkey_2.0.28-windows-portable.zip)，原文件来自官网并保留其中的 `license.txt`；也可从 [AutoHotkey 官网下载页](https://www.autohotkey.com/download/) 获取最新稳定版。先在目标鼠标宏软件中创建单次播放宏并启动录制，再关闭助手提示并在 5 秒倒计时内回到录制界面；助手会模拟当前曲谱的一次键盘和鼠标变调输入。它依赖目标软件捕获 AutoHotkey 的合成输入，无法保证所有软件兼容；请先录制短谱，并确保游戏窗口没有焦点。
+- **口琴鼠标宏录制助手（测试版）**：优先使用本站的 [独立 Windows 录制助手](downloads/HarmonicaRecorder-win-x64.zip)：解压并运行一次 `Install.cmd` 后，导出区的「导出到独立助手」会把当前曲谱直接交给它。该程序仅通过 Windows `SendInput` 模拟键盘与左／中／右鼠标输入，提供 5 秒倒计时与 `Ctrl + Alt + End` 紧急停止；不需要 AutoHotkey。若你更倾向使用脚本，仍可下载 `.ahk` 并使用 **AutoHotkey v2** 运行（不兼容 v1）。导出区也提供本站镜像的 [AutoHotkey v2.0.28 便携 ZIP](downloads/AutoHotkey_2.0.28-windows-portable.zip)，原文件来自官网并保留其中的 `license.txt`；也可从 [AutoHotkey 官网下载页](https://www.autohotkey.com/download/) 获取最新稳定版。先在目标鼠标宏软件中创建单次播放宏并启动录制，再关闭助手提示并在 5 秒倒计时内回到录制界面；部分鼠标软件可能忽略系统模拟输入，请先录制短谱，并确保游戏窗口没有焦点。
 
 宏绑定设置只用于 G HUB Lua 导出，不会写入谱子分享文件；Synapse XML 与 ROG GMAC 导出不受绑定键设置影响。
 

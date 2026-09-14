@@ -5,3 +5,5 @@ __pycache__/
 data/analytics/
 data/auth.sqlite3
 data/auth.sqlite3-*
+recording-helper/**/bin/
+recording-helper/**/obj/

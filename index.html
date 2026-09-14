@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=auth-form-20260914" />
+    <link rel="stylesheet" href="./styles.css?v=auth-split-20260914" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -298,7 +298,7 @@
           <article class="export-card recording-helper">
             <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>测试版 · Windows / AutoHotkey v2</p></div></div>
             <p class="export-copy">先在任意鼠标宏软件中开启“录制”，再运行下载的助手。助手会倒计时 5 秒后模拟整段键盘与鼠标变调输入一次，让录制器捕获事件。助手只支持 AutoHotkey v2；部分软件会忽略合成输入，请先用短谱测试；运行时不要让游戏获得焦点。</p>
-            <div class="export-actions"><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何使用？</button></div>
+            <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到独立助手</button><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何使用？</button></div>
           </article>
           <article class="export-card manual-entry">
             <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
@@ -338,14 +338,19 @@
           <span class="index">AUTOHOTKEY V2 · QUICK START</span>
           <h2 id="recordingHelperTitle">录制助手使用方法</h2>
           <ol class="recording-helper-steps">
-            <li><b>01</b><span>安装 <strong>AutoHotkey v2</strong>。本助手不兼容 v1。</span></li>
-            <li><b>02</b><span>回到本页，点击「下载录制助手 .ahk」生成当前曲谱的录制脚本。</span></li>
+            <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能。</span></li>
+            <li><b>02</b><span>回到本页，点击「导出到独立助手」，浏览器会把当前曲谱直接交给助手。</span></li>
             <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏，并打开录制。</span></li>
-            <li><b>04</b><span>运行下载的 <code>.ahk</code>，关闭提示后在 5 秒内切回录制器；脚本会自动发送一次按键和鼠标变调事件。</span></li>
+            <li><b>04</b><span>在助手中开始 5 秒倒计时并切回录制器；它会自动发送一次按键和鼠标变调事件。可按 <code>Ctrl + Alt + End</code> 紧急停止。</span></li>
           </ol>
-          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。不要让游戏获得焦点；部分鼠标软件可能会忽略 AutoHotkey 的合成输入。</p>
+          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。不要让游戏获得焦点；部分鼠标软件可能会忽略系统模拟输入。</p>
+          <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
+            <p>推荐 · 独立录制助手（Windows 64 位）</p>
+            <a class="helper-download-link" href="downloads/HarmonicaRecorder-win-x64.zip" download><span>下载独立录制助手 ZIP</span><b>↓</b></a>
+            <small>无需 AutoHotkey。解压后运行一次 <code>Install.cmd</code>，随后即可从网页直接导入当前曲谱。</small>
+          </section>
           <section class="recording-helper-downloads" aria-label="AutoHotkey v2 下载方式">
-            <p>下载 AutoHotkey v2</p>
+            <p>备用 · AutoHotkey v2</p>
             <a class="helper-download-link" href="downloads/AutoHotkey_2.0.28-windows-portable.zip" download><span>本站便携包 v2.0.28</span><b>↓</b></a>
             <a class="helper-download-link" href="https://www.autohotkey.com/download/" target="_blank" rel="noopener noreferrer"><span>AutoHotkey 官网下载</span><b>↗</b></a>
           </section>
@@ -371,20 +376,31 @@
         </div>
       </form>
     </dialog>
-    <dialog class="auth-dialog" id="authDialog" aria-labelledby="authTitle">
+    <dialog class="auth-dialog" id="authDialog" aria-labelledby="authTitle" aria-describedby="authDescription">
       <form method="dialog" class="auth-form">
-        <div class="window-titlebar"><span>ACCOUNT.EXE — EMAIL ACCESS</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭登录窗口">×</button></div>
+        <div class="window-titlebar"><span>ACCOUNT.EXE — EMAIL ACCESS</span><button class="dialog-close" id="authDialogClose" type="button" aria-label="关闭登录或注册窗口">×</button></div>
         <div class="auth-dialog-body">
           <span class="index">SECURE COMMUNITY ACCESS</span>
-          <h2 id="authTitle">登录 / 注册</h2>
-          <p id="authDescription">填写信息后即可登录或注册。</p>
-          <section id="authEmailStep">
+          <div class="auth-mode-tabs" role="tablist" aria-label="账户操作">
+            <button id="authLoginTab" data-auth-mode="login" type="button" role="tab" aria-controls="authLoginPanel" aria-selected="true">登录</button>
+            <button id="authRegisterTab" data-auth-mode="register" type="button" role="tab" aria-controls="authRegisterPanel" aria-selected="false" tabindex="-1">注册</button>
+          </div>
+          <h2 id="authTitle">登录</h2>
+          <p id="authDescription">使用已注册邮箱接收验证码并登录。</p>
+          <section id="authLoginPanel" class="auth-mode-panel" role="tabpanel" aria-labelledby="authLoginTab">
             <label>邮箱地址<input id="authEmail" type="email" autocomplete="email" maxlength="254" inputmode="email" placeholder="you@example.com" /></label>
             <button class="primary-button auth-submit" id="authRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
             <p class="auth-email-note" id="authEmailNote" hidden></p>
             <label>6 位验证码<input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
+            <button class="primary-button auth-submit" id="authVerifyLogin" type="button"><span>登录</span><b>✓</b></button>
+          </section>
+          <section id="authRegisterPanel" class="auth-mode-panel" role="tabpanel" aria-labelledby="authRegisterTab" hidden>
+            <label>邮箱地址<input id="authRegisterEmail" type="email" autocomplete="email" maxlength="254" inputmode="email" placeholder="you@example.com" /></label>
+            <button class="primary-button auth-submit" id="authRegisterRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
+            <p class="auth-email-note" id="authRegisterEmailNote" hidden></p>
+            <label>6 位验证码<input id="authRegisterCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
             <label>用户 ID<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" required /></label>
-            <button class="primary-button auth-submit" id="authVerifyCode" type="button"><span>登录 / 注册</span><b>✓</b></button>
+            <button class="primary-button auth-submit" id="authVerifyRegister" type="button"><span>注册并登录</span><b>✓</b></button>
           </section>
           <p class="auth-status" id="authStatus" role="status" aria-live="polite" hidden></p>
         </div>
@@ -500,6 +516,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/pdmx-top-1000.js"></script>
     <script src="./data/community-songs.js"></script>
-    <script src="./app.js?v=auth-form-20260914"></script>
+    <script src="./app.js?v=auth-split-20260914"></script>
   </body>
 </html>

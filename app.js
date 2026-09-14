@@ -487,6 +487,21 @@ const elements = {
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
+Object.assign(elements, {
+  authDialogClose: document.querySelector("#authDialogClose"),
+  authModeTabs: [...document.querySelectorAll("[data-auth-mode]")],
+  authLoginPanel: document.querySelector("#authLoginPanel"),
+  authRegisterPanel: document.querySelector("#authRegisterPanel"),
+  authTitle: document.querySelector("#authTitle"),
+  authDescription: document.querySelector("#authDescription"),
+  authVerifyLogin: document.querySelector("#authVerifyLogin"),
+  authRegisterEmail: document.querySelector("#authRegisterEmail"),
+  authRegisterCode: document.querySelector("#authRegisterCode"),
+  authRegisterEmailNote: document.querySelector("#authRegisterEmailNote"),
+  authRegisterRequestCode: document.querySelector("#authRegisterRequestCode"),
+  authVerifyRegister: document.querySelector("#authVerifyRegister")
+});
+
 let currentSequence = null;
 let audioContext = null;
 let masterGain = null;
@@ -505,7 +520,7 @@ let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
-let authState = { available: false, account: null, pendingCommunityUpload: false, email: "" };
+let authState = { available: false, account: null, pendingCommunityUpload: false, email: "", mode: "login" };
 const PREVIEW_SCHEDULE_AHEAD_MS = 2500;
 const PREVIEW_SCHEDULER_INTERVAL_MS = 100;
 
@@ -2504,6 +2519,31 @@ function generateMacroRecordingHelper(sequence) {
   return lines.join("\n");
 }
 
+function encodeUrlSafePayload(payload) {
+  const bytes = new TextEncoder().encode(JSON.stringify(payload));
+  let binary = "";
+  const chunkSize = 0x8000;
+  for (let start = 0; start < bytes.length; start += chunkSize) binary += String.fromCharCode(...bytes.subarray(start, start + chunkSize));
+  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+}
+
+function launchIndependentRecorder(sequence) {
+  const payload = {
+    v: 1,
+    title: safeName(),
+    events: sequence.notes.map((item) => item.isRest
+      ? { w: item.durationMs }
+      : { k: item.key, m: item.modifier || "", l: item.inputLeadMs || 0, h: item.pressMs, w: item.waitMs || 0 })
+  };
+  const url = `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
+  if (url.length > 30000) {
+    toast("当前曲谱过长，无法一次导入独立助手；请拆分为较短的段落。 ");
+    return;
+  }
+  window.location.assign(url);
+  toast("正在请求独立录制助手导入当前曲谱。若未打开，请先在帮助中下载并运行 Install.cmd。 ");
+}
+
 function razerKeyboardEvent(type, delay, makeCode) {
   return `    <MacroEvent><Type>${type}</Type><Delay>${delay}</Delay><Keyboard><KeyboardEvent><Type>${type}</Type><Makecode>${makeCode}</Makecode></KeyboardEvent></Keyboard></MacroEvent>`;
 }
@@ -2842,49 +2882,87 @@ function setSignedInAccount(account) {
   }
 }
 
-function showAuthDialog() {
+function authFieldsForMode(mode = authState.mode) {
+  return mode === "register"
+    ? { email: elements.authRegisterEmail, code: elements.authRegisterCode, note: elements.authRegisterEmailNote, request: elements.authRegisterRequestCode }
+    : { email: elements.authEmail, code: elements.authCode, note: elements.authEmailNote, request: elements.authRequestCode };
+}
+
+function setAuthMode(mode, { focus = false } = {}) {
+  const selectedMode = mode === "register" ? "register" : "login";
+  authState.mode = selectedMode;
+  elements.authModeTabs.forEach((tab) => {
+    const selected = tab.dataset.authMode === selectedMode;
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  elements.authLoginPanel.hidden = selectedMode !== "login";
+  elements.authRegisterPanel.hidden = selectedMode !== "register";
+  elements.authLoginPanel.querySelectorAll("input, button").forEach((field) => { field.disabled = selectedMode !== "login"; });
+  elements.authRegisterPanel.querySelectorAll("input, button").forEach((field) => { field.disabled = selectedMode !== "register"; });
+  elements.authTitle.textContent = selectedMode === "login" ? "登录" : "注册";
+  elements.authDescription.textContent = selectedMode === "login"
+    ? "使用已注册邮箱接收验证码并登录。"
+    : "创建一个用户 ID，再使用邮箱验证码完成注册。";
+  setAuthStatus(elements.authStatus);
+  if (focus) authFieldsForMode(selectedMode).email.focus();
+}
+
+function resetAuthDialog() {
   setAuthStatus(elements.authStatus);
   authState.email = "";
-  elements.authEmail.disabled = false;
-  elements.authCode.value = "";
+  ["login", "register"].forEach((mode) => {
+    const fields = authFieldsForMode(mode);
+    fields.email.value = "";
+    fields.email.disabled = false;
+    fields.code.value = "";
+    fields.note.hidden = true;
+    fields.note.textContent = "";
+  });
   elements.authUserId.value = "";
-  elements.authEmailNote.hidden = true;
-  elements.authEmailNote.textContent = "";
+}
+
+function showAuthDialog() {
+  resetAuthDialog();
+  setAuthMode("login");
   if (typeof elements.authDialog.showModal === "function") elements.authDialog.showModal();
   else toast("请输入邮箱以登录后上传曲谱。 ");
   elements.authEmail.focus();
 }
 
 async function requestLoginCode() {
-  const email = elements.authEmail.value.trim();
+  const fields = authFieldsForMode();
+  const email = fields.email.value.trim();
   if (!email) { setAuthStatus(elements.authStatus, "请先填写邮箱地址。 "); return; }
-  elements.authRequestCode.disabled = true;
+  fields.request.disabled = true;
   setAuthStatus(elements.authStatus, "正在发送验证码…", true);
   try {
     await authRequest("./api/auth/request-code", { method: "POST", body: { email } });
     authState.email = email;
     setAuthStatus(elements.authStatus);
-    elements.authEmail.disabled = true;
-    elements.authEmailNote.textContent = `验证码已发送至 ${authState.email}。`;
-    elements.authEmailNote.hidden = false;
-    elements.authCode.focus();
+    fields.email.disabled = true;
+    fields.note.textContent = `验证码已发送至 ${authState.email}。`;
+    fields.note.hidden = false;
+    fields.code.focus();
   } catch (error) {
     setAuthStatus(elements.authStatus, error.message || "验证码发送失败。 ");
   } finally {
-    elements.authRequestCode.disabled = false;
+    fields.request.disabled = false;
   }
 }
 
 async function verifyLoginCode() {
-  const code = elements.authCode.value.trim();
+  const fields = authFieldsForMode();
+  const code = fields.code.value.trim();
   if (!/^\d{6}$/.test(code)) { setAuthStatus(elements.authStatus, "请输入 6 位验证码。 "); return; }
   if (!authState.email) { setAuthStatus(elements.authStatus, "请先发送验证码。 "); return; }
-  const userId = elements.authUserId.value.trim();
-  if (!userId) { setAuthStatus(elements.authStatus, "请填写用户 ID。 "); return; }
-  elements.authVerifyCode.disabled = true;
+  const userId = authState.mode === "register" ? elements.authUserId.value.trim() : "";
+  if (authState.mode === "register" && !userId) { setAuthStatus(elements.authStatus, "请填写用户 ID。 "); return; }
+  const verifyButton = authState.mode === "register" ? elements.authVerifyRegister : elements.authVerifyLogin;
+  verifyButton.disabled = true;
   setAuthStatus(elements.authStatus, "正在验证邮箱…", true);
   try {
-    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, userId } });
+    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, userId, mode: authState.mode } });
     setSignedInAccount(result.account);
     elements.authDialog.close();
     toast(`已登录为 @${result.account.userId}。`);
@@ -2895,7 +2973,7 @@ async function verifyLoginCode() {
   } catch (error) {
     setAuthStatus(elements.authStatus, error.message || "登录失败。 ");
   } finally {
-    elements.authVerifyCode.disabled = false;
+    verifyButton.disabled = false;
   }
 }
 
@@ -3338,8 +3416,23 @@ elements.macroExportButton.addEventListener("click", () => {
 elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
 elements.communityUploadButton.addEventListener("click", () => openScoreExportDialog("community-upload"));
 elements.accountButton.addEventListener("click", openAccountDialog);
+elements.authDialogClose.addEventListener("click", () => elements.authDialog.close());
+elements.authModeTabs.forEach((tab) => tab.addEventListener("click", () => {
+  if (authState.mode === tab.dataset.authMode) return;
+  resetAuthDialog();
+  setAuthMode(tab.dataset.authMode, { focus: true });
+}));
+elements.authModeTabs.forEach((tab) => tab.addEventListener("keydown", (event) => {
+  if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+  event.preventDefault();
+  const nextIndex = (elements.authModeTabs.indexOf(tab) + (event.key === "ArrowRight" ? 1 : -1) + elements.authModeTabs.length) % elements.authModeTabs.length;
+  elements.authModeTabs[nextIndex].click();
+  elements.authModeTabs[nextIndex].focus();
+}));
 elements.authRequestCode.addEventListener("click", requestLoginCode);
-elements.authVerifyCode.addEventListener("click", verifyLoginCode);
+elements.authRegisterRequestCode.addEventListener("click", requestLoginCode);
+elements.authVerifyLogin.addEventListener("click", verifyLoginCode);
+elements.authVerifyRegister.addEventListener("click", verifyLoginCode);
 elements.saveAccountButton.addEventListener("click", saveAccountUserId);
 elements.logoutButton.addEventListener("click", logoutAccount);
 elements.confirmScoreExport.addEventListener("click", () => {
@@ -3443,6 +3536,7 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const action = button.dataset.action;
   if (action === "copy-lua") await copyLua(sequence);
+  if (action === "launch-independent-recorder") launchIndependentRecorder(sequence);
   if (["download-lua", "download-rz3", "download-rz4", "download-rog", "download-recording-helper"].includes(action)) openMacroDownloadDialog(action);
 }));
 elements.guideButtons.forEach((button) => button.addEventListener("click", () => openSectionGuide(button.dataset.guide)));
