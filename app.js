@@ -2452,7 +2452,22 @@ function encodeUrlSafePayload(payload) {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
-function launchIndependentRecorder(sequence) {
+async function encodeGzipUrlPayload(payload) {
+  if (typeof CompressionStream !== "function") return null;
+  try {
+    const source = new TextEncoder().encode(JSON.stringify(payload));
+    const compressedStream = new Blob([source]).stream().pipeThrough(new CompressionStream("gzip"));
+    const compressed = new Uint8Array(await new Response(compressedStream).arrayBuffer());
+    let binary = "";
+    const chunkSize = 0x8000;
+    for (let start = 0; start < compressed.length; start += chunkSize) binary += String.fromCharCode(...compressed.subarray(start, start + chunkSize));
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  } catch {
+    return null;
+  }
+}
+
+async function launchIndependentRecorder(sequence) {
   const payload = {
     v: 1,
     title: safeName(),
@@ -2460,9 +2475,14 @@ function launchIndependentRecorder(sequence) {
       ? { w: item.durationMs }
       : { k: item.key, m: item.modifier || "", l: item.inputLeadMs || 0, h: item.pressMs, w: item.waitMs || 0 })
   };
-  const url = `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
+  const compressedPayload = await encodeGzipUrlPayload(payload);
+  const url = compressedPayload
+    ? `harmonica-recorder://play?encoding=gzip&payload=${compressedPayload}`
+    : `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
   if (url.length > 30000) {
-    toast("当前曲谱过长，无法一次导入独立助手；请拆分为较短的段落。 ");
+    toast(compressedPayload
+      ? "当前曲谱压缩后仍超过系统导入上限，请拆分为较短的段落。 "
+      : "当前浏览器不支持压缩导入，且曲谱过长；请拆分为较短的段落。 ");
     return;
   }
   window.location.assign(url);

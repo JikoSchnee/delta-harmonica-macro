@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -33,16 +34,27 @@ internal sealed class PlaybackRequest
     public static PlaybackRequest? FromProtocolArgument(string? argument)
     {
         if (string.IsNullOrWhiteSpace(argument) || !Uri.TryCreate(argument.Trim('"'), UriKind.Absolute, out var uri) || uri.Scheme != "harmonica-recorder") return null;
-        var payload = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
+        var query = uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries)
             .Select(pair => pair.Split('=', 2))
-            .FirstOrDefault(pair => pair.Length == 2 && pair[0] == "payload")?[1];
+            .Where(pair => pair.Length == 2)
+            .ToDictionary(pair => pair[0], pair => pair[1], StringComparer.OrdinalIgnoreCase);
+        query.TryGetValue("payload", out var payload);
         if (string.IsNullOrWhiteSpace(payload)) return null;
 
         try
         {
             var base64 = payload.Replace('-', '+').Replace('_', '/');
             base64 = base64.PadRight(base64.Length + (4 - base64.Length % 4) % 4, '=');
-            var request = JsonSerializer.Deserialize<PlaybackRequest>(Convert.FromBase64String(base64));
+            var jsonBytes = Convert.FromBase64String(base64);
+            if (query.TryGetValue("encoding", out var encoding) && encoding.Equals("gzip", StringComparison.OrdinalIgnoreCase))
+            {
+                using var compressed = new MemoryStream(jsonBytes);
+                using var gzip = new GZipStream(compressed, CompressionMode.Decompress);
+                using var decompressed = new MemoryStream();
+                gzip.CopyTo(decompressed);
+                jsonBytes = decompressed.ToArray();
+            }
+            var request = JsonSerializer.Deserialize<PlaybackRequest>(jsonBytes);
             return request?.IsValid() == true ? request : null;
         }
         catch (Exception)
