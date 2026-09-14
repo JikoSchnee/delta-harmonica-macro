@@ -487,7 +487,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authCodeStep: document.querySelector("#authCodeStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authUserIdLabel: document.querySelector("#authUserIdLabel"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), authChangeEmail: document.querySelector("#authChangeEmail"), authResendCode: document.querySelector("#authResendCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -2817,22 +2817,15 @@ function setSignedInAccount(account) {
 
 function showAuthDialog() {
   setAuthStatus(elements.authStatus);
-  elements.authEmailStep.hidden = false;
-  elements.authCodeStep.hidden = true;
-  elements.authUserIdLabel.hidden = true;
+  authState.email = "";
+  elements.authEmail.disabled = false;
   elements.authCode.value = "";
   elements.authUserId.value = "";
+  elements.authEmailNote.hidden = true;
+  elements.authEmailNote.textContent = "";
   if (typeof elements.authDialog.showModal === "function") elements.authDialog.showModal();
   else toast("请输入邮箱以登录后上传曲谱。 ");
   elements.authEmail.focus();
-}
-
-function showAuthCodeStep() {
-  elements.authEmailStep.hidden = true;
-  elements.authCodeStep.hidden = false;
-  elements.authUserIdLabel.hidden = false;
-  elements.authEmailNote.textContent = `验证码已发送至 ${authState.email}。首次登录请同时设置用户 ID；已有账户可留空。`;
-  elements.authCode.focus();
 }
 
 async function requestLoginCode() {
@@ -2844,7 +2837,10 @@ async function requestLoginCode() {
     await authRequest("./api/auth/request-code", { method: "POST", body: { email } });
     authState.email = email;
     setAuthStatus(elements.authStatus);
-    showAuthCodeStep();
+    elements.authEmail.disabled = true;
+    elements.authEmailNote.textContent = `验证码已发送至 ${authState.email}。`;
+    elements.authEmailNote.hidden = false;
+    elements.authCode.focus();
   } catch (error) {
     setAuthStatus(elements.authStatus, error.message || "验证码发送失败。 ");
   } finally {
@@ -2855,11 +2851,13 @@ async function requestLoginCode() {
 async function verifyLoginCode() {
   const code = elements.authCode.value.trim();
   if (!/^\d{6}$/.test(code)) { setAuthStatus(elements.authStatus, "请输入 6 位验证码。 "); return; }
+  if (!authState.email) { setAuthStatus(elements.authStatus, "请先发送验证码。 "); return; }
+  const userId = elements.authUserId.value.trim();
+  if (!userId) { setAuthStatus(elements.authStatus, "请填写用户 ID。 "); return; }
   elements.authVerifyCode.disabled = true;
   setAuthStatus(elements.authStatus, "正在验证邮箱…", true);
   try {
-    const userId = elements.authUserId.value.trim();
-    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, ...(userId ? { userId } : {}) } });
+    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, userId } });
     setSignedInAccount(result.account);
     elements.authDialog.close();
     toast(`已登录为 @${result.account.userId}。`);
@@ -3305,13 +3303,6 @@ elements.communityUploadButton.addEventListener("click", () => openScoreExportDi
 elements.accountButton.addEventListener("click", openAccountDialog);
 elements.authRequestCode.addEventListener("click", requestLoginCode);
 elements.authVerifyCode.addEventListener("click", verifyLoginCode);
-elements.authResendCode.addEventListener("click", requestLoginCode);
-elements.authChangeEmail.addEventListener("click", () => {
-  elements.authEmailStep.hidden = false;
-  elements.authCodeStep.hidden = true;
-  setAuthStatus(elements.authStatus);
-  elements.authEmail.focus();
-});
 elements.saveAccountButton.addEventListener("click", saveAccountUserId);
 elements.logoutButton.addEventListener("click", logoutAccount);
 elements.confirmScoreExport.addEventListener("click", () => {

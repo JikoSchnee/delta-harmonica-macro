@@ -9,7 +9,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=4620f03" />
+    <link rel="stylesheet" href="./styles.css?v=auth-form-20260914" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -347,17 +347,14 @@
         <div class="auth-dialog-body">
           <span class="index">SECURE COMMUNITY ACCESS</span>
           <h2 id="authTitle">登录 / 注册</h2>
-          <p id="authDescription">输入邮箱后，我们会发送一枚 6 位验证码。已有账户可直接登录；首次验证会引导你设置用户 ID 完成注册。</p>
+          <p id="authDescription">填写信息后即可登录或注册。</p>
           <section id="authEmailStep">
             <label>邮箱地址<input id="authEmail" type="email" autocomplete="email" maxlength="254" inputmode="email" placeholder="you@example.com" /></label>
-            <button class="primary-button auth-submit" id="authRequestCode" type="button"><span>继续</span><b>→</b></button>
-          </section>
-          <section id="authCodeStep" hidden>
+            <button class="primary-button auth-submit" id="authRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
+            <p class="auth-email-note" id="authEmailNote" hidden></p>
             <label>6 位验证码<input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
-            <label id="authUserIdLabel" hidden>首次注册请设置用户 ID<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" /><small>已有账户请留空；新账户须填写。ID 为 3–24 位字母、数字或下划线，之后仍可修改。</small></label>
-            <p class="auth-email-note" id="authEmailNote"></p>
-            <div class="auth-code-actions"><button class="text-button" id="authChangeEmail" type="button">更换邮箱</button><button class="text-button" id="authResendCode" type="button">重新发送</button></div>
-            <button class="primary-button auth-submit" id="authVerifyCode" type="button"><span>验证并继续</span><b>✓</b></button>
+            <label>用户 ID<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" required /></label>
+            <button class="primary-button auth-submit" id="authVerifyCode" type="button"><span>登录 / 注册</span><b>✓</b></button>
           </section>
           <p class="auth-status" id="authStatus" role="status" aria-live="polite" hidden></p>
         </div>
@@ -473,6 +470,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/pdmx-top-1000.js"></script>
     <script src="./data/community-songs.js"></script>
-    <script src="./app.js?v=4620f03"></script>
+    <script src="./app.js?v=auth-form-20260914"></script>
   </body>
 </html>
