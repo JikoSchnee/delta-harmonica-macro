@@ -16,9 +16,11 @@ const ROG_KEYS = {
   m: { name: "M", linuxCode: 50, windowsCode: 77 }, ",": { name: "Comma", linuxCode: 51, windowsCode: 188 }
 };
 const ROG_MOUSE_BUTTONS = {
-  L: { name: "Left Mouse Button", linuxCode: 272, windowsCode: 1 },
-  M: { name: "Middle Mouse Button", linuxCode: 274, windowsCode: 4 },
-  R: { name: "Right Mouse Button", linuxCode: 273, windowsCode: 2 }
+  // Armoury Crate identifies mouse actions by the generic Mouse Click label;
+  // the Linux/Windows button codes select left, middle, or right click.
+  L: { name: "Mouse Click", linuxCode: 272, windowsCode: 1 },
+  M: { name: "Mouse Click", linuxCode: 274, windowsCode: 4 },
+  R: { name: "Mouse Click", linuxCode: 273, windowsCode: 2 }
 };
 // Leave a short release window between every pair of played notes.  A gap only
 // between repeated notes works for a plain melody, but modifier changes (for
@@ -2448,6 +2450,10 @@ function rogDelay(delay) {
 
 const ROG_MAX_OPERATIONS = 100;
 
+function countRogOperations(events) {
+  return events.reduce((count, event) => count + (event.startsWith("Press,") || event.startsWith("Release,") ? 1 : 0), 0);
+}
+
 function generateRogGmacEventGroups(sequence) {
   const groups = [];
   sequence.notes.forEach((item) => {
@@ -2475,7 +2481,7 @@ function splitRogGmacOperations(sequence, maxOperations = ROG_MAX_OPERATIONS) {
   let batch = [];
 
   generateRogGmacEventGroups(sequence).forEach((group) => {
-    if (batch.length && batch.length + group.length > maxOperations) {
+    if (batch.length && countRogOperations(batch) + countRogOperations(group) > maxOperations) {
       batches.push(batch);
       batch = [];
     }
@@ -2505,8 +2511,70 @@ function generateRogGmacFiles(sequence, fileBase) {
   }));
 }
 
-function download(content, filename, type) {
-  const blob = new Blob([content], { type: `${type};charset=utf-8` });
+const ZIP_UTF8_FLAG = 0x0800;
+
+function crc32(bytes) {
+  let value = 0xffffffff;
+  for (let index = 0; index < bytes.length; index += 1) {
+    value ^= bytes[index];
+    for (let bit = 0; bit < 8; bit += 1) value = (value >>> 1) ^ (value & 1 ? 0xedb88320 : 0);
+  }
+  return (value ^ 0xffffffff) >>> 0;
+}
+
+function createZipArchive(files) {
+  const encoder = new TextEncoder();
+  const entries = files.map((file) => ({
+    name: encoder.encode(file.filename),
+    data: encoder.encode(file.content)
+  })).map((entry) => ({ ...entry, checksum: crc32(entry.data) }));
+  const parts = [];
+  let offset = 0;
+
+  entries.forEach((entry) => {
+    entry.offset = offset;
+    const header = new Uint8Array(30);
+    const view = new DataView(header.buffer);
+    view.setUint32(0, 0x04034b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, ZIP_UTF8_FLAG, true);
+    view.setUint32(14, entry.checksum, true);
+    view.setUint32(18, entry.data.length, true);
+    view.setUint32(22, entry.data.length, true);
+    view.setUint16(26, entry.name.length, true);
+    parts.push(header, entry.name, entry.data);
+    offset += header.length + entry.name.length + entry.data.length;
+  });
+
+  const centralDirectoryOffset = offset;
+  entries.forEach((entry) => {
+    const header = new Uint8Array(46);
+    const view = new DataView(header.buffer);
+    view.setUint32(0, 0x02014b50, true);
+    view.setUint16(4, 20, true);
+    view.setUint16(6, 20, true);
+    view.setUint16(8, ZIP_UTF8_FLAG, true);
+    view.setUint32(16, entry.checksum, true);
+    view.setUint32(20, entry.data.length, true);
+    view.setUint32(24, entry.data.length, true);
+    view.setUint16(28, entry.name.length, true);
+    view.setUint32(42, entry.offset, true);
+    parts.push(header, entry.name);
+    offset += header.length + entry.name.length;
+  });
+
+  const end = new Uint8Array(22);
+  const endView = new DataView(end.buffer);
+  endView.setUint32(0, 0x06054b50, true);
+  endView.setUint16(8, entries.length, true);
+  endView.setUint16(10, entries.length, true);
+  endView.setUint32(12, offset - centralDirectoryOffset, true);
+  endView.setUint32(16, centralDirectoryOffset, true);
+  parts.push(end);
+  return new Blob(parts, { type: "application/zip" });
+}
+
+function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -2515,6 +2583,10 @@ function download(content, filename, type) {
   anchor.click();
   anchor.remove();
   window.setTimeout(() => URL.revokeObjectURL(url), 500);
+}
+
+function download(content, filename, type) {
+  downloadBlob(new Blob([content], { type: `${type};charset=utf-8` }), filename);
 }
 
 const MACRO_DOWNLOAD_CONFIG = {
@@ -2540,14 +2612,14 @@ const MACRO_DOWNLOAD_CONFIG = {
     success: "Synapse 4 XML 已下载。"
   },
   "download-rog": {
-    suffix: "-rog.gmac",
+    suffix: "-rog-gmac.zip",
     type: "text/plain",
     requiresTriggerSettings: false,
-    build: (sequence) => generateRogGmac(sequence),
     buildFiles: (sequence, fileBase) => generateRogGmacFiles(sequence, fileBase),
+    buildArchive: (files) => createZipArchive(files),
     success: (files) => files.length === 1
-      ? "ROG Armoury Crate GMAC 已下载。"
-      : `ROG Armoury Crate GMAC 已分为 ${files.length} 个文件下载。`
+      ? "ROG Armoury Crate GMAC ZIP 已下载。"
+      : `ROG Armoury Crate GMAC 已打包为 ZIP（内含 ${files.length} 个文件）。`
   }
 };
 
@@ -2583,16 +2655,20 @@ function openMacroDownloadDialog(action) {
       content: config.build(sequence, triggerSettings),
       filename: `${normalizedFileBase}${config.suffix}`
     }];
+  const archive = config.buildArchive
+    ? { blob: config.buildArchive(files), filename: `${normalizedFileBase}${config.suffix}` }
+    : null;
   pendingMacroDownload = {
     config,
     files,
+    archive,
     sequence,
     triggerSettings
   };
   resetMacroDownloadProgress();
-  elements.macroDownloadFilename.textContent = files.length === 1
-    ? files[0].filename
-    : `共 ${files.length} 个文件：${files[0].filename} 至 ${files[files.length - 1].filename}`;
+  elements.macroDownloadFilename.textContent = archive
+    ? `${archive.filename}（内含 ${files.length} 个 GMAC）`
+    : files[0].filename;
   if (typeof elements.macroDownloadDialog.showModal === "function") {
     elements.macroDownloadDialog.showModal();
     elements.confirmMacroDownload.focus();
@@ -2617,7 +2693,8 @@ function startMacroDownload() {
     clearMacroDownloadTimers();
     macroDownloadFinalizeTimer = window.setTimeout(() => {
       if (pendingMacroDownload !== pending) return;
-      pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
+      if (pending.archive) downloadBlob(pending.archive.blob, pending.archive.filename);
+      else pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
