@@ -91,18 +91,11 @@ internal sealed class RecorderForm : Form
     private readonly Label detailsLabel = new();
     private readonly Label statusLabel = new();
     private readonly Label hotKeyLabel = new();
-    private readonly ComboBox hotKeyBox = new();
+    private readonly TextBox hotKeyBox = new();
     private readonly Label inputModeLabel = new();
     private readonly ComboBox inputModeBox = new();
     private readonly Button startButton = new();
     private readonly Button stopButton = new();
-    private readonly List<HotKeyOption> hotKeyOptions =
-    [
-        new("Ctrl + Alt + End", NativeInput.ModControl | NativeInput.ModAlt, NativeInput.VkEnd),
-        new("Ctrl + Alt + Pause", NativeInput.ModControl | NativeInput.ModAlt, NativeInput.VkPause),
-        new("Ctrl + Shift + End", NativeInput.ModControl | NativeInput.ModShift, NativeInput.VkEnd),
-        new("Ctrl + Shift + Pause", NativeInput.ModControl | NativeInput.ModShift, NativeInput.VkPause)
-    ];
     private CancellationTokenSource? cancellation;
     private string? activeKey;
     private readonly List<char> activeModifiers = [];
@@ -110,7 +103,6 @@ internal sealed class RecorderForm : Form
     private InputInjectionMode activeInputMode = null!;
     private InputInjectionMode activePlaybackInputMode = null!;
     private bool hotKeyRegistered;
-    private bool restoringHotKeySelection;
 
     public RecorderForm(PlaybackRequest? request)
     {
@@ -137,14 +129,15 @@ internal sealed class RecorderForm : Form
         statusLabel.Padding = new Padding(10, 8, 10, 8);
         statusLabel.Font = new Font("Microsoft YaHei UI", 9F);
         hotKeyLabel.SetBounds(22, 214, 184, 27);
-        hotKeyLabel.Text = "紧急停止快捷键";
+        hotKeyLabel.Text = "紧急停止快捷键（点击后按键）";
         hotKeyLabel.TextAlign = ContentAlignment.MiddleLeft;
         hotKeyBox.SetBounds(208, 211, 280, 29);
-        hotKeyBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        hotKeyBox.FlatStyle = FlatStyle.Flat;
-        hotKeyOptions.ForEach(option => hotKeyBox.Items.Add(option));
-        activeHotKey = EmergencyStopHotKeySettings.Load(hotKeyOptions) ?? hotKeyOptions[0];
-        hotKeyBox.SelectedItem = activeHotKey;
+        hotKeyBox.ReadOnly = true;
+        hotKeyBox.TabStop = true;
+        hotKeyBox.TextAlign = HorizontalAlignment.Center;
+        hotKeyBox.Text = "正在读取快捷键…";
+        activeHotKey = EmergencyStopHotKeySettings.Load() ?? HotKeyOption.Default;
+        hotKeyBox.Text = activeHotKey.DisplayName;
         inputModeLabel.SetBounds(22, 247, 184, 27);
         inputModeLabel.Text = "输入兼容模式";
         inputModeLabel.TextAlign = ContentAlignment.MiddleLeft;
@@ -170,7 +163,8 @@ internal sealed class RecorderForm : Form
         Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, hotKeyLabel, hotKeyBox, inputModeLabel, inputModeBox, startButton, stopButton]);
         startButton.Click += async (_, _) => await StartPlaybackAsync();
         stopButton.Click += (_, _) => StopPlayback("已停止，并已释放本助手按下的按键。");
-        hotKeyBox.SelectedIndexChanged += (_, _) => UpdateEmergencyStopHotKey();
+        hotKeyBox.Enter += (_, _) => hotKeyBox.SelectAll();
+        hotKeyBox.KeyDown += CaptureEmergencyStopHotKey;
         inputModeBox.SelectedIndexChanged += (_, _) => UpdateInputMode();
         FormClosing += (_, _) => StopPlayback("正在退出。");
 
@@ -211,21 +205,26 @@ internal sealed class RecorderForm : Form
         base.WndProc(ref message);
     }
 
-    private void UpdateEmergencyStopHotKey()
+    private void CaptureEmergencyStopHotKey(object? sender, KeyEventArgs e)
     {
-        if (restoringHotKeySelection || hotKeyBox.SelectedItem is not HotKeyOption selectedHotKey || selectedHotKey == activeHotKey) return;
+        e.SuppressKeyPress = true;
+        e.Handled = true;
+        if (e.KeyCode is Keys.ControlKey or Keys.ShiftKey or Keys.Menu or Keys.LWin or Keys.RWin) return;
+
+        var modifiers = NativeInput.ModifiersFromKeys(e.Modifiers);
+        var selectedHotKey = new HotKeyOption(HotKeyOption.FormatDisplayName(modifiers, (uint)e.KeyCode), modifiers, (uint)e.KeyCode);
+        if (selectedHotKey == activeHotKey) return;
         var previousHotKey = activeHotKey;
         activeHotKey = selectedHotKey;
         if (IsHandleCreated && !RegisterEmergencyStopHotKey())
         {
             activeHotKey = previousHotKey;
-            restoringHotKeySelection = true;
-            hotKeyBox.SelectedItem = previousHotKey;
-            restoringHotKeySelection = false;
+            hotKeyBox.Text = previousHotKey.DisplayName;
             RegisterEmergencyStopHotKey();
             MessageBox.Show(this, $"无法注册 {selectedHotKey.DisplayName}，它可能已被其他软件占用。已恢复为 {previousHotKey.DisplayName}。", "快捷键不可用", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
+        hotKeyBox.Text = activeHotKey.DisplayName;
         EmergencyStopHotKeySettings.Save(activeHotKey);
         if (cancellation is null) statusLabel.Text = $"紧急停止快捷键已设为 {activeHotKey.DisplayName}。";
     }
@@ -233,7 +232,7 @@ internal sealed class RecorderForm : Form
     private bool RegisterEmergencyStopHotKey()
     {
         if (hotKeyRegistered) NativeInput.UnregisterHotKey(Handle, HotKeyId);
-        hotKeyRegistered = NativeInput.RegisterHotKey(Handle, HotKeyId, activeHotKey.Modifiers, activeHotKey.VirtualKey);
+        hotKeyRegistered = NativeInput.RegisterHotKey(Handle, HotKeyId, activeHotKey.Modifiers | NativeInput.ModNoRepeat, activeHotKey.VirtualKey);
         return hotKeyRegistered;
     }
 
@@ -334,6 +333,29 @@ internal sealed class RecorderForm : Form
 
 internal sealed record HotKeyOption(string DisplayName, uint Modifiers, uint VirtualKey)
 {
+    internal static readonly HotKeyOption Default = new("Ctrl + Alt + End", NativeInput.ModControl | NativeInput.ModAlt, NativeInput.VkEnd);
+
+    internal static string FormatDisplayName(uint modifiers, uint virtualKey)
+    {
+        var parts = new List<string>();
+        if ((modifiers & NativeInput.ModControl) != 0) parts.Add("Ctrl");
+        if ((modifiers & NativeInput.ModAlt) != 0) parts.Add("Alt");
+        if ((modifiers & NativeInput.ModShift) != 0) parts.Add("Shift");
+        if ((modifiers & NativeInput.ModWin) != 0) parts.Add("Win");
+        var key = (Keys)virtualKey;
+        parts.Add(key switch
+        {
+            Keys.Return => "Enter",
+            Keys.Prior => "PageUp",
+            Keys.Next => "PageDown",
+            Keys.PrintScreen => "PrintScreen",
+            Keys.Oemcomma => ",",
+            Keys.OemPeriod => ".",
+            _ => key.ToString()
+        });
+        return string.Join(" + ", parts);
+    }
+
     public override string ToString() => DisplayName;
 }
 
@@ -349,14 +371,16 @@ internal static class EmergencyStopHotKeySettings
 {
     private const string FileName = "emergency-stop-hotkey.json";
 
-    internal static HotKeyOption? Load(IEnumerable<HotKeyOption> options)
+    internal static HotKeyOption? Load()
     {
         try
         {
             var saved = JsonSerializer.Deserialize<StoredHotKey>(File.ReadAllText(SettingsPath));
-            return saved is null
-                ? null
-                : options.FirstOrDefault(option => option.Modifiers == saved.Modifiers && option.VirtualKey == saved.VirtualKey);
+            if (saved is null || saved.VirtualKey == 0) return null;
+            var displayName = string.IsNullOrWhiteSpace(saved.DisplayName)
+                ? HotKeyOption.FormatDisplayName(saved.Modifiers, saved.VirtualKey)
+                : saved.DisplayName;
+            return new HotKeyOption(displayName, saved.Modifiers, saved.VirtualKey);
         }
         catch (Exception)
         {
@@ -369,7 +393,7 @@ internal static class EmergencyStopHotKeySettings
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
-            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new StoredHotKey(hotKey.Modifiers, hotKey.VirtualKey)));
+            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new StoredHotKey(hotKey.DisplayName, hotKey.Modifiers, hotKey.VirtualKey)));
         }
         catch (Exception)
         {
@@ -379,7 +403,7 @@ internal static class EmergencyStopHotKeySettings
 
     private static string SettingsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HarmonicaRecorder", FileName);
 
-    private sealed record StoredHotKey(uint Modifiers, uint VirtualKey);
+    private sealed record StoredHotKey(string? DisplayName, uint Modifiers, uint VirtualKey);
 }
 
 internal static class NativeInput
@@ -387,8 +411,20 @@ internal static class NativeInput
     internal const uint ModAlt = 0x0001;
     internal const uint ModControl = 0x0002;
     internal const uint ModShift = 0x0004;
+    internal const uint ModWin = 0x0008;
+    internal const uint ModNoRepeat = 0x4000;
     internal const uint VkEnd = 0x23;
     internal const uint VkPause = 0x13;
+
+    internal static uint ModifiersFromKeys(Keys modifiers)
+    {
+        var result = 0u;
+        if ((modifiers & Keys.Control) != 0) result |= ModControl;
+        if ((modifiers & Keys.Alt) != 0) result |= ModAlt;
+        if ((modifiers & Keys.Shift) != 0) result |= ModShift;
+        if ((modifiers & Keys.LWin) != 0 || (modifiers & Keys.RWin) != 0) result |= ModWin;
+        return result;
+    }
     private const uint InputMouse = 0;
     private const uint InputKeyboard = 1;
     private const uint KeyUp = 0x0002;
