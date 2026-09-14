@@ -1,5 +1,4 @@
 using System.Runtime.InteropServices;
-using System.Diagnostics;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json;
@@ -290,7 +289,7 @@ internal sealed class RecorderForm : Form
             await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode, ReportPlaybackProgress), cancellation.Token);
             if (!cancellation.IsCancellationRequested)
             {
-                ApplyPlaybackProgress(request.TotalDurationMs);
+                ApplyPlaybackProgress(request.TotalDurationMs, completed: true);
                 statusLabel.Text = "录制完成。请回到宏软件停止录制并保存。";
                 MessageBox.Show(this, "录制完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始录制”产生的一次鼠标按下/放开，请删除这两个事件。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
@@ -310,13 +309,13 @@ internal sealed class RecorderForm : Form
 
     private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionMode inputMode, Action<long> reportProgress)
     {
-        var clock = Stopwatch.StartNew();
+        var plannedElapsed = 0L;
         foreach (var item in events)
         {
             token.ThrowIfCancellationRequested();
             if (item.IsRest)
             {
-                Wait(item.WaitMs, token, clock, reportProgress);
+                plannedElapsed = Wait(item.WaitMs, token, plannedElapsed, reportProgress);
                 continue;
             }
             foreach (var modifier in item.Modifiers ?? string.Empty)
@@ -324,17 +323,16 @@ internal sealed class RecorderForm : Form
                 NativeInput.Mouse(modifier, true, inputMode);
                 activeModifiers.Add(modifier);
             }
-            Wait(item.LeadMs, token, clock, reportProgress);
+            plannedElapsed = Wait(item.LeadMs, token, plannedElapsed, reportProgress);
             activeKey = item.Key;
             NativeInput.Key(item.Key!, true, inputMode);
-            Wait(Math.Max(0, item.HoldMs - item.LeadMs), token, clock, reportProgress);
+            plannedElapsed = Wait(Math.Max(0, item.HoldMs - item.LeadMs), token, plannedElapsed, reportProgress);
             NativeInput.Key(item.Key!, false, inputMode);
             activeKey = null;
             for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode);
             activeModifiers.Clear();
-            Wait(item.WaitMs, token, clock, reportProgress);
+            plannedElapsed = Wait(item.WaitMs, token, plannedElapsed, reportProgress);
         }
-        reportProgress(clock.ElapsedMilliseconds);
     }
 
     private void ReportPlaybackProgress(long elapsedMilliseconds)
@@ -345,25 +343,29 @@ internal sealed class RecorderForm : Form
         try { BeginInvoke(new Action(() => ApplyPlaybackProgress(elapsedMilliseconds))); } catch (InvalidOperationException) { }
     }
 
-    private void ApplyPlaybackProgress(long elapsedMilliseconds)
+    private void ApplyPlaybackProgress(long elapsedMilliseconds, bool completed = false)
     {
         if (request is null || cancellation?.IsCancellationRequested == true) return;
         var total = request.TotalDurationMs;
-        var elapsed = Math.Clamp(elapsedMilliseconds, 0, total);
+        var elapsed = Math.Clamp(elapsedMilliseconds, 0, completed ? total : Math.Max(0, total - 1));
         progressBar.Value = (int)Math.Clamp(elapsed * progressBar.Maximum / total, 0, progressBar.Maximum);
-        remainingLabel.Text = $"剩余 {FormatDuration(total - elapsed)}";
+        remainingLabel.Text = $"剩余 {FormatDuration(completed ? 0 : Math.Max(1, total - elapsed))}";
     }
 
-    private static void Wait(int milliseconds, CancellationToken token, Stopwatch clock, Action<long> reportProgress)
+    private static long Wait(int milliseconds, CancellationToken token, long plannedStart, Action<long> reportProgress)
     {
-        while (milliseconds > 0)
+        var remaining = milliseconds;
+        var progressed = 0;
+        while (remaining > 0)
         {
             token.ThrowIfCancellationRequested();
-            var slice = Math.Min(milliseconds, 10);
+            var slice = Math.Min(remaining, 10);
             Thread.Sleep(slice);
-            milliseconds -= slice;
-            reportProgress(clock.ElapsedMilliseconds);
+            remaining -= slice;
+            progressed += slice;
+            reportProgress(plannedStart + progressed);
         }
+        return plannedStart + milliseconds;
     }
 
     private static string FormatDuration(long milliseconds)
