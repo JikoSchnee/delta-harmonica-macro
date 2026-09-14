@@ -22,6 +22,7 @@ COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" \
   --exclude='.git' \
   --exclude='.idea' \
   --exclude='.pdmx-cache' \
+  --exclude='data/analytics' \
   --exclude='__pycache__' \
   --exclude='._*' \
   .
