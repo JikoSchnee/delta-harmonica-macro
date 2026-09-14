@@ -258,26 +258,21 @@
             <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
           </div>
           <div class="macro-settings-controls">
-            <label for="macroTriggerButton">启动真实按键事件号 <span class="unit">必填 · 填实体鼠标键在 G HUB 日志中的 arg，例如 G10 为 10</span><input id="macroTriggerButton" type="number" min="1" step="1" required placeholder="例如实体 G10 的 10" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
-            <label for="macroStopButton">停止 Lua 状态号 <span class="unit">必填 · 仅限 1–5，不是实体按键；默认 5，通常无需修改</span><input id="macroStopButton" type="number" min="1" max="5" step="1" value="5" required inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
-            <fieldset class="macro-pitch-map" aria-describedby="macroSettingsHint macroTriggerValidation">
+            <label for="macroTriggerButton">开始键<input id="macroTriggerButton" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
+            <label for="macroStopButton">停止键 <span class="unit">只能填 4 和 5</span><input id="macroStopButton" type="number" min="4" max="5" step="1" value="5" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
+            <fieldset class="macro-pitch-map" aria-describedby="macroTriggerValidation">
               <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
               <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
               <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="5" step="1" value="2" inputmode="numeric" /></label>
               <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="5" step="1" value="3" inputmode="numeric" /></label>
             </fieldset>
           </div>
-          <div class="macro-detector">
-            <div><b>设备按键探测器</b><p>启动栏填写实体鼠标键产生的 <code>arg</code>；停止栏的 1–5 是 Lua 内部状态号，不是实体按键编号。默认用 5；仅当你按住选定的实体停止键时，日志没有出现 <code>states=5</code>，才按日志改为 1–4。</p></div>
-            <button id="macroDetectorButton" type="button">复制探测 Lua</button>
-          </div>
-          <p class="macro-settings-hint" id="macroSettingsHint">仅单次播放：按实体启动键后完整播放一次；默认用 Lua 状态号 5 中途停止。它不是 G11 等实体按键编号，通常不需修改；停止状态号只能填 1–5，且不能与变调键重复。</p>
           <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="export-grid">
           <article class="export-card logitech">
             <div class="export-top"><span class="driver-mark">G</span><div><h3>Logitech G HUB</h3><p>Lua 脚本 · 手动粘贴</p></div></div>
-            <p class="export-copy">用实体启动键的事件号开始一次播放；默认 Lua 状态号 5 负责停止。停止时会释放正在按住的琴键和变调键。</p>
+            <p class="export-copy">开始键触发一次播放；停止键可填 4 或 5。停止时会释放正在按住的琴键和变调键。</p>
             <div class="export-actions"><button data-action="copy-lua" type="button">复制 Lua</button><button data-action="download-lua" type="button">下载 .lua</button></div>
           </article>
           <article class="export-card razer">
@@ -297,7 +292,7 @@
           </article>
           <article class="export-card recording-helper">
             <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>测试版 · Windows / AutoHotkey v2</p></div></div>
-            <p class="export-copy">先在任意鼠标宏软件中开启“录制”，再运行下载的助手。助手会倒计时 5 秒后模拟整段键盘与鼠标变调输入一次，让录制器捕获事件。助手只支持 AutoHotkey v2；部分软件会忽略合成输入，请先用短谱测试；运行时不要让游戏获得焦点。</p>
+            <p class="export-copy">先在鼠标宏软件中开启“录制”，再运行下载的助手。助手会倒计时 5 秒后模拟整段键盘与鼠标变调输入一次。录制 Logitech G HUB 时保持其录制界面在前台，并使用助手默认的「G HUB 兼容」模式；其他软件可改用标准 SendInput。请先用短谱测试，且不要让游戏获得焦点。</p>
             <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到独立助手</button><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何使用？</button></div>
           </article>
           <article class="export-card manual-entry">
@@ -340,13 +335,14 @@
           <ol class="recording-helper-steps">
             <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能。</span></li>
             <li><b>02</b><span>回到本页，点击「导出到独立助手」，浏览器会把当前曲谱直接交给助手。</span></li>
-            <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏，并打开录制。</span></li>
-            <li><b>04</b><span>在助手中开始 5 秒倒计时并切回录制器；它会自动发送一次按键和鼠标变调事件。可按 <code>Ctrl + Alt + End</code> 紧急停止。</span></li>
+            <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏，并打开录制；使用 G HUB 时保持其录制界面在前台。</span></li>
+            <li><b>04</b><span>在助手中保留默认的「G HUB 兼容」模式，开始 5 秒倒计时并切回录制器；它会自动发送一次按键和鼠标变调事件。可按已设置的紧急停止快捷键停止。</span></li>
           </ol>
-          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。不要让游戏获得焦点；部分鼠标软件可能会忽略系统模拟输入。</p>
+          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。不要让游戏获得焦点；G HUB 请使用助手默认的扫描码兼容模式。其他录制器若无法捕获，可在助手内改用标准 SendInput。</p>
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>推荐 · 独立录制助手（Windows 64 位）</p>
             <a class="helper-download-link" href="downloads/HarmonicaRecorder-win-x64.zip" download><span>下载独立录制助手 ZIP</span><b>↓</b></a>
+            <a class="helper-download-link" href="https://github.com/JikoSchnee/delta-harmonica-macro/raw/refs/heads/main/downloads/HarmonicaRecorder-win-x64.zip" target="_blank" rel="noopener noreferrer"><span>从 GitHub 下载 ZIP</span><b>↗</b></a>
             <small>无需 AutoHotkey。解压后运行一次 <code>Install.cmd</code>，随后即可从网页直接导入当前曲谱。</small>
           </section>
           <section class="recording-helper-downloads" aria-label="AutoHotkey v2 下载方式">
@@ -469,7 +465,7 @@
         <div class="window-titlebar"><span>UPLOAD_PORTAL.EXE — COMMUNITY</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭上传提示">×</button></div>
         <div class="upload-help-body">
           <span class="index">COMMUNITY UPLOAD</span>
-          <h2 id="uploadHelpTitle">投稿方式</h2>
+          <h2 id="uploadHelpTitle">问题反馈</h2>
           <div class="upload-method-tabs" role="tablist" aria-label="投稿方式">
             <button class="upload-method-tab active" id="uploadMethodQq" data-upload-method="qq" type="button" role="tab" aria-selected="true" aria-controls="uploadPanelQq">QQ 群投稿</button>
             <button class="upload-method-tab" id="uploadMethodGithub" data-upload-method="github" type="button" role="tab" aria-selected="false" aria-controls="uploadPanelGithub">GitHub 投稿</button>
@@ -516,6 +512,6 @@
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/pdmx-top-1000.js"></script>
     <script src="./data/community-songs.js"></script>
-    <script src="./app.js?v=auth-split-20260914"></script>
+    <script src="./app.js?v=feedback-first-visit-20260914"></script>
   </body>
 </html>

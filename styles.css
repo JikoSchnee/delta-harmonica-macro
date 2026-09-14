@@ -558,13 +558,6 @@ main {
 .macro-settings input, .macro-settings select { display: block; width: 100%; min-width: 0; margin-top: 6px; padding: 9px 10px; color: var(--screen-text); background: var(--screen); border: 2px inset var(--surface); outline: 0; font: 500 13px var(--mono); }
 .macro-settings input:focus, .macro-settings select:focus { border-color: var(--teal); box-shadow: inset 0 0 0 1px #69b5b5; }
 .macro-settings input[aria-invalid="true"] { border-color: var(--danger); box-shadow: inset 0 0 0 1px #ff9f9f; }
-.macro-detector { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px; color: #d0ffff; background: #082725; border: 1px solid #46706d; }
-.macro-detector b { display: block; font: 700 10px var(--mono); }
-.macro-detector p { margin: 5px 0 0; color: #abc5c2; font: 10px/1.55 var(--mono); }
-.macro-detector code { color: #d0ffff; }
-.macro-detector button { flex: 0 0 auto; padding: 8px 10px; color: var(--teal-dark); background: var(--surface); border: 2px outset var(--surface); font: 11px var(--mono); }
-.macro-detector button:hover { color: var(--white); background: var(--teal); }
-.macro-detector button:active { border-style: inset; }
 .macro-pitch-map { display: grid; grid-column: span 2; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; min-width: 0; margin: 0; padding: 9px; color: #d0ffff; background: #0a3230; border: 1px solid #46706d; }
 .macro-pitch-map legend { padding: 0 4px; color: #d0ffff; font: 700 10px var(--mono); }
 .macro-pitch-map legend span { color: #86aaa7; font-weight: 500; }
@@ -883,7 +876,6 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .export-form-grid label:first-child { grid-column: auto; }
   .macro-settings { grid-template-columns: 1fr; }
   .macro-settings-controls { grid-template-columns: 1fr; }
-  .macro-detector { align-items: flex-start; flex-direction: column; }
   .macro-pitch-map { grid-column: auto; }
   .score-export-body { padding: 16px; }
   .auth-dialog-body { padding: 16px; }

@@ -90,11 +90,27 @@ internal sealed class RecorderForm : Form
     private readonly Label titleLabel = new();
     private readonly Label detailsLabel = new();
     private readonly Label statusLabel = new();
+    private readonly Label hotKeyLabel = new();
+    private readonly ComboBox hotKeyBox = new();
+    private readonly Label inputModeLabel = new();
+    private readonly ComboBox inputModeBox = new();
     private readonly Button startButton = new();
     private readonly Button stopButton = new();
+    private readonly List<HotKeyOption> hotKeyOptions =
+    [
+        new("Ctrl + Alt + End", NativeInput.ModControl | NativeInput.ModAlt, NativeInput.VkEnd),
+        new("Ctrl + Alt + Pause", NativeInput.ModControl | NativeInput.ModAlt, NativeInput.VkPause),
+        new("Ctrl + Shift + End", NativeInput.ModControl | NativeInput.ModShift, NativeInput.VkEnd),
+        new("Ctrl + Shift + Pause", NativeInput.ModControl | NativeInput.ModShift, NativeInput.VkPause)
+    ];
     private CancellationTokenSource? cancellation;
     private string? activeKey;
     private readonly List<char> activeModifiers = [];
+    private HotKeyOption activeHotKey = null!;
+    private InputInjectionMode activeInputMode = null!;
+    private InputInjectionMode activePlaybackInputMode = null!;
+    private bool hotKeyRegistered;
+    private bool restoringHotKeySelection;
 
     public RecorderForm(PlaybackRequest? request)
     {
@@ -104,7 +120,7 @@ internal sealed class RecorderForm : Form
         MaximizeBox = false;
         MinimizeBox = true;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(510, 302);
+        ClientSize = new Size(510, 354);
         BackColor = Color.FromArgb(8, 39, 37);
         ForeColor = Color.FromArgb(216, 255, 255);
         Font = new Font("Microsoft YaHei UI", 10F);
@@ -120,71 +136,131 @@ internal sealed class RecorderForm : Form
         statusLabel.BorderStyle = BorderStyle.FixedSingle;
         statusLabel.Padding = new Padding(10, 8, 10, 8);
         statusLabel.Font = new Font("Microsoft YaHei UI", 9F);
-        startButton.SetBounds(278, 225, 138, 42);
+        hotKeyLabel.SetBounds(22, 214, 184, 27);
+        hotKeyLabel.Text = "紧急停止快捷键";
+        hotKeyLabel.TextAlign = ContentAlignment.MiddleLeft;
+        hotKeyBox.SetBounds(208, 211, 280, 29);
+        hotKeyBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        hotKeyBox.FlatStyle = FlatStyle.Flat;
+        hotKeyOptions.ForEach(option => hotKeyBox.Items.Add(option));
+        activeHotKey = EmergencyStopHotKeySettings.Load(hotKeyOptions) ?? hotKeyOptions[0];
+        hotKeyBox.SelectedItem = activeHotKey;
+        inputModeLabel.SetBounds(22, 247, 184, 27);
+        inputModeLabel.Text = "输入兼容模式";
+        inputModeLabel.TextAlign = ContentAlignment.MiddleLeft;
+        inputModeBox.SetBounds(208, 244, 280, 29);
+        inputModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        inputModeBox.FlatStyle = FlatStyle.Flat;
+        inputModeBox.Items.Add(InputInjectionMode.GHubCompatible);
+        inputModeBox.Items.Add(InputInjectionMode.StandardSendInput);
+        activeInputMode = InputInjectionMode.GHubCompatible;
+        inputModeBox.SelectedItem = activeInputMode;
+        startButton.SetBounds(278, 289, 138, 42);
         startButton.Text = "开始倒计时";
         startButton.BackColor = Color.FromArgb(0, 123, 120);
         startButton.ForeColor = Color.White;
         startButton.FlatStyle = FlatStyle.Flat;
         startButton.FlatAppearance.BorderColor = Color.FromArgb(91, 185, 178);
-        stopButton.SetBounds(426, 225, 62, 42);
+        stopButton.SetBounds(426, 289, 62, 42);
         stopButton.Text = "停止";
         stopButton.Enabled = false;
         stopButton.FlatStyle = FlatStyle.Flat;
         stopButton.FlatAppearance.BorderColor = Color.FromArgb(137, 92, 153);
 
-        Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, startButton, stopButton]);
+        Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, hotKeyLabel, hotKeyBox, inputModeLabel, inputModeBox, startButton, stopButton]);
         startButton.Click += async (_, _) => await StartPlaybackAsync();
         stopButton.Click += (_, _) => StopPlayback("已停止，并已释放本助手按下的按键。");
+        hotKeyBox.SelectedIndexChanged += (_, _) => UpdateEmergencyStopHotKey();
+        inputModeBox.SelectedIndexChanged += (_, _) => UpdateInputMode();
         FormClosing += (_, _) => StopPlayback("正在退出。");
 
         if (request is null)
         {
             titleLabel.Text = "等待从网页导入曲谱";
             detailsLabel.Text = "请在网站的「口琴鼠标宏录制助手」卡片中点击“导出到独立助手”。";
-            statusLabel.Text = "首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n紧急停止快捷键：Ctrl + Alt + End";
+            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n紧急停止快捷键：{activeHotKey.DisplayName}";
             startButton.Enabled = false;
         }
         else
         {
             titleLabel.Text = request.Title;
             detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 将在 5 秒倒计时后开始模拟输入";
-            statusLabel.Text = "先在目标鼠标软件创建“单次播放”宏并开启录制。\n开始后切回录制器；请勿让游戏获得焦点。紧急停止：Ctrl + Alt + End";
+            statusLabel.Text = $"G HUB 请保持在录制界面，并使用“G HUB 兼容”模式。\n紧急停止：{activeHotKey.DisplayName}";
         }
     }
 
     protected override void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
-        NativeInput.RegisterHotKey(Handle, HotKeyId, NativeInput.ModControl | NativeInput.ModAlt, NativeInput.VkEnd);
+        if (!RegisterEmergencyStopHotKey())
+        {
+            statusLabel.Text = $"无法注册紧急停止快捷键 {activeHotKey.DisplayName}。它可能已被其他软件占用，请选择其他组合。";
+        }
     }
 
     protected override void OnHandleDestroyed(EventArgs e)
     {
-        NativeInput.UnregisterHotKey(Handle, HotKeyId);
+        if (hotKeyRegistered) NativeInput.UnregisterHotKey(Handle, HotKeyId);
+        hotKeyRegistered = false;
         base.OnHandleDestroyed(e);
     }
 
     protected override void WndProc(ref Message message)
     {
-        if (message.Msg == WmHotKey && message.WParam.ToInt32() == HotKeyId) StopPlayback("已通过 Ctrl + Alt + End 停止。");
+        if (message.Msg == WmHotKey && message.WParam.ToInt32() == HotKeyId) StopPlayback($"已通过 {activeHotKey.DisplayName} 停止。");
         base.WndProc(ref message);
+    }
+
+    private void UpdateEmergencyStopHotKey()
+    {
+        if (restoringHotKeySelection || hotKeyBox.SelectedItem is not HotKeyOption selectedHotKey || selectedHotKey == activeHotKey) return;
+        var previousHotKey = activeHotKey;
+        activeHotKey = selectedHotKey;
+        if (IsHandleCreated && !RegisterEmergencyStopHotKey())
+        {
+            activeHotKey = previousHotKey;
+            restoringHotKeySelection = true;
+            hotKeyBox.SelectedItem = previousHotKey;
+            restoringHotKeySelection = false;
+            RegisterEmergencyStopHotKey();
+            MessageBox.Show(this, $"无法注册 {selectedHotKey.DisplayName}，它可能已被其他软件占用。已恢复为 {previousHotKey.DisplayName}。", "快捷键不可用", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        EmergencyStopHotKeySettings.Save(activeHotKey);
+        if (cancellation is null) statusLabel.Text = $"紧急停止快捷键已设为 {activeHotKey.DisplayName}。";
+    }
+
+    private bool RegisterEmergencyStopHotKey()
+    {
+        if (hotKeyRegistered) NativeInput.UnregisterHotKey(Handle, HotKeyId);
+        hotKeyRegistered = NativeInput.RegisterHotKey(Handle, HotKeyId, activeHotKey.Modifiers, activeHotKey.VirtualKey);
+        return hotKeyRegistered;
+    }
+
+    private void UpdateInputMode()
+    {
+        if (inputModeBox.SelectedItem is not InputInjectionMode selectedInputMode) return;
+        activeInputMode = selectedInputMode;
+        if (cancellation is null) statusLabel.Text = $"已选择 {activeInputMode.DisplayName}。G HUB 录制请优先使用“G HUB 兼容”。";
     }
 
     private async Task StartPlaybackAsync()
     {
         if (request is null || cancellation is not null) return;
         cancellation = new CancellationTokenSource();
+        activePlaybackInputMode = activeInputMode;
         startButton.Enabled = false;
         stopButton.Enabled = true;
+        inputModeBox.Enabled = false;
         try
         {
             for (var seconds = 5; seconds >= 1; seconds--)
             {
-                statusLabel.Text = $"倒计时 {seconds} 秒：现在切换到鼠标宏录制器。\n紧急停止：Ctrl + Alt + End";
+                statusLabel.Text = $"倒计时 {seconds} 秒：现在切换到鼠标宏录制器。\n紧急停止：{activeHotKey.DisplayName}";
                 await Task.Delay(1000, cancellation.Token);
             }
-            statusLabel.Text = "正在模拟输入… 按 Ctrl + Alt + End 可立即停止。";
-            await Task.Run(() => Play(request.Events, cancellation.Token), cancellation.Token);
+            statusLabel.Text = $"正在模拟输入… 按 {activeHotKey.DisplayName} 可立即停止。";
+            await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode), cancellation.Token);
             if (!cancellation.IsCancellationRequested) statusLabel.Text = "输入完成。请停止鼠标软件的录制，并保存该宏。";
         }
         catch (OperationCanceledException) { }
@@ -195,10 +271,11 @@ internal sealed class RecorderForm : Form
             cancellation = null;
             startButton.Enabled = request is not null;
             stopButton.Enabled = false;
+            inputModeBox.Enabled = true;
         }
     }
 
-    private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token)
+    private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionMode inputMode)
     {
         foreach (var item in events)
         {
@@ -210,16 +287,16 @@ internal sealed class RecorderForm : Form
             }
             foreach (var modifier in item.Modifiers ?? string.Empty)
             {
-                NativeInput.Mouse(modifier, true);
+                NativeInput.Mouse(modifier, true, inputMode);
                 activeModifiers.Add(modifier);
             }
             Wait(item.LeadMs, token);
             activeKey = item.Key;
-            NativeInput.Key(item.Key!, true);
+            NativeInput.Key(item.Key!, true, inputMode);
             Wait(Math.Max(0, item.HoldMs - item.LeadMs), token);
-            NativeInput.Key(item.Key!, false);
+            NativeInput.Key(item.Key!, false, inputMode);
             activeKey = null;
-            for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false);
+            for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode);
             activeModifiers.Clear();
             Wait(item.WaitMs, token);
         }
@@ -247,22 +324,75 @@ internal sealed class RecorderForm : Form
     {
         if (activeKey is not null)
         {
-            NativeInput.Key(activeKey, false);
+            NativeInput.Key(activeKey, false, activePlaybackInputMode);
             activeKey = null;
         }
-        for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false);
+        for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, activePlaybackInputMode);
         activeModifiers.Clear();
     }
+}
+
+internal sealed record HotKeyOption(string DisplayName, uint Modifiers, uint VirtualKey)
+{
+    public override string ToString() => DisplayName;
+}
+
+internal sealed record InputInjectionMode(string DisplayName, bool UseLegacyScanCodeEvents)
+{
+    internal static readonly InputInjectionMode GHubCompatible = new("G HUB 兼容 · 扫描码事件（推荐）", true);
+    internal static readonly InputInjectionMode StandardSendInput = new("标准 SendInput · 通用软件", false);
+
+    public override string ToString() => DisplayName;
+}
+
+internal static class EmergencyStopHotKeySettings
+{
+    private const string FileName = "emergency-stop-hotkey.json";
+
+    internal static HotKeyOption? Load(IEnumerable<HotKeyOption> options)
+    {
+        try
+        {
+            var saved = JsonSerializer.Deserialize<StoredHotKey>(File.ReadAllText(SettingsPath));
+            return saved is null
+                ? null
+                : options.FirstOrDefault(option => option.Modifiers == saved.Modifiers && option.VirtualKey == saved.VirtualKey);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    internal static void Save(HotKeyOption hotKey)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
+            File.WriteAllText(SettingsPath, JsonSerializer.Serialize(new StoredHotKey(hotKey.Modifiers, hotKey.VirtualKey)));
+        }
+        catch (Exception)
+        {
+            // The selection remains active for this run even if Windows blocks settings persistence.
+        }
+    }
+
+    private static string SettingsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "HarmonicaRecorder", FileName);
+
+    private sealed record StoredHotKey(uint Modifiers, uint VirtualKey);
 }
 
 internal static class NativeInput
 {
     internal const uint ModAlt = 0x0001;
     internal const uint ModControl = 0x0002;
+    internal const uint ModShift = 0x0004;
     internal const uint VkEnd = 0x23;
+    internal const uint VkPause = 0x13;
     private const uint InputMouse = 0;
     private const uint InputKeyboard = 1;
     private const uint KeyUp = 0x0002;
+    private const uint KeyScanCode = 0x0008;
     private const uint LeftDown = 0x0002;
     private const uint LeftUp = 0x0004;
     private const uint MiddleDown = 0x0020;
@@ -279,15 +409,36 @@ internal static class NativeInput
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint SendInput(uint inputCount, INPUT[] inputs, int size);
 
-    internal static void Key(string key, bool down)
+    [DllImport("user32.dll")]
+    private static extern void keybd_event(byte virtualKey, byte scanCode, uint flags, UIntPtr extraInfo);
+
+    [DllImport("user32.dll")]
+    private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+
+    internal static void Key(string key, bool down, InputInjectionMode inputMode)
     {
-        var virtualKey = key switch { "z" => 0x5A, "x" => 0x58, "c" => 0x43, "v" => 0x56, "b" => 0x42, "n" => 0x4E, "m" => 0x4D, "," => 0xBC, _ => throw new ArgumentOutOfRangeException(nameof(key)) };
+        var (virtualKey, scanCode) = key switch
+        {
+            "z" => (0x5A, 44), "x" => (0x58, 45), "c" => (0x43, 46), "v" => (0x56, 47),
+            "b" => (0x42, 48), "n" => (0x4E, 49), "m" => (0x4D, 50), "," => (0xBC, 51),
+            _ => throw new ArgumentOutOfRangeException(nameof(key))
+        };
+        if (inputMode.UseLegacyScanCodeEvents)
+        {
+            keybd_event(0, (byte)scanCode, KeyScanCode | (down ? 0 : KeyUp), UIntPtr.Zero);
+            return;
+        }
         Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = (ushort)virtualKey, Flags = down ? 0 : KeyUp } } }]);
     }
 
-    internal static void Mouse(char modifier, bool down)
+    internal static void Mouse(char modifier, bool down, InputInjectionMode inputMode)
     {
         var flag = modifier switch { 'L' => down ? LeftDown : LeftUp, 'M' => down ? MiddleDown : MiddleUp, 'R' => down ? RightDown : RightUp, _ => throw new ArgumentOutOfRangeException(nameof(modifier)) };
+        if (inputMode.UseLegacyScanCodeEvents)
+        {
+            mouse_event(flag, 0, 0, 0, UIntPtr.Zero);
+            return;
+        }
         Send([new INPUT { Type = InputMouse, Union = new InputUnion { Mouse = new MOUSEINPUT { Flags = flag } } }]);
     }
 

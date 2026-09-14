@@ -464,7 +464,7 @@ const SECTION_GUIDES = {
     title: "导出为宏 · 配置与交付",
     intro: "在这里将已校验的曲谱输出为鼠标软件脚本、驱动配置文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
     steps: [
-      ["01", "设置 G HUB 触发", "先用设备按键探测器确认原始事件 arg 与状态键 1–5；启动事件只负责开始，长按、切换和停止都使用状态键轮询。"],
+      ["01", "设置 G HUB 触发", "填写开始键与停止键；停止键只能填写 4 或 5。"],
       ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
       ["04", "导出 ROG GMAC", "下载 <code>.gmac</code> 后，在 Armoury Crate 的 Macro 页面选择 Import；导入成功后再将该宏绑定到支持宏功能的 ROG 外设按键。"],
@@ -474,7 +474,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroDetectorButton: document.querySelector("#macroDetectorButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -2276,11 +2276,11 @@ function readMacroTriggerSettings() {
   const pitchButtonFields = { L: elements.macroLowButton, M: elements.macroMiddleButton, R: elements.macroHighButton };
   const pitchButtons = Object.fromEntries(Object.entries(pitchButtonFields).map(([modifier, field]) => [modifier, Number(String(field.value).trim())]));
   if (!rawTriggerEventButton || !Number.isInteger(triggerEventButton) || triggerEventButton < 1) {
-    setMacroTriggerValidation("请输入探测日志中的正整数启动事件编号。", [elements.macroTriggerButton]);
+    setMacroTriggerValidation("开始键必须填写正整数。", [elements.macroTriggerButton]);
     return null;
   }
-  if (!rawStopStateButton || !Number.isInteger(stopStateButton) || stopStateButton < 1 || stopStateButton > 5) {
-    setMacroTriggerValidation("停止 Lua 状态号必须填写 1 到 5；它不是实体鼠标按键编号。", [elements.macroStopButton]);
+  if (!rawStopStateButton || !Number.isInteger(stopStateButton) || ![4, 5].includes(stopStateButton)) {
+    setMacroTriggerValidation("停止键只能填写 4 或 5。", [elements.macroStopButton]);
     return null;
   }
   const invalidPitchFields = Object.entries(pitchButtons).filter(([, mappedButton]) => !Number.isInteger(mappedButton) || mappedButton < 1 || mappedButton > 5).map(([modifier]) => pitchButtonFields[modifier]);
@@ -2291,10 +2291,6 @@ function readMacroTriggerSettings() {
   const pitchModifierButtons = new Set(Object.values(pitchButtons));
   if (pitchModifierButtons.size !== 3) {
     setMacroTriggerValidation("低音、半音和高音必须使用三个不同的鼠标键。", Object.values(pitchButtonFields));
-    return null;
-  }
-  if (pitchModifierButtons.has(stopStateButton)) {
-    setMacroTriggerValidation("停止 Lua 状态号不能与当前变调键映射重复；请填写未被变调键占用的 1–5。", [elements.macroStopButton]);
     return null;
   }
   clearMacroTriggerValidation();
@@ -2446,38 +2442,6 @@ function generateLua(sequence, triggerSettings) {
     ""
   );
   return lines.join("\n");
-}
-
-function generateMouseMappingDetectorLua() {
-  return [
-    "-- Harmonica Deck · G HUB mouse event/state detector",
-    "-- Paste this into a temporary G HUB script, activate its profile, then hold each physical button you want to use.",
-    "-- The log prints the raw event arg and the standard state keys (1-5) currently held.",
-    "local function PressedStateButtons()",
-    "  local pressed = {}",
-    "  for button = 1, 5 do",
-    "    if IsMouseButtonPressed(button) then table.insert(pressed, tostring(button)) end",
-    "  end",
-    "  return #pressed > 0 and table.concat(pressed, \",\") or \"none\"",
-    "end",
-    "",
-    "function OnEvent(event, arg)",
-    "  if event == \"PROFILE_ACTIVATED\" then",
-    "    EnablePrimaryMouseButtonEvents(true)",
-    "    ClearLog()",
-    "    OutputLogMessage(\"Detector ready. Hold a physical button (for example G10 or G11).\\n\")",
-    "    return",
-    "  end",
-    "  if event == \"MOUSE_BUTTON_PRESSED\" then",
-    "    -- Let G HUB update the pressed-state API before taking the snapshot.",
-    "    Sleep(20)",
-    "    OutputLogMessage(\"pressed: event=%s arg=%s states=%s\\n\", event, tostring(arg), PressedStateButtons())",
-    "  elseif event == \"MOUSE_BUTTON_RELEASED\" then",
-    "    OutputLogMessage(\"released: event=%s arg=%s states=%s\\n\", event, tostring(arg), PressedStateButtons())",
-    "  end",
-    "end",
-    ""
-  ].join("\n");
 }
 
 function generateMacroRecordingHelper(sequence) {
@@ -3327,16 +3291,6 @@ async function copyLua(sequence) {
   }
 }
 
-async function copyMouseMappingDetector() {
-  try {
-    await navigator.clipboard.writeText(generateMouseMappingDetectorLua());
-    trackAnalytics("lua_detector_copied", { format: "ghub" });
-    toast("设备按键探测 Lua 已复制；请粘贴到 G HUB 临时脚本并查看日志。 ");
-  } catch {
-    toast("浏览器未授权剪贴板；请使用支持剪贴板的浏览器后重试。 ");
-  }
-}
-
 [elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; resetMidiTrackPicker(); stopPreview(); updateLineNumbers(); convert(); }));
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
 elements.bpm.addEventListener("input", handleBpmChange);
@@ -3522,7 +3476,6 @@ elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
   elements.macroMiddleButton,
   elements.macroHighButton
 ].forEach((field) => field.addEventListener("input", clearMacroTriggerValidation));
-elements.macroDetectorButton.addEventListener("click", copyMouseMappingDetector);
 elements.confirmMacroDownload.addEventListener("click", startMacroDownload);
 elements.macroDownloadDialog.addEventListener("close", () => {
   clearMacroDownloadTimers();
@@ -3608,6 +3561,19 @@ function openUploadHelpDialog(status = "", method = "qq") {
   toast(status || "请选择 QQ 群或 GitHub Fork 投稿。 ");
 }
 
+function openUploadHelpDialogOnFirstVisit() {
+  const storageKey = "delta-upload-help-seen-v1";
+  let canPersistVisitState = true;
+  try {
+    if (window.localStorage.getItem(storageKey)) return;
+  } catch {
+    canPersistVisitState = false;
+  }
+  openUploadHelpDialog();
+  if (!canPersistVisitState) return;
+  try { window.localStorage.setItem(storageKey, "1"); } catch {}
+}
+
 elements.qqGroupButton.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText("1102489399");
@@ -3625,10 +3591,10 @@ elements.localLibraryButton.addEventListener("click", () => openScoreExportDialo
 renderSongLibrary();
 enableLocalLibraryEntry();
 enableCommunityUploadEntry();
-updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });
+openUploadHelpDialogOnFirstVisit();
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
 window.setInterval(() => {
