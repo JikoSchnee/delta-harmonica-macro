@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -26,6 +27,8 @@ internal sealed class PlaybackRequest
 
     [JsonPropertyName("events")]
     public List<PlaybackEvent> Events { get; init; } = [];
+
+    public long TotalDurationMs => Math.Max(1, Events.Sum(item => item.IsRest ? (long)item.WaitMs : (long)item.HoldMs + item.WaitMs));
 
     public static PlaybackRequest? FromProtocolArgument(string? argument)
     {
@@ -94,6 +97,9 @@ internal sealed class RecorderForm : Form
     private readonly TextBox hotKeyBox = new();
     private readonly Label inputModeLabel = new();
     private readonly ComboBox inputModeBox = new();
+    private readonly Label progressLabel = new();
+    private readonly ProgressBar progressBar = new();
+    private readonly Label remainingLabel = new();
     private readonly Button startButton = new();
     private readonly Button stopButton = new();
     private CancellationTokenSource? cancellation;
@@ -103,6 +109,7 @@ internal sealed class RecorderForm : Form
     private InputInjectionMode activeInputMode = null!;
     private InputInjectionMode activePlaybackInputMode = null!;
     private bool hotKeyRegistered;
+    private long lastProgressReport = -1;
 
     public RecorderForm(PlaybackRequest? request)
     {
@@ -112,7 +119,7 @@ internal sealed class RecorderForm : Form
         MaximizeBox = false;
         MinimizeBox = true;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(510, 354);
+        ClientSize = new Size(510, 388);
         BackColor = Color.FromArgb(8, 39, 37);
         ForeColor = Color.FromArgb(216, 255, 255);
         Font = new Font("Microsoft YaHei UI", 10F);
@@ -148,19 +155,29 @@ internal sealed class RecorderForm : Form
         inputModeBox.Items.Add(InputInjectionMode.StandardSendInput);
         activeInputMode = InputInjectionMode.GHubCompatible;
         inputModeBox.SelectedItem = activeInputMode;
-        startButton.SetBounds(278, 289, 138, 42);
-        startButton.Text = "开始倒计时";
+        progressLabel.SetBounds(22, 280, 184, 27);
+        progressLabel.Text = "录制进度 / 剩余时间";
+        progressLabel.TextAlign = ContentAlignment.MiddleLeft;
+        progressBar.SetBounds(208, 282, 180, 22);
+        progressBar.Minimum = 0;
+        progressBar.Maximum = 1000;
+        progressBar.Value = 0;
+        remainingLabel.SetBounds(394, 280, 94, 27);
+        remainingLabel.Text = "剩余 --:--";
+        remainingLabel.TextAlign = ContentAlignment.MiddleRight;
+        startButton.SetBounds(278, 323, 138, 42);
+        startButton.Text = "开始输入";
         startButton.BackColor = Color.FromArgb(0, 123, 120);
         startButton.ForeColor = Color.White;
         startButton.FlatStyle = FlatStyle.Flat;
         startButton.FlatAppearance.BorderColor = Color.FromArgb(91, 185, 178);
-        stopButton.SetBounds(426, 289, 62, 42);
+        stopButton.SetBounds(426, 323, 62, 42);
         stopButton.Text = "停止";
         stopButton.Enabled = false;
         stopButton.FlatStyle = FlatStyle.Flat;
         stopButton.FlatAppearance.BorderColor = Color.FromArgb(137, 92, 153);
 
-        Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, hotKeyLabel, hotKeyBox, inputModeLabel, inputModeBox, startButton, stopButton]);
+        Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, hotKeyLabel, hotKeyBox, inputModeLabel, inputModeBox, progressLabel, progressBar, remainingLabel, startButton, stopButton]);
         startButton.Click += async (_, _) => await StartPlaybackAsync();
         stopButton.Click += (_, _) => StopPlayback("已停止，并已释放本助手按下的按键。");
         hotKeyBox.Enter += (_, _) => hotKeyBox.SelectAll();
@@ -178,8 +195,8 @@ internal sealed class RecorderForm : Form
         else
         {
             titleLabel.Text = request.Title;
-            detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 将在 5 秒倒计时后开始模拟输入";
-            statusLabel.Text = $"G HUB 请保持在录制界面，并使用“G HUB 兼容”模式。\n紧急停止：{activeHotKey.DisplayName}";
+            detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 总时长 {FormatDuration(request.TotalDurationMs)}";
+            statusLabel.Text = $"先在宏软件中点击录制，再回到本助手点击“开始输入”。\n开始后请勿操作鼠标或键盘；紧急停止：{activeHotKey.DisplayName}";
         }
     }
 
@@ -248,19 +265,23 @@ internal sealed class RecorderForm : Form
         if (request is null || cancellation is not null) return;
         cancellation = new CancellationTokenSource();
         activePlaybackInputMode = activeInputMode;
+        lastProgressReport = -1;
         startButton.Enabled = false;
         stopButton.Enabled = true;
         inputModeBox.Enabled = false;
+        hotKeyBox.Enabled = false;
+        progressBar.Value = 0;
+        remainingLabel.Text = $"剩余 {FormatDuration(request.TotalDurationMs)}";
         try
         {
-            for (var seconds = 5; seconds >= 1; seconds--)
+            statusLabel.Text = $"正在输入… 请勿操作鼠标或键盘。\n紧急停止：{activeHotKey.DisplayName}";
+            await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode, ReportPlaybackProgress), cancellation.Token);
+            if (!cancellation.IsCancellationRequested)
             {
-                statusLabel.Text = $"倒计时 {seconds} 秒：现在切换到鼠标宏录制器。\n紧急停止：{activeHotKey.DisplayName}";
-                await Task.Delay(1000, cancellation.Token);
+                ApplyPlaybackProgress(request.TotalDurationMs);
+                statusLabel.Text = "输入完成。请回到宏软件停止录制并保存。";
+                MessageBox.Show(this, "输入已完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始输入”产生的一次鼠标按下/放开，请删除这两个事件。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
-            statusLabel.Text = $"正在模拟输入… 按 {activeHotKey.DisplayName} 可立即停止。";
-            await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode), cancellation.Token);
-            if (!cancellation.IsCancellationRequested) statusLabel.Text = "输入完成。请停止鼠标软件的录制，并保存该宏。";
         }
         catch (OperationCanceledException) { }
         finally
@@ -271,17 +292,19 @@ internal sealed class RecorderForm : Form
             startButton.Enabled = request is not null;
             stopButton.Enabled = false;
             inputModeBox.Enabled = true;
+            hotKeyBox.Enabled = true;
         }
     }
 
-    private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionMode inputMode)
+    private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionMode inputMode, Action<long> reportProgress)
     {
+        var clock = Stopwatch.StartNew();
         foreach (var item in events)
         {
             token.ThrowIfCancellationRequested();
             if (item.IsRest)
             {
-                Wait(item.WaitMs, token);
+                Wait(item.WaitMs, token, clock, reportProgress);
                 continue;
             }
             foreach (var modifier in item.Modifiers ?? string.Empty)
@@ -289,19 +312,37 @@ internal sealed class RecorderForm : Form
                 NativeInput.Mouse(modifier, true, inputMode);
                 activeModifiers.Add(modifier);
             }
-            Wait(item.LeadMs, token);
+            Wait(item.LeadMs, token, clock, reportProgress);
             activeKey = item.Key;
             NativeInput.Key(item.Key!, true, inputMode);
-            Wait(Math.Max(0, item.HoldMs - item.LeadMs), token);
+            Wait(Math.Max(0, item.HoldMs - item.LeadMs), token, clock, reportProgress);
             NativeInput.Key(item.Key!, false, inputMode);
             activeKey = null;
             for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode);
             activeModifiers.Clear();
-            Wait(item.WaitMs, token);
+            Wait(item.WaitMs, token, clock, reportProgress);
         }
+        reportProgress(clock.ElapsedMilliseconds);
     }
 
-    private static void Wait(int milliseconds, CancellationToken token)
+    private void ReportPlaybackProgress(long elapsedMilliseconds)
+    {
+        if (elapsedMilliseconds - lastProgressReport < 50 && elapsedMilliseconds > 0) return;
+        lastProgressReport = elapsedMilliseconds;
+        if (!IsHandleCreated || IsDisposed) return;
+        try { BeginInvoke(new Action(() => ApplyPlaybackProgress(elapsedMilliseconds))); } catch (InvalidOperationException) { }
+    }
+
+    private void ApplyPlaybackProgress(long elapsedMilliseconds)
+    {
+        if (request is null || cancellation?.IsCancellationRequested == true) return;
+        var total = request.TotalDurationMs;
+        var elapsed = Math.Clamp(elapsedMilliseconds, 0, total);
+        progressBar.Value = (int)Math.Clamp(elapsed * progressBar.Maximum / total, 0, progressBar.Maximum);
+        remainingLabel.Text = $"剩余 {FormatDuration(total - elapsed)}";
+    }
+
+    private static void Wait(int milliseconds, CancellationToken token, Stopwatch clock, Action<long> reportProgress)
     {
         while (milliseconds > 0)
         {
@@ -309,7 +350,14 @@ internal sealed class RecorderForm : Form
             var slice = Math.Min(milliseconds, 10);
             Thread.Sleep(slice);
             milliseconds -= slice;
+            reportProgress(clock.ElapsedMilliseconds);
         }
+    }
+
+    private static string FormatDuration(long milliseconds)
+    {
+        var seconds = Math.Max(0, (milliseconds + 999) / 1000);
+        return $"{seconds / 60:00}:{seconds % 60:00}";
     }
 
     private void StopPlayback(string message)

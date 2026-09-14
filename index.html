@@ -354,7 +354,7 @@
           </article>
           <article class="export-card recording-helper">
             <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>测试版 · Windows / AutoHotkey v2</p></div></div>
-            <p class="export-copy">先在鼠标宏软件中开启“录制”，再运行下载的助手。助手会倒计时 5 秒后模拟整段键盘与鼠标变调输入一次。录制 Logitech G HUB 时保持其录制界面在前台，并使用助手默认的「G HUB 兼容」模式；其他软件可改用标准 SendInput。请先用短谱测试，且不要让游戏获得焦点。</p>
+            <p class="export-copy">先在鼠标宏软件中点击“录制”，再回到助手点击“开始输入”。助手会立即模拟整段键盘与鼠标变调输入，并显示进度和剩余时间。录制 Logitech G HUB 时使用默认的「G HUB 兼容」模式；开始后不要操作鼠标或键盘，也不要把鼠标焦点移回宏软件。完成后删除录制开头由“开始输入”产生的一次鼠标按下/放开。</p>
             <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到独立助手</button><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何使用？</button></div>
           </article>
           <article class="export-card manual-entry">
@@ -397,10 +397,11 @@
           <ol class="recording-helper-steps">
             <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能。</span></li>
             <li><b>02</b><span>回到本页，点击「导出到独立助手」，浏览器会把当前曲谱直接交给助手。</span></li>
-            <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏，并打开录制；使用 G HUB 时保持其录制界面在前台。</span></li>
-            <li><b>04</b><span>在助手中保留默认的「G HUB 兼容」模式，开始 5 秒倒计时并切回录制器；它会自动发送一次按键和鼠标变调事件。可按已设置的紧急停止快捷键停止。</span></li>
+            <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏并点击录制，然后回到助手点击“开始输入”；使用 G HUB 时选择默认兼容模式。</span></li>
+            <li><b>04</b><span>输入期间不要操作鼠标或键盘，也不要把鼠标焦点移回宏软件；进度条会显示剩余时间，可按已设置的紧急停止快捷键停止。</span></li>
+            <li><b>05</b><span>看到“录制完成”后回到宏软件停止并保存，删除开头点击助手“开始输入”产生的一次鼠标按下和放开。</span></li>
           </ol>
-          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。不要让游戏获得焦点；G HUB 请使用助手默认的扫描码兼容模式。其他录制器若无法捕获，可在助手内改用标准 SendInput。</p>
+          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。输入期间不要做任何操作，尤其不要把鼠标焦点移回宏录制软件；G HUB 请使用助手默认的扫描码兼容模式。完成后记得删除开头的鼠标按下/放开。</p>
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>推荐 · 独立录制助手（Windows 64 位）</p>
             <a class="helper-download-link" href="downloads/HarmonicaRecorder-win-x64.zip" download><span>下载独立录制助手 ZIP</span><b>↓</b></a>
