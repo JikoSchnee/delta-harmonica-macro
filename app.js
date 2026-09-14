@@ -338,6 +338,71 @@ const SONG_FILE_FORMAT = "delta-music";
 const LEGACY_SONG_FILE_FORMAT = "harmonica-deck-score";
 const SONG_FILE_VERSION = 1;
 const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
+// The built-in service records only anonymous, allow-listed product events.
+// Never add score text, titles, file names, search terms, IP data, or clipboard content here.
+const ANALYTICS_ENDPOINT = "./api/analytics/events";
+let analyticsQueue = [];
+let analyticsFlushTimer = null;
+
+function analyticsSession() {
+  try {
+    const existing = window.sessionStorage.getItem("delta-analytics-session");
+    if (existing) return existing;
+    const created = globalThis.crypto?.randomUUID?.().replaceAll("-", "") || `${Date.now()}${Math.random()}`.replace(/[^a-z0-9]/gi, "");
+    window.sessionStorage.setItem("delta-analytics-session", created);
+    return created;
+  } catch {
+    return `${Date.now()}${Math.random()}`.replace(/[^a-z0-9]/gi, "");
+  }
+}
+
+function analyticsEntrySource() {
+  if (!document.referrer) return "direct";
+  try {
+    const host = new URL(document.referrer).hostname.toLowerCase();
+    if (host === location.hostname.toLowerCase()) return "internal";
+    if (/(google|bing|baidu|sogou|so\.com|yandex)/.test(host)) return "search";
+    if (/(douyin|bilibili|weibo|qq\.com|weixin|github)/.test(host)) return "social";
+  } catch {}
+  return "referral";
+}
+
+function flushAnalytics() {
+  window.clearTimeout(analyticsFlushTimer);
+  analyticsFlushTimer = null;
+  if (!analyticsQueue.length) return;
+  const events = analyticsQueue.splice(0, 20);
+  const body = JSON.stringify({ session: analyticsSession(), events });
+  try {
+    if (navigator.sendBeacon?.(ANALYTICS_ENDPOINT, new Blob([body], { type: "application/json" }))) return;
+    fetch(ANALYTICS_ENDPOINT, { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => {});
+  } catch {}
+}
+
+function trackAnalytics(event, properties = {}) {
+  analyticsQueue.push({ event, properties });
+  if (analyticsQueue.length >= 8) flushAnalytics();
+  else if (!analyticsFlushTimer) analyticsFlushTimer = window.setTimeout(flushAnalytics, 1200);
+}
+
+function songAnalyticsOrigin(song) {
+  if (song?.source === "PDMX") return "pdmx";
+  if (song?.source === "社区投稿") return "community";
+  return "builtin";
+}
+
+async function refreshPublicAnalyticsSummary() {
+  if (!elements.publicAnalyticsSummary) return;
+  try {
+    const response = await fetch("./api/analytics/summary", { headers: { Accept: "application/json" }, cache: "no-store" });
+    const summary = await response.json();
+    if (!response.ok || !Number.isInteger(summary.activeVisitors) || !Number.isInteger(summary.todayVisitors)) return;
+    elements.activeVisitorCount.textContent = String(summary.activeVisitors);
+    elements.todayVisitorCount.textContent = String(summary.todayVisitors);
+    elements.publicAnalyticsSummary.hidden = false;
+  } catch {}
+}
+
 const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", toggle: "切换播放" };
 const MACRO_TRIGGER_MODE_HINTS = {
   once: "单次播放：按下后完整播放一次。播放中再次按下会忽略；没有停止键时无法中途停止。",
@@ -415,14 +480,14 @@ const SECTION_GUIDES = {
 const elements = {
   score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
-  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -1511,7 +1576,7 @@ function syncSequenceToEditors(sequence, { except = null } = {}) {
   updateLineNumbers();
 }
 
-function loadSong(song, { destination = "editor", scroll = true, focusEditor = true } = {}) {
+function loadSong(song, { destination = "editor", scroll = true, focusEditor = true, analytics = true } = {}) {
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -1538,6 +1603,8 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
   if (scroll && destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
   else if (scroll) document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (analytics) trackAnalytics("song_loaded", { origin: songAnalyticsOrigin(song) });
+  if (analytics && destination === "export") trackAnalytics("macro_section_opened");
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
 
@@ -1563,6 +1630,7 @@ function setInputMode(mode, { force = false, silent = false } = {}) {
     button.classList.toggle("active", active);
     button.setAttribute("aria-selected", String(active));
   });
+  if (!silent) trackAnalytics("input_mode_selected", { mode });
   const sequence = convert();
   if (sequence) elements.status.textContent = `已同步 · ${MODE_LABELS[mode]}`;
   if (!silent && sequence) toast(`已转换为${MODE_LABELS[mode]}，曲谱内容保持同步。`);
@@ -2144,6 +2212,7 @@ async function playPreview(positionMs = 0) {
     window.cancelAnimationFrame(previewProgressFrame);
     previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
     setPreviewUi("playing");
+    trackAnalytics("preview_started");
   } catch (error) {
     stopPreview({ resetProgress: false });
     setPreviewUi("ready");
@@ -2659,6 +2728,7 @@ function openMacroDownloadDialog(action) {
     ? { blob: config.buildArchive(files), filename: `${normalizedFileBase}${config.suffix}` }
     : null;
   pendingMacroDownload = {
+    action,
     config,
     files,
     archive,
@@ -2695,6 +2765,7 @@ function startMacroDownload() {
       if (pendingMacroDownload !== pending) return;
       if (pending.archive) downloadBlob(pending.archive.blob, pending.archive.filename);
       else pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
+      trackAnalytics("macro_downloaded", { format: ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog" })[pending.action] || "lua" });
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
@@ -2784,13 +2855,18 @@ function openScoreExportDialog(mode = "download") {
   elements.exportMetaPreview.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · 简谱将自动标准化保存`;
   scoreExportMode = mode;
   const localLibrary = mode === "local-library";
-  elements.scoreExportTitle.textContent = localLibrary ? "LOCAL_LIBRARY.EXE — MAINTAINER MODE" : "DELTA_MUSIC.EXE — SHARE YOUR SCORE";
-  elements.scoreExportHeading.textContent = localLibrary ? "收录当前曲目" : "填写共享信息";
+  const communityUpload = mode === "community-upload";
+  elements.scoreExportTitle.textContent = localLibrary
+    ? "LOCAL_LIBRARY.EXE — MAINTAINER MODE"
+    : communityUpload ? "COMMUNITY_UPLOAD.EXE — PUBLIC LIBRARY" : "DELTA_MUSIC.EXE — SHARE YOUR SCORE";
+  elements.scoreExportHeading.textContent = localLibrary ? "收录当前曲目" : communityUpload ? "上传当前曲目" : "填写共享信息";
   elements.scoreExportDescription.innerHTML = localLibrary
     ? "将当前谱子写入本地工作区并重建社区曲库。不会自动提交或推送 GitHub。"
-    : "导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 QQ 群发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。";
-  elements.confirmScoreExportLabel.textContent = localLibrary ? "收录到本地曲库" : "下载 .deltamusic";
-  elements.confirmScoreExportIcon.textContent = localLibrary ? "+" : "↓";
+    : communityUpload
+      ? "将当前谱子直接提交到公共曲库。请只上传你拥有分享权的原创或已获授权谱面；上传成功后会立即公开。"
+      : "导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 QQ 群发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。";
+  elements.confirmScoreExportLabel.textContent = localLibrary ? "收录到本地曲库" : communityUpload ? "上传到曲库" : "下载 .deltamusic";
+  elements.confirmScoreExportIcon.textContent = localLibrary ? "+" : communityUpload ? "↑" : "↓";
   elements.scoreExportDialog.showModal();
   elements.exportSongTitle.focus();
 }
@@ -2829,6 +2905,7 @@ function exportScorePackage() {
   if (packaged.error) { toast(packaged.error); return; }
   applyScorePackageMetadata(packaged.value);
   download(`${JSON.stringify(packaged.value, null, 2)}\n`, `${safeName().replace(/\s+/g, "-").toLowerCase() || "delta-music"}.deltamusic`, "application/json");
+  trackAnalytics("score_downloaded", { format: "deltamusic" });
   elements.scoreExportDialog.close();
   toast(".deltamusic 文件已下载。点击「我要上传」选择 QQ 群或 GitHub 投稿吧。 ");
 }
@@ -2838,7 +2915,7 @@ async function saveScoreToLocalLibrary() {
   if (packaged.error) { toast(packaged.error); return; }
   elements.confirmScoreExport.disabled = true;
   try {
-    const response = await fetch("/api/local-library/songs", {
+    const response = await fetch("./api/local-library/songs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(packaged.value)
@@ -2858,11 +2935,45 @@ async function saveScoreToLocalLibrary() {
   }
 }
 
+async function uploadScoreToCommunityLibrary() {
+  const packaged = scorePackageFromDialog();
+  if (packaged.error) { toast(packaged.error); return; }
+  elements.confirmScoreExport.disabled = true;
+  try {
+    const response = await fetch("./api/public-library/songs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(packaged.value)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || "上传到曲库失败，请稍后重试。");
+    if (!Array.isArray(result.songs)) throw new Error("服务器返回的曲库数据无效。");
+    applyScorePackageMetadata(packaged.value);
+    SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONG_LIBRARY, ...result.songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
+    renderSongLibrary(elements.songSearch.value);
+    elements.scoreExportDialog.close();
+    trackAnalytics("community_upload_succeeded");
+    toast(`《${packaged.value.title}》已上传到公共曲库。`);
+  } catch (error) {
+    toast(error.message || "上传到曲库失败，请稍后重试。");
+  } finally {
+    elements.confirmScoreExport.disabled = false;
+  }
+}
+
 async function enableLocalLibraryEntry() {
   try {
-    const response = await fetch("/api/local-library/status", { headers: { Accept: "application/json" } });
+    const response = await fetch("./api/local-library/status", { headers: { Accept: "application/json" } });
     const status = await response.json();
     if (response.ok && status.localLibrary === true) elements.localLibraryButton.hidden = false;
+  } catch {}
+}
+
+async function enableCommunityUploadEntry() {
+  try {
+    const response = await fetch("./api/public-library/status", { headers: { Accept: "application/json" } });
+    const status = await response.json();
+    if (response.ok && status.publicLibrary === true) elements.communityUploadButton.hidden = false;
   } catch {}
 }
 
@@ -2872,7 +2983,8 @@ async function importScorePackage(file) {
     const payload = JSON.parse(await file.text());
     const parsed = validateScorePackage(payload);
     if (parsed.error) throw new Error(parsed.error);
-    loadSong(parsed.value);
+    loadSong(parsed.value, { analytics: false });
+    trackAnalytics("score_imported", { origin: "imported" });
     toast(`已导入《${parsed.value.title}》；可试听并继续编辑。`);
   } catch (error) {
     toast(error.message || "无法读取谱子文件。 ");
@@ -2886,6 +2998,7 @@ async function importMidiFile(file, { refreshed = false } = {}) {
   try {
     openMidiTrackPicker(file, parseMidiData(await file.arrayBuffer()));
     lastMidiFile = file;
+    trackAnalytics("midi_import_opened");
     if (refreshed) toast("已重新载入 MIDI；请确认音轨与片段。 ");
     completeTourAction("midi-file", "MIDI 已读取，请选择包含主旋律的音轨。");
     return true;
@@ -2928,6 +3041,7 @@ function applyMidiSelection() {
     const ignoredEventMessage = describeIgnoredMidiEvents(converted.ignoredInvalidNonNoteEvents);
     const smoothingMessage = elements.midiSmoothing.checked ? ` · 流畅演奏已连接 ${smoothing.connectedGaps} 处短断音` : " · 保留原始 MIDI 断音";
     setValidation(`MIDI 转换完成 · 已选音轨 ${String(selection.selectedTrackIndex + 1).padStart(2, "0")} · 截取 ${midiTickToTime(selection.parsed, selection.endTick - selection.startTick)} · ${converted.selectedNotes} 个旋律音符${chordMessage}${ignoredEventMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
+    trackAnalytics("midi_selection_applied", { origin: "midi" });
     toast(`已将《${selection.title}》选定片段转换为可编辑简谱。`);
   } catch (error) {
     toast(error.message || "无法转换所选 MIDI 片段。 ");
@@ -2948,6 +3062,7 @@ async function copyLua(sequence) {
   const lua = generateLua(sequence, triggerSettings);
   try {
     await navigator.clipboard.writeText(lua);
+    trackAnalytics("lua_copied", { format: "lua" });
     toast("Lua 已复制到剪贴板。");
   } catch {
     toast("浏览器未授权剪贴板；请使用下载功能。 ");
@@ -3027,11 +3142,14 @@ elements.importScoreButton.addEventListener("click", () => elements.importScoreI
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
 elements.macroExportButton.addEventListener("click", () => {
   elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
+  trackAnalytics("macro_section_opened");
   completeTourAction("macro-export", "已进入导出区。");
 });
 elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
+elements.communityUploadButton.addEventListener("click", () => openScoreExportDialog("community-upload"));
 elements.confirmScoreExport.addEventListener("click", () => {
   if (scoreExportMode === "local-library") saveScoreToLocalLibrary();
+  else if (scoreExportMode === "community-upload") uploadScoreToCommunityLibrary();
   else exportScorePackage();
 });
 elements.clearButton.addEventListener("click", () => {
@@ -3139,6 +3257,7 @@ elements.guideButtons.forEach((button) => button.addEventListener("click", () =>
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));
 elements.directoryButtons.forEach((button) => button.addEventListener("click", () => {
   const action = button.dataset.directoryAction;
+  trackAnalytics("directory_selected", { directory: action });
   if (action === "library") {
     document.querySelector(".library-deck")?.scrollIntoView({ behavior: "smooth", block: "start" });
     elements.songSearch.focus({ preventScroll: true });
@@ -3164,7 +3283,13 @@ window.addEventListener("keydown", (event) => {
     endTour();
   }
 });
-elements.songSearch.addEventListener("input", () => renderSongLibrary(elements.songSearch.value));
+let librarySearchAnalyticsTimer;
+elements.songSearch.addEventListener("input", () => {
+  renderSongLibrary(elements.songSearch.value);
+  window.clearTimeout(librarySearchAnalyticsTimer);
+  const queryLength = elements.songSearch.value.trim().length;
+  if (queryLength) librarySearchAnalyticsTimer = window.setTimeout(() => trackAnalytics("library_search", { query_length: queryLength }), 650);
+});
 elements.songGrid.addEventListener("click", (event) => {
   const actionButton = event.target.closest("[data-song-action]");
   const card = actionButton?.closest("[data-song-index]");
@@ -3212,10 +3337,26 @@ elements.localLibraryButton.addEventListener("click", () => openScoreExportDialo
 
 renderSongLibrary();
 enableLocalLibraryEntry();
+enableCommunityUploadEntry();
 updateMacroTriggerHint();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
-if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false });
+if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });
+trackAnalytics("page_view", { entry: analyticsEntrySource() });
+window.setTimeout(refreshPublicAnalyticsSummary, 1600);
+window.setInterval(() => {
+  if (document.visibilityState === "visible") {
+    trackAnalytics("heartbeat");
+    refreshPublicAnalyticsSummary();
+  }
+}, 60_000);
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") flushAnalytics();
+  else {
+    trackAnalytics("heartbeat");
+    refreshPublicAnalyticsSummary();
+  }
+});
 window.addEventListener("resize", () => {
   scheduleWorkbenchHeightSync();
   updateTourPosition();

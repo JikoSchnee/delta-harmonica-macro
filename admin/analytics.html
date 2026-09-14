@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#071816" />
+    <title>ANALYTICS.EXE · Harmonica Deck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+      :root { color-scheme: dark; --ink:#d6f6e8; --dim:#7aa897; --paper:#0b2420; --panel:#103630; --line:#2a7062; --aqua:#63e4c4; --amber:#ffca5f; --danger:#ff8f8f; }
+      * { box-sizing:border-box; } body { margin:0; min-width:320px; color:var(--ink); background:#061512; font:14px/1.55 "Noto Sans SC", sans-serif; }
+      body::before { content:""; position:fixed; inset:0; pointer-events:none; opacity:.18; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(99,228,196,.12) 3px 4px); }
+      main { position:relative; width:min(1180px, calc(100% - 32px)); margin:32px auto 56px; }
+      .window { border:2px solid var(--line); background:rgba(16,54,48,.94); box-shadow:8px 8px 0 #03100d; }
+      .titlebar { display:flex; align-items:center; min-height:38px; padding:7px 12px; border-bottom:2px solid var(--line); color:#061512; background:var(--aqua); font:700 13px "JetBrains Mono", monospace; letter-spacing:.04em; }
+      .titlebar::before { content:"● ● ●"; margin-right:10px; color:#196454; font-size:10px; letter-spacing:3px; }
+      .hero { padding:26px; } .eyebrow, .muted { color:var(--dim); font:12px "JetBrains Mono", monospace; letter-spacing:.08em; } h1,h2 { margin:0; font-family:"Silkscreen","Noto Sans SC",sans-serif; line-height:1.35; } h1 { margin-top:8px; font-size:28px; color:var(--aqua); } h2 { font-size:17px; } p { margin:8px 0 0; }
+      form { display:flex; gap:10px; margin-top:22px; } input,select,button { color:var(--ink); border:1px solid var(--line); background:#071d19; font:14px "JetBrains Mono",monospace; } input,select { min-height:40px; padding:0 11px; } input { flex:1; min-width:0; } button { min-height:40px; padding:0 14px; cursor:pointer; background:#16493f; } button:hover { color:#071816; background:var(--aqua); } .error { min-height:22px; color:var(--danger); }
+      #dashboard { display:grid; gap:18px; margin-top:22px; } .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; } .metric { padding:17px; } .metric b { display:block; margin-top:7px; color:var(--aqua); font:26px "Silkscreen",sans-serif; } .metric span { color:var(--dim); font:12px "JetBrains Mono",monospace; }
+      .grid { display:grid; grid-template-columns:1.05fr .95fr; gap:18px; } .section { padding:18px; } .section h2 { color:var(--amber); } table { width:100%; border-collapse:collapse; margin-top:13px; } th,td { padding:9px 6px; border-bottom:1px solid rgba(122,168,151,.24); text-align:left; } th { color:var(--dim); font:11px "JetBrains Mono",monospace; } td:last-child,th:last-child { text-align:right; } .bar { height:9px; margin-top:4px; overflow:hidden; background:#071d19; } .bar i { display:block; height:100%; background:var(--aqua); } .path { font-family:"JetBrains Mono",monospace; color:#c5eadb; font-size:12px; } .empty { color:var(--dim); padding:22px 0; }
+      @media (max-width:760px) { main { width:min(100% - 20px,1180px); margin-top:10px; } .summary,.grid { grid-template-columns:1fr 1fr; } .grid .section { grid-column:span 2; } form { flex-wrap:wrap; } form input { flex-basis:100%; } h1 { font-size:21px; } } @media (max-width:430px) { .summary { grid-template-columns:1fr; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="window">
+        <div class="titlebar">ANALYTICS.EXE — PRIVATE CONSOLE</div>
+        <div class="hero">
+          <span class="eyebrow">HARMONICA DECK · ANONYMOUS PRODUCT SIGNALS</span>
+          <h1>站内数据分析</h1>
+          <p>只显示匿名会话、功能使用和聚合路径；不包含曲名、谱面、搜索词、IP 或文件内容。</p>
+          <form id="accessForm">
+            <input id="token" type="password" autocomplete="current-password" placeholder="管理令牌" aria-label="管理令牌" required />
+            <select id="days" aria-label="统计区间"><option value="7">最近 7 天</option><option value="30" selected>最近 30 天</option><option value="90">最近 90 天</option></select>
+            <button type="submit">读取数据 →</button>
+          </form>
+          <p class="error" id="error" role="alert"></p>
+        </div>
+      </section>
+      <section id="dashboard" hidden>
+        <div class="summary" id="summary"></div>
+        <div class="grid">
+          <section class="window section"><span class="eyebrow">DAILY TRAFFIC</span><h2>访问走势</h2><table><thead><tr><th>日期</th><th>会话</th><th>访问</th></tr></thead><tbody id="timeline"></tbody></table></section>
+          <section class="window section"><span class="eyebrow">CONVERSION FUNNEL</span><h2>使用漏斗</h2><table><thead><tr><th>步骤</th><th>匿名会话</th></tr></thead><tbody id="funnel"></tbody></table></section>
+          <section class="window section"><span class="eyebrow">ENTRY SOURCES / ACTIONS</span><h2>来源与操作</h2><table><thead><tr><th>项目</th><th>次数</th></tr></thead><tbody id="events"></tbody></table></section>
+          <section class="window section"><span class="eyebrow">TOP JOURNEYS</span><h2>高频使用路径</h2><table><thead><tr><th>路径</th><th>会话</th></tr></thead><tbody id="paths"></tbody></table></section>
+        </div>
+      </section>
+    </main>
+    <script>
+      const $ = (selector) => document.querySelector(selector);
+      const labels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", lua_copied:"复制 Lua", tour_started:"打开教程" };
+      const number = new Intl.NumberFormat("zh-CN");
+      function rows(target, items, render, empty = "尚无数据") { const node = $(target); node.innerHTML = items.length ? items.map(render).join("") : `<tr><td class="empty" colspan="3">${empty}</td></tr>`; }
+      function render(report) {
+        const cards = [["匿名会话",report.summary.sessions],["页面访问",report.summary.pageViews],["记录事件",report.summary.events],["宏文件下载",report.summary.macroDownloads]];
+        $("#summary").innerHTML = cards.map(([name,value]) => `<section class="window metric"><span>${name}</span><b>${number.format(value)}</b></section>`).join("");
+        rows("#timeline", report.timeline.slice().reverse(), item => `<tr><td>${item.day.slice(5)}</td><td>${number.format(item.sessions)}</td><td>${number.format(item.pageViews)}</td></tr>`);
+        const maxFunnel = Math.max(1,...report.funnel.map(item=>item.sessions));
+        rows("#funnel", report.funnel, item => `<tr><td>${item.name}<div class="bar"><i style="width:${item.sessions / maxFunnel * 100}%"></i></div></td><td>${number.format(item.sessions)}</td></tr>`);
+        const sourceRows = report.sources.map(item => ({name:`来源：${item.name}`,count:item.count}));
+        rows("#events", [...sourceRows,...report.events.slice(0,10)].slice(0,14), item => `<tr><td>${labels[item.name] || item.name}</td><td>${number.format(item.count)}</td></tr>`);
+        rows("#paths", report.paths, item => `<tr><td class="path">${item.path}</td><td>${number.format(item.sessions)}</td></tr>`, "还没有形成两步以上的路径");
+      }
+      $("#accessForm").addEventListener("submit", async event => {
+        event.preventDefault(); $("#error").textContent = "";
+        const token = $("#token").value; const days = $("#days").value;
+        try {
+          const response = await fetch(`../api/admin/analytics?days=${encodeURIComponent(days)}`, { headers:{Authorization:`Bearer ${token}`,Accept:"application/json"}, cache:"no-store" });
+          const body = await response.json().catch(()=>({}));
+          if (!response.ok) throw new Error(body.error || "无法读取数据。");
+          render(body); $("#dashboard").hidden = false;
+        } catch (error) { $("#dashboard").hidden = true; $("#error").textContent = error.message || "无法读取数据。"; }
+      });
+    </script>
+  </body>
+</html>

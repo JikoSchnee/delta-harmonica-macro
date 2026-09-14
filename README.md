@@ -13,13 +13,47 @@
 - 加群方式：在 QQ 中搜索群号 `1102489399`，或打开在线站点后点击顶部「分享曲目、反馈问题请加群：1102489399」按钮，使用弹窗中的二维码加入。
 - 也可以直接查看[入群二维码](assets/qq-group-qr.jpeg)。
 
-## GitHub Pages 自动部署
+## 静态部署与公共上传
 
 仓库已配置 `.github/workflows/deploy-pages.yml`：推送到 `main` 分支后，GitHub Actions 会自动发布当前静态文件到 GitHub Pages。
 
 首次启用时，请在仓库的 **Settings → Pages → Build and deployment** 中将 **Source** 设为 **GitHub Actions**。之后每次 push 到 `main` 都会触发部署；也可以在 Actions 页面手动运行工作流。
 
 页面右上角的「GitHub · Star」入口会打开本项目仓库，欢迎顺手点亮 Star。
+
+GitHub Pages 只承载静态页面，不能接收用户写入；在该部署方式下「上传到曲库」按钮会自动隐藏。若要让用户直接上传当前曲目，请用仓库内置服务部署站点。服务会将合格投稿写入 `data/community-scores/`，重建 `data/community-songs.js`，并立即在公共曲库展示。上传者不能覆盖已有的“歌名 + 歌手/作者 + 共享人”组合。
+
+最小部署方式：
+
+```bash
+python3 tools/local_library_server.py --public --trust-proxy --port 8765
+```
+
+将 HTTPS 反向代理指向该端口，并让反向代理与此服务运行的用户具有 `data/` 目录写权限。`--public` 会监听所有网卡并启用匿名上传；`--trust-proxy` 会用反向代理传入的 `X-Forwarded-For` 区分用户 IP，只有在端口未直接暴露、该请求头由你自己的代理覆盖时才能启用。服务本身会限制单个 IP 每 30 秒一次上传、限制请求体为 1 MB、校验同源浏览器请求和谱面字段。生产环境仍应在反向代理或 CDN 上启用 HTTPS、请求体大小限制、限流/WAF；如需先审后公开，应保持原有 QQ 或 Pull Request 投稿流程，而不要开启 `--public`。
+
+也可直接构建 Docker 镜像。首次挂载空的命名卷时，Docker 会用镜像中的初始 `data/` 内容初始化该卷，之后的用户投稿会持续保留：
+
+```bash
+docker build -t delta-harmonica-macro .
+docker run -d --name delta-harmonica-macro --restart unless-stopped -p 127.0.0.1:8765:8765 -v delta-harmonica-data:/app/data delta-harmonica-macro --public --trust-proxy --port 8765
+```
+
+### 内置匿名数据分析
+
+内置服务可记录聚合访问量、功能使用漏斗和常见用户路径。它默认关闭；设置管理令牌后才会启用，以避免未配置后台时累积无用数据：
+
+```bash
+DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌' \
+python3 tools/local_library_server.py --public --trust-proxy --port 8765
+```
+
+Docker 部署时增加 `-e DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌'`。随后访问 `/admin/analytics.html`，输入该令牌即可查看最近 7、30 或 90 天的数据。令牌只在浏览器当前页面提交给本站接口，不会写入网页代码或 Git。
+
+分析只记录临时匿名会话 ID、访问来源类别（直接、搜索、社交、引荐）、入口选择、曲库来源类别、输入模式、试听、导出格式及投稿成功等允许的事件。不会记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。事件按天保存在 `data/analytics/`，默认 90 天自动清除；可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客这一匿名统计用途。
+
+### 同步公共投稿到 GitHub
+
+服务器上的公开投稿保存在 Docker 卷中，不会自动进入 Git。可使用 `tools/sync_community_to_github.sh` 同步 `data/community-scores/` 和 `data/community-songs.js`：脚本仅在内容有变化时创建 `chore: sync community songs` 提交，并推送到 `track` 分支。请先为该 GitHub 仓库创建具有写权限的 Deploy Key，再将私钥保存为 `/root/.ssh/delta_harmonica_github`；部署服务器可每 10 分钟运行一次该脚本，维护者审核后手动将 `track` 合并回目标分支。
 
 ## MIDI 一键导入
 
@@ -148,7 +182,7 @@ python3 tools/import_pdmx.py --download-csv --download-mxl
 
 页面中的“分享 .deltamusic”会生成 `.deltamusic` 文件。文件包含歌名、歌手/作者、共享人、调号、拍号、BPM 与标准化数字简谱；还可选填展示视频 HTTPS 链接。链接会随导入、再次导出和社区收录保留，并在曲库卡片底部显示为「展示视频」。留空不会写入文件。旧版 `.harmonica-score.json` 仍可导入，但新的分享文件统一使用 `.deltamusic`。
 
-投稿者可任选两种方式：加入 QQ 群 `1102489399`，把导出的 `.deltamusic` 文件发送给维护者；或 Fork 本仓库，将文件上传到 `data/community-scores/` 后创建 Pull Request。每个 PR 会自动校验谱子格式；只有维护者审核并合并后，GitHub Pages 才会发布该谱子。请只提交你有权分享的原创或已获授权的谱面，并在 PR 描述中填写来源或授权说明。
+在启用了公共曲库服务的站点中，编辑器操作行会显示「上传到曲库」按钮：填写共享信息后即可直接上传，合格曲目会立即公开。请只上传你有权分享的原创或已获授权谱面。静态 GitHub Pages 不显示该按钮；投稿者仍可加入 QQ 群 `1102489399` 发送 `.deltamusic` 文件，或 Fork 本仓库，将文件上传到 `data/community-scores/` 后创建 Pull Request。每个 PR 会自动校验谱子格式；只有维护者审核并合并后，GitHub Pages 才会发布该谱子。
 
 建议使用 `歌名-作者-你的昵称.deltamusic` 作为文件名。不要直接编辑 `data/community-songs.js`：部署时会从已审核的源文件自动生成它。维护者审核时可在 PR 的 Actions 里下载 `community-review` 报告，试听确认后再合并。
 

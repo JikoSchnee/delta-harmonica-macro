@@ -18,6 +18,10 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
+      <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
+        <span><i aria-hidden="true"></i>当前 <b id="activeVisitorCount">--</b> 人</span>
+        <span>今日 <b id="todayVisitorCount">--</b> 人</span>
+      </div>
       <nav class="topbar-actions" aria-label="项目链接">
         <button class="qq-group-link" id="qqGroupButton" type="button" aria-label="复制群号 1102489399">分享曲目、反馈问题请加群：1102489399</button>
         <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 给三角洲口琴演奏家点 Star">
@@ -202,6 +206,7 @@
             <div class="editor-actions">
               <button class="primary-button" id="convertButton" type="button"><span>试听</span><b>▶</b></button>
               <button class="primary-button" id="macroExportButton" type="button" aria-controls="macro-export">导出为宏</button>
+              <button class="primary-button" id="communityUploadButton" type="button" hidden><span>上传到曲库</span><b>↑</b></button>
               <button class="primary-button" id="exportScoreButton" type="button">分享 .deltamusic</button>
               <button class="primary-button" id="clearButton" type="button">清空</button>
             </div>
@@ -299,7 +304,7 @@
         <div class="notice"><span>◎</span><p><strong>使用前确认</strong> 请自行确认游戏规则与服务器政策是否允许宏。此工具不会连接游戏、鼠标软件或任何外部服务。</p></div>
       </section>
     </main>
-    <footer><span>HARMONICA DECK</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span></footer>
+    <footer><span>HARMONICA DECK</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="macro-download-dialog" id="macroDownloadDialog" aria-labelledby="macroDownloadTitle">
       <form method="dialog" class="macro-download-form">
         <div class="window-titlebar"><span>MACRO_DOWNLOAD.EXE — DISCLAIMER</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭宏下载窗口">×</button></div>
