@@ -258,10 +258,8 @@
             <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
           </div>
           <div class="macro-settings-controls">
-            <label for="macroTriggerButton">启动事件编号 <span class="unit">必填 · G HUB 日志的正整数 arg</span><input id="macroTriggerButton" type="number" min="1" step="1" required placeholder="例如 G10 的 10" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
-            <label for="macroTriggerStateButton">启动状态键 <span class="unit">必填 · 探测结果 1–5</span><input id="macroTriggerStateButton" type="number" min="1" max="5" step="1" required placeholder="例如 4" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
-            <label for="macroTriggerMode">触发模式<select id="macroTriggerMode" aria-describedby="macroSettingsHint"><option value="once">单次播放</option><option value="hold">长按播放</option><option value="toggle" selected>切换播放</option></select></label>
-            <label class="macro-stop-control" for="macroStopButton">独立停止状态键 <span class="unit">可选 · 探测结果 1–5</span><input id="macroStopButton" type="number" min="1" max="5" step="1" placeholder="例如 G11 映射为 5" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label for="macroTriggerButton">启动真实按键事件号 <span class="unit">必填 · 填实体鼠标键在 G HUB 日志中的 arg，例如 G10 为 10</span><input id="macroTriggerButton" type="number" min="1" step="1" required placeholder="例如实体 G10 的 10" inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
+            <label for="macroStopButton">停止 Lua 状态号 <span class="unit">必填 · 仅限 1–5，不是实体按键；默认 5，通常无需修改</span><input id="macroStopButton" type="number" min="1" max="5" step="1" value="5" required inputmode="numeric" aria-describedby="macroSettingsHint macroTriggerValidation" /></label>
             <fieldset class="macro-pitch-map" aria-describedby="macroSettingsHint macroTriggerValidation">
               <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
               <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
@@ -270,16 +268,16 @@
             </fieldset>
           </div>
           <div class="macro-detector">
-            <div><b>设备按键探测器</b><p>先复制并在 G HUB 脚本日志中运行；按住 G10、G11 等物理键，记录其 <code>arg</code> 与命中的状态键 1–5。启动只使用事件编号；长按、切换与停止只轮询状态键。</p></div>
+            <div><b>设备按键探测器</b><p>启动栏填写实体鼠标键产生的 <code>arg</code>；停止栏的 1–5 是 Lua 内部状态号，不是实体按键编号。默认用 5；仅当你按住选定的实体停止键时，日志没有出现 <code>states=5</code>，才按日志改为 1–4。</p></div>
             <button id="macroDetectorButton" type="button">复制探测 Lua</button>
           </div>
-          <p class="macro-settings-hint" id="macroSettingsHint">单次播放：按下后完整播放一次，也可用独立停止状态键中止。启动事件编号和状态键不是同一概念：例如 G10 的事件可为 10，但探测到的状态键可能为 4。变调、启动状态和停止状态不能重复。</p>
+          <p class="macro-settings-hint" id="macroSettingsHint">仅单次播放：按实体启动键后完整播放一次；默认用 Lua 状态号 5 中途停止。它不是 G11 等实体按键编号，通常不需修改；停止状态号只能填 1–5，且不能与变调键重复。</p>
           <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
         </div>
         <div class="export-grid">
           <article class="export-card logitech">
             <div class="export-top"><span class="driver-mark">G</span><div><h3>Logitech G HUB</h3><p>Lua 脚本 · 手动粘贴</p></div></div>
-            <p class="export-copy">按上方探测到的双编号设置生成 Lua。播放期间只轮询状态键，停止时会释放正在按住的琴键和变调键。</p>
+            <p class="export-copy">用实体启动键的事件号开始一次播放；默认 Lua 状态号 5 负责停止。停止时会释放正在按住的琴键和变调键。</p>
             <div class="export-actions"><button data-action="copy-lua" type="button">复制 Lua</button><button data-action="download-lua" type="button">下载 .lua</button></div>
           </article>
           <article class="export-card razer">
@@ -299,8 +297,8 @@
           </article>
           <article class="export-card recording-helper">
             <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>测试版 · Windows / AutoHotkey v2</p></div></div>
-            <p class="export-copy">先在任意鼠标宏软件中开启“录制”，再运行下载的助手。助手会倒计时 5 秒后模拟整段键盘与鼠标变调输入一次，让录制器捕获事件。部分软件会忽略合成输入，请先用短谱测试；运行时不要让游戏获得焦点。</p>
-            <div class="export-actions"><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button></div>
+            <p class="export-copy">先在任意鼠标宏软件中开启“录制”，再运行下载的助手。助手会倒计时 5 秒后模拟整段键盘与鼠标变调输入一次，让录制器捕获事件。助手只支持 AutoHotkey v2；部分软件会忽略合成输入，请先用短谱测试；运行时不要让游戏获得焦点。</p>
+            <div class="export-actions"><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何使用？</button></div>
           </article>
           <article class="export-card manual-entry">
             <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
@@ -330,6 +328,28 @@
             <progress id="macroDownloadProgress" max="100" value="0">0%</progress>
           </div>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="confirmMacroDownload" type="button"><span>同意并下载</span><b>↓</b></button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="recording-helper-dialog" id="recordingHelperDialog" aria-labelledby="recordingHelperTitle">
+      <form method="dialog" class="recording-helper-form">
+        <div class="window-titlebar"><span>REC_HELP.EXE — HOW TO USE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭录制助手使用说明">×</button></div>
+        <div class="recording-helper-body">
+          <span class="index">AUTOHOTKEY V2 · QUICK START</span>
+          <h2 id="recordingHelperTitle">录制助手使用方法</h2>
+          <ol class="recording-helper-steps">
+            <li><b>01</b><span>安装 <strong>AutoHotkey v2</strong>。本助手不兼容 v1。</span></li>
+            <li><b>02</b><span>回到本页，点击「下载录制助手 .ahk」生成当前曲谱的录制脚本。</span></li>
+            <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏，并打开录制。</span></li>
+            <li><b>04</b><span>运行下载的 <code>.ahk</code>，关闭提示后在 5 秒内切回录制器；脚本会自动发送一次按键和鼠标变调事件。</span></li>
+          </ol>
+          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。不要让游戏获得焦点；部分鼠标软件可能会忽略 AutoHotkey 的合成输入。</p>
+          <section class="recording-helper-downloads" aria-label="AutoHotkey v2 下载方式">
+            <p>下载 AutoHotkey v2</p>
+            <a class="helper-download-link" href="downloads/AutoHotkey_2.0.28-windows-portable.zip" download><span>本站便携包 v2.0.28</span><b>↓</b></a>
+            <a class="helper-download-link" href="https://www.autohotkey.com/download/" target="_blank" rel="noopener noreferrer"><span>AutoHotkey 官网下载</span><b>↗</b></a>
+          </section>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
       </form>
     </dialog>

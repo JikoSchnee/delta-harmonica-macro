@@ -405,12 +405,6 @@ async function refreshPublicAnalyticsSummary() {
   } catch {}
 }
 
-const MACRO_TRIGGER_MODE_LABELS = { once: "单次播放", hold: "长按播放", toggle: "切换播放" };
-const MACRO_TRIGGER_MODE_HINTS = {
-  once: "单次播放：按启动事件后完整播放一次；填写独立停止状态键后可中途停止。",
-  hold: "长按播放：按住“启动状态键”播放，松开后停止；也可用独立停止状态键中止。",
-  toggle: "切换播放：启动状态键松开后再次按下即可停止；启动后的 150ms 会忽略首次点击，避免误判。"
-};
 const SECTION_GUIDES = {
   directory: {
     windowTitle: "HELP.EXE — QUICK START",
@@ -480,7 +474,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroTriggerStateButton: document.querySelector("#macroTriggerStateButton"), macroStopButton: document.querySelector("#macroStopButton"), macroTriggerMode: document.querySelector("#macroTriggerMode"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroDetectorButton: document.querySelector("#macroDetectorButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroDetectorButton: document.querySelector("#macroDetectorButton"), macroSettings: document.querySelector("#macroSettings"), macroSettingsHint: document.querySelector("#macroSettingsHint"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -489,7 +483,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -1826,6 +1820,10 @@ function openKeyboardMacroDialog() {
   elements.keyboardMacroDialog.showModal();
 }
 
+function openRecordingHelperDialog() {
+  elements.recordingHelperDialog.showModal();
+}
+
 function openSectionGuide(key) {
   const guide = SECTION_GUIDES[key];
   if (!guide) return;
@@ -2244,7 +2242,6 @@ function setMacroTriggerValidation(message = "", invalidFields = []) {
   elements.macroTriggerValidation.hidden = !message;
   [
     elements.macroTriggerButton,
-    elements.macroTriggerStateButton,
     elements.macroStopButton,
     elements.macroLowButton,
     elements.macroMiddleButton,
@@ -2256,35 +2253,19 @@ function clearMacroTriggerValidation() {
   setMacroTriggerValidation("");
 }
 
-function updateMacroTriggerHint() {
-  const mode = elements.macroTriggerMode.value;
-  elements.macroSettingsHint.textContent = MACRO_TRIGGER_MODE_HINTS[mode] || MACRO_TRIGGER_MODE_HINTS.once;
-}
-
 function readMacroTriggerSettings() {
   const rawTriggerEventButton = String(elements.macroTriggerButton.value).trim();
   const triggerEventButton = Number(rawTriggerEventButton);
-  const rawTriggerStateButton = String(elements.macroTriggerStateButton.value).trim();
-  const triggerStateButton = Number(rawTriggerStateButton);
   const rawStopStateButton = String(elements.macroStopButton.value).trim();
   const stopStateButton = rawStopStateButton ? Number(rawStopStateButton) : 0;
-  const mode = elements.macroTriggerMode.value;
   const pitchButtonFields = { L: elements.macroLowButton, M: elements.macroMiddleButton, R: elements.macroHighButton };
   const pitchButtons = Object.fromEntries(Object.entries(pitchButtonFields).map(([modifier, field]) => [modifier, Number(String(field.value).trim())]));
   if (!rawTriggerEventButton || !Number.isInteger(triggerEventButton) || triggerEventButton < 1) {
     setMacroTriggerValidation("请输入探测日志中的正整数启动事件编号。", [elements.macroTriggerButton]);
     return null;
   }
-  if (!rawTriggerStateButton || !Number.isInteger(triggerStateButton) || triggerStateButton < 1 || triggerStateButton > 5) {
-    setMacroTriggerValidation("请输入启动键探测到的状态编号（1 到 5）。", [elements.macroTriggerStateButton]);
-    return null;
-  }
-  if (rawStopStateButton && (!Number.isInteger(stopStateButton) || stopStateButton < 1 || stopStateButton > 5)) {
-    setMacroTriggerValidation("独立停止键必须填写探测到的状态编号（1 到 5），或留空禁用。", [elements.macroStopButton]);
-    return null;
-  }
-  if (stopStateButton === triggerStateButton) {
-    setMacroTriggerValidation("独立停止状态键不能与启动状态键相同；切换播放请将停止键留空并再次按启动键。", [elements.macroTriggerStateButton, elements.macroStopButton]);
+  if (!rawStopStateButton || !Number.isInteger(stopStateButton) || stopStateButton < 1 || stopStateButton > 5) {
+    setMacroTriggerValidation("停止 Lua 状态号必须填写 1 到 5；它不是实体鼠标按键编号。", [elements.macroStopButton]);
     return null;
   }
   const invalidPitchFields = Object.entries(pitchButtons).filter(([, mappedButton]) => !Number.isInteger(mappedButton) || mappedButton < 1 || mappedButton > 5).map(([modifier]) => pitchButtonFields[modifier]);
@@ -2297,19 +2278,12 @@ function readMacroTriggerSettings() {
     setMacroTriggerValidation("低音、半音和高音必须使用三个不同的鼠标键。", Object.values(pitchButtonFields));
     return null;
   }
-  if (pitchModifierButtons.has(triggerStateButton) || pitchModifierButtons.has(stopStateButton)) {
-    setMacroTriggerValidation("启动状态键和停止状态键不能与当前变调键映射重复；请使用探测到的未分配状态键。", [
-      ...(pitchModifierButtons.has(triggerStateButton) ? [elements.macroTriggerStateButton] : []),
-      ...(pitchModifierButtons.has(stopStateButton) ? [elements.macroStopButton] : [])
-    ]);
-    return null;
-  }
-  if (!Object.prototype.hasOwnProperty.call(MACRO_TRIGGER_MODE_LABELS, mode)) {
-    setMacroTriggerValidation("请选择有效的触发模式。");
+  if (pitchModifierButtons.has(stopStateButton)) {
+    setMacroTriggerValidation("停止 Lua 状态号不能与当前变调键映射重复；请填写未被变调键占用的 1–5。", [elements.macroStopButton]);
     return null;
   }
   clearMacroTriggerValidation();
-  return { triggerEventButton, triggerStateButton, stopStateButton, mode, pitchButtons };
+  return { triggerEventButton, stopStateButton, pitchButtons };
 }
 
 function requireMacroTriggerSettings() {
@@ -2318,7 +2292,6 @@ function requireMacroTriggerSettings() {
   elements.macroSettings.scrollIntoView({ behavior: "smooth", block: "center" });
   const invalidField = [
     elements.macroTriggerButton,
-    elements.macroTriggerStateButton,
     elements.macroStopButton,
     elements.macroLowButton,
     elements.macroMiddleButton,
@@ -2330,25 +2303,21 @@ function requireMacroTriggerSettings() {
 }
 
 function generateLua(sequence, triggerSettings) {
-  const { triggerEventButton, triggerStateButton, stopStateButton, mode, pitchButtons = { L: 1, M: 2, R: 3 } } = triggerSettings;
+  const { triggerEventButton, stopStateButton, pitchButtons = { L: 1, M: 2, R: 3 } } = triggerSettings;
   const lines = [
     "-- Harmonica Deck · Delta Force harmonica sequence",
     `-- Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
-    `-- Start event: ${triggerEventButton}; start state: ${triggerStateButton}; stop state: ${stopStateButton || "disabled"} · ${MACRO_TRIGGER_MODE_LABELS[mode]}`,
+    `-- Start event: ${triggerEventButton}; stop state: ${stopStateButton || "disabled"} · play once`,
     `-- Harmonica modifiers: L=${pitchButtons.L} (low), M=${pitchButtons.M} (semitone), R=${pitchButtons.R} (high)`,
-    "-- once = play once; hold = play while the trigger is held; toggle = press to start and press again to stop.",
+    "-- The start event plays the score once. The optional stop state can interrupt playback.",
     "-- Stop handling releases the current note and any mouse modifier buttons.",
     `local TRIGGER_EVENT_BUTTON = ${triggerEventButton}`,
-    `local TRIGGER_STATE_BUTTON = ${triggerStateButton}`,
     `local STOP_STATE_BUTTON = ${stopStateButton}`,
-    `local TRIGGER_MODE = ${JSON.stringify(mode)}`,
     "local isPlaying = false",
     "local stopRequested = false",
     "local activeKey = nil",
     "local activeModifiers = {}",
     "local activePlaybackGeneration = 0",
-    "local toggleTriggerArmed = false",
-    "local toggleStartIgnoreUntil = 0",
     "local playbackStartedAt = 0",
     "local playbackGeneration = 0",
     "",
@@ -2370,8 +2339,6 @@ function generateLua(sequence, triggerSettings) {
     "  stopRequested = true",
     "  ReleaseHeldInputs()",
     "  isPlaying = false",
-    "  toggleTriggerArmed = false",
-    "  toggleStartIgnoreUntil = 0",
     "  playbackStartedAt = 0",
     "end",
     "",
@@ -2384,21 +2351,6 @@ function generateLua(sequence, triggerSettings) {
     "  while true do",
     "    if stopRequested or playbackGeneration ~= ownerGeneration then return false end",
     "    if StopButtonPressed() then",
-    "      RequestStop()",
-    "      return false",
-    "    end",
-    "    -- G HUB may briefly report the click that started this script again.",
-    "    -- Do not arm toggle-stop until that startup click has had time to clear.",
-    "    if TRIGGER_MODE == \"toggle\" and GetRunningTime() >= toggleStartIgnoreUntil then",
-    "      local triggerPressed = IsMouseButtonPressed(TRIGGER_STATE_BUTTON)",
-    "      if not triggerPressed then",
-    "        toggleTriggerArmed = true",
-    "      elseif toggleTriggerArmed then",
-    "        RequestStop()",
-    "        return false",
-    "      end",
-    "    end",
-    "    if TRIGGER_MODE == \"hold\" and not IsMouseButtonPressed(TRIGGER_STATE_BUTTON) then",
     "      RequestStop()",
     "      return false",
     "    end",
@@ -2415,8 +2367,6 @@ function generateLua(sequence, triggerSettings) {
     "  local ownerGeneration = playbackGeneration",
     "  isPlaying = true",
     "  stopRequested = false",
-    "  toggleTriggerArmed = false",
-    "  toggleStartIgnoreUntil = GetRunningTime() + 150",
     "  playbackStartedAt = GetRunningTime()",
   ];
   sequence.notes.forEach((item, index) => {
@@ -2457,8 +2407,6 @@ function generateLua(sequence, triggerSettings) {
     "    ReleaseHeldInputs(ownerGeneration)",
     "    isPlaying = false",
     "    stopRequested = false",
-    "    toggleTriggerArmed = false",
-    "    toggleStartIgnoreUntil = 0",
     "    playbackStartedAt = 0",
     "  end",
     "end",
@@ -2473,7 +2421,6 @@ function generateLua(sequence, triggerSettings) {
     "    ReleaseHeldInputs()",
     "    AbortMacro()",
     "    stopRequested = false",
-    "    toggleStartIgnoreUntil = 0",
     "    playbackStartedAt = 0",
     "    return",
     "  end",
@@ -3476,17 +3423,12 @@ elements.volume.addEventListener("input", () => {
   if (audioContext && masterGain) masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, audioContext.currentTime, 0.01);
 });
 elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
-elements.macroTriggerStateButton.addEventListener("input", clearMacroTriggerValidation);
 elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
 [
   elements.macroLowButton,
   elements.macroMiddleButton,
   elements.macroHighButton
 ].forEach((field) => field.addEventListener("input", clearMacroTriggerValidation));
-elements.macroTriggerMode.addEventListener("change", () => {
-  updateMacroTriggerHint();
-  clearMacroTriggerValidation();
-});
 elements.macroDetectorButton.addEventListener("click", copyMouseMappingDetector);
 elements.confirmMacroDownload.addEventListener("click", startMacroDownload);
 elements.macroDownloadDialog.addEventListener("close", () => {
@@ -3549,6 +3491,7 @@ elements.songGrid.addEventListener("click", (event) => {
   if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
 });
 elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
+elements.recordingHelperHelpButton.addEventListener("click", openRecordingHelperDialog);
 function setUploadMethod(method = "qq") {
   const selectedMethod = method === "github" ? "github" : "qq";
   elements.uploadMethodTabs.forEach((tab) => {
