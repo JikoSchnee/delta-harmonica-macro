@@ -3,3 +3,5 @@
 __pycache__/
 *.py[cod]
 data/analytics/
+data/auth.sqlite3
+data/auth.sqlite3-*

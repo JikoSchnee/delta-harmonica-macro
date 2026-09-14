@@ -18,11 +18,13 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
-        <span><i aria-hidden="true"></i>当前 <b id="activeVisitorCount">--</b> 人</span>
-        <span>今日 <b id="todayVisitorCount">--</b> 人</span>
-      </div>
       <nav class="topbar-actions" aria-label="项目链接">
+        <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
+          <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
+          <span aria-hidden="true">｜</span>
+          <span>今日访问量<b id="todayVisitorCount">--</b></span>
+        </div>
+        <button class="account-button" id="accountButton" type="button" aria-haspopup="dialog" hidden><span class="account-indicator" aria-hidden="true"></span><span id="accountButtonLabel">登录</span></button>
         <button class="qq-group-link" id="qqGroupButton" type="button" aria-label="复制群号 1102489399">分享曲目、反馈问题请加群：1102489399</button>
         <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 给三角洲口琴演奏家点 Star">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6-6.8 3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
@@ -336,6 +338,42 @@
           </div>
           <p class="export-meta-preview" id="exportMetaPreview"></p>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="confirmScoreExport" type="button"><span id="confirmScoreExportLabel">下载 .deltamusic</span><b id="confirmScoreExportIcon">↓</b></button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="auth-dialog" id="authDialog" aria-labelledby="authTitle">
+      <form method="dialog" class="auth-form">
+        <div class="window-titlebar"><span>ACCOUNT.EXE — EMAIL ACCESS</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭登录窗口">×</button></div>
+        <div class="auth-dialog-body">
+          <span class="index">SECURE COMMUNITY ACCESS</span>
+          <h2 id="authTitle">登录后上传曲谱</h2>
+          <p id="authDescription">输入邮箱后，我们会发送一枚 6 位验证码。无需密码。</p>
+          <section id="authEmailStep">
+            <label>邮箱地址<input id="authEmail" type="email" autocomplete="email" maxlength="254" inputmode="email" placeholder="you@example.com" /></label>
+            <button class="primary-button auth-submit" id="authRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
+          </section>
+          <section id="authCodeStep" hidden>
+            <label>6 位验证码<input id="authCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
+            <label id="authUserIdLabel" hidden>设置用户 ID<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" /><small>3–24 位字母、数字或下划线；设置后仍可在账户中更改。</small></label>
+            <p class="auth-email-note" id="authEmailNote"></p>
+            <div class="auth-code-actions"><button class="text-button" id="authChangeEmail" type="button">更换邮箱</button><button class="text-button" id="authResendCode" type="button">重新发送</button></div>
+            <button class="primary-button auth-submit" id="authVerifyCode" type="button"><span>验证并登录</span><b>✓</b></button>
+          </section>
+          <p class="auth-status" id="authStatus" role="status" aria-live="polite" hidden></p>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="auth-dialog" id="accountDialog" aria-labelledby="accountTitle">
+      <form method="dialog" class="auth-form">
+        <div class="window-titlebar"><span>ACCOUNT.EXE — PROFILE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭账户窗口">×</button></div>
+        <div class="auth-dialog-body">
+          <span class="index">COMMUNITY IDENTITY</span>
+          <h2 id="accountTitle">账户资料</h2>
+          <p>已验证邮箱：<b id="accountEmail">--</b></p>
+          <label>用户 ID<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" /></label>
+          <p class="auth-account-note">修改后，所有通过本站直传发布的曲谱会同步显示新 ID；旧 ID 会永久保留，无法被其他账户使用。</p>
+          <p class="auth-status" id="accountStatus" role="status" aria-live="polite" hidden></p>
+          <div class="dialog-actions"><button class="text-button" id="logoutButton" type="button">退出登录</button><button class="primary-button" id="saveAccountButton" type="button"><span>保存用户 ID</span><b>✓</b></button></div>
         </div>
       </form>
     </dialog>

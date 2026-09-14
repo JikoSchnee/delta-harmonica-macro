@@ -21,21 +21,29 @@
 
 页面右上角的「GitHub · Star」入口会打开本项目仓库，欢迎顺手点亮 Star。
 
-GitHub Pages 只承载静态页面，不能接收用户写入；在该部署方式下「上传到曲库」按钮会自动隐藏。若要让用户直接上传当前曲目，请用仓库内置服务部署站点。服务会将合格投稿写入 `data/community-scores/`，重建 `data/community-songs.js`，并立即在公共曲库展示。上传者不能覆盖已有的“歌名 + 歌手/作者 + 共享人”组合。
+GitHub Pages 只承载静态页面，不能发送验证码、保存登录会话或接收用户写入；在该部署方式下「登录」和「上传到曲库」会自动隐藏。正式站点请用仓库内置服务部署。服务会把合格投稿写入 `data/community-scores/`、重建 `data/community-songs.js` 并立即展示；公共直传必须完成邮箱验证，服务器会以已登录用户 ID 写入“共享人”。
 
 最小部署方式：
 
 ```bash
+DELTA_AUTH_SECRET='请使用随机长密钥' \
+DELTA_SMTP_HOST='smtp.example.com' \
+DELTA_SMTP_PORT='587' \
+DELTA_SMTP_USERNAME='smtp-user' \
+DELTA_SMTP_PASSWORD='smtp-password' \
+DELTA_SMTP_FROM='三角洲口琴演奏家 <noreply@example.com>' \
 python3 tools/local_library_server.py --public --trust-proxy --port 8765
 ```
 
-将 HTTPS 反向代理指向该端口，并让反向代理与此服务运行的用户具有 `data/` 目录写权限。`--public` 会监听所有网卡并启用匿名上传；`--trust-proxy` 会用反向代理传入的 `X-Forwarded-For` 区分用户 IP，只有在端口未直接暴露、该请求头由你自己的代理覆盖时才能启用。服务本身会限制单个 IP 每 30 秒一次上传、限制请求体为 1 MB、校验同源浏览器请求和谱面字段。生产环境仍应在反向代理或 CDN 上启用 HTTPS、请求体大小限制、限流/WAF；如需先审后公开，应保持原有 QQ 或 Pull Request 投稿流程，而不要开启 `--public`。
+将 HTTPS 反向代理指向该端口，并让反向代理与此服务运行的用户具有 `data/` 目录写权限。`--public` 会监听所有网卡并启用公共直传；`--trust-proxy` 会用反向代理传入的 `X-Forwarded-For` 区分用户 IP，只有在端口未直接暴露、该请求头由你自己的代理覆盖时才能启用。生产环境必须使用 HTTPS：登录 Cookie 默认带 `Secure` 标记。服务会在 `data/auth.sqlite3` 保存邮箱、账户、会话和投稿归属关系；该文件应随 Docker 数据卷持久化且不能提交 Git。
+
+验证码为 6 位、10 分钟有效、最多尝试 5 次；邮箱和 IP 均有一小时发送限额。用户首次验证邮箱时设置唯一 ID（3–24 位字母、数字或下划线）；可在账户中改名，已直传谱子的署名会同步更新，旧 ID 不会再分配给其他人。使用 465 端口时设置 `DELTA_SMTP_SSL=true`；默认使用 587 端口的 STARTTLS。开发环境可加 `--auth-code-log-only --insecure-auth-cookies`，验证码会仅打印到终端，切勿用于公网。
 
 也可直接构建 Docker 镜像。首次挂载空的命名卷时，Docker 会用镜像中的初始 `data/` 内容初始化该卷，之后的用户投稿会持续保留：
 
 ```bash
 docker build -t delta-harmonica-macro .
-docker run -d --name delta-harmonica-macro --restart unless-stopped -p 127.0.0.1:8765:8765 -v delta-harmonica-data:/app/data delta-harmonica-macro --public --trust-proxy --port 8765
+docker run -d --name delta-harmonica-macro --restart unless-stopped -p 127.0.0.1:8765:8765 -v delta-harmonica-data:/app/data -e DELTA_AUTH_SECRET='随机长密钥' -e DELTA_SMTP_HOST='smtp.example.com' -e DELTA_SMTP_PORT=587 -e DELTA_SMTP_USERNAME='smtp-user' -e DELTA_SMTP_PASSWORD='smtp-password' -e DELTA_SMTP_FROM='三角洲口琴演奏家 <noreply@example.com>' delta-harmonica-macro --public --trust-proxy --port 8765
 ```
 
 ### 内置匿名数据分析

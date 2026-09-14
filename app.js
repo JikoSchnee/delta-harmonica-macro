@@ -487,7 +487,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authCodeStep: document.querySelector("#authCodeStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authUserIdLabel: document.querySelector("#authUserIdLabel"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), authChangeEmail: document.querySelector("#authChangeEmail"), authResendCode: document.querySelector("#authResendCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -509,6 +509,7 @@ let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
+let authState = { available: false, account: null, pendingCommunityUpload: false, email: "" };
 const PREVIEW_SCHEDULE_AHEAD_MS = 2500;
 const PREVIEW_SCHEDULER_INTERVAL_MS = 100;
 
@@ -2777,6 +2778,150 @@ function startMacroDownload() {
   }, 70);
 }
 
+async function authRequest(path, { method = "GET", body } = {}) {
+  const response = await fetch(path, {
+    method,
+    headers: body ? { "Content-Type": "application/json", Accept: "application/json" } : { Accept: "application/json" },
+    body: body ? JSON.stringify(body) : undefined,
+    credentials: "same-origin"
+  });
+  const text = await response.text();
+  let payload = {};
+  try { payload = text ? JSON.parse(text) : {}; } catch {}
+  if (!response.ok) throw new Error(payload.error || "账户服务暂时不可用。 ");
+  return payload;
+}
+
+function setAuthStatus(target, message = "", success = false) {
+  target.textContent = message;
+  target.hidden = !message;
+  target.classList.toggle("success", Boolean(message && success));
+}
+
+function replaceCommunitySongs(songs) {
+  if (!Array.isArray(songs)) return;
+  SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONG_LIBRARY, ...songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
+  renderSongLibrary(elements.songSearch.value);
+}
+
+function setSignedInAccount(account) {
+  authState.account = account || null;
+  elements.accountButton.hidden = !authState.available;
+  elements.accountButton.classList.toggle("is-signed-in", Boolean(account));
+  elements.accountButtonLabel.textContent = account ? `@${account.userId}` : "登录";
+  if (account) {
+    elements.accountEmail.textContent = account.email;
+    elements.accountUserId.value = account.userId;
+  }
+}
+
+function showAuthDialog() {
+  setAuthStatus(elements.authStatus);
+  elements.authEmailStep.hidden = false;
+  elements.authCodeStep.hidden = true;
+  elements.authUserIdLabel.hidden = true;
+  elements.authCode.value = "";
+  elements.authUserId.value = "";
+  if (typeof elements.authDialog.showModal === "function") elements.authDialog.showModal();
+  else toast("请输入邮箱以登录后上传曲谱。 ");
+  elements.authEmail.focus();
+}
+
+function showAuthCodeStep() {
+  elements.authEmailStep.hidden = true;
+  elements.authCodeStep.hidden = false;
+  elements.authUserIdLabel.hidden = false;
+  elements.authEmailNote.textContent = `验证码已发送至 ${authState.email}。首次登录请同时设置用户 ID；已有账户可留空。`;
+  elements.authCode.focus();
+}
+
+async function requestLoginCode() {
+  const email = elements.authEmail.value.trim();
+  if (!email) { setAuthStatus(elements.authStatus, "请先填写邮箱地址。 "); return; }
+  elements.authRequestCode.disabled = true;
+  setAuthStatus(elements.authStatus, "正在发送验证码…", true);
+  try {
+    await authRequest("./api/auth/request-code", { method: "POST", body: { email } });
+    authState.email = email;
+    setAuthStatus(elements.authStatus);
+    showAuthCodeStep();
+  } catch (error) {
+    setAuthStatus(elements.authStatus, error.message || "验证码发送失败。 ");
+  } finally {
+    elements.authRequestCode.disabled = false;
+  }
+}
+
+async function verifyLoginCode() {
+  const code = elements.authCode.value.trim();
+  if (!/^\d{6}$/.test(code)) { setAuthStatus(elements.authStatus, "请输入 6 位验证码。 "); return; }
+  elements.authVerifyCode.disabled = true;
+  setAuthStatus(elements.authStatus, "正在验证邮箱…", true);
+  try {
+    const userId = elements.authUserId.value.trim();
+    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, ...(userId ? { userId } : {}) } });
+    setSignedInAccount(result.account);
+    elements.authDialog.close();
+    toast(`已登录为 @${result.account.userId}。`);
+    if (authState.pendingCommunityUpload) {
+      authState.pendingCommunityUpload = false;
+      openScoreExportDialog("community-upload");
+    }
+  } catch (error) {
+    setAuthStatus(elements.authStatus, error.message || "登录失败。 ");
+  } finally {
+    elements.authVerifyCode.disabled = false;
+  }
+}
+
+async function openAccountDialog() {
+  if (!authState.account) { showAuthDialog(); return; }
+  elements.accountEmail.textContent = authState.account.email;
+  elements.accountUserId.value = authState.account.userId;
+  setAuthStatus(elements.accountStatus);
+  elements.accountDialog.showModal();
+  elements.accountUserId.focus();
+}
+
+async function saveAccountUserId() {
+  elements.saveAccountButton.disabled = true;
+  setAuthStatus(elements.accountStatus, "正在同步已发布曲谱…", true);
+  try {
+    const result = await authRequest("./api/auth/me", { method: "PATCH", body: { userId: elements.accountUserId.value.trim() } });
+    setSignedInAccount(result.account);
+    replaceCommunitySongs(result.songs);
+    setAuthStatus(elements.accountStatus, "用户 ID 已保存，曲库署名已同步。", true);
+  } catch (error) {
+    setAuthStatus(elements.accountStatus, error.message || "无法保存用户 ID。 ");
+  } finally {
+    elements.saveAccountButton.disabled = false;
+  }
+}
+
+async function logoutAccount() {
+  elements.logoutButton.disabled = true;
+  try {
+    await authRequest("./api/auth/logout", { method: "POST", body: {} });
+    setSignedInAccount(null);
+    elements.accountDialog.close();
+    toast("已退出登录。 ");
+  } catch (error) {
+    setAuthStatus(elements.accountStatus, error.message || "退出登录失败。 ");
+  } finally {
+    elements.logoutButton.disabled = false;
+  }
+}
+
+async function initializeCommunityAuth(status) {
+  authState.available = Boolean(status?.publicLibrary && status?.authAvailable);
+  elements.accountButton.hidden = !authState.available;
+  if (!authState.available) return;
+  try {
+    const result = await authRequest("./api/auth/me");
+    setSignedInAccount(result.account);
+  } catch {}
+}
+
 function compactText(value, field, limit) {
   const text = String(value ?? "").trim();
   if (!text) return { error: `请填写${field}。` };
@@ -2840,6 +2985,11 @@ function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy, displayUr
 }
 
 function openScoreExportDialog(mode = "download") {
+  if (mode === "community-upload" && !authState.account) {
+    authState.pendingCommunityUpload = true;
+    showAuthDialog();
+    return;
+  }
   const sequence = convert();
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const key = String(elements.keySignature.value).trim();
@@ -2850,12 +3000,14 @@ function openScoreExportDialog(mode = "download") {
   }
   elements.exportSongTitle.value = elements.macroName.value.trim();
   elements.exportArtistName.value = elements.artistName.value.trim() || currentScoreCredit.artist;
-  elements.exportSharedBy.value = currentScoreCredit.sharedBy;
+  const communityUpload = mode === "community-upload";
+  elements.exportSharedBy.value = communityUpload ? authState.account.userId : currentScoreCredit.sharedBy;
+  elements.exportSharedBy.readOnly = communityUpload;
+  elements.exportSharedBy.closest("label").classList.toggle("auth-locked-field", communityUpload);
   elements.exportDisplayUrl.value = currentScoreCredit.displayUrl;
   elements.exportMetaPreview.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · 简谱将自动标准化保存`;
   scoreExportMode = mode;
   const localLibrary = mode === "local-library";
-  const communityUpload = mode === "community-upload";
   elements.scoreExportTitle.textContent = localLibrary
     ? "LOCAL_LIBRARY.EXE — MAINTAINER MODE"
     : communityUpload ? "COMMUNITY_UPLOAD.EXE — PUBLIC LIBRARY" : "DELTA_MUSIC.EXE — SHARE YOUR SCORE";
@@ -2973,7 +3125,10 @@ async function enableCommunityUploadEntry() {
   try {
     const response = await fetch("./api/public-library/status", { headers: { Accept: "application/json" } });
     const status = await response.json();
-    if (response.ok && status.publicLibrary === true) elements.communityUploadButton.hidden = false;
+    if (response.ok && status.publicLibrary === true && status.authAvailable === true) {
+      elements.communityUploadButton.hidden = false;
+      await initializeCommunityAuth(status);
+    }
   } catch {}
 }
 
@@ -3147,6 +3302,18 @@ elements.macroExportButton.addEventListener("click", () => {
 });
 elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
 elements.communityUploadButton.addEventListener("click", () => openScoreExportDialog("community-upload"));
+elements.accountButton.addEventListener("click", openAccountDialog);
+elements.authRequestCode.addEventListener("click", requestLoginCode);
+elements.authVerifyCode.addEventListener("click", verifyLoginCode);
+elements.authResendCode.addEventListener("click", requestLoginCode);
+elements.authChangeEmail.addEventListener("click", () => {
+  elements.authEmailStep.hidden = false;
+  elements.authCodeStep.hidden = true;
+  setAuthStatus(elements.authStatus);
+  elements.authEmail.focus();
+});
+elements.saveAccountButton.addEventListener("click", saveAccountUserId);
+elements.logoutButton.addEventListener("click", logoutAccount);
 elements.confirmScoreExport.addEventListener("click", () => {
   if (scoreExportMode === "local-library") saveScoreToLocalLibrary();
   else if (scoreExportMode === "community-upload") uploadScoreToCommunityLibrary();
