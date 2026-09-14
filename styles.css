@@ -658,6 +658,7 @@ main {
 .auth-mode-tabs button[aria-selected="true"] { color: #e4ffff; background: var(--screen); border-color: #1a5d59; box-shadow: inset 0 0 0 1px #3a8580; }
 .auth-mode-tabs button:not([aria-selected="true"]):hover { color: #073c39; background: #c9e4e1; border-color: #4d8984; }
 .auth-dialog-body section { display: grid; gap: 11px; padding: 13px; color: var(--screen-text); background: repeating-linear-gradient(0deg, rgba(116, 205, 199, .055) 0 1px, transparent 1px 5px), var(--screen-soft); border: 2px inset var(--surface); box-shadow: inset 0 0 0 1px #0d4d49; }
+.auth-dialog-body .auth-mode-panel[hidden] { display: none; }
 .auth-dialog-body label { display: grid; gap: 6px; color: #183c39; font: 700 11px/1.2 var(--mono); }
 .auth-dialog-body section label { color: #c4d7d5; }
 .auth-dialog-body input { width: 100%; min-height: 38px; padding: 8px 9px; color: var(--screen-text); background: var(--screen); border: 2px inset var(--surface); font: 13px/1.2 var(--body); }
