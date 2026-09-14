@@ -331,6 +331,15 @@ main {
 .input-mode.active small { color: #d0ffff; }
 .mode-sync-note { display: flex; align-items: center; min-width: 0; max-width: 100%; gap: 7px; margin: 8px 1px 0; color: #405d5a; font: 10px/1.5 var(--mono); overflow-wrap: anywhere; }
 .mode-sync-note b { color: var(--teal); font-size: 14px; }
+.editor-tutorial-link { display: grid; grid-template-columns: 29px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-width: 0; margin-top: 11px; padding: 8px 10px; color: var(--white); background: var(--teal); border: 2px outset #58aaa5; border-bottom-color: var(--teal-dark); box-shadow: 2px 2px 0 var(--surface-deep); font-family: var(--mono); text-decoration: none; }
+.editor-tutorial-link > b { display: grid; width: 29px; height: 29px; place-items: center; color: var(--teal); background: #d8ffff; border: 1px solid #f4ffff; font-size: 10px; }
+.editor-tutorial-link span { display: grid; min-width: 0; gap: 2px; }
+.editor-tutorial-link strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.editor-tutorial-link small { overflow: hidden; color: #c5eeee; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.editor-tutorial-link i { font: 700 15px/1 var(--mono); font-style: normal; }
+.editor-tutorial-link:hover, .editor-tutorial-link:focus-visible { color: var(--white); background: #129b9b; border-color: #7ce5df; border-bottom-color: var(--teal-dark); }
+.editor-tutorial-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 3px; }
+.editor-tutorial-link:active { border-style: inset; box-shadow: none; transform: translate(2px, 2px); }
 
 .controls-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; max-width: 100%; gap: 11px; margin-top: 17px; }
 .song-title-label { grid-column: span 2; }
@@ -627,12 +636,10 @@ main {
 .tutorial-deck-content { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; background: var(--screen-soft); border: 2px inset var(--surface); }
 .tutorial-deck h2 { margin: 7px 0 4px; color: #e1ffff; font: 700 20px/1.2 var(--pixel); }
 .tutorial-deck p { margin: 0; color: #abc5c2; font: 10px/1.5 var(--mono); }
-.tutorial-video-actions { display: flex; flex: 0 0 auto; flex-direction: column; gap: 7px; }
 .tutorial-video-link { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; padding: 9px 11px; color: var(--white); background: var(--teal); border: 2px outset #4d8884; border-bottom-color: var(--teal-dark); box-shadow: 2px 2px 0 var(--black); font: 700 11px/1 var(--mono); text-decoration: none; }
 .tutorial-video-link:hover, .tutorial-video-link:focus-visible { color: var(--white); background: #129b9b; border-color: #5cc1bd; border-bottom-color: var(--teal-dark); }
 .tutorial-video-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 3px; }
 .tutorial-video-link:active { border-style: inset; box-shadow: none; transform: translate(2px, 2px); }
-.tutorial-video-link-secondary { color: #d5efed; background: #075f5c; font-size: 10px; }
 
 .song-grid { display: grid; gap: 10px; }
 .song-card { position: relative; min-height: 140px; overflow: hidden; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); transition: transform .15s, background .15s; }
@@ -846,8 +853,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .directory-deck, .tutorial-deck, .library-deck, .exports { padding-left: 14px; padding-right: 14px; }
   .directory-deck > .window-titlebar, .tutorial-deck > .window-titlebar, .library-deck .window-titlebar, .exports > .window-titlebar { margin-left: -14px; margin-right: -14px; }
   .tutorial-deck-content { align-items: start; flex-direction: column; }
-  .tutorial-video-actions { align-self: stretch; }
-  .tutorial-video-link { justify-content: space-between; }
+  .tutorial-video-link { align-self: stretch; justify-content: space-between; }
   .directory-heading, .tutorial-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
   .directory-heading p, .tutorial-heading > p, .source-import-copy p { max-width: none; text-align: left; }
   .directory-action-card { padding: 0 9px; gap: 7px; }
