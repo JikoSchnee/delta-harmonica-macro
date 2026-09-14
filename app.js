@@ -2808,7 +2808,7 @@ function setSignedInAccount(account) {
   authState.account = account || null;
   elements.accountButton.hidden = !authState.available;
   elements.accountButton.classList.toggle("is-signed-in", Boolean(account));
-  elements.accountButtonLabel.textContent = account ? `@${account.userId}` : "登录";
+  elements.accountButtonLabel.textContent = account ? `@${account.userId}` : "登录 / 注册";
   if (account) {
     elements.accountEmail.textContent = account.email;
     elements.accountUserId.value = account.userId;
