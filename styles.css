@@ -888,3 +888,22 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .keyboard-macro-body textarea { min-height: 230px; }
   footer { flex-direction: column; gap: 8px; padding: 16px 14px; }
 }
+.jianpu-soft-keyboard { min-width: 0; margin-top: 10px; padding: 9px; background: var(--screen-soft); border: 2px inset var(--surface); }
+.jianpu-note-keys { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; }
+.jianpu-note-keys button, .jianpu-modifier-group button, .jianpu-modifier-reset { min-width: 0; color: var(--screen-text); background: var(--teal-deep); border: 2px outset #4e8f8c; font: 700 12px/1 var(--mono); }
+.jianpu-note-keys button { min-height: 31px; padding: 4px 1px; }
+.jianpu-note-keys button:hover, .jianpu-modifier-group button:hover, .jianpu-modifier-reset:hover { color: var(--white); background: var(--teal); border-bottom-color: var(--teal-dark); }
+.jianpu-note-keys button:active, .jianpu-modifier-group button:active, .jianpu-modifier-reset:active { border-style: inset; transform: translateY(1px); }
+.jianpu-modifier-keys { display: flex; flex-wrap: wrap; align-items: end; gap: 7px; margin-top: 8px; }
+.jianpu-modifier-group { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 4px; border: 1px solid #4d7775; }
+.jianpu-modifier-group > div { display: flex; gap: 3px; }
+.jianpu-group-label { color: #a5cbca; font: 700 8px/1 var(--mono); letter-spacing: .06em; writing-mode: vertical-rl; }
+.jianpu-modifier-group button { display: grid; width: 29px; height: 28px; padding: 0; place-items: center; }
+.jianpu-modifier-group button[aria-checked="true"] { color: var(--black); background: #c8ffff; border-color: var(--white); border-bottom-color: #4a8581; box-shadow: inset 0 0 0 1px #006460; }
+.notation-preview { position: relative; display: inline-block; min-width: 1ch; font: 700 12px/1 var(--mono); }
+.notation-preview.octave-low::after, .notation-preview.octave-high::after { position: absolute; left: 50%; width: 3px; height: 3px; content: ""; background: currentColor; border-radius: 50%; transform: translateX(-50%); }
+.notation-preview.octave-low::after { bottom: -5px; }
+.notation-preview.octave-high::after { top: -5px; }
+.notation-preview.duration-half { text-decoration: underline; text-underline-offset: 3px; }
+.notation-preview.duration-quarter { text-decoration-line: underline; text-decoration-style: double; text-underline-offset: 3px; }
+.jianpu-modifier-reset { min-height: 29px; padding: 5px 8px; font-size: 9px; white-space: nowrap; }

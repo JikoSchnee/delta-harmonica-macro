@@ -515,3 +515,52 @@
     <script src="./app.js?v=feedback-first-visit-20260914"></script>
   </body>
 </html>
+            <section class="jianpu-soft-keyboard" aria-label="简谱软键盘">
+              <div class="jianpu-note-keys" role="group" aria-label="音符与记号">
+                <button type="button" data-jianpu-key="0" aria-label="输入休止符 0">0</button>
+                <button type="button" data-jianpu-key="1" aria-label="输入数字 1">1</button>
+                <button type="button" data-jianpu-key="2" aria-label="输入数字 2">2</button>
+                <button type="button" data-jianpu-key="3" aria-label="输入数字 3">3</button>
+                <button type="button" data-jianpu-key="4" aria-label="输入数字 4">4</button>
+                <button type="button" data-jianpu-key="5" aria-label="输入数字 5">5</button>
+                <button type="button" data-jianpu-key="6" aria-label="输入数字 6">6</button>
+                <button type="button" data-jianpu-key="7" aria-label="输入数字 7">7</button>
+                <button type="button" data-jianpu-key="|" aria-label="输入小节线">|</button>
+                <button type="button" data-jianpu-key="-" aria-label="输入延音线">−</button>
+                <button type="button" data-jianpu-key="~" aria-label="输入连音线">~</button>
+              </div>
+              <div class="jianpu-modifier-keys" aria-label="简谱修饰选择">
+                <div class="jianpu-modifier-group" role="radiogroup" aria-label="八度">
+                  <span class="jianpu-group-label">音区</span>
+                  <div>
+                    <button type="button" role="radio" aria-checked="true" tabindex="0" data-jianpu-modifier="octave" data-value="" aria-label="普通音区"><span class="notation-preview">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="octave" data-value="," aria-label="低八度"><span class="notation-preview octave-low">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="octave" data-value="'" aria-label="高八度"><span class="notation-preview octave-high">x</span></button>
+                  </div>
+                </div>
+                <div class="jianpu-modifier-group" role="radiogroup" aria-label="时值">
+                  <span class="jianpu-group-label">时值</span>
+                  <div>
+                    <button type="button" role="radio" aria-checked="true" tabindex="0" data-jianpu-modifier="duration" data-value="" aria-label="一拍"><span class="notation-preview">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="duration" data-value="_" aria-label="半拍"><span class="notation-preview duration-half">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="duration" data-value="__" aria-label="四分之一拍"><span class="notation-preview duration-quarter">x</span></button>
+                  </div>
+                </div>
+                <div class="jianpu-modifier-group" role="radiogroup" aria-label="附点">
+                  <span class="jianpu-group-label">附点</span>
+                  <div>
+                    <button type="button" role="radio" aria-checked="true" tabindex="0" data-jianpu-modifier="dot" data-value="" aria-label="无附点"><span class="notation-preview">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="dot" data-value="." aria-label="附点"><span class="notation-preview">x.</span></button>
+                  </div>
+                </div>
+                <div class="jianpu-modifier-group" role="radiogroup" aria-label="升降号">
+                  <span class="jianpu-group-label">升降</span>
+                  <div>
+                    <button type="button" role="radio" aria-checked="true" tabindex="0" data-jianpu-modifier="accidental" data-value="" aria-label="自然音"><span class="notation-preview">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="accidental" data-value="#" aria-label="升音"><span class="notation-preview">#x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="accidental" data-value="b" aria-label="降音"><span class="notation-preview">bx</span></button>
+                  </div>
+                </div>
+                <button class="jianpu-modifier-reset" id="jianpuModifierReset" type="button">全部复位</button>
+              </div>
+            </section>

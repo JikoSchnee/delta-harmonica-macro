@@ -480,6 +480,7 @@ const elements = {
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
+  jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
@@ -514,6 +515,7 @@ let macroDownloadTimer = null;
 let macroDownloadFinalizeTimer = null;
 let inputMode = "jianpu";
 let lastMidiFile = null;
+const jianpuModifierState = { octave: "", duration: "", dot: "", accidental: "" };
 let midiImportState = null;
 let midiNotePickerState = null;
 let previewCursorMs = 0;
@@ -3291,8 +3293,65 @@ async function copyLua(sequence) {
   }
 }
 
-[elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => { lastMidiFile = null; resetMidiTrackPicker(); stopPreview(); updateLineNumbers(); convert(); }));
+function handleScoreInput() {
+  lastMidiFile = null;
+  resetMidiTrackPicker();
+  stopPreview();
+  updateLineNumbers();
+  convert();
+}
+
+function setJianpuModifier(button, { focus = false } = {}) {
+  const modifier = button.dataset.jianpuModifier;
+  if (!modifier) return;
+  jianpuModifierState[modifier] = button.dataset.value || "";
+  elements.jianpuModifierChoices.filter((choice) => choice.dataset.jianpuModifier === modifier).forEach((choice) => {
+    const selected = choice === button;
+    choice.setAttribute("aria-checked", String(selected));
+    choice.tabIndex = selected ? 0 : -1;
+  });
+  if (focus) button.focus();
+}
+
+function resetJianpuModifiers() {
+  elements.jianpuModifierChoices.filter((choice) => choice.dataset.value === "").forEach((choice) => setJianpuModifier(choice));
+}
+
+function jianpuTokenForKey(key) {
+  if (!/^[0-7]$/.test(key)) return key;
+  const { octave, duration, dot, accidental } = jianpuModifierState;
+  if (key === "0") return `0${duration}${dot}`;
+  const lowMark = octave === "," ? "," : "";
+  const highMark = octave === "'" ? "'" : "";
+  return `${accidental}${lowMark}${key}${highMark}${duration}${dot}`;
+}
+
+function insertJianpuSoftKey(key) {
+  const token = jianpuTokenForKey(key);
+  const editor = elements.jianpuScore;
+  editor.setRangeText(`${token} `, editor.selectionStart, editor.selectionEnd, "end");
+  handleScoreInput();
+  editor.focus({ preventScroll: true });
+}
+
+[elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", handleScoreInput));
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
+elements.jianpuSoftKeyboard.addEventListener("click", (event) => {
+  const key = event.target.closest("[data-jianpu-key]");
+  if (key) insertJianpuSoftKey(key.dataset.jianpuKey);
+});
+elements.jianpuModifierChoices.forEach((button) => {
+  button.addEventListener("click", () => setJianpuModifier(button));
+  button.addEventListener("keydown", (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
+    event.preventDefault();
+    const group = elements.jianpuModifierChoices.filter((choice) => choice.dataset.jianpuModifier === button.dataset.jianpuModifier);
+    const direction = ['ArrowRight', 'ArrowDown'].includes(event.key) ? 1 : -1;
+    const next = group[(group.indexOf(button) + direction + group.length) % group.length];
+    setJianpuModifier(next, { focus: true });
+  });
+});
+elements.jianpuModifierReset.addEventListener("click", resetJianpuModifiers);
 elements.bpm.addEventListener("input", handleBpmChange);
 elements.transposeDown.addEventListener("click", () => transposeCurrentScore(-1));
 elements.transposeUp.addEventListener("click", () => transposeCurrentScore(1));
