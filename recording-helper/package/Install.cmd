@@ -10,5 +10,5 @@ if not exist "%APP_PATH%" (
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command "$key='HKCU:\Software\Classes\harmonica-recorder'; New-Item $key -Force | Out-Null; Set-ItemProperty $key '(Default)' 'URL:Harmonica Recorder Protocol'; New-ItemProperty $key 'URL Protocol' -Value '' -Force | Out-Null; New-Item ($key + '\shell\open\command') -Force | Out-Null; Set-ItemProperty ($key + '\shell\open\command') '(Default)' (([char]34) + $env:APP_PATH + ([char]34) + ' "%%1"')"
 
-echo Installation complete. You can now use "Export to Independent Helper" on the website.
+echo Installation complete. You can now use "Export to Macro Recording Helper" on the website.
 pause

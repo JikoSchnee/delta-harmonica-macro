@@ -576,6 +576,22 @@ main {
 .exports { margin-top: 28px; padding: 0 22px 22px; animation: rise .45s .2s ease both; }
 .exports > .window-titlebar { margin: 0 -22px 20px; }
 .section-heading p { max-width: 290px; margin: 0; color: #333; font-size: 12px; line-height: 1.7; text-align: right; }
+.export-mode-tabs { display: flex; gap: 8px; margin-top: 18px; padding-bottom: 10px; border-bottom: 2px groove var(--surface); }
+.export-mode-tab { display: inline-flex; align-items: center; gap: 8px; min-height: 37px; padding: 8px 12px; color: #38514f; background: #c8cecd; border: 2px outset #e4e8e7; font: 700 11px/1 var(--mono); }
+.export-mode-tab span { display: grid; width: 18px; height: 18px; place-items: center; color: #f3ffff; background: #597271; font-size: 8px; }
+.export-mode-tab b { padding: 3px 5px; color: #315e5b; background: #a9d2cd; font: 700 9px/1 var(--mono); }
+.export-mode-tab:hover { color: var(--teal-dark); background: #dde2e1; border-bottom-color: #849391; }
+.export-mode-tab.active { color: var(--white); background: var(--teal-dark); border-color: #5da5a0; border-bottom-color: #012e2c; }
+.export-mode-tab.active span { color: var(--teal-dark); background: #d7ffff; }
+.export-mode-tab.active b { color: #fff3c9; background: #80633b; }
+.export-mode-tab:active { border-style: inset; }
+.export-mode-panel { margin-top: 18px; }
+.export-mode-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; padding: 0 2px; }
+.export-mode-heading h3 { margin: 5px 0 0; color: var(--teal-dark); font: 700 20px/1.1 var(--pixel); }
+.export-mode-heading h3 b { display: inline-block; margin-left: 6px; padding: 4px 6px; vertical-align: 2px; color: #fff3c9; background: #80633b; font: 700 9px/1 var(--mono); }
+.export-mode-heading p { max-width: 330px; margin: 0; color: #526767; font-size: 11px; line-height: 1.65; text-align: right; }
+.export-mode-heading.special .index { color: #8b5f22; }
+.export-mode-heading.special h3 { color: #795122; }
 .macro-settings { display: grid; grid-template-columns: minmax(220px, .78fr) minmax(0, 1.22fr); align-items: center; gap: 12px 24px; margin-top: 18px; padding: 14px 16px; color: var(--screen-text); background: var(--screen-soft); border: 2px inset var(--surface); }
 .macro-settings-heading { min-width: 0; }
 .macro-settings-heading h3 { margin: 7px 0 0; color: var(--white); font: 700 18px/1.15 var(--pixel); }
@@ -605,6 +621,8 @@ main {
 .export-card.rog { border-top: 3px solid #9b4c2f; }
 .export-card.recording-helper { border-top: 3px solid #8d5c99; }
 .export-card.manual-entry { border-top: 3px solid #536e92; }
+.export-card.testing { border-top-color: #9d7130; }
+.export-card-status { position: absolute; z-index: 1; top: 14px; right: 14px; padding: 4px 6px; color: #fff3c9; background: #80633b; border: 1px solid #5f451f; font: 700 9px/1 var(--mono); }
 .export-top { display: flex; align-items: center; gap: 12px; }
 .driver-mark { display: grid; width: 36px; height: 36px; place-items: center; color: var(--white); background: var(--teal); border: 2px outset #69b5b5; font: 700 17px/1 var(--pixel); }
 .logitech .driver-mark { background: #607b9a; }
@@ -634,6 +652,7 @@ main {
 .tutorial-deck { margin-top: 14px; padding: 0 22px 18px; animation: rise .42s .02s ease both; }
 .tutorial-deck > .window-titlebar { margin: 0 -22px 16px; }
 .tutorial-deck-content { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; background: var(--screen-soft); border: 2px inset var(--surface); }
+.tutorial-deck-content--inline { margin-top: 10px; border-color: #1c5754; background: var(--screen); }
 .tutorial-deck h2 { margin: 7px 0 4px; color: #e1ffff; font: 700 20px/1.2 var(--pixel); }
 .tutorial-deck p { margin: 0; color: #abc5c2; font: 10px/1.5 var(--mono); }
 .tutorial-video-link { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; padding: 9px 11px; color: var(--white); background: var(--teal); border: 2px outset #4d8884; border-bottom-color: var(--teal-dark); box-shadow: 2px 2px 0 var(--black); font: 700 11px/1 var(--mono); text-decoration: none; }
@@ -755,6 +774,8 @@ main {
 .upload-help-body { max-height: calc(100vh - 74px); padding: 20px; overflow: auto; }
 .upload-help-body h2 { margin: 10px 0 7px; font: 700 25px/1 var(--pixel); }
 .upload-help-body > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
+.upload-editor-hint { margin: 14px 0 0 !important; padding: 10px 11px; color: #d8ffff !important; background: var(--screen); border: 2px inset var(--surface); font: 11px/1.7 var(--mono) !important; }
+.upload-editor-hint b { color: #ffd166; }
 .upload-method-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin: 16px 0 13px; padding: 4px; background: var(--surface-light); border: 2px inset var(--surface); }
 .upload-method-tab { min-width: 0; padding: 8px 6px; color: #405d5a; background: var(--surface-light); border: 2px outset var(--surface); font: 700 10px/1.2 var(--mono); white-space: nowrap; }
 .upload-method-tab.active { color: var(--white); background: var(--teal); border-top-color: #69b5b5; border-left-color: #69b5b5; border-right-color: var(--teal-dark); border-bottom-color: var(--teal-dark); }
@@ -855,6 +876,10 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .tutorial-deck-content { align-items: start; flex-direction: column; }
   .tutorial-video-link { align-self: stretch; justify-content: space-between; }
   .directory-heading, .tutorial-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
+  .export-mode-tabs { gap: 5px; }
+  .export-mode-tab { flex: 1; justify-content: center; padding: 8px 7px; font-size: 10px; }
+  .export-mode-heading { align-items: start; flex-direction: column; gap: 7px; }
+  .export-mode-heading p { max-width: none; text-align: left; }
   .directory-heading p, .tutorial-heading > p, .source-import-copy p { max-width: none; text-align: left; }
   .directory-action-card { padding: 0 9px; gap: 7px; }
   .directory-button { min-height: 54px; }

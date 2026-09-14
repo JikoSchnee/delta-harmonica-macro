@@ -2,8 +2,6 @@ const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", 
 // G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
 // for recording and Razer scancodes, then translate only for Lua export.
 const GHUB_KEY_NAMES = { ",": "comma" };
-const AHK_KEY_NAMES = { ",": "sc033" };
-const AHK_MOUSE_BUTTON_NAMES = { L: "LButton", M: "MButton", R: "RButton" };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 // G HUB raw mouse events use left=1, right=2, middle=3. Its simulated-input
 // API (PressMouseButton / ReleaseMouseButton) uses left=1, middle=2, right=3.
@@ -474,7 +472,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"),
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), exportModeButtons: [...document.querySelectorAll("[data-export-mode]")], exportModePanels: [...document.querySelectorAll("[data-export-panel]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
   convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -530,13 +528,13 @@ const TOUR_FLOWS = {
   library: [
     { index: "曲库教程 · 01", target: ".library-deck", title: "从曲库开始", copy: "这里收录内置与社区曲目。搜索后，在任意曲目卡片右上角使用「导出」可直接带着该曲进入最后的导出区。" },
     { index: "曲库教程 · 02", target: () => document.querySelector("[data-song-action='export']"), interactiveSelector: "[data-song-action='export']", title: "选择一首曲目并导出", copy: "请选择想要的曲目，然后点击它右上角的「导出」。工具会自动载入曲谱、同步编辑器与播放器，并跳到导出为宏。", action: "library-export", status: "等待你点击任意曲目右上角的「导出」。" },
-    { index: "曲库教程 · 03", target: "#macro-export", title: "按设备选择导出方式", copy: "Logitech G HUB 使用 Lua；Razer Synapse 3 与 4 必须分别使用对应 XML；ROG Armoury Crate 使用 GMAC；没有直接导入方式的工具可查看「手动输入宏」并逐项录入按键/毫秒。请先确认目标环境允许宏。", terminal: true }
+    { index: "曲库教程 · 03", target: "#macro-export", title: "选择导出方式", copy: "默认「通用板块」提供录制助手与手动输入宏，建议优先使用；「专用板块（测试版）」提供 G HUB、Razer 与 ROG 文件导出，请先用短谱验证。", terminal: true }
   ],
   midi: [
     { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
     { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择旋律音轨并截取", copy: "先选含主旋律的音轨，再拖动开始与结束手柄保留所需片段。需要逐音决定时，可点击音轨右侧「精确选中」打开钢琴卷帘；同一和弦组只能保留一个音。完成后点击「确定并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「确定并生成谱子」。" },
     { index: "MIDI 教程 · 03", target: ".editor-actions", title: "查看谱子、试播和导出", copy: "生成的简谱会同步显示在编辑器中。可先点击「试听」检查效果；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "MIDI 教程 · 04", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别导入各自版本的 XML；ROG Armoury Crate 导入 GMAC；其他工具可按「手动输入宏」中的键盘谱逐项录入。", terminal: true }
+    { index: "MIDI 教程 · 04", target: "#macro-export", title: "选择导出方式", copy: "默认「通用板块」提供录制助手与手动输入宏，建议优先使用；「专用板块（测试版）」提供 G HUB、Razer 与 ROG 文件导出，请先用短谱验证。", terminal: true }
   ],
   manual: [
     { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的四种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
@@ -553,7 +551,7 @@ const TOUR_FLOWS = {
     { index: "打谱教程 · 12", target: ".preview-console", title: "播放器控制", copy: "这里可以试听、从头播放、停止、调节音量和拖动播放进度。这些控制只影响浏览器试听，不会修改导出的宏。" },
     { index: "打谱教程 · 13", target: "#timeline", title: "事件时间线", copy: "每一行显示一个按键时刻、变调键、按住时长与气口。点击任意一行可从该位置开始试听。" },
     { index: "打谱教程 · 14", target: "#macroExportButton", title: "进入导出", copy: "完成打谱和试听后，点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "打谱教程 · 15", target: "#macro-export", title: "按设备选择导出方式", copy: "G HUB 使用 Lua；Synapse 3 与 4 分别使用自己的 XML；ROG Armoury Crate 使用 GMAC；其他宏工具可使用手动输入的键盘谱。", terminal: true }
+    { index: "打谱教程 · 15", target: "#macro-export", title: "选择导出方式", copy: "默认「通用板块」提供录制助手与手动输入宏，建议优先使用；「专用板块（测试版）」提供 G HUB、Razer 与 ROG 文件导出，请先用短谱验证。", terminal: true }
   ]
 };
 
@@ -2446,45 +2444,6 @@ function generateLua(sequence, triggerSettings) {
   return lines.join("\n");
 }
 
-function generateMacroRecordingHelper(sequence) {
-  const lines = [
-    "#Requires AutoHotkey v2.0",
-    "#SingleInstance Force",
-    "SetKeyDelay(-1, -1)",
-    "SetMouseDelay(-1)",
-    "",
-    "; Harmonica Deck · experimental macro recording helper",
-    `; Score: ${safeName()} | ${sequence.notes.length} notes | ${elements.bpm.value} BPM`,
-    "; 1. Open any mouse-macro software and start recording a no-repeat macro.",
-    "; 2. Run this file, dismiss the message, then return to that recorder within five seconds.",
-    "; 3. Keep the pointer over an empty area: this script emits real left/middle/right button events.",
-    "; The recorder must support synthetic AutoHotkey input. Test with a short score first.",
-    "",
-    "MsgBox(\"Start your macro recorder after closing this message. Recording begins in five seconds.\\n\\nDo not leave a game focused: this helper sends real keyboard and mouse input.\", \"Harmonica Macro Recording Helper\", \"Iconi\")",
-    "Sleep(5000)",
-    "SoundBeep(880, 120)",
-    ""
-  ];
-  sequence.notes.forEach((item, index) => {
-    lines.push(`; ${String(index + 1).padStart(2, "0")}: ${item.modifier ? `${item.modifier}+` : ""}${item.note}, ${item.beats} beat(s)`);
-    if (item.isRest) {
-      lines.push(`Sleep(${item.durationMs})`);
-      return;
-    }
-    [...(item.modifier || "")].forEach((modifier) => lines.push(`Send("{${AHK_MOUSE_BUTTON_NAMES[modifier]} down}")`));
-    if (item.inputLeadMs > 0) lines.push(`Sleep(${item.inputLeadMs})`);
-    const keyName = AHK_KEY_NAMES[item.key] || item.key;
-    lines.push(`Send("{${keyName} down}")`);
-    lines.push(`Sleep(${item.pressMs - item.inputLeadMs})`);
-    lines.push(`Send("{${keyName} up}")`);
-    [...(item.modifier || "")].reverse().forEach((modifier) => lines.push(`Send("{${AHK_MOUSE_BUTTON_NAMES[modifier]} up}")`));
-    if (item.waitMs > 0) lines.push(`Sleep(${item.waitMs})`);
-    lines.push("");
-  });
-  lines.push("SoundBeep(660, 160)", "ExitApp()", "");
-  return lines.join("\n");
-}
-
 function encodeUrlSafePayload(payload) {
   const bytes = new TextEncoder().encode(JSON.stringify(payload));
   let binary = "";
@@ -2717,13 +2676,6 @@ const MACRO_DOWNLOAD_CONFIG = {
       ? "ROG Armoury Crate GMAC ZIP 已下载。"
       : `ROG Armoury Crate GMAC 已打包为 ZIP（内含 ${files.length} 个文件）。`
   },
-  "download-recording-helper": {
-    suffix: "-macro-recording-helper.ahk",
-    type: "text/plain",
-    requiresTriggerSettings: false,
-    build: (sequence) => generateMacroRecordingHelper(sequence),
-    success: "口琴鼠标宏录制助手已下载；请使用 AutoHotkey v2 运行。"
-  }
 };
 
 function clearMacroDownloadTimers() {
@@ -2799,7 +2751,7 @@ function startMacroDownload() {
       if (pendingMacroDownload !== pending) return;
       if (pending.archive) downloadBlob(pending.archive.blob, pending.archive.filename);
       else pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
-      trackAnalytics("macro_downloaded", { format: ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog", "download-recording-helper": "recording_helper" })[pending.action] || "lua" });
+      trackAnalytics("macro_downloaded", { format: ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog" })[pending.action] || "lua" });
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
@@ -3549,8 +3501,9 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   const action = button.dataset.action;
   if (action === "copy-lua") await copyLua(sequence);
   if (action === "launch-independent-recorder") launchIndependentRecorder(sequence);
-  if (["download-lua", "download-rz3", "download-rz4", "download-rog", "download-recording-helper"].includes(action)) openMacroDownloadDialog(action);
+  if (["download-lua", "download-rz3", "download-rz4", "download-rog"].includes(action)) openMacroDownloadDialog(action);
 }));
+elements.exportModeButtons.forEach((button) => button.addEventListener("click", () => setExportMode(button.dataset.exportMode)));
 elements.guideButtons.forEach((button) => button.addEventListener("click", () => openSectionGuide(button.dataset.guide)));
 elements.inputModeButtons.forEach((button) => button.addEventListener("click", () => setInputMode(button.dataset.inputMode)));
 elements.directoryButtons.forEach((button) => button.addEventListener("click", () => {
@@ -3598,6 +3551,18 @@ elements.songGrid.addEventListener("click", (event) => {
 });
 elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
 elements.recordingHelperHelpButton.addEventListener("click", openRecordingHelperDialog);
+function setExportMode(mode = "general") {
+  const selectedMode = mode === "special" ? "special" : "general";
+  elements.exportModeButtons.forEach((button) => {
+    const selected = button.dataset.exportMode === selectedMode;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-selected", String(selected));
+    button.tabIndex = selected ? 0 : -1;
+  });
+  elements.exportModePanels.forEach((panel) => { panel.hidden = panel.dataset.exportPanel !== selectedMode; });
+  trackAnalytics("export_mode_selected", { mode: selectedMode });
+}
+
 function setUploadMethod(method = "qq") {
   const selectedMethod = method === "github" ? "github" : "qq";
   elements.uploadMethodTabs.forEach((tab) => {

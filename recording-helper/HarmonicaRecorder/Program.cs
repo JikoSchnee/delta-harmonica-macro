@@ -166,7 +166,7 @@ internal sealed class RecorderForm : Form
         remainingLabel.Text = "剩余 --:--";
         remainingLabel.TextAlign = ContentAlignment.MiddleRight;
         startButton.SetBounds(278, 323, 138, 42);
-        startButton.Text = "开始输入";
+        startButton.Text = "开始录制";
         startButton.BackColor = Color.FromArgb(0, 123, 120);
         startButton.ForeColor = Color.White;
         startButton.FlatStyle = FlatStyle.Flat;
@@ -188,7 +188,7 @@ internal sealed class RecorderForm : Form
         if (request is null)
         {
             titleLabel.Text = "等待从网页导入曲谱";
-            detailsLabel.Text = "请在网站的「口琴鼠标宏录制助手」卡片中点击“导出到独立助手”。";
+            detailsLabel.Text = "请在网站的「口琴鼠标宏录制助手」卡片中点击“导出到宏录制助手”。";
             statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n紧急停止快捷键：{activeHotKey.DisplayName}";
             startButton.Enabled = false;
         }
@@ -196,7 +196,7 @@ internal sealed class RecorderForm : Form
         {
             titleLabel.Text = request.Title;
             detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 总时长 {FormatDuration(request.TotalDurationMs)}";
-            statusLabel.Text = $"先在宏软件中点击录制，再回到本助手点击“开始输入”。\n开始后请勿操作鼠标或键盘；紧急停止：{activeHotKey.DisplayName}";
+            statusLabel.Text = $"先在目标宏软件中打开录制，再回到本助手点击“开始录制”。\n录制期间请勿操作鼠标或键盘，并让鼠标焦点始终停留在本助手；紧急停止：{activeHotKey.DisplayName}";
         }
     }
 
@@ -274,13 +274,13 @@ internal sealed class RecorderForm : Form
         remainingLabel.Text = $"剩余 {FormatDuration(request.TotalDurationMs)}";
         try
         {
-            statusLabel.Text = $"正在输入… 请勿操作鼠标或键盘。\n紧急停止：{activeHotKey.DisplayName}";
+            statusLabel.Text = $"正在录制… 请勿操作鼠标或键盘，并保持鼠标焦点在本助手。\n紧急停止：{activeHotKey.DisplayName}";
             await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode, ReportPlaybackProgress), cancellation.Token);
             if (!cancellation.IsCancellationRequested)
             {
                 ApplyPlaybackProgress(request.TotalDurationMs);
-                statusLabel.Text = "输入完成。请回到宏软件停止录制并保存。";
-                MessageBox.Show(this, "输入已完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始输入”产生的一次鼠标按下/放开，请删除这两个事件。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                statusLabel.Text = "录制完成。请回到宏软件停止录制并保存。";
+                MessageBox.Show(this, "录制完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始录制”产生的一次鼠标按下/放开，请删除这两个事件。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
         }
         catch (OperationCanceledException) { }

@@ -50,15 +50,11 @@
 
       <section class="tutorial-deck panel" aria-labelledby="featuredTutorialTitle">
         <div class="window-titlebar"><span>VIDEO_GUIDE.EXE — FEATURED TUTORIAL</span></div>
-          <div class="tutorial-deck-content">
-            <div><span class="index">00 · FEATURED VIDEO</span><h2 id="featuredTutorialTitle">贝加尔湖畔一键自动演奏</h2><p>长弓吟游诗人 · 三角洲口琴演奏教程</p></div>
-            <a class="tutorial-video-link" href="https://v.douyin.com/mSGVHl9rimc/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
-        </div>
-      </section>
-
-      <section class="tutorial-deck panel" aria-labelledby="jianpuTutorialTitle">
-        <div class="window-titlebar"><span>VIDEO_GUIDE.EXE — JIANPU TUTORIAL</span></div>
         <div class="tutorial-deck-content">
+          <div><span class="index">00 · FEATURED VIDEO</span><h2 id="featuredTutorialTitle">贝加尔湖畔一键自动演奏</h2><p>长弓吟游诗人 · 三角洲口琴演奏教程</p></div>
+          <a class="tutorial-video-link" href="https://v.douyin.com/mSGVHl9rimc/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
+        </div>
+        <div class="tutorial-deck-content tutorial-deck-content--inline" aria-labelledby="jianpuTutorialTitle">
           <div><span class="index">01 · JIANPU TUTORIAL</span><h2 id="jianpuTutorialTitle">简谱编辑器教学</h2><p>数字简谱输入与软键盘使用教学</p></div>
           <a class="tutorial-video-link" href="https://v.douyin.com/CxDLAfpTU3c/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
         </div>
@@ -313,56 +309,78 @@
         <div class="section-heading">
           <div><span class="index">05</span><h2 id="exportTitle">导出为宏</h2></div>
         </div>
-        <div class="macro-settings" id="macroSettings" aria-labelledby="macroSettingsTitle">
-          <div class="macro-settings-heading">
-            <span class="index">TRIGGER CONFIG</span>
-            <h3 id="macroSettingsTitle">G HUB 宏触发设置</h3>
-            <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
-          </div>
-          <div class="macro-settings-controls">
-            <label for="macroTriggerButton">开始键<input id="macroTriggerButton" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
-            <label for="macroStopButton">停止键 <span class="unit">只能填 4 和 5</span><input id="macroStopButton" type="number" min="4" max="5" step="1" value="5" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
-            <fieldset class="macro-pitch-map" aria-describedby="macroTriggerValidation">
-              <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
-              <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
-              <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="5" step="1" value="2" inputmode="numeric" /></label>
-              <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="5" step="1" value="3" inputmode="numeric" /></label>
-            </fieldset>
-          </div>
-          <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
+        <div class="export-mode-tabs" role="tablist" aria-label="选择宏导出方式">
+          <button class="export-mode-tab active" id="exportModeGeneral" data-export-mode="general" type="button" role="tab" aria-selected="true" aria-controls="exportPanelGeneral"><span>01</span>通用板块 <b>推荐</b></button>
+          <button class="export-mode-tab" id="exportModeSpecial" data-export-mode="special" type="button" role="tab" aria-selected="false" aria-controls="exportPanelSpecial" tabindex="-1"><span>02</span>专用板块 <b>测试版</b></button>
         </div>
-        <div class="export-grid">
-          <article class="export-card logitech">
+        <section class="export-mode-panel active" id="exportPanelGeneral" data-export-panel="general" role="tabpanel" aria-labelledby="exportModeGeneral">
+          <div class="export-mode-heading">
+            <div><span class="index">GENERAL METHODS · RECOMMENDED</span><h3>通用导入方式</h3></div>
+            <p>适用于没有专用文件导入方式的宏软件，建议优先使用。</p>
+          </div>
+          <div class="export-grid export-grid-general">
+            <article class="export-card recording-helper">
+              <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>Windows 64 位 · 一键录制</p></div></div>
+              <p class="export-copy">将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。录制 Logitech G HUB 时请使用默认的「G HUB 兼容」模式。</p>
+              <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button></div>
+            </article>
+            <article class="export-card manual-entry">
+              <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
+              <p class="export-copy">以「按键 / 毫秒」展示当前曲谱，便于在支持手动录入的宏工具中逐项填写。</p>
+              <div class="export-actions"><button id="manualMacroButton" type="button" aria-haspopup="dialog">查看键盘谱</button></div>
+            </article>
+          </div>
+        </section>
+        <section class="export-mode-panel" id="exportPanelSpecial" data-export-panel="special" role="tabpanel" aria-labelledby="exportModeSpecial" hidden>
+          <div class="export-mode-heading special">
+            <div><span class="index">SPECIAL EXPORTS · BETA</span><h3>专用导入方式 <b>测试版</b></h3></div>
+            <p>以下格式仍在测试中。请先用短谱验证，再导入正式曲目。</p>
+          </div>
+          <div class="macro-settings" id="macroSettings" aria-labelledby="macroSettingsTitle">
+            <div class="macro-settings-heading">
+              <span class="index">TRIGGER CONFIG</span>
+              <h3 id="macroSettingsTitle">G HUB 宏触发设置</h3>
+              <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
+            </div>
+            <div class="macro-settings-controls">
+              <label for="macroTriggerButton">开始键<input id="macroTriggerButton" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
+              <label for="macroStopButton">停止键 <span class="unit">只能填 4 和 5</span><input id="macroStopButton" type="number" min="4" max="5" step="1" value="5" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
+              <fieldset class="macro-pitch-map" aria-describedby="macroTriggerValidation">
+                <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
+                <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
+                <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="5" step="1" value="2" inputmode="numeric" /></label>
+                <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="5" step="1" value="3" inputmode="numeric" /></label>
+              </fieldset>
+            </div>
+            <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
+          </div>
+          <div class="export-grid">
+          <article class="export-card logitech testing">
             <div class="export-top"><span class="driver-mark">G</span><div><h3>Logitech G HUB</h3><p>Lua 脚本 · 手动粘贴</p></div></div>
+            <span class="export-card-status">测试中</span>
             <p class="export-copy">开始键触发一次播放；停止键可填 4 或 5。停止时会释放正在按住的琴键和变调键。</p>
             <div class="export-actions"><button data-action="copy-lua" type="button">复制 Lua</button><button data-action="download-lua" type="button">下载 .lua</button></div>
           </article>
-          <article class="export-card razer">
+          <article class="export-card razer testing">
             <div class="export-top"><span class="driver-mark">R</span><div><h3>Razer Synapse 3</h3><p>XML · 实验性兼容</p></div></div>
+            <span class="export-card-status">测试中</span>
             <p class="export-copy">仅导出事件序列；导入后请在 Synapse 3 的 Macro 模块内手动绑定鼠标键和触发模式。Synapse 3 文件不能导入 Synapse 4。</p>
             <div class="export-actions"><button data-action="download-rz3" type="button">下载 Synapse 3 XML</button></div>
           </article>
-          <article class="export-card razer-four">
+          <article class="export-card razer-four testing">
             <div class="export-top"><span class="driver-mark">R4</span><div><h3>Razer Synapse 4</h3><p>XML · 实验性兼容</p></div></div>
+            <span class="export-card-status">测试中</span>
             <p class="export-copy">仅导出事件序列；在 Macro 列表的更多菜单中选择 Import，导入后再手动绑定鼠标键和触发模式。</p>
             <div class="export-actions"><button data-action="download-rz4" type="button">下载 Synapse 4 XML</button></div>
           </article>
-          <article class="export-card rog">
+          <article class="export-card rog testing">
             <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
+            <span class="export-card-status">测试中</span>
             <p class="export-copy">生成可导入的 Armoury Crate 宏事件。L／M／R 变调键会分别导入为左／中／右鼠标点击。由于 ROG 单个宏最多只能包含 100 个按键/鼠标操作，超过上限时会按每 90–100 个操作拆分；延迟不占操作额度（最后一段为剩余操作）。所有 GMAC 会打包为一个 ZIP 下载，请按文件序号依次导入，再将每一段宏绑定到支持宏功能的 ROG 外设按键；默认设置为单次播放。</p>
             <div class="export-actions"><button data-action="download-rog" type="button">下载 ROG GMAC ZIP（每 100 操作）</button></div>
           </article>
-          <article class="export-card recording-helper">
-            <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>测试版 · Windows / AutoHotkey v2</p></div></div>
-            <p class="export-copy">先在鼠标宏软件中点击“录制”，再回到助手点击“开始输入”。助手会立即模拟整段键盘与鼠标变调输入，并显示进度和剩余时间。录制 Logitech G HUB 时使用默认的「G HUB 兼容」模式；开始后不要操作鼠标或键盘，也不要把鼠标焦点移回宏软件。完成后删除录制开头由“开始输入”产生的一次鼠标按下/放开。</p>
-            <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到独立助手</button><button data-action="download-recording-helper" type="button">下载录制助手 .ahk</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何使用？</button></div>
-          </article>
-          <article class="export-card manual-entry">
-            <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
-            <p class="export-copy">以「按键 / 毫秒」展示当前曲谱，便于在支持手动录入的宏工具中逐项填写。</p>
-            <div class="export-actions"><button id="manualMacroButton" type="button" aria-haspopup="dialog">查看键盘谱</button></div>
-          </article>
-        </div>
+          </div>
+        </section>
       </section>
 
       <section class="notice-grid">
@@ -392,26 +410,20 @@
       <form method="dialog" class="recording-helper-form">
         <div class="window-titlebar"><span>REC_HELP.EXE — HOW TO USE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭录制助手使用说明">×</button></div>
         <div class="recording-helper-body">
-          <span class="index">AUTOHOTKEY V2 · QUICK START</span>
+          <span class="index">WINDOWS · QUICK START</span>
           <h2 id="recordingHelperTitle">录制助手使用方法</h2>
           <ol class="recording-helper-steps">
             <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能。</span></li>
-            <li><b>02</b><span>回到本页，点击「导出到独立助手」，浏览器会把当前曲谱直接交给助手。</span></li>
-            <li><b>03</b><span>在目标鼠标软件中创建<strong>单次播放</strong>宏并点击录制，然后回到助手点击“开始输入”；使用 G HUB 时选择默认兼容模式。</span></li>
-            <li><b>04</b><span>输入期间不要操作鼠标或键盘，也不要把鼠标焦点移回宏软件；进度条会显示剩余时间，可按已设置的紧急停止快捷键停止。</span></li>
-            <li><b>05</b><span>看到“录制完成”后回到宏软件停止并保存，删除开头点击助手“开始输入”产生的一次鼠标按下和放开。</span></li>
+            <li><b>02</b><span>回到本页，点击「导出到宏录制助手」，浏览器会把当前曲谱直接交给助手。</span></li>
+            <li><b>03</b><span>在目标宏软件中打开录制。</span></li>
+            <li><b>04</b><span>点击助手的开始按钮开始录制，并等待录制完毕。期间不要做任何操作，让鼠标焦点始终停留在助手上。</span></li>
           </ol>
-          <p class="recording-helper-warning"><b>注意：</b>先用短谱测试。输入期间不要做任何操作，尤其不要把鼠标焦点移回宏录制软件；G HUB 请使用助手默认的扫描码兼容模式。完成后记得删除开头的鼠标按下/放开。</p>
+          <p class="recording-helper-warning"><b>注意：</b>建议先用短谱测试。录制 Logitech G HUB 时请使用助手默认的「G HUB 兼容」模式。</p>
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
-            <p>推荐 · 独立录制助手（Windows 64 位）</p>
-            <a class="helper-download-link" href="downloads/HarmonicaRecorder-win-x64.zip" download><span>下载独立录制助手 ZIP</span><b>↓</b></a>
-            <a class="helper-download-link" href="https://github.com/JikoSchnee/delta-harmonica-macro/raw/refs/heads/main/downloads/HarmonicaRecorder-win-x64.zip" target="_blank" rel="noopener noreferrer"><span>从 GitHub 下载 ZIP</span><b>↗</b></a>
-            <small>无需 AutoHotkey。解压后运行一次 <code>Install.cmd</code>，随后即可从网页直接导入当前曲谱。</small>
-          </section>
-          <section class="recording-helper-downloads" aria-label="AutoHotkey v2 下载方式">
-            <p>备用 · AutoHotkey v2</p>
-            <a class="helper-download-link" href="downloads/AutoHotkey_2.0.28-windows-portable.zip" download><span>本站便携包 v2.0.28</span><b>↓</b></a>
-            <a class="helper-download-link" href="https://www.autohotkey.com/download/" target="_blank" rel="noopener noreferrer"><span>AutoHotkey 官网下载</span><b>↗</b></a>
+            <p>宏录制助手（Windows 64 位）</p>
+            <a class="helper-download-link" href="https://github.com/JikoSchnee/delta-harmonica-macro/raw/refs/heads/main/downloads/HarmonicaRecorder-win-x64.zip" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
+            <a class="helper-download-link" href="downloads/HarmonicaRecorder-win-x64.zip" download><span>服务器下载（备用）</span><b>↓</b></a>
+            <small>GitHub 下载速度更快；如无法下载，再使用服务器下载。解压后运行一次 <code>Install.cmd</code>，随后即可从网页直接导入当前曲谱。</small>
           </section>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
@@ -528,7 +540,8 @@
         <div class="window-titlebar"><span>UPLOAD_PORTAL.EXE — COMMUNITY</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭上传提示">×</button></div>
         <div class="upload-help-body">
           <span class="index">COMMUNITY UPLOAD</span>
-          <h2 id="uploadHelpTitle">问题反馈</h2>
+          <h2 id="uploadHelpTitle">上传曲谱</h2>
+          <p class="upload-editor-hint"><b>推荐方式</b> 请先在编辑器中完成曲谱，然后点击「上传到曲库」即可上传。</p>
           <div class="upload-method-tabs" role="tablist" aria-label="投稿方式">
             <button class="upload-method-tab active" id="uploadMethodQq" data-upload-method="qq" type="button" role="tab" aria-selected="true" aria-controls="uploadPanelQq">QQ 群投稿</button>
             <button class="upload-method-tab" id="uploadMethodGithub" data-upload-method="github" type="button" role="tab" aria-selected="false" aria-controls="uploadPanelGithub">GitHub 投稿</button>
