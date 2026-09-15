@@ -4,6 +4,8 @@
 
 开发、部署与曲库维护说明请见 [develop.md](develop.md)。
 
+后台使用分析中的英文术语、用户路径和各路径价值说明请见 [USER_PATH_GLOSSARY.md](USER_PATH_GLOSSARY.md)。
+
 ## 在线使用
 
 - 正式站点：[三角洲口琴演奏家](https://jiko-official.top/delta/)

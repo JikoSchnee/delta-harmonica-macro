@@ -2,6 +2,8 @@ const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", 
 const WEBSITE_VERSION = "1.0.2";
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
 const GITHUB_COMMITS_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?per_page=10`;
+const WEBSITE_UPDATE_METADATA_URL = "./version.json";
+const WEBSITE_UPDATE_DISMISSED_KEY = "delta-harmonica-dismissed-update";
 const RECORDER_COMPATIBILITY_PREFIX = WEBSITE_VERSION.split(".").slice(0, 2).join(".");
 // G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
 // for recording and Razer scancodes, then translate only for Lua export.
@@ -350,8 +352,9 @@ let hotScoreRanks = new Map();
 let recommendedSongIdentities = [];
 let recommendedSongKeys = new Set();
 const LIBRARY_TITLE_COLLATOR = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
-// The built-in service records only anonymous, allow-listed product events.
-// Score identifiers are local hashes; never add score text, titles, file names, search terms, IP data, or clipboard content here.
+// The built-in service records only allow-listed product events.
+// Score operations include the current score title/artist for the private analytics console;
+// never add score text, file names, search terms, IP data, or clipboard content here.
 const ANALYTICS_ENDPOINT = "./api/analytics/events";
 let analyticsQueue = [];
 let analyticsFlushTimer = null;
@@ -422,9 +425,26 @@ function currentAnalyticsScoreId() {
   });
 }
 
-function trackScoreAnalytics(event, properties = {}, scoreId = currentAnalyticsScoreId()) {
+function analyticsScoreDetails(score = null) {
+  const source = score || {
+    title: elements.macroName?.value,
+    artist: elements.artistName?.value,
+    sharedBy: currentScoreCredit.sharedBy
+  };
+  const title = String(source?.title || "").trim();
+  if (!title) return {};
+  const artist = String(source?.artist || "").trim();
+  const sharedBy = String(source?.sharedBy || "").trim();
+  return {
+    score_title: title,
+    ...(artist ? { score_artist: artist } : {}),
+    ...(sharedBy ? { score_shared_by: sharedBy } : {})
+  };
+}
+
+function trackScoreAnalytics(event, properties = {}, scoreId = currentAnalyticsScoreId(), score = null) {
   if (!scoreId) return;
-  trackAnalytics(event, { ...properties, score_id: scoreId });
+  trackAnalytics(event, { ...properties, ...analyticsScoreDetails(score), score_id: scoreId });
 }
 
 function songAnalyticsOrigin(song) {
@@ -536,6 +556,83 @@ function openChangelogDialog() {
   loadRecentCommits();
 }
 
+let pendingWebsiteUpdate = null;
+let updateCheckInFlight = null;
+let lastWebsiteUpdateCheckAt = 0;
+
+function versionParts(version) {
+  const match = String(version || "").trim().match(/^(\d+)\.(\d+)\.(\d+)$/);
+  return match ? match.slice(1).map(Number) : null;
+}
+
+function isNewerWebsiteVersion(candidate, current = WEBSITE_VERSION) {
+  const candidateParts = versionParts(candidate);
+  const currentParts = versionParts(current);
+  if (!candidateParts || !currentParts) return false;
+  for (let index = 0; index < candidateParts.length; index += 1) {
+    if (candidateParts[index] > currentParts[index]) return true;
+    if (candidateParts[index] < currentParts[index]) return false;
+  }
+  return false;
+}
+
+function normalizeUpdateMetadata(payload) {
+  if (!payload || typeof payload !== "object" || !isNewerWebsiteVersion(payload.version)) return null;
+  const changes = Array.isArray(payload.changes)
+    ? payload.changes.filter((change) => typeof change === "string" && change.trim()).map((change) => change.trim()).slice(0, 8)
+    : [];
+  if (!changes.length) return null;
+  return {
+    version: String(payload.version).trim(),
+    title: typeof payload.title === "string" && payload.title.trim() ? payload.title.trim() : "网站功能更新",
+    summary: typeof payload.summary === "string" && payload.summary.trim() ? payload.summary.trim() : "网页有新的功能和修复。",
+    changes
+  };
+}
+
+function dismissedWebsiteUpdateVersion() {
+  try { return localStorage.getItem(WEBSITE_UPDATE_DISMISSED_KEY) || ""; } catch { return ""; }
+}
+
+function rememberWebsiteUpdate(version) {
+  try { localStorage.setItem(WEBSITE_UPDATE_DISMISSED_KEY, version); } catch {}
+}
+
+function renderWebsiteUpdate(metadata) {
+  elements.updateDialogTitle.textContent = metadata.title;
+  elements.updateDialogVersion.textContent = `WEB v${metadata.version}`;
+  elements.updateDialogLatestVersion.textContent = `v${metadata.version}`;
+  elements.updateDialogDescription.textContent = metadata.summary;
+  elements.updateDialogChanges.innerHTML = metadata.changes.map((change) => `<li>${escapeHtml(change)}</li>`).join("");
+}
+
+function refreshPageForWebsiteUpdate() {
+  const url = new URL(window.location.href);
+  url.searchParams.set("update", String(Date.now()));
+  window.location.replace(url.toString());
+}
+
+async function checkForWebsiteUpdate({ force = false } = {}) {
+  if (!elements.updateDialog || typeof elements.updateDialog.showModal !== "function") return;
+  const now = Date.now();
+  if (!force && now - lastWebsiteUpdateCheckAt < 5 * 60 * 1000) return;
+  if (updateCheckInFlight) return updateCheckInFlight;
+  lastWebsiteUpdateCheckAt = now;
+  updateCheckInFlight = (async () => {
+    try {
+      const response = await fetch(`${WEBSITE_UPDATE_METADATA_URL}?t=${Date.now()}`, { headers: { Accept: "application/json" }, cache: "no-store" });
+      if (!response.ok) return;
+      const metadata = normalizeUpdateMetadata(await response.json());
+      if (!metadata || dismissedWebsiteUpdateVersion() === metadata.version) return;
+      pendingWebsiteUpdate = metadata;
+      renderWebsiteUpdate(metadata);
+      if (!elements.updateDialog.open) elements.updateDialog.showModal();
+    } catch {}
+    finally { updateCheckInFlight = null; }
+  })();
+  return updateCheckInFlight;
+}
+
 const SECTION_GUIDES = {
   directory: {
     windowTitle: "HELP.EXE — QUICK START",
@@ -616,7 +713,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -2021,7 +2118,7 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
   if (scroll && destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
   else if (scroll) document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  if (analytics) trackScoreAnalytics("song_loaded", { origin: songAnalyticsOrigin(song) }, activeAnalyticsScoreId);
+  if (analytics) trackScoreAnalytics("song_loaded", { origin: songAnalyticsOrigin(song) }, activeAnalyticsScoreId, song);
   if (analytics && destination === "export") trackAnalytics("macro_section_opened");
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
@@ -3407,7 +3504,7 @@ function openSongEditDialog(song) {
     return;
   }
   pendingSongEdit = { song, original: { title: song.title, artist: song.artist } };
-  trackScoreAnalytics("score_edit_opened", {}, analyticsScoreIdForSong(song));
+  trackScoreAnalytics("score_edit_opened", {}, analyticsScoreIdForSong(song), song);
   elements.songEditName.value = song.title;
   elements.songEditArtist.value = song.artist;
   elements.songEditKey.value = song.key || "1=C";
@@ -3469,7 +3566,7 @@ async function saveSongEdit() {
     await loadMySongLibrary();
     const editedScoreId = analyticsScoreIdForSong(pendingSongEdit.song);
     elements.songEditDialog.close();
-    trackScoreAnalytics("score_edit_saved", {}, editedScoreId);
+    trackScoreAnalytics("score_edit_saved", {}, editedScoreId, metadata.value);
     pendingSongEdit = null;
     toast(`《${metadata.value.title}》已保存。`);
   } catch (error) {
@@ -4411,6 +4508,14 @@ elements.qqGroupButton.addEventListener("click", () => {
   openQqGroupDialog();
 });
 elements.versionButton.addEventListener("click", openChangelogDialog);
+elements.updateRefreshButton.addEventListener("click", () => {
+  if (pendingWebsiteUpdate) rememberWebsiteUpdate(pendingWebsiteUpdate.version);
+  refreshPageForWebsiteUpdate();
+});
+elements.updateDialog.addEventListener("close", () => {
+  if (pendingWebsiteUpdate) rememberWebsiteUpdate(pendingWebsiteUpdate.version);
+  pendingWebsiteUpdate = null;
+});
 elements.qqGroupCopyButton.addEventListener("click", copyQqGroupNumber);
 elements.uploadScoreButton.addEventListener("click", () => {
   elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4430,12 +4535,14 @@ trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
 window.setTimeout(refreshScoreExportCounts, 1700);
 window.setTimeout(refreshRecommendations, 1800);
+window.setTimeout(checkForWebsiteUpdate, 2400);
 window.setInterval(() => {
   if (document.visibilityState === "visible") {
     trackAnalytics("heartbeat");
     refreshPublicAnalyticsSummary();
     refreshScoreExportCounts();
     refreshRecommendations();
+    checkForWebsiteUpdate();
   }
 }, 60_000);
 document.addEventListener("visibilitychange", () => {
@@ -4451,6 +4558,7 @@ document.addEventListener("visibilitychange", () => {
     refreshPublicAnalyticsSummary();
     refreshScoreExportCounts();
     refreshRecommendations();
+    checkForWebsiteUpdate();
   }
 });
 window.addEventListener("resize", () => {

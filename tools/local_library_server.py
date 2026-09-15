@@ -98,7 +98,7 @@ def analytics_event_path(day: date) -> Path:
 
 
 def clean_analytics_properties(event: str, value: Any) -> dict[str, Any]:
-    """Keep analytics intentionally anonymous and bounded at the API boundary."""
+    """Keep analytics bounded at the API boundary while naming score operations."""
     if not isinstance(value, dict):
         return {}
     properties: dict[str, Any] = {}
@@ -109,7 +109,13 @@ def clean_analytics_properties(event: str, value: Any) -> dict[str, Any]:
     score_id = value.get("score_id")
     if isinstance(score_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id):
         properties["score_id"] = score_id
-    # Search text, score titles, MIDI file names and free-form user input are never accepted.
+        for field, limit in (("score_title", 120), ("score_artist", 120), ("score_shared_by", 64)):
+            candidate = value.get(field)
+            if isinstance(candidate, str):
+                cleaned = " ".join(candidate.split())[:limit]
+                if cleaned:
+                    properties[field] = cleaned
+    # Search text, MIDI file names and free-form user input are never accepted.
     if event == "library_search" and isinstance(value.get("query_length"), int):
         properties["query_length"] = min(128, max(0, value["query_length"]))
     return properties
@@ -207,6 +213,8 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     journeys: dict[str, list[dict[str, Any]]] = defaultdict(list)
     score_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
         "sessions": set(),
+        "scoreTitle": "",
+        "scoreArtist": "",
         "loaded": 0,
         "editOpened": 0,
         "editSaved": 0,
@@ -229,6 +237,8 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         score_id = properties.get("score_id")
         if score_id:
             stats = score_stats[score_id]
+            stats["scoreTitle"] = str(properties.get("score_title") or stats["scoreTitle"])
+            stats["scoreArtist"] = str(properties.get("score_artist") or stats["scoreArtist"])
             stats["sessions"].add(item["session"])
             if item["event"] in {"song_loaded", "score_imported", "midi_selection_applied"}:
                 stats["loaded"] += 1
@@ -271,6 +281,8 @@ def build_analytics_report(days: int) -> dict[str, Any]:
             continue
         score_operations.append({
             "scoreId": score_id,
+            "scoreTitle": stats["scoreTitle"],
+            "scoreArtist": stats["scoreArtist"],
             "loaded": stats["loaded"],
             "edits": edit_count,
             "editOpened": stats["editOpened"],
@@ -1432,7 +1444,7 @@ def main() -> int:
     parser.add_argument("--auth-code-log-only", action="store_true", default=os.environ.get("DELTA_AUTH_CODE_LOG_ONLY", "").lower() in {"1", "true", "yes"}, help="仅本地测试：把验证码写入服务日志，不发送邮件")
     parser.add_argument("--insecure-auth-cookies", action="store_true", help="仅本地测试：允许 HTTP 登录 Cookie；生产环境请勿使用")
     parser.add_argument("--analytics-admin-token", default=os.environ.get("DELTA_ANALYTICS_ADMIN_TOKEN", ""), help="启用内置分析并保护管理接口的令牌；也可设 DELTA_ANALYTICS_ADMIN_TOKEN")
-    parser.add_argument("--analytics-retention-days", type=int, default=DEFAULT_ANALYTICS_RETENTION_DAYS, help=f"匿名事件保留天数（默认 {DEFAULT_ANALYTICS_RETENTION_DAYS}，最多 365）")
+    parser.add_argument("--analytics-retention-days", type=int, default=DEFAULT_ANALYTICS_RETENTION_DAYS, help=f"行为事件保留天数（默认 {DEFAULT_ANALYTICS_RETENTION_DAYS}，最多 365）")
     args = parser.parse_args()
     if not 1 <= args.port <= 65535:
         parser.error("端口必须在 1 到 65535 之间")
@@ -1499,7 +1511,7 @@ def main() -> int:
         print(f"本地维护服务已启动：http://127.0.0.1:{args.port}/")
         print("仅监听 127.0.0.1；按 Ctrl+C 停止。")
     if server.analytics_enabled:
-        print(f"站内匿名分析已启用：/admin/analytics.html（事件保留 {server.analytics_retention_days} 天）")
+        print(f"站内行为分析已启用：/admin/analytics.html（事件保留 {server.analytics_retention_days} 天）")
     if server.auth_enabled:
         source = "本地日志（测试模式）" if server.auth_code_log_only else f"SMTP {server.smtp_host}:{server.smtp_port}"
         print(f"邮箱登录已启用：{source}")
