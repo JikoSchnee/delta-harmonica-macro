@@ -31,7 +31,9 @@ from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.error import HTTPError, URLError
+from urllib.parse import parse_qs, quote, urlencode, urlparse, urlsplit, urlunsplit
+from urllib.request import Request, urlopen
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -52,7 +54,10 @@ AUTH_CODE_EMAIL_LIMIT = 5
 AUTH_CODE_IP_LIMIT = 12
 AUTH_CODE_RATE_WINDOW_SECONDS = 60 * 60
 AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+OAUTH_STATE_TTL_SECONDS = 10 * 60
+OAUTH_HTTP_TIMEOUT_SECONDS = 15
 AUTH_COOKIE_NAME = "delta_auth_session"
+OAUTH_STATE_COOKIE_NAME = "delta_oauth_state"
 ADMIN_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_USER_ID = "jiko"
@@ -83,6 +88,7 @@ ANALYTICS_ENUMERATIONS = {
 }
 ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$")
 SCORE_EXPORT_EVENTS = {"macro_downloaded", "score_downloaded", "lua_copied"}
+OAUTH_PROVIDER_LABELS = {"qq": "QQ", "wechat": "微信"}
 
 
 class DuplicateScoreError(ValueError):
@@ -641,6 +647,15 @@ def initialize_auth_database() -> None:
                 account_id TEXT NOT NULL REFERENCES accounts(id),
                 expires_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS oauth_identities (
+                provider TEXT NOT NULL,
+                subject TEXT NOT NULL,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                display_name TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(provider, subject),
+                UNIQUE(account_id, provider)
+            );
             CREATE TABLE IF NOT EXISTS score_owners (
                 score_path TEXT PRIMARY KEY,
                 account_id TEXT NOT NULL REFERENCES accounts(id)
@@ -689,7 +704,13 @@ def is_admin_account(account: sqlite3.Row | dict[str, Any] | None) -> bool:
 
 
 def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
-    return {"userId": account["user_id"], "email": mask_email(account["email"]), "isAdmin": is_admin_account(account)}
+    email = str(account["email"])
+    if email.endswith("@oauth.invalid"):
+        provider = "QQ" if email.startswith("qq_") else "微信"
+        credential = f"{provider} 登录账号"
+    else:
+        credential = mask_email(email)
+    return {"userId": account["user_id"], "email": credential, "isAdmin": is_admin_account(account)}
 
 
 def recommendation_identity(payload: Any) -> dict[str, str]:
@@ -736,6 +757,176 @@ def remove_recommendation(payload: Any) -> list[dict[str, str]]:
 
 def auth_digest(server: ThreadingHTTPServer, value: str) -> str:
     return hmac.new(server.auth_secret.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def oauth_provider_label(provider: str) -> str:
+    return OAUTH_PROVIDER_LABELS.get(provider, provider)
+
+
+def oauth_config(server: ThreadingHTTPServer, provider: str) -> dict[str, str] | None:
+    return server.oauth_providers.get(provider)
+
+
+def issue_oauth_state(server: ThreadingHTTPServer, provider: str) -> str:
+    state = secrets.token_urlsafe(32)
+    now = now_timestamp()
+    with server.oauth_state_lock:
+        server.oauth_states = {
+            key: value for key, value in server.oauth_states.items()
+            if value["expires_at"] > now
+        }
+        server.oauth_states[state] = {"provider": provider, "expires_at": now + OAUTH_STATE_TTL_SECONDS}
+    return state
+
+
+def consume_oauth_state(server: ThreadingHTTPServer, state: str, provider: str) -> bool:
+    now = now_timestamp()
+    with server.oauth_state_lock:
+        record = server.oauth_states.pop(state, None)
+    return bool(record and record["provider"] == provider and record["expires_at"] > now)
+
+
+def oauth_state_cookie(handler: "LocalLibraryRequestHandler", state: str | None = None, *, expired: bool = False) -> str:
+    value = state or ""
+    parts = [f"{OAUTH_STATE_COOKIE_NAME}={value}", "Path=/", "HttpOnly", "SameSite=Lax"]
+    parts.append("Max-Age=0" if expired else f"Max-Age={OAUTH_STATE_TTL_SECONDS}")
+    if not handler.server.insecure_auth_cookies:
+        parts.append("Secure")
+    return "; ".join(parts)
+
+
+def oauth_callback_target(server: ThreadingHTTPServer, provider: str, result: str, message: str = "") -> str:
+    config = oauth_config(server, provider)
+    if not config:
+        return "/"
+    callback_path = f"/api/auth/oauth/{provider}/callback"
+    parsed = urlsplit(config["redirect_uri"])
+    app_path = parsed.path.rsplit(callback_path, 1)[0].rstrip("/") or "/"
+    if app_path != "/":
+        app_path += "/"
+    query = {"auth": result}
+    if message:
+        query["message"] = message[:120]
+    return urlunsplit((parsed.scheme, parsed.netloc, app_path, "", urlencode(query), ""))
+
+
+def fetch_oauth_response(url: str, *, data: dict[str, str] | None = None, headers: dict[str, str] | None = None) -> str:
+    encoded = urlencode(data).encode("utf-8") if data is not None else None
+    request = Request(url, data=encoded, headers=headers or {"Accept": "application/json"}, method="POST" if encoded else "GET")
+    try:
+        with urlopen(request, timeout=OAUTH_HTTP_TIMEOUT_SECONDS) as response:
+            return response.read(MAX_REQUEST_BYTES).decode("utf-8")
+    except (HTTPError, URLError, OSError) as error:
+        raise ValueError("第三方登录服务暂时不可用，请稍后重试。") from error
+
+
+def parse_qq_jsonp(value: str) -> dict[str, Any]:
+    match = re.search(r"\{.*\}", value, flags=re.DOTALL)
+    if not match:
+        raise ValueError("QQ 登录返回数据无效。")
+    try:
+        payload = json.loads(match.group(0))
+    except json.JSONDecodeError as error:
+        raise ValueError("QQ 登录返回数据无效。") from error
+    if not isinstance(payload, dict) or payload.get("error"):
+        raise ValueError("QQ 登录授权失败，请重试。")
+    return payload
+
+
+def oauth_profile(server: ThreadingHTTPServer, provider: str, code: str) -> dict[str, str]:
+    config = oauth_config(server, provider)
+    if not config:
+        raise ValueError(f"{oauth_provider_label(provider)}登录尚未配置。")
+    if provider == "qq":
+        token_text = fetch_oauth_response("https://graph.qq.com/oauth2.0/token?" + urlencode({
+                "grant_type": "authorization_code",
+                "client_id": config["app_id"],
+                "client_secret": config["app_secret"],
+                "code": code,
+                "redirect_uri": config["redirect_uri"],
+            }), headers={"Accept": "text/plain"})
+        token = parse_qs(token_text, keep_blank_values=True).get("access_token", [""])[0]
+        if not token:
+            raise ValueError("QQ 登录授权失败，请重试。")
+        openid_payload = parse_qq_jsonp(fetch_oauth_response(f"https://graph.qq.com/oauth2.0/me?access_token={quote(token)}"))
+        subject = str(openid_payload.get("openid", "")).strip()
+        if not subject:
+            raise ValueError("QQ 登录未返回有效用户标识。")
+        user_info_text = fetch_oauth_response(
+            "https://graph.qq.com/user/get_user_info?" + urlencode({
+                "access_token": token,
+                "oauth_consumer_key": config["app_id"],
+                "openid": subject,
+            })
+        )
+        user_info = json.loads(user_info_text)
+        if not isinstance(user_info, dict) or user_info.get("ret", 0) != 0:
+            raise ValueError("QQ 用户信息获取失败，请重试。")
+        return {"subject": f"qq:{subject}", "display_name": str(user_info.get("nickname", "")).strip()}
+
+    token_payload = json.loads(fetch_oauth_response("https://api.weixin.qq.com/sns/oauth2/access_token?" + urlencode({
+            "appid": config["app_id"],
+            "secret": config["app_secret"],
+            "code": code,
+            "grant_type": "authorization_code",
+        })))
+    if not isinstance(token_payload, dict) or token_payload.get("errcode") or not token_payload.get("access_token"):
+        raise ValueError("微信登录授权失败，请重试。")
+    openid = str(token_payload.get("openid", "")).strip()
+    unionid = str(token_payload.get("unionid", "")).strip()
+    subject = unionid or openid
+    if not subject:
+        raise ValueError("微信登录未返回有效用户标识。")
+    user_info = json.loads(fetch_oauth_response(
+        "https://api.weixin.qq.com/sns/userinfo?" + urlencode({
+            "access_token": token_payload["access_token"],
+            "openid": openid,
+            "lang": "zh_CN",
+        })
+    ))
+    if not isinstance(user_info, dict) or user_info.get("errcode"):
+        raise ValueError("微信用户信息获取失败，请重试。")
+    return {"subject": f"wechat:{subject}", "display_name": str(user_info.get("nickname", "")).strip()}
+
+
+def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str, str]) -> sqlite3.Row:
+    subject = profile["subject"]
+    display_name = re.sub(r"[^A-Za-z0-9_]+", "_", profile.get("display_name", "")).strip("_")[:12]
+    prefix = "qq" if provider == "qq" else "wx"
+    digest = hashlib.sha256(subject.encode("utf-8")).hexdigest()[:10]
+    with AUTH_LOCK, auth_database() as connection:
+        identity = connection.execute(
+            "SELECT account_id FROM oauth_identities WHERE provider = ? AND subject = ?",
+            (provider, subject),
+        ).fetchone()
+        if identity:
+            account = connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (identity["account_id"],)).fetchone()
+            if account:
+                return account
+        base = f"{prefix}_{display_name}" if display_name else f"{prefix}_{digest}"
+        base = base[:24]
+        user_id = base
+        suffix = 1
+        while connection.execute("SELECT 1 FROM user_id_history WHERE user_id = ? COLLATE NOCASE", (user_id,)).fetchone():
+            tail = f"_{suffix}"
+            user_id = f"{base[:24 - len(tail)]}{tail}"
+            suffix += 1
+        account_id = str(uuid.uuid4())
+        synthetic_email = f"{prefix}_{digest}_{secrets.token_hex(4)}@oauth.invalid"
+        now = now_timestamp()
+        connection.execute(
+            "INSERT INTO accounts(id, email, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (account_id, synthetic_email, user_id, now, now),
+        )
+        connection.execute(
+            "INSERT INTO user_id_history(user_id, account_id, reserved_at) VALUES (?, ?, ?)",
+            (user_id, account_id, now),
+        )
+        connection.execute(
+            "INSERT INTO oauth_identities(provider, subject, account_id, display_name, created_at) VALUES (?, ?, ?, ?, ?)",
+            (provider, subject, account_id, profile.get("display_name", "")[:120], now),
+        )
+        return connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
 
 
 def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> None:
@@ -1006,8 +1197,21 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def send_empty(self, status: HTTPStatus, cookie: str | None = None) -> None:
         self.send_response(status)
+        self.send_header("Content-Length", "0")
         self.send_header("Cache-Control", "no-store")
         if cookie:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+
+    def send_redirect(self, location: str, cookie: str | list[str] | None = None) -> None:
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", location)
+        self.send_header("Content-Length", "0")
+        self.send_header("Cache-Control", "no-store")
+        if isinstance(cookie, list):
+            for value in cookie:
+                self.send_header("Set-Cookie", value)
+        elif cookie:
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
 
@@ -1093,9 +1297,57 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        oauth_match = re.fullmatch(r"/api/auth/oauth/(qq|wechat)/(start|callback)", path)
+        if oauth_match:
+            provider, action = oauth_match.groups()
+            config = oauth_config(self.server, provider)
+            if not config or not self.server.auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": f"{oauth_provider_label(provider)}登录尚未配置。"})
+                return
+            if action == "start":
+                state = issue_oauth_state(self.server, provider)
+                if provider == "qq":
+                    location = "https://graph.qq.com/oauth2.0/authorize?" + urlencode({
+                        "response_type": "code",
+                        "client_id": config["app_id"],
+                        "redirect_uri": config["redirect_uri"],
+                        "state": state,
+                        "scope": "get_user_info",
+                    })
+                else:
+                    location = "https://open.weixin.qq.com/connect/qrconnect?" + urlencode({
+                        "appid": config["app_id"],
+                        "redirect_uri": config["redirect_uri"],
+                        "response_type": "code",
+                        "scope": "snsapi_login",
+                        "state": state,
+                    }) + "#wechat_redirect"
+                self.send_redirect(location, oauth_state_cookie(self, state))
+                return
+            query = parse_qs(urlparse(self.path).query)
+            state = query.get("state", [""])[0]
+            state_cookie = self.cookies().get(OAUTH_STATE_COOKIE_NAME)
+            if not state or not state_cookie or not hmac.compare_digest(state, state_cookie.value) or not consume_oauth_state(self.server, state, provider):
+                self.send_redirect(oauth_callback_target(self.server, provider, "error", "登录状态已失效，请重试。"), oauth_state_cookie(self, expired=True))
+                return
+            if query.get("error"):
+                self.send_redirect(oauth_callback_target(self.server, provider, "error", "用户取消了授权。"), oauth_state_cookie(self, expired=True))
+                return
+            code = query.get("code", [""])[0]
+            if not code:
+                self.send_redirect(oauth_callback_target(self.server, provider, "error", "未获取到授权码，请重试。"), oauth_state_cookie(self, expired=True))
+                return
+            try:
+                account = oauth_account(self.server, provider, oauth_profile(self.server, provider, code))
+                token = issue_session(self.server, account["id"])
+            except (ValueError, OSError, sqlite3.Error) as error:
+                self.send_redirect(oauth_callback_target(self.server, provider, "error", str(error) or "第三方登录失败，请重试。"), oauth_state_cookie(self, expired=True))
+                return
+            self.send_redirect(oauth_callback_target(self.server, provider, "success"), [self.session_cookie(token), oauth_state_cookie(self, expired=True)])
+            return
         if path == "/api/auth/me":
             if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.NOT_FOUND, {"error": "邮箱登录尚未启用。"})
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "认证尚未启用。"})
                 return
             account = authenticate_request(self)
             if not account:
@@ -1134,14 +1386,19 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.server.public_library:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共上传未启用。"})
                 return
-            self.send_json(HTTPStatus.OK, {"publicLibrary": True, "authRequired": True, "authAvailable": self.server.auth_enabled})
+            self.send_json(HTTPStatus.OK, {
+                "publicLibrary": True,
+                "authRequired": True,
+                "authAvailable": self.server.auth_enabled,
+                "authProviders": sorted(self.server.oauth_providers),
+            })
             return
         if path == "/api/public-library/songs":
             if not self.server.public_library:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共上传未启用。"})
                 return
             if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "认证尚未配置。"})
                 return
             account = authenticate_request(self)
             if not account:
@@ -1176,7 +1433,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的推荐请求。"})
                 return
             if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "认证尚未配置。"})
                 return
             account = authenticate_request(self)
             if not account:
@@ -1193,8 +1450,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, {"action": "recommended", "recommendations": recommendations})
             return
         if path == "/api/auth/request-code":
-            if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+            if not self.server.email_auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱验证码登录尚未配置。"})
                 return
             if not self.request_is_same_origin():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
@@ -1215,8 +1472,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_empty(HTTPStatus.NO_CONTENT)
             return
         if path == "/api/auth/verify":
-            if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+            if not self.server.email_auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱验证码登录尚未配置。"})
                 return
             if not self.request_is_same_origin():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
@@ -1267,7 +1524,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的上传请求。"})
                 return
             if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置，暂不能上传。"})
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "认证尚未配置，暂不能上传。"})
                 return
             account = authenticate_request(self)
             if not account:
@@ -1322,7 +1579,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的取消推荐请求。"})
                 return
             if not self.server.auth_enabled:
-                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "认证尚未配置。"})
                 return
             account = authenticate_request(self)
             if not account:
@@ -1351,7 +1608,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的删除请求。"})
             return
         if not self.server.auth_enabled:
-            self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置，暂不能删除。"})
+            self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "认证尚未配置，暂不能删除。"})
             return
         account = authenticate_request(self)
         if not account:
@@ -1407,7 +1664,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到认证接口。"})
             return
         if not self.server.auth_enabled:
-            self.send_json(HTTPStatus.NOT_FOUND, {"error": "邮箱登录尚未启用。"})
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "认证尚未启用。"})
             return
         if not self.request_is_same_origin():
             self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
@@ -1441,6 +1698,12 @@ def main() -> int:
     parser.add_argument("--smtp-from", default=os.environ.get("DELTA_SMTP_FROM", ""), help="验证码发件人；也可设 DELTA_SMTP_FROM")
     parser.add_argument("--smtp-ssl", action="store_true", default=os.environ.get("DELTA_SMTP_SSL", "").lower() in {"1", "true", "yes"}, help="使用 SMTPS（通常为 465 端口）")
     parser.add_argument("--no-smtp-starttls", action="store_true", help="禁用 SMTP STARTTLS（默认启用）")
+    parser.add_argument("--qq-app-id", default=os.environ.get("DELTA_QQ_APP_ID", ""), help="QQ 互联应用 App ID；也可设 DELTA_QQ_APP_ID")
+    parser.add_argument("--qq-app-key", default=os.environ.get("DELTA_QQ_APP_KEY", ""), help="QQ 互联应用 App Key；也可设 DELTA_QQ_APP_KEY")
+    parser.add_argument("--qq-redirect-uri", default=os.environ.get("DELTA_QQ_REDIRECT_URI", ""), help="QQ OAuth 回调地址；也可设 DELTA_QQ_REDIRECT_URI")
+    parser.add_argument("--wechat-app-id", default=os.environ.get("DELTA_WECHAT_APP_ID", ""), help="微信开放平台网站应用 AppID；也可设 DELTA_WECHAT_APP_ID")
+    parser.add_argument("--wechat-app-secret", default=os.environ.get("DELTA_WECHAT_APP_SECRET", ""), help="微信开放平台网站应用 AppSecret；也可设 DELTA_WECHAT_APP_SECRET")
+    parser.add_argument("--wechat-redirect-uri", default=os.environ.get("DELTA_WECHAT_REDIRECT_URI", ""), help="微信 OAuth 回调地址；也可设 DELTA_WECHAT_REDIRECT_URI")
     parser.add_argument("--auth-code-log-only", action="store_true", default=os.environ.get("DELTA_AUTH_CODE_LOG_ONLY", "").lower() in {"1", "true", "yes"}, help="仅本地测试：把验证码写入服务日志，不发送邮件")
     parser.add_argument("--insecure-auth-cookies", action="store_true", help="仅本地测试：允许 HTTP 登录 Cookie；生产环境请勿使用")
     parser.add_argument("--analytics-admin-token", default=os.environ.get("DELTA_ANALYTICS_ADMIN_TOKEN", ""), help="启用内置分析并保护管理接口的令牌；也可设 DELTA_ANALYTICS_ADMIN_TOKEN")
@@ -1452,16 +1715,33 @@ def main() -> int:
         parser.error("统计保留天数必须在 1 到 365 之间")
     if not 1 <= args.smtp_port <= 65535:
         parser.error("SMTP 端口必须在 1 到 65535 之间")
-    auth_requested = bool(args.smtp_host or args.smtp_from or args.auth_code_log_only)
-    if auth_requested and not args.auth_secret:
+    email_auth_requested = bool(args.smtp_host or args.smtp_from or args.auth_code_log_only)
+    if email_auth_requested and not args.auth_secret:
         parser.error("启用邮箱登录时必须设置 DELTA_AUTH_SECRET 或 --auth-secret")
-    if auth_requested and not args.auth_code_log_only:
+    if email_auth_requested and not args.auth_code_log_only:
         if not (args.smtp_host and args.smtp_from):
             parser.error("启用 SMTP 登录时必须设置 DELTA_SMTP_HOST 和 DELTA_SMTP_FROM")
         if bool(args.smtp_username) != bool(args.smtp_password):
             parser.error("DELTA_SMTP_USERNAME 与 DELTA_SMTP_PASSWORD 必须同时设置或同时留空")
+    oauth_values = {
+        "qq": (args.qq_app_id, args.qq_app_key, args.qq_redirect_uri),
+        "wechat": (args.wechat_app_id, args.wechat_app_secret, args.wechat_redirect_uri),
+    }
+    oauth_providers: dict[str, dict[str, str]] = {}
+    for provider, values in oauth_values.items():
+        if any(values) and not all(values):
+            parser.error(f"{oauth_provider_label(provider)}登录必须同时设置 AppID、密钥和回调地址")
+        if all(values):
+            parsed_redirect = urlparse(values[2])
+            if parsed_redirect.scheme != "https" or not parsed_redirect.netloc or not parsed_redirect.path.endswith(f"/api/auth/oauth/{provider}/callback"):
+                parser.error(f"{oauth_provider_label(provider)}登录回调地址必须是 HTTPS，并以 /api/auth/oauth/{provider}/callback 结尾")
+            oauth_providers[provider] = {"app_id": values[0], "app_secret": values[1], "redirect_uri": values[2]}
+    oauth_requested = bool(oauth_providers)
+    auth_requested = email_auth_requested or oauth_requested
+    if auth_requested and not args.auth_secret:
+        parser.error("启用登录时必须设置 DELTA_AUTH_SECRET 或 --auth-secret")
     if args.public and not auth_requested:
-        print("警告：公共上传已启用但邮箱登录未配置；网页会隐藏直传入口。", file=sys.stderr)
+        print("警告：公共上传已启用但认证未配置；网页会隐藏直传入口。", file=sys.stderr)
 
     handler = lambda *args_, **kwargs: LocalLibraryRequestHandler(*args_, directory=str(REPOSITORY_ROOT), **kwargs)
     host = "0.0.0.0" if args.public else "127.0.0.1"
@@ -1474,6 +1754,7 @@ def main() -> int:
     server.last_public_uploads: dict[str, float] = {}
     server.upload_rate_limit_lock = threading.Lock()
     server.auth_enabled = auth_requested
+    server.email_auth_enabled = email_auth_requested
     server.auth_secret = args.auth_secret
     server.smtp_host = args.smtp_host
     server.smtp_port = args.smtp_port
@@ -1484,6 +1765,9 @@ def main() -> int:
     server.smtp_starttls = not args.no_smtp_starttls and not args.smtp_ssl
     server.auth_code_log_only = args.auth_code_log_only
     server.insecure_auth_cookies = args.insecure_auth_cookies
+    server.oauth_providers = oauth_providers
+    server.oauth_states: dict[str, dict[str, Any]] = {}
+    server.oauth_state_lock = threading.Lock()
     server.auth_code_requests: dict[str, list[float]] = {}
     server.auth_rate_limit_lock = threading.Lock()
     server.hot_ranking_stop_event = threading.Event()
@@ -1513,8 +1797,11 @@ def main() -> int:
     if server.analytics_enabled:
         print(f"站内行为分析已启用：/admin/analytics.html（事件保留 {server.analytics_retention_days} 天）")
     if server.auth_enabled:
-        source = "本地日志（测试模式）" if server.auth_code_log_only else f"SMTP {server.smtp_host}:{server.smtp_port}"
-        print(f"邮箱登录已启用：{source}")
+        if server.email_auth_enabled:
+            source = "本地日志（测试模式）" if server.auth_code_log_only else f"SMTP {server.smtp_host}:{server.smtp_port}"
+            print(f"邮箱登录已启用：{source}")
+        if server.oauth_providers:
+            print(f"第三方登录已启用：{', '.join(oauth_provider_label(provider) for provider in sorted(server.oauth_providers))}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

@@ -64,7 +64,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=20260915" />
+    <link rel="stylesheet" href="./styles.css?v=20260916" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.0.2</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.1.0</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -141,8 +141,7 @@
           <h2 id="libraryTitle">曲库</h2>
           <div class="library-tabs" role="tablist" aria-label="曲库分类">
             <button class="library-tab" data-library-view="all" type="button" role="tab" aria-selected="false">全部</button>
-            <button class="library-tab active" data-library-view="community" type="button" role="tab" aria-selected="true">社区</button>
-            <button class="library-tab recommendation" data-library-view="recommended" type="button" role="tab" aria-selected="false">推荐</button>
+            <button class="library-tab recommendation active" data-library-view="recommended" type="button" role="tab" aria-selected="true">推荐</button>
             <button class="library-tab" data-library-view="hot" type="button" role="tab" aria-selected="false">热门</button>
             <button class="library-tab" data-library-view="mine" type="button" role="tab" aria-selected="false">我的</button>
           </div>
@@ -477,13 +476,13 @@
         </div>
       </section>
     </main>
-    <footer><span>HARMONICA DECK · WEB v1.0.2</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v1.1.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v1.0.2</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v1.1.0</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -502,7 +501,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v1.0.2</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v1.1.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -648,7 +647,7 @@
     </dialog>
     <dialog class="auth-dialog" id="authDialog" aria-labelledby="authTitle" aria-describedby="authDescription">
       <form method="dialog" class="auth-form">
-        <div class="window-titlebar"><span>ACCOUNT.EXE — EMAIL ACCESS</span><button class="dialog-close" id="authDialogClose" type="button" aria-label="关闭登录或注册窗口">×</button></div>
+        <div class="window-titlebar"><span>ACCOUNT.EXE — COMMUNITY ACCESS</span><button class="dialog-close" id="authDialogClose" type="button" aria-label="关闭登录或注册窗口">×</button></div>
         <div class="auth-dialog-body">
           <span class="index">SECURE COMMUNITY ACCESS</span>
           <div class="auth-mode-tabs" role="tablist" aria-label="账户操作">
@@ -657,6 +656,14 @@
           </div>
           <h2 id="authTitle">登录</h2>
           <p id="authDescription">使用已注册邮箱接收验证码并登录。</p>
+          <div class="oauth-login" id="oauthLogin" hidden>
+            <div class="oauth-login-heading"><span>QUICK ACCESS</span><i aria-hidden="true"></i><span>官方授权</span></div>
+            <div class="oauth-login-buttons">
+              <button class="oauth-login-button oauth-login-qq" data-oauth-provider="qq" type="button"><b aria-hidden="true">Q</b><span>QQ 快捷登录</span><strong>→</strong></button>
+              <button class="oauth-login-button oauth-login-wechat" data-oauth-provider="wechat" type="button"><b aria-hidden="true">微</b><span>微信扫码登录</span><strong>→</strong></button>
+            </div>
+            <p class="oauth-login-note">将跳转到官方授权页；微信使用扫码确认，QQ 可在授权页选择扫码或快捷确认。</p>
+          </div>
           <section id="authLoginPanel" class="auth-mode-panel" role="tabpanel" aria-labelledby="authLoginTab">
             <label>邮箱地址<input id="authEmail" type="email" autocomplete="email" maxlength="254" inputmode="email" placeholder="you@example.com" /></label>
             <button class="primary-button auth-submit" id="authRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
@@ -682,7 +689,7 @@
         <div class="auth-dialog-body">
           <span class="index">COMMUNITY IDENTITY</span>
           <h2 id="accountTitle">账户资料</h2>
-          <p>已验证邮箱：<b id="accountEmail">--</b></p>
+          <p>登录凭据：<b id="accountEmail">--</b></p>
           <label>用户 ID（用户名）<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" aria-describedby="accountUserIdHint" /><small id="accountUserIdHint">这是你的用户名，上传曲目时会作为共享人显示。</small></label>
           <p class="auth-account-note">修改后，所有通过本站直传发布的曲谱会同步显示新 ID；旧 ID 会永久保留，无法被其他账户使用。</p>
           <p class="auth-status" id="accountStatus" role="status" aria-live="polite" hidden></p>
@@ -785,7 +792,7 @@
       </section>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./data/community-songs.js?v=20260915"></script>
-    <script src="./app.js?v=20260915"></script>
+    <script src="./data/community-songs.js?v=20260916"></script>
+    <script src="./app.js?v=20260916"></script>
   </body>
 </html>

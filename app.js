@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "1.0.2";
+const WEBSITE_VERSION = "1.1.0";
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
 const GITHUB_COMMITS_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?per_page=10`;
 const WEBSITE_UPDATE_METADATA_URL = "./version.json";
@@ -345,7 +345,7 @@ const SONG_FILE_VERSION = 1;
 const MIGRATED_COMMUNITY_SONG_TITLES = new Set(["鸟之诗", "天使爱美丽", "天空之城", "皇后大道东", "父亲", "贝加尔湖畔"]);
 const BUILTIN_SONGS_FOR_LIBRARY = () => BUILTIN_SONG_LIBRARY.filter((song) => !MIGRATED_COMMUNITY_SONG_TITLES.has(song.title));
 const SONG_LIBRARY = [...BUILTIN_SONGS_FOR_LIBRARY(), ...COMMUNITY_SONG_LIBRARY].map((song) => normalizeSong(song));
-let activeLibraryView = "community";
+let activeLibraryView = "recommended";
 let mySongLibrary = [];
 let scoreExportCounts = new Map();
 let hotScoreRanks = new Map();
@@ -652,7 +652,7 @@ const SECTION_GUIDES = {
     intro: "曲库用于快速载入现成曲谱。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
     steps: [
       ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
-      ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；「社区」只显示用户上传的曲目；登录后可在「我的」查看当前账号的上传记录。"],
+      ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；登录后可在「我的」查看当前账号的上传记录。"],
       ["03", "查看与编辑", "点击卡片或「查看」会载入该曲并定位到编辑器；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
       ["05", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
@@ -713,7 +713,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -781,7 +781,7 @@ let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
-let authState = { available: false, account: null, pendingCommunityUpload: false, email: "", mode: "login" };
+let authState = { available: false, account: null, pendingCommunityUpload: false, email: "", mode: "login", providers: [] };
 let pendingLibrarySong = null;
 let pendingSongEdit = null;
 let activeAnalyticsScoreId = "";
@@ -1795,11 +1795,7 @@ function songsForLibraryView() {
         || compareLibrarySongs(left, right))
       .slice(0, 10);
   }
-  const songs = activeLibraryView === "all"
-    ? SONG_LIBRARY
-    : activeLibraryView === "mine"
-      ? mySongLibrary
-      : SONG_LIBRARY.filter((song) => song.source === "社区投稿");
+  const songs = activeLibraryView === "mine" ? mySongLibrary : SONG_LIBRARY;
   return [...songs].sort(compareLibrarySongs);
 }
 
@@ -3349,14 +3345,43 @@ function setAuthStatus(target, message = "", success = false) {
   target.classList.toggle("success", Boolean(message && success));
 }
 
+function setOAuthProviders(providers = []) {
+  authState.providers = Array.isArray(providers) ? providers.filter((provider) => ["qq", "wechat"].includes(provider)) : [];
+  const available = new Set(authState.providers);
+  elements.oauthLoginButtons.forEach((button) => {
+    button.hidden = !available.has(button.dataset.oauthProvider);
+  });
+  elements.oauthLogin.hidden = authState.providers.length === 0;
+}
+
+function startOAuthLogin(provider) {
+  if (!authState.providers.includes(provider)) {
+    setAuthStatus(elements.authStatus, `${provider === "wechat" ? "微信" : "QQ"}登录尚未配置。`);
+    return;
+  }
+  window.location.assign(`./api/auth/oauth/${provider}/start`);
+}
+
+function handleOAuthRedirectStatus() {
+  const url = new URL(window.location.href);
+  const result = url.searchParams.get("auth");
+  if (!result) return;
+  const message = url.searchParams.get("message") || "";
+  url.searchParams.delete("auth");
+  url.searchParams.delete("message");
+  window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+  if (result === "success") toast("第三方登录成功。 ");
+  else if (result === "error") toast(message || "第三方登录失败，请重试。 ");
+}
+
 function replaceCommunitySongs(songs) {
   if (!Array.isArray(songs)) return;
   SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONGS_FOR_LIBRARY(), ...songs].map((song) => normalizeSong(song)));
   renderSongLibrary(elements.songSearch.value);
 }
 
-function setLibraryView(view = "community") {
-  const selectedView = ["all", "community", "recommended", "hot", "mine"].includes(view) ? view : "community";
+function setLibraryView(view = "recommended") {
+  const selectedView = ["all", "recommended", "hot", "mine"].includes(view) ? view : "recommended";
   activeLibraryView = selectedView;
   elements.libraryTabs.forEach((tab) => {
     const selected = tab.dataset.libraryView === selectedView;
@@ -3756,6 +3781,7 @@ async function logoutAccount() {
 
 async function initializeCommunityAuth(status) {
   authState.available = Boolean(status?.publicLibrary && status?.authAvailable);
+  setOAuthProviders(status?.authProviders);
   elements.accountButton.hidden = !authState.available;
   if (!authState.available) return;
   try {
@@ -3763,6 +3789,7 @@ async function initializeCommunityAuth(status) {
     setSignedInAccount(result.account);
     await loadMySongLibrary();
   } catch {}
+  handleOAuthRedirectStatus();
 }
 
 function compactText(value, field, limit) {
@@ -4235,6 +4262,7 @@ elements.authRequestCode.addEventListener("click", requestLoginCode);
 elements.authRegisterRequestCode.addEventListener("click", requestLoginCode);
 elements.authVerifyLogin.addEventListener("click", verifyLoginCode);
 elements.authVerifyRegister.addEventListener("click", verifyLoginCode);
+elements.oauthLoginButtons.forEach((button) => button.addEventListener("click", () => startOAuthLogin(button.dataset.oauthProvider)));
 elements.saveAccountButton.addEventListener("click", saveAccountUserId);
 elements.logoutButton.addEventListener("click", logoutAccount);
 elements.libraryOverwriteConfirm.addEventListener("click", async () => {
@@ -4525,7 +4553,7 @@ elements.uploadMethodTabs.forEach((tab) => tab.addEventListener("click", () => s
 elements.localLibraryButton.addEventListener("click", () => openScoreExportDialog("local-library"));
 if (navigator.mediaDevices?.addEventListener) navigator.mediaDevices.addEventListener("devicechange", handleAudioOutputChange);
 
-setLibraryView("community");
+setLibraryView("recommended");
 enableLocalLibraryEntry();
 enableCommunityUploadEntry();
 updateLineNumbers();

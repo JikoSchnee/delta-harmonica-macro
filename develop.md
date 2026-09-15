@@ -47,6 +47,21 @@ DELTA_SMTP_FROM='三角洲口琴演奏家 <noreply@example.com>' \
 python3 tools/local_library_server.py --public --trust-proxy --port 8765
 ```
 
+也可以在同一套账户体系中启用 QQ 与微信网站扫码登录。密钥只配置在服务端，不要写入 `index.html` 或 `app.js`：
+
+```bash
+export DELTA_AUTH_SECRET='请使用随机长密钥'
+export DELTA_QQ_APP_ID='QQ互联 App ID'
+export DELTA_QQ_APP_KEY='QQ互联 App Key'
+export DELTA_QQ_REDIRECT_URI='https://jiko-official.top/delta/api/auth/oauth/qq/callback'
+export DELTA_WECHAT_APP_ID='微信开放平台网站应用 AppID'
+export DELTA_WECHAT_APP_SECRET='微信开放平台网站应用 AppSecret'
+export DELTA_WECHAT_REDIRECT_URI='https://jiko-official.top/delta/api/auth/oauth/wechat/callback'
+python3 tools/local_library_server.py --public --trust-proxy --port 8765
+```
+
+QQ 需要在 QQ 互联应用中登记 QQ 回调地址；微信需要在微信开放平台「网站应用」中登记授权回调域名。两者的回调地址必须使用 HTTPS，并分别以 `/api/auth/oauth/qq/callback` 与 `/api/auth/oauth/wechat/callback` 结尾。网页中的「QQ 快捷登录」和「微信扫码登录」会跳转到对应官方授权页，首次登录会自动创建用户 ID（例如 `qq_name` 或 `wx_xxxxx`），并复用现有投稿权限与会话 Cookie。未配置的平台不会显示按钮。
+
 将 HTTPS 反向代理指向该端口，并让服务用户拥有 `data/` 的写权限。生产环境必须使用 HTTPS：认证 Cookie 默认带 `Secure` 标记。`data/auth.sqlite3` 保存邮箱、账户、会话和投稿归属，`data/hot-rankings.sqlite3` 保存每日热门榜结果；两者都应使用持久化数据卷且不得提交到 Git。
 
 `--public` 监听所有网卡并启用公共直传；只有端口不直接暴露、且 `X-Forwarded-For` 由自有反向代理覆盖时，才可使用 `--trust-proxy`。
