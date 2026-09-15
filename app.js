@@ -42,6 +42,11 @@ const INPUT_TRANSITION_GAP_MS = 18;
 // octave despite sounding correct in the browser preview.
 const MODIFIER_SETTLE_MS = 24;
 const MIN_NOTE_HOLD_MS = 24;
+// Give the target macro recorder time to enter its capture state after the
+// helper's Start button is clicked.  This is a silent pre-roll and does not
+// change the score's note timing; without it, the first key events can be
+// lost, especially when the score starts with short notes.
+const RECORDER_STARTUP_GUARD_MS = 150;
 const PREVIEW_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71, "1'": 72 };
 const PREVIEW_OFFSETS = { L: -12, M: 1, R: 12 };
 const KEY_TO_NOTE = { z: "1", x: "2", c: "3", v: "4", b: "5", n: "6", m: "7", ",": "1'" };
@@ -1955,7 +1960,10 @@ function standardJianpuPitch(item) {
       for (let digit = 1; digit <= 7; digit += 1) {
         const candidate = encodeJianpuPitch(accidental, octaveMark.startsWith(",") ? octaveMark : "", String(digit), octaveMark.startsWith("'") ? octaveMark : "");
         if (candidate?.midi !== midi) continue;
-        const text = `${accidental}${octaveMark === "," ? "," : ""}${digit}${octaveMark === "'" ? "'" : ""}`;
+        // Keep repeated octave marks.  A double high mark is a real playable
+        // pitch (for example 1''), and dropping one here changes the exported
+        // note by an entire octave after MIDI import or transposition.
+        const text = `${accidental}${octaveMark.startsWith(",") ? octaveMark : ""}${digit}${octaveMark.startsWith("'") ? octaveMark : ""}`;
         candidates.push({ text, score: (accidental ? 1 : 0) + (octaveMark ? 1 : 0) });
       }
     });
@@ -3073,9 +3081,12 @@ async function launchIndependentRecorder(sequence) {
     v: 1,
     wv: WEBSITE_VERSION,
     title: safeName(),
-    events: sequence.notes.map((item) => item.isRest
-      ? { w: item.durationMs }
-      : { k: item.key, m: item.modifier || "", l: item.inputLeadMs || 0, h: item.pressMs, w: item.waitMs || 0 })
+    events: [
+      { w: RECORDER_STARTUP_GUARD_MS },
+      ...sequence.notes.map((item) => item.isRest
+        ? { w: item.durationMs }
+        : { k: item.key, m: item.modifier || "", l: item.inputLeadMs || 0, h: item.pressMs, w: item.waitMs || 0 })
+    ]
   };
   const compressedPayload = await encodeGzipUrlPayload(payload);
   const url = compressedPayload
