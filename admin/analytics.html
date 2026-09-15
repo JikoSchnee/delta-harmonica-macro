@@ -31,7 +31,7 @@
         <div class="hero">
           <span class="eyebrow">HARMONICA DECK · ANONYMOUS PRODUCT SIGNALS</span>
           <h1>站内数据分析</h1>
-          <p>只显示匿名会话、功能使用和聚合路径；不包含曲名、谱面、搜索词、IP 或文件内容。</p>
+          <p>只显示匿名会话、功能使用和聚合路径；谱子按匿名标识统计，不包含曲名、谱面、搜索词、IP 或文件内容。</p>
           <form id="accessForm">
             <input id="token" type="password" autocomplete="current-password" placeholder="管理令牌" aria-label="管理令牌" required />
             <select id="days" aria-label="统计区间"><option value="7">最近 7 天</option><option value="30" selected>最近 30 天</option><option value="90">最近 90 天</option></select>
@@ -46,15 +46,16 @@
           <section class="window section"><span class="eyebrow">DAILY TRAFFIC</span><h2>访问走势</h2><table><thead><tr><th>日期</th><th>会话</th><th>访问</th></tr></thead><tbody id="timeline"></tbody></table></section>
           <section class="window section"><span class="eyebrow">CONVERSION FUNNEL</span><h2>使用漏斗</h2><table><thead><tr><th>步骤</th><th>匿名会话</th></tr></thead><tbody id="funnel"></tbody></table></section>
           <section class="window section"><span class="eyebrow">ENTRY SOURCES / ACTIONS</span><h2>来源与操作</h2><table><thead><tr><th>项目</th><th>次数</th></tr></thead><tbody id="events"></tbody></table></section>
+          <section class="window section"><span class="eyebrow">SCORE OPERATIONS</span><h2>谱子操作量</h2><table><thead><tr><th>匿名谱子</th><th>载入</th><th>编辑</th><th>导出</th><th>总计</th><th>会话</th></tr></thead><tbody id="scores"></tbody></table></section>
           <section class="window section"><span class="eyebrow">TOP JOURNEYS</span><h2>高频使用路径</h2><table><thead><tr><th>路径</th><th>会话</th></tr></thead><tbody id="paths"></tbody></table></section>
         </div>
       </section>
     </main>
     <script>
       const $ = (selector) => document.querySelector(selector);
-      const labels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", lua_copied:"复制 Lua", tour_started:"打开教程" };
+      const labels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", export_mode_selected:"切换导出板块", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", lua_copied:"复制 Lua", score_edit_opened:"打开编辑", score_edit_saved:"保存编辑", tour_started:"打开教程" };
       const number = new Intl.NumberFormat("zh-CN");
-      function rows(target, items, render, empty = "尚无数据") { const node = $(target); node.innerHTML = items.length ? items.map(render).join("") : `<tr><td class="empty" colspan="3">${empty}</td></tr>`; }
+      function rows(target, items, render, empty = "尚无数据", colspan = 3) { const node = $(target); node.innerHTML = items.length ? items.map(render).join("") : `<tr><td class="empty" colspan="${colspan}">${empty}</td></tr>`; }
       function render(report) {
         const cards = [["匿名会话",report.summary.sessions],["页面访问",report.summary.pageViews],["记录事件",report.summary.events],["宏文件下载",report.summary.macroDownloads]];
         $("#summary").innerHTML = cards.map(([name,value]) => `<section class="window metric"><span>${name}</span><b>${number.format(value)}</b></section>`).join("");
@@ -63,6 +64,7 @@
         rows("#funnel", report.funnel, item => `<tr><td>${item.name}<div class="bar"><i style="width:${item.sessions / maxFunnel * 100}%"></i></div></td><td>${number.format(item.sessions)}</td></tr>`);
         const sourceRows = report.sources.map(item => ({name:`来源：${item.name}`,count:item.count}));
         rows("#events", [...sourceRows,...report.events.slice(0,10)].slice(0,14), item => `<tr><td>${labels[item.name] || item.name}</td><td>${number.format(item.count)}</td></tr>`);
+        rows("#scores", report.scoreOperations || [], item => `<tr><td class="path">${item.scoreId}</td><td>${number.format(item.loaded)}</td><td>${number.format(item.edits)}</td><td>${number.format(item.exports)}</td><td>${number.format(item.operations)}</td><td>${number.format(item.sessions)}</td></tr>`, "还没有谱子级操作数据", 6);
         rows("#paths", report.paths, item => `<tr><td class="path">${item.path}</td><td>${number.format(item.sessions)}</td></tr>`, "还没有形成两步以上的路径");
       }
       $("#accessForm").addEventListener("submit", async event => {

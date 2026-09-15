@@ -38,7 +38,7 @@ REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 TOOLS_DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS_DIRECTORY))
 
-from import_community_scores import dedupe_key, validate_package, write_library  # noqa: E402
+from import_community_scores import FORMAT, VERSION, dedupe_key, validate_package, write_library  # noqa: E402
 
 
 SOURCE_DIRECTORY = REPOSITORY_ROOT / "data" / "community-scores"
@@ -67,20 +67,27 @@ ACTIVE_VISITOR_WINDOW_SECONDS = 300
 ANALYTICS_EVENTS = {
     "page_view", "directory_selected", "library_search", "song_loaded", "input_mode_selected",
     "midi_import_opened", "midi_selection_applied", "score_imported", "preview_started",
-    "macro_section_opened", "score_downloaded", "community_upload_succeeded", "macro_downloaded",
-    "lua_copied", "tour_started", "heartbeat",
+    "macro_section_opened", "export_mode_selected", "score_downloaded", "community_upload_succeeded", "macro_downloaded",
+    "lua_copied", "score_edit_opened", "score_edit_saved", "tour_started", "heartbeat",
 }
 ANALYTICS_ENUMERATIONS = {
     "entry": {"direct", "search", "social", "referral", "internal"},
     "origin": {"builtin", "community", "pdmx", "imported", "midi"},
     "mode": {"jianpu", "record", "precise", "keyboard"},
+    "export_mode": {"general", "special"},
     "format": {"lua", "synapse_3", "synapse_4", "rog", "deltamusic"},
     "directory": {"library", "midi", "manual"},
 }
+ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$")
+SCORE_EXPORT_EVENTS = {"macro_downloaded", "score_downloaded", "lua_copied"}
 
 
 class DuplicateScoreError(ValueError):
     """Raised when a public upload would replace an existing community score."""
+
+    def __init__(self, message: str, *, owned_by_requester: bool = False) -> None:
+        super().__init__(message)
+        self.owned_by_requester = owned_by_requester
 
 
 def analytics_event_path(day: date) -> Path:
@@ -96,6 +103,9 @@ def clean_analytics_properties(event: str, value: Any) -> dict[str, Any]:
         candidate = value.get(field)
         if candidate in allowed:
             properties[field] = candidate
+    score_id = value.get("score_id")
+    if isinstance(score_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id):
+        properties["score_id"] = score_id
     # Search text, score titles, MIDI file names and free-form user input are never accepted.
     if event == "library_search" and isinstance(value.get("query_length"), int):
         properties["query_length"] = min(128, max(0, value["query_length"]))
@@ -156,10 +166,13 @@ def analytics_label(event: dict[str, Any]) -> str:
         "score_imported": "导入谱子",
         "preview_started": "试听",
         "macro_section_opened": "宏导出区",
+        "export_mode_selected": f"导出板块:{properties.get('export_mode', '其他')}",
         "macro_downloaded": f"下载:{properties.get('format', '宏')}",
         "score_downloaded": "下载谱子",
         "community_upload_succeeded": "上传曲库",
         "lua_copied": "复制 Lua",
+        "score_edit_opened": "打开编辑",
+        "score_edit_saved": "保存编辑",
         "tour_started": "打开教程",
     }
     return labels.get(event["event"], event["event"])
@@ -189,6 +202,16 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     daily_views: Counter[str] = Counter()
     source_counts: Counter[str] = Counter()
     journeys: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    score_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
+        "sessions": set(),
+        "loaded": 0,
+        "editOpened": 0,
+        "editSaved": 0,
+        "exports": 0,
+        "formats": Counter(),
+    })
+    score_edit_events = {"score_edit_opened", "score_edit_saved"}
+    score_export_events = SCORE_EXPORT_EVENTS
     for item in records:
         event_sessions[item["event"]].add(item["session"])
         day = str(item.get("time", ""))[:10]
@@ -199,6 +222,20 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         if item["event"] == "page_view":
             source_counts[(item.get("properties") or {}).get("entry", "direct")] += 1
         journeys[item["session"]].append(item)
+        properties = item.get("properties") or {}
+        score_id = properties.get("score_id")
+        if score_id:
+            stats = score_stats[score_id]
+            stats["sessions"].add(item["session"])
+            if item["event"] in {"song_loaded", "score_imported", "midi_selection_applied"}:
+                stats["loaded"] += 1
+            if item["event"] in score_edit_events:
+                stats["editOpened"] += item["event"] == "score_edit_opened"
+                stats["editSaved"] += item["event"] == "score_edit_saved"
+            if item["event"] in score_export_events:
+                stats["exports"] += 1
+                format_name = properties.get("format") or item["event"].removesuffix("_downloaded").replace("_", " ")
+                stats["formats"][format_name] += 1
 
     path_counts: Counter[str] = Counter()
     for journey in journeys.values():
@@ -223,6 +260,24 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     for offset in range(days):
         day = (start + timedelta(days=offset)).isoformat()
         timeline.append({"day": day, "sessions": len(daily_sessions[day]), "pageViews": daily_views[day]})
+    score_operations = []
+    for score_id, stats in score_stats.items():
+        edit_count = stats["editOpened"] + stats["editSaved"]
+        operation_count = stats["loaded"] + edit_count + stats["exports"]
+        if not operation_count:
+            continue
+        score_operations.append({
+            "scoreId": score_id,
+            "loaded": stats["loaded"],
+            "edits": edit_count,
+            "editOpened": stats["editOpened"],
+            "editSaved": stats["editSaved"],
+            "exports": stats["exports"],
+            "operations": operation_count,
+            "sessions": len(stats["sessions"]),
+            "formats": dict(stats["formats"].most_common()),
+        })
+    score_operations.sort(key=lambda item: (-item["operations"], item["scoreId"]))
     return {
         "rangeDays": days,
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
@@ -230,6 +285,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         "timeline": timeline,
         "sources": [{"name": name, "count": count} for name, count in source_counts.most_common(8)],
         "events": [{"name": name, "count": count, "sessions": len(event_sessions[name])} for name, count in event_counts.most_common()],
+        "scoreOperations": score_operations[:100],
         "funnel": funnel,
         "paths": [{"path": path, "sessions": count} for path, count in path_counts.most_common(12)],
     }
@@ -263,6 +319,30 @@ def build_public_analytics_summary() -> dict[str, int]:
         "todayVisitors": len(today_sessions),
         "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
     }
+
+
+def build_public_score_export_summary(retention_days: int) -> dict[str, list[dict[str, int | str]]]:
+    """Return export totals by anonymous score ID for public library cards."""
+    safe_days = max(1, retention_days)
+    today = datetime.now(timezone.utc).date()
+    start = today - timedelta(days=safe_days - 1)
+    exports: Counter[str] = Counter()
+    for offset in range(safe_days):
+        path = analytics_event_path(start + timedelta(days=offset))
+        if not path.exists():
+            continue
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                item = json.loads(line)
+                if not isinstance(item, dict) or item.get("event") not in SCORE_EXPORT_EVENTS:
+                    continue
+                properties = item.get("properties")
+                score_id = properties.get("score_id") if isinstance(properties, dict) else None
+                if isinstance(score_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id):
+                    exports[score_id] += 1
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+    return {"scores": [{"scoreId": score_id, "exports": count} for score_id, count in exports.items()]}
 
 
 def source_paths() -> list[Path]:
@@ -328,14 +408,28 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
     with LIBRARY_LOCK:
         existing_scores = read_scores()
         matches = [(path, item) for path, item in existing_scores if dedupe_key(item) == dedupe_key(score)]
+        if not matches and owner_account_id:
+            owned_title_artist_matches = [
+                (path, item)
+                for path, item in existing_scores
+                if item["title"].casefold() == score["title"].casefold()
+                and item["artist"].casefold() == score["artist"].casefold()
+                and score_owner_account_id(path) == owner_account_id
+            ]
+            if len(owned_title_artist_matches) > 1:
+                raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
+            matches = owned_title_artist_matches
         if len(matches) > 1:
             raise ValueError("曲库中存在多个相同身份的曲目，请先手动整理源文件。")
         if matches and not allow_replace:
             owned_by_requester = owner_account_id and len(matches) == 1 and score_owner_account_id(matches[0][0]) == owner_account_id
             if owned_by_requester:
-                allow_replace = True
-        if matches and not allow_replace:
+                raise DuplicateScoreError("同一账号已有同名曲目，是否确认覆盖？", owned_by_requester=True)
             raise DuplicateScoreError("该歌名、歌手/作者和共享人组合已存在，不能覆盖已上传曲目。")
+        if matches and allow_replace and owner_account_id:
+            owned_by_requester = len(matches) == 1 and score_owner_account_id(matches[0][0]) == owner_account_id
+            if not owned_by_requester:
+                raise DuplicateScoreError("该曲目不属于当前账号，不能覆盖已上传曲目。")
 
         existing_path = matches[0][0] if matches else None
         destination = existing_path if existing_path and is_canonical_source(existing_path) else SOURCE_DIRECTORY / filename_for(score)
@@ -352,6 +446,72 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
         rebuilt_scores = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, rebuilt_scores)
         return ("updated" if matches else "created"), rebuilt_scores, destination
+
+
+def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str, list[dict[str, Any]], Path]:
+    """Update a user's score metadata and notation without allowing ownership changes."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("original"), dict):
+        raise ValueError("曲目编辑请求格式无效。")
+    original = payload["original"]
+    original_title = original.get("title")
+    original_artist = original.get("artist")
+    if not isinstance(original_title, str) or not original_title.strip() or len(original_title.strip()) > 48:
+        raise ValueError("原曲歌名无效。")
+    if not isinstance(original_artist, str) or not original_artist.strip() or len(original_artist.strip()) > 64:
+        raise ValueError("原曲歌手/作者无效。")
+    candidate = validate_package({
+        "format": FORMAT,
+        "version": VERSION,
+        "title": payload.get("title"),
+        "artist": payload.get("artist"),
+        "sharedBy": user_id,
+        "key": payload.get("key"),
+        "meter": payload.get("meter"),
+        "bpm": payload.get("bpm"),
+        "jianpu": payload.get("jianpu"),
+        "displayUrl": payload.get("displayUrl"),
+    })
+    with LIBRARY_LOCK:
+        existing_scores = read_scores()
+        matches = [
+            (path, score)
+            for path, score in existing_scores
+            if is_canonical_source(path)
+            and score["title"].casefold() == original_title.strip().casefold()
+            and score["artist"].casefold() == original_artist.strip().casefold()
+            and score_owner_account_id(path) == account_id
+        ]
+        if not matches:
+            raise FileNotFoundError("未找到属于当前账号的曲目。")
+        if len(matches) > 1:
+            raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
+        existing_path, existing_score = matches[0]
+        conflicts = [
+            path for path, score in existing_scores
+            if path != existing_path and dedupe_key(score) == dedupe_key(candidate)
+        ]
+        if conflicts:
+            raise DuplicateScoreError("新的歌名、歌手/作者和共享人组合已存在，不能覆盖其他曲目。")
+        destination = existing_path if dedupe_key(existing_score) == dedupe_key(candidate) else SOURCE_DIRECTORY / filename_for(candidate)
+        package = {
+            "format": FORMAT,
+            "version": VERSION,
+            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
+        }
+        write_json_atomically(destination, package)
+        if destination != existing_path:
+            existing_path.unlink()
+            old_relative = str(existing_path.relative_to(REPOSITORY_ROOT))
+            new_relative = str(destination.relative_to(REPOSITORY_ROOT))
+            with AUTH_LOCK, auth_database() as connection:
+                connection.execute(
+                    "UPDATE score_owners SET score_path = ? WHERE score_path = ? AND account_id = ?",
+                    (new_relative, old_relative, account_id),
+                )
+        rebuilt_scores = [item for _, item in read_scores()]
+        write_library(LIBRARY_OUTPUT, rebuilt_scores)
+        return "updated", rebuilt_scores, destination
 
 
 def auth_database() -> sqlite3.Connection:
@@ -810,6 +970,12 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, build_public_analytics_summary())
             return
+        if path == "/api/analytics/score-exports":
+            if not self.server.analytics_enabled:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
+                return
+            self.send_json(HTTPStatus.OK, build_public_score_export_summary(self.server.analytics_retention_days))
+            return
         if path == "/api/admin/analytics":
             if not self.server.analytics_enabled:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
@@ -935,6 +1101,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not account:
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录后再上传曲谱。"})
                 return
+            # A user may upload directly from the editor without opening
+            # “我的曲库” first. Ensure legacy Jiko submissions are owned by
+            # this verified account before duplicate/replace checks run.
+            backfill_legacy_score_owners(account)
             if not self.allow_public_upload():
                 self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "上传过于频繁，请 30 秒后再试。"})
                 return
@@ -942,11 +1112,15 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 payload = self.read_payload()
                 if not isinstance(payload, dict):
                     raise ValueError("上传内容格式无效。")
+                confirm_replace = payload.pop("confirmReplace", False) is True
                 payload = {**payload, "sharedBy": account["user_id"]}
-                action, songs, destination = save_score(payload, allow_replace=False, owner_account_id=account["id"])
+                action, songs, destination = save_score(payload, allow_replace=confirm_replace, owner_account_id=account["id"])
                 bind_score_owner(account["id"], destination)
             except DuplicateScoreError as error:
-                self.send_json(HTTPStatus.CONFLICT, {"error": str(error)})
+                self.send_json(HTTPStatus.CONFLICT, {
+                    "error": str(error),
+                    "code": "owned_duplicate" if error.owned_by_requester else "duplicate_score",
+                })
                 return
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法上传曲目。"})
@@ -999,6 +1173,37 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_PATCH(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/api/public-library/songs":
+            if not self.server.public_library:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的曲库请求。"})
+                return
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先配置并登录账号。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            try:
+                backfill_legacy_score_owners(account)
+                action, songs, _ = update_owned_score(account["id"], account["user_id"], self.read_payload())
+            except DuplicateScoreError as error:
+                self.send_json(HTTPStatus.CONFLICT, {"error": str(error), "code": "duplicate_score"})
+                return
+            except PermissionError as error:
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": str(error)})
+                return
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存曲目。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": action, "songs": songs})
+            return
         if path != "/api/auth/me":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到认证接口。"})
             return

@@ -346,8 +346,10 @@ const BUILTIN_SONGS_FOR_LIBRARY = () => BUILTIN_SONG_LIBRARY.filter((song) => !M
 const SONG_LIBRARY = [...BUILTIN_SONGS_FOR_LIBRARY(), ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
 let activeLibraryView = "community";
 let mySongLibrary = [];
+let scoreExportCounts = new Map();
+const LIBRARY_TITLE_COLLATOR = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
 // The built-in service records only anonymous, allow-listed product events.
-// Never add score text, titles, file names, search terms, IP data, or clipboard content here.
+// Score identifiers are local hashes; never add score text, titles, file names, search terms, IP data, or clipboard content here.
 const ANALYTICS_ENDPOINT = "./api/analytics/events";
 let analyticsQueue = [];
 let analyticsFlushTimer = null;
@@ -393,6 +395,36 @@ function trackAnalytics(event, properties = {}) {
   else if (!analyticsFlushTimer) analyticsFlushTimer = window.setTimeout(flushAnalytics, 1200);
 }
 
+function analyticsScoreId(score = {}) {
+  const identity = [score.origin || score.source || "editor", score.title, score.artist, score.sharedBy]
+    .map((value) => String(value ?? "").trim().toLowerCase())
+    .join("\u241f");
+  let hash = 2166136261;
+  for (const character of identity) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return `s${(hash >>> 0).toString(16).padStart(8, "0")}`;
+}
+
+function analyticsScoreIdForSong(song, origin = songAnalyticsOrigin(song)) {
+  return analyticsScoreId({ ...song, origin });
+}
+
+function currentAnalyticsScoreId() {
+  return activeAnalyticsScoreId || analyticsScoreId({
+    origin: activeAnalyticsScoreOrigin,
+    title: elements.macroName?.value,
+    artist: elements.artistName?.value,
+    sharedBy: currentScoreCredit.sharedBy
+  });
+}
+
+function trackScoreAnalytics(event, properties = {}, scoreId = currentAnalyticsScoreId()) {
+  if (!scoreId) return;
+  trackAnalytics(event, { ...properties, score_id: scoreId });
+}
+
 function songAnalyticsOrigin(song) {
   if (song?.source === "PDMX") return "pdmx";
   if (song?.source === "社区投稿") return "community";
@@ -408,6 +440,18 @@ async function refreshPublicAnalyticsSummary() {
     elements.activeVisitorCount.textContent = String(summary.activeVisitors);
     elements.todayVisitorCount.textContent = String(summary.todayVisitors);
     elements.publicAnalyticsSummary.hidden = false;
+  } catch {}
+}
+
+async function refreshScoreExportCounts() {
+  try {
+    const response = await fetch("./api/analytics/score-exports", { headers: { Accept: "application/json" }, cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || !Array.isArray(payload.scores)) return;
+    scoreExportCounts = new Map(payload.scores
+      .filter((item) => /^s[0-9a-f]{8}$/.test(item?.scoreId) && Number.isInteger(item?.exports) && item.exports >= 0)
+      .map((item) => [item.scoreId, item.exports]));
+    renderSongLibrary(elements.songSearch?.value || "");
   } catch {}
 }
 
@@ -480,8 +524,8 @@ const SECTION_GUIDES = {
     intro: "曲库用于快速载入现成曲谱。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
     steps: [
       ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
-      ["02", "切换曲库分类", "「全部」包含内置、社区和 PDMX 曲目；「社区」只显示用户上传的曲目；登录后可在「我的」查看当前账号的上传记录。"],
-      ["03", "点击卡片或「编辑」", "两种操作都会载入该曲并定位到编辑器。随后可修改谱子、歌曲信息与速度。"],
+      ["02", "切换曲库分类", "「热门」按总导出量展示前 10 首；「全部」包含内置、社区和 PDMX 曲目；「社区」只显示用户上传的曲目；登录后可在「我的」查看当前账号的上传记录。"],
+      ["03", "查看与编辑", "点击卡片或「查看」会载入该曲并定位到编辑器；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
       ["05", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
@@ -564,8 +608,22 @@ Object.assign(elements, {
   libraryDeleteDialog: document.querySelector("#libraryDeleteDialog"),
   libraryDeleteTitle: document.querySelector("#libraryDeleteTitle"),
   libraryDeleteDescription: document.querySelector("#libraryDeleteDescription"),
-  libraryDeleteModify: document.querySelector("#libraryDeleteModify"),
   libraryDeleteConfirm: document.querySelector("#libraryDeleteConfirm"),
+  songEditDialog: document.querySelector("#songEditDialog"),
+  songEditName: document.querySelector("#songEditName"),
+  songEditArtist: document.querySelector("#songEditArtist"),
+  songEditKey: document.querySelector("#songEditKey"),
+  songEditMeter: document.querySelector("#songEditMeter"),
+  songEditBpm: document.querySelector("#songEditBpm"),
+  songEditDisplayUrl: document.querySelector("#songEditDisplayUrl"),
+  songEditTransposeDown: document.querySelector("#songEditTransposeDown"),
+  songEditTransposeUp: document.querySelector("#songEditTransposeUp"),
+  songEditTransposeStatus: document.querySelector("#songEditTransposeStatus"),
+  songEditScore: document.querySelector("#songEditScore"),
+  songEditLineNumbers: document.querySelector("#songEditLineNumbers"),
+  songEditModifierReset: document.querySelector("#songEditModifierReset"),
+  songEditSave: document.querySelector("#songEditSave"),
+  songEditStatusMessage: document.querySelector("#songEditStatusMessage"),
   libraryOverwriteDialog: document.querySelector("#libraryOverwriteDialog"),
   libraryOverwriteTitle: document.querySelector("#libraryOverwriteTitle"),
   libraryOverwriteDescription: document.querySelector("#libraryOverwriteDescription"),
@@ -597,6 +655,10 @@ let previewProgressSeeking = false;
 let activeTour = null;
 let authState = { available: false, account: null, pendingCommunityUpload: false, email: "", mode: "login" };
 let pendingLibrarySong = null;
+let pendingSongEdit = null;
+let activeAnalyticsScoreId = "";
+let activeAnalyticsScoreOrigin = "editor";
+const editJianpuModifierState = { octave: "", duration: "", dot: "", accidental: "" };
 const PREVIEW_SCHEDULE_AHEAD_MS = 2500;
 const PREVIEW_SCHEDULER_INTERVAL_MS = 100;
 
@@ -1592,9 +1654,27 @@ function normalizeSong(song) {
 }
 
 function songsForLibraryView() {
-  if (activeLibraryView === "all") return SONG_LIBRARY;
-  if (activeLibraryView === "mine") return mySongLibrary;
-  return SONG_LIBRARY.filter((song) => song.source === "社区投稿");
+  if (activeLibraryView === "hot") {
+    return [...SONG_LIBRARY]
+      .sort((left, right) => scoreExportCount(right) - scoreExportCount(left) || compareLibrarySongs(left, right))
+      .slice(0, 10);
+  }
+  const songs = activeLibraryView === "all"
+    ? SONG_LIBRARY
+    : activeLibraryView === "mine"
+      ? mySongLibrary
+      : SONG_LIBRARY.filter((song) => song.source === "社区投稿");
+  return [...songs].sort(compareLibrarySongs);
+}
+
+function scoreExportCount(song) {
+  return scoreExportCounts.get(analyticsScoreIdForSong(song)) || 0;
+}
+
+function compareLibrarySongs(left, right) {
+  return LIBRARY_TITLE_COLLATOR.compare(left.title, right.title)
+    || LIBRARY_TITLE_COLLATOR.compare(left.artist, right.artist)
+    || LIBRARY_TITLE_COLLATOR.compare(left.sharedBy, right.sharedBy);
 }
 
 function songLibraryIndex(song) {
@@ -1605,22 +1685,23 @@ function renderSongLibrary(query = "") {
   const sourceSongs = songsForLibraryView();
   elements.libraryCount.textContent = `${sourceSongs.length} TRACK${sourceSongs.length === 1 ? "" : "S"}`;
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm}`.toLocaleLowerCase().includes(normalizedQuery));
+  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song), exportCount: scoreExportCount(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm}`.toLocaleLowerCase().includes(normalizedQuery));
   if (activeLibraryView === "mine" && !authState.account) {
     elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
     return;
   }
   elements.songGrid.innerHTML = songs.length ? songs.map((song) => `
     <article class="song-card" data-song-index="${song.index}" data-index="${String(song.index + 1).padStart(2, "0")}">
-      <button class="song-card-main" data-song-action="edit" type="button" aria-label="编辑《${escapeHtml(song.title)}》">
+      <button class="song-card-main" data-song-action="view" type="button" aria-label="查看《${escapeHtml(song.title)}》并打开编辑器">
       <span class="song-number">TRACK ${String(song.index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
-      <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span></div>
+      <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount}</span></div>
       </button>
       <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
-        <button class="song-card-action" data-song-action="edit" type="button">编辑</button>
+        <button class="song-card-action" data-song-action="view" type="button">查看</button>
+        ${activeLibraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
         <button class="song-card-action export" data-song-action="export" type="button">导出</button>
         ${activeLibraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
       </div>
@@ -1874,6 +1955,8 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   elements.timeSignature.value = song.meter || "4/4";
   elements.bpm.value = song.bpm;
   currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "" };
+  activeAnalyticsScoreOrigin = songAnalyticsOrigin(song);
+  activeAnalyticsScoreId = analyticsScoreIdForSong(song, activeAnalyticsScoreOrigin);
   const sourceMode = song.jianpu ? "jianpu" : song.score ? "precise" : null;
   const sourceText = sourceMode === "jianpu" ? String(song.sourceJianpu || song.jianpu || "") : String(song.score || "");
   const sequence = sourceMode === "jianpu" ? parseJianpu(sourceText, song.bpm) : parseScore(sourceText, song.bpm);
@@ -1892,7 +1975,7 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
   if (scroll && destination === "export") elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
   else if (scroll) document.querySelector(".workbench")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  if (analytics) trackAnalytics("song_loaded", { origin: songAnalyticsOrigin(song) });
+  if (analytics) trackScoreAnalytics("song_loaded", { origin: songAnalyticsOrigin(song) }, activeAnalyticsScoreId);
   if (analytics && destination === "export") trackAnalytics("macro_section_opened");
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
@@ -2160,7 +2243,9 @@ function handleBpmChange() {
 }
 
 function getAudioEngine() {
-  if (audioContext) return audioContext;
+  // Browsers can close an AudioContext after an output-device change or a
+  // long background suspension. Do not keep reusing that dead instance.
+  if (audioContext && audioContext.state !== "closed" && masterGain) return audioContext;
   const Context = window.AudioContext || window.webkitAudioContext;
   if (!Context) throw new Error("当前浏览器不支持音频试听。");
   audioContext = new Context();
@@ -2174,13 +2259,22 @@ function getAudioEngine() {
   return audioContext;
 }
 
-function wakeAudioEngine() {
-  const context = getAudioEngine();
+async function wakeAudioEngine() {
+  let context = getAudioEngine();
   if (context.state === "running") return Promise.resolve(context);
-  return context.resume().then(() => {
-    if (context.state !== "running") throw new Error("Safari 音频仍处于暂停状态，请再次点击试听按钮或取消标签页静音。");
-    return context;
-  });
+  try {
+    await context.resume();
+  } catch (error) {
+    // A closed context cannot be resumed. Recreate it so the next click can
+    // recover from an audio-device or browser lifecycle interruption.
+    if (context.state !== "closed") throw error;
+    audioContext = null;
+    masterGain = null;
+    context = getAudioEngine();
+    await context.resume();
+  }
+  if (context.state !== "running") throw new Error("Safari 音频仍处于暂停状态，请再次点击试听按钮或取消标签页静音。");
+  return context;
 }
 
 function prewarmAudioEngine() {
@@ -2193,6 +2287,7 @@ function prewarmAudioEngine() {
 
 function previewFrequency(item) {
   const midi = macroMidi(item);
+  if (!Number.isFinite(midi)) throw new Error("谱子中存在无法试听的音符，请先修正谱面。");
   return 440 * (2 ** ((midi - 69) / 12));
 }
 
@@ -3055,7 +3150,7 @@ function startMacroDownload() {
       if (pendingMacroDownload !== pending) return;
       if (pending.archive) downloadBlob(pending.archive.blob, pending.archive.filename);
       else pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
-      trackAnalytics("macro_downloaded", { format: ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog" })[pending.action] || "lua" });
+      trackScoreAnalytics("macro_downloaded", { format: ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog" })[pending.action] || "lua" });
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
@@ -3094,7 +3189,7 @@ function replaceCommunitySongs(songs) {
 }
 
 function setLibraryView(view = "community") {
-  const selectedView = ["all", "community", "mine"].includes(view) ? view : "community";
+  const selectedView = ["all", "community", "hot", "mine"].includes(view) ? view : "community";
   activeLibraryView = selectedView;
   elements.libraryTabs.forEach((tab) => {
     const selected = tab.dataset.libraryView === selectedView;
@@ -3124,18 +3219,180 @@ async function loadMySongLibrary() {
   renderSongLibrary(elements.songSearch.value);
 }
 
+function setSongEditStatus(message = "", success = false) {
+  elements.songEditStatusMessage.textContent = message;
+  elements.songEditStatusMessage.hidden = !message;
+  elements.songEditStatusMessage.classList.toggle("success", Boolean(message && success));
+}
+
+function updateSongEditLineNumbers() {
+  if (!elements.songEditScore || !elements.songEditLineNumbers) return;
+  const lines = Math.max(1, elements.songEditScore.value.split("\n").length);
+  elements.songEditLineNumbers.textContent = Array.from({ length: lines }, (_, index) => index + 1).join("\n");
+  elements.songEditLineNumbers.scrollTop = elements.songEditScore.scrollTop;
+}
+
+function editSongKeySignature(semitones) {
+  const match = String(elements.songEditKey.value).trim().match(/^(1=)?([A-G])([#♯b♭])?$/i);
+  if (!match) return;
+  const accidental = match[3] === "#" || match[3] === "♯" ? 1 : match[3] === "b" || match[3] === "♭" ? -1 : 0;
+  const natural = KEY_SIGNATURE_SEMITONES[match[2].toUpperCase()];
+  if (!Number.isFinite(natural)) return;
+  const pitch = (natural + accidental + semitones + 120) % 12;
+  elements.songEditKey.value = `${match[1] || ""}${KEY_SIGNATURE_NAMES[pitch]}`;
+}
+
+function updateSongEditTransposeControls(sequence = null) {
+  const pitchValues = sequence?.notes?.filter((item) => !item.isRest && item.note !== "0").map(macroMidi).filter(Number.isFinite) || [];
+  if (!pitchValues.length) {
+    elements.songEditTransposeDown.disabled = true;
+    elements.songEditTransposeUp.disabled = true;
+    elements.songEditTransposeStatus.textContent = sequence ? "仅休止" : "等待曲谱";
+    return;
+  }
+  elements.songEditTransposeDown.disabled = !transposeSequence(sequence, -1);
+  elements.songEditTransposeUp.disabled = !transposeSequence(sequence, 1);
+  elements.songEditTransposeStatus.textContent = `${midiPitchLabel(Math.min(...pitchValues))} ↔ ${midiPitchLabel(Math.max(...pitchValues))}`;
+}
+
+function transposeSongEdit(semitones) {
+  const sequence = parseJianpu(elements.songEditScore.value, Number(elements.songEditBpm.value));
+  if (sequence.error) {
+    setSongEditStatus(`请先修正简谱：${sequence.error.message}`);
+    return;
+  }
+  const shifted = transposeSequence(sequence, semitones);
+  if (!shifted || shifted.error) {
+    setSongEditStatus(semitones > 0 ? "已到达口琴可演奏的最高音。" : "已到达口琴可演奏的最低音。");
+    return;
+  }
+  elements.songEditScore.value = sequenceToJianpu(shifted);
+  editSongKeySignature(semitones);
+  updateSongEditLineNumbers();
+  updateSongEditTransposeControls(shifted);
+  setSongEditStatus(`已将整首谱子${semitones > 0 ? "升高" : "降低"}半音。`, true);
+}
+
+function setEditJianpuModifier(button) {
+  const modifier = button.dataset.editJianpuModifier;
+  if (!modifier) return;
+  editJianpuModifierState[modifier] = button.dataset.value || "";
+  document.querySelectorAll(`[data-edit-jianpu-modifier="${modifier}"]`).forEach((choice) => {
+    choice.setAttribute("aria-checked", String(choice === button));
+  });
+}
+
+function resetEditJianpuModifiers() {
+  Object.keys(editJianpuModifierState).forEach((modifier) => { editJianpuModifierState[modifier] = ""; });
+  document.querySelectorAll("[data-edit-jianpu-modifier]").forEach((button) => {
+    button.setAttribute("aria-checked", String(button.dataset.value === ""));
+  });
+}
+
+function editJianpuTokenForKey(key, baseOctave = "") {
+  if (!/^[0-7]$/.test(key)) return key;
+  const { octave, duration, dot, accidental } = editJianpuModifierState;
+  if (key === "0") return `0${duration}${dot}`;
+  const selectedOctave = octave.startsWith(",") ? -octave.length : octave.startsWith("'") ? octave.length : 0;
+  const baseLevel = baseOctave === "'" ? 1 : 0;
+  const octaveLevel = selectedOctave + baseLevel;
+  const lowMark = octaveLevel < 0 ? ",".repeat(-octaveLevel) : "";
+  const highMark = octaveLevel > 0 ? "'".repeat(octaveLevel) : "";
+  return `${accidental}${lowMark}${key}${highMark}${duration}${dot}`;
+}
+
+function insertSongEditSoftKey(key, baseOctave = "") {
+  const editor = elements.songEditScore;
+  const token = editJianpuTokenForKey(key, baseOctave);
+  editor.setRangeText(`${token} `, editor.selectionStart, editor.selectionEnd, "end");
+  updateSongEditLineNumbers();
+  updateSongEditTransposeControls(parseJianpu(editor.value, Number(elements.songEditBpm.value)));
+  editor.focus({ preventScroll: true });
+}
+
+function openSongEditDialog(song) {
+  if (!authState.account) {
+    showAuthDialog();
+    return;
+  }
+  pendingSongEdit = { song, original: { title: song.title, artist: song.artist } };
+  trackScoreAnalytics("score_edit_opened", {}, analyticsScoreIdForSong(song));
+  elements.songEditName.value = song.title;
+  elements.songEditArtist.value = song.artist;
+  elements.songEditKey.value = song.key || "1=C";
+  elements.songEditMeter.value = song.meter || "4/4";
+  elements.songEditBpm.value = song.bpm || 120;
+  elements.songEditDisplayUrl.value = song.displayUrl || "";
+  elements.songEditScore.value = String(song.sourceJianpu || song.jianpu || song.score || "");
+  resetEditJianpuModifiers();
+  setSongEditStatus();
+  updateSongEditLineNumbers();
+  updateSongEditTransposeControls(parseJianpu(elements.songEditScore.value, Number(elements.songEditBpm.value)));
+  if (typeof elements.songEditDialog.showModal === "function") {
+    elements.songEditDialog.showModal();
+    elements.songEditName.focus();
+    return;
+  }
+  toast("当前浏览器不支持曲目编辑窗口。 ");
+}
+
+async function saveSongEdit() {
+  if (!pendingSongEdit || !authState.account) return;
+  const bpm = Number(elements.songEditBpm.value);
+  const sequence = parseJianpu(elements.songEditScore.value, bpm);
+  if (sequence.error) {
+    setSongEditStatus(`第 ${sequence.error.line} 行，第 ${sequence.error.column} 列：${sequence.error.message}`);
+    return;
+  }
+  const uploadIssue = uploadCompatibilityIssue(sequence);
+  if (uploadIssue) {
+    setSongEditStatus(uploadIssue.message);
+    return;
+  }
+  const metadata = validateScoreMetadata({
+    title: elements.songEditName.value,
+    artist: elements.songEditArtist.value,
+    sharedBy: pendingSongEdit.song.sharedBy,
+    key: elements.songEditKey.value,
+    meter: elements.songEditMeter.value,
+    bpm,
+    displayUrl: elements.songEditDisplayUrl.value
+  });
+  if (metadata.error) {
+    setSongEditStatus(metadata.error);
+    return;
+  }
+  elements.songEditSave.disabled = true;
+  setSongEditStatus("正在保存到我的曲库…");
+  try {
+    const response = await authRequest("./api/public-library/songs", {
+      method: "PATCH",
+      body: {
+        original: pendingSongEdit.original,
+        ...metadata.value,
+        jianpu: sequenceToJianpu(sequence)
+      }
+    });
+    if (!Array.isArray(response.songs)) throw new Error("服务器返回的曲库数据无效。");
+    replaceCommunitySongs(response.songs);
+    await loadMySongLibrary();
+    const editedScoreId = analyticsScoreIdForSong(pendingSongEdit.song);
+    elements.songEditDialog.close();
+    trackScoreAnalytics("score_edit_saved", {}, editedScoreId);
+    pendingSongEdit = null;
+    toast(`《${metadata.value.title}》已保存。`);
+  } catch (error) {
+    setSongEditStatus(error.message || "保存曲目失败，请稍后重试。 ");
+  } finally {
+    elements.songEditSave.disabled = false;
+  }
+}
+
 function openLibraryDeleteDialog(song) {
   pendingLibrarySong = song;
   elements.libraryDeleteTitle.textContent = `删除《${song.title}》`;
   elements.libraryDeleteDescription.textContent = `确定删除《${song.title}》吗？删除后无法恢复。`;
   if (typeof elements.libraryDeleteDialog.showModal === "function") elements.libraryDeleteDialog.showModal();
-}
-
-function modifyPendingLibrarySong() {
-  const song = pendingLibrarySong;
-  pendingLibrarySong = null;
-  if (elements.libraryDeleteDialog.open) elements.libraryDeleteDialog.close();
-  if (song) loadSong(song, { destination: "editor" });
 }
 
 async function confirmLibraryDelete() {
@@ -3457,7 +3714,7 @@ function exportScorePackage() {
   if (packaged.error) { toast(packaged.error); return; }
   applyScorePackageMetadata(packaged.value);
   download(`${JSON.stringify(packaged.value, null, 2)}\n`, `${safeName().replace(/\s+/g, "-").toLowerCase() || "delta-music"}.deltamusic`, "application/json");
-  trackAnalytics("score_downloaded", { format: "deltamusic" });
+  trackScoreAnalytics("score_downloaded", { format: "deltamusic" });
   elements.scoreExportDialog.close();
   toast(".deltamusic 文件已下载。点击「我要上传」选择 QQ 群或 GitHub 投稿吧。 ");
 }
@@ -3510,7 +3767,7 @@ async function uploadScoreToCommunityLibrary({ confirmReplace = false, packagedO
     replaceCommunitySongs(result.songs);
     await loadMySongLibrary();
     elements.scoreExportDialog.close();
-    trackAnalytics("community_upload_succeeded");
+    trackScoreAnalytics("community_upload_succeeded");
     toast(`《${packaged.value.title}》已${result.action === "updated" ? "更新" : "上传"}到公共曲库。`);
   } catch (error) {
     toast(error.message || "上传到曲库失败，请稍后重试。");
@@ -3545,7 +3802,7 @@ async function importScorePackage(file) {
     const parsed = validateScorePackage(payload);
     if (parsed.error) throw new Error(parsed.error);
     loadSong(parsed.value, { analytics: false });
-    trackAnalytics("score_imported", { origin: "imported" });
+    trackScoreAnalytics("score_imported", { origin: "imported" });
     toast(`已导入《${parsed.value.title}》；可试听并继续编辑。`);
   } catch (error) {
     toast(error.message || "无法读取谱子文件。 ");
@@ -3588,6 +3845,8 @@ function applyMidiSelection() {
     elements.timeSignature.value = converted.meter;
     elements.bpm.value = converted.bpm;
     currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "" };
+    activeAnalyticsScoreOrigin = "midi";
+    activeAnalyticsScoreId = analyticsScoreId({ origin: "midi", title: selection.title });
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
     [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
@@ -3602,7 +3861,7 @@ function applyMidiSelection() {
     const ignoredEventMessage = describeIgnoredMidiEvents(converted.ignoredInvalidNonNoteEvents);
     const smoothingMessage = elements.midiSmoothing.checked ? ` · 流畅演奏已连接 ${smoothing.connectedGaps} 处短断音` : " · 保留原始 MIDI 断音";
     setValidation(`MIDI 转换完成 · 已选音轨 ${String(selection.selectedTrackIndex + 1).padStart(2, "0")} · 截取 ${midiTickToTime(selection.parsed, selection.endTick - selection.startTick)} · ${converted.selectedNotes} 个旋律音符${chordMessage}${ignoredEventMessage}${smoothingMessage}${transposeMessage}${tempoWarning}。`, "success");
-    trackAnalytics("midi_selection_applied", { origin: "midi" });
+    trackScoreAnalytics("midi_selection_applied", { origin: "midi" });
     toast(`已将《${selection.title}》选定片段转换为可编辑简谱。`);
   } catch (error) {
     toast(error.message || "无法转换所选 MIDI 片段。 ");
@@ -3623,7 +3882,7 @@ async function copyLua(sequence) {
   const lua = generateLua(sequence, triggerSettings);
   try {
     await navigator.clipboard.writeText(lua);
-    trackAnalytics("lua_copied", { format: "lua" });
+    trackScoreAnalytics("lua_copied", { format: "lua" });
     toast("Lua 已复制到剪贴板。");
   } catch {
     toast("浏览器未授权剪贴板；请使用下载功能。 ");
@@ -3807,6 +4066,8 @@ elements.clearButton.addEventListener("click", () => {
   stopPreview();
   lastMidiFile = null;
   resetMidiTrackPicker();
+  activeAnalyticsScoreOrigin = "editor";
+  activeAnalyticsScoreId = "";
   const activeEditor = inputMode === "jianpu" ? elements.jianpuScore : inputMode === "record" ? elements.recordedScore : inputMode === "keyboard" ? elements.keyboardScore : elements.score;
   [elements.jianpuScore, elements.recordedScore, elements.score, elements.keyboardScore].forEach((editor) => { editor.value = ""; });
   updateLineNumbers();
@@ -3912,6 +4173,8 @@ elements.directoryButtons.forEach((button) => button.addEventListener("click", (
   }
   if (action === "midi") elements.importMidiInput.click();
   if (action === "manual" && setInputMode("jianpu")) {
+    activeAnalyticsScoreOrigin = "editor";
+    activeAnalyticsScoreId = "";
     elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
     elements.jianpuScore.focus({ preventScroll: true });
   }
@@ -3953,15 +4216,38 @@ elements.songGrid.addEventListener("click", (event) => {
     openLibraryDeleteDialog(song);
     return;
   }
+  if (actionButton.dataset.songAction === "edit") {
+    openSongEditDialog(song);
+    return;
+  }
   const destination = actionButton.dataset.songAction === "export" ? "export" : "editor";
   loadSong(song, { destination });
   if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
 });
-elements.libraryDeleteModify.addEventListener("click", modifyPendingLibrarySong);
 elements.libraryDeleteConfirm.addEventListener("click", confirmLibraryDelete);
 elements.libraryDeleteDialog.addEventListener("close", () => {
   pendingLibrarySong = null;
   elements.libraryDeleteConfirm.disabled = false;
+});
+elements.songEditSave.addEventListener("click", saveSongEdit);
+elements.songEditDialog.addEventListener("close", () => {
+  pendingSongEdit = null;
+  setSongEditStatus();
+  elements.songEditSave.disabled = false;
+});
+elements.songEditScore.addEventListener("input", () => {
+  updateSongEditLineNumbers();
+  updateSongEditTransposeControls(parseJianpu(elements.songEditScore.value, Number(elements.songEditBpm.value)));
+});
+elements.songEditBpm.addEventListener("input", () => updateSongEditTransposeControls(parseJianpu(elements.songEditScore.value, Number(elements.songEditBpm.value))));
+elements.songEditTransposeDown.addEventListener("click", () => transposeSongEdit(-1));
+elements.songEditTransposeUp.addEventListener("click", () => transposeSongEdit(1));
+elements.songEditModifierReset.addEventListener("click", resetEditJianpuModifiers);
+elements.songEditDialog.addEventListener("click", (event) => {
+  const key = event.target.closest("[data-edit-jianpu-key]");
+  if (key) insertSongEditSoftKey(key.dataset.editJianpuKey, key.dataset.editJianpuOctaveBase || "");
+  const modifier = event.target.closest("[data-edit-jianpu-modifier]");
+  if (modifier) setEditJianpuModifier(modifier);
 });
 elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
 elements.recordingHelperHelpButton.addEventListener("click", openRecordingHelperDialog);
@@ -3974,7 +4260,7 @@ function setExportMode(mode = "general") {
     button.tabIndex = selected ? 0 : -1;
   });
   elements.exportModePanels.forEach((panel) => { panel.hidden = panel.dataset.exportPanel !== selectedMode; });
-  trackAnalytics("export_mode_selected", { mode: selectedMode });
+  trackAnalytics("export_mode_selected", { export_mode: selectedMode });
 }
 
 function setUploadMethod(method = "qq") {
@@ -4046,10 +4332,12 @@ setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
+window.setTimeout(refreshScoreExportCounts, 1700);
 window.setInterval(() => {
   if (document.visibilityState === "visible") {
     trackAnalytics("heartbeat");
     refreshPublicAnalyticsSummary();
+    refreshScoreExportCounts();
   }
 }, 60_000);
 document.addEventListener("visibilitychange", () => {
@@ -4057,6 +4345,7 @@ document.addEventListener("visibilitychange", () => {
   else {
     trackAnalytics("heartbeat");
     refreshPublicAnalyticsSummary();
+    refreshScoreExportCounts();
   }
 });
 window.addEventListener("resize", () => {
