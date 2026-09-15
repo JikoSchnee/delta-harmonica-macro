@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "1.1.0";
+const WEBSITE_VERSION = "1.1.1";
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
 const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
@@ -1896,6 +1896,7 @@ async function remixCodeForSong(song) {
     } else {
       code = fallbackRemixCode(payload);
     }
+    code = code.toUpperCase();
     remixCodeCache.set(payload, code);
     return code;
   })();
@@ -1921,7 +1922,7 @@ function remixCodeFromInput(value = "") {
     const url = new URL(raw, window.location.href);
     if (url.searchParams.has("code")) candidate = url.searchParams.get("code") || "";
   } catch {}
-  candidate = candidate.trim().toLowerCase();
+  candidate = candidate.trim().toUpperCase();
   if (!REMIX_CODE_PATTERN.test(candidate)) return { value: candidate, state: "invalid" };
   return { value: candidate, state: "valid" };
 }
@@ -2000,12 +2001,14 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       </button>
       <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<span class="song-remix-code" title="改曲码">${escapeHtml(song.remixCode)}</span>` : ""}${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
-        ${remixCodeAction}
-        <button class="song-card-action" data-song-action="view" type="button">查看</button>
-        ${libraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
-        <button class="song-card-action export" data-song-action="export" type="button">导出</button>
-        ${libraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
-        ${canManageRecommendations ? `<button class="song-card-action recommendation-action${isRecommended ? " is-recommended" : ""}" data-song-action="${recommendationAction}" type="button">${recommendationLabel}</button>` : ""}
+        <div class="song-card-actions-main">
+          <button class="song-card-action" data-song-action="view" type="button">查看</button>
+          ${libraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
+          <button class="song-card-action export" data-song-action="export" type="button">导出</button>
+          ${libraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
+          ${canManageRecommendations ? `<button class="song-card-action recommendation-action${isRecommended ? " is-recommended" : ""}" data-song-action="${recommendationAction}" type="button">${recommendationLabel}</button>` : ""}
+        </div>
+        <div class="song-card-actions-remix">${remixCodeAction}</div>
       </div>
     </article>
   `;
