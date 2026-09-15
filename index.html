@@ -73,6 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.0.1</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -474,7 +475,24 @@
         </div>
       </section>
     </main>
-    <footer><span>HARMONICA DECK · WEB v1.0.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v1.0.1</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
+      <form method="dialog" class="changelog-form">
+        <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
+        <div class="changelog-body">
+          <div class="changelog-heading">
+            <div><span class="index">WEB RELEASE · v1.0.1</span><h2 id="changelogTitle">最近修改</h2></div>
+            <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
+          </div>
+          <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
+          <ol class="changelog-list" id="changelogList" aria-live="polite" aria-busy="false"></ol>
+          <div class="changelog-footer">
+            <span class="changelog-source">SOURCE: github.com/JikoSchnee/delta-harmonica-macro</span>
+            <a class="primary-button changelog-all-link" href="https://github.com/JikoSchnee/delta-harmonica-macro/commits/main/" target="_blank" rel="noopener noreferrer"><span>查看全部修改</span><b aria-hidden="true">↗</b></a>
+          </div>
+        </div>
+      </form>
+    </dialog>
     <dialog class="macro-download-dialog" id="macroDownloadDialog" aria-labelledby="macroDownloadTitle">
       <form method="dialog" class="macro-download-form">
         <div class="window-titlebar"><span>MACRO_DOWNLOAD.EXE — DISCLAIMER</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭宏下载窗口">×</button></div>
@@ -541,6 +559,18 @@
           <p id="libraryDeleteDescription">确定要删除这首曲目吗？删除后无法恢复。</p>
           <p class="library-delete-hint">如果你是想修改，最快的方法是点击“修改”或曲目卡片上的“编辑”，将原本内容放回编辑区；修改后使用同一账号，并填写相同的歌曲名和作者名重新上传即可覆盖原曲。</p>
           <div class="dialog-actions"><button class="text-button" id="libraryDeleteModify" type="button">修改</button><button class="danger-button" id="libraryDeleteConfirm" type="button">确认删除</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="library-delete-dialog" id="libraryOverwriteDialog" aria-labelledby="libraryOverwriteTitle" aria-describedby="libraryOverwriteDescription">
+      <form method="dialog" class="library-delete-form">
+        <div class="window-titlebar"><span>COMMUNITY_SCORE.EXE — OVERWRITE</span></div>
+        <div class="library-delete-body">
+          <span class="index">UPLOAD CONFLICT · SAME ACCOUNT</span>
+          <h2 id="libraryOverwriteTitle">确认覆盖曲目</h2>
+          <p id="libraryOverwriteDescription">当前账号已经上传过这首歌，确认用现在的内容覆盖原曲吗？</p>
+          <p class="library-delete-hint">覆盖后，社区曲库中的原版本将被替换；如果只是想继续保留原版本，请取消本次上传。</p>
+          <div class="dialog-actions"><button class="text-button" id="libraryOverwriteCancel" value="cancel" type="submit">取消</button><button class="primary-button" id="libraryOverwriteConfirm" type="button"><span>确认覆盖</span><b>↻</b></button></div>
         </div>
       </form>
     </dialog>
