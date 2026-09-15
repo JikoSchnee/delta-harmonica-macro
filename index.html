@@ -4,8 +4,62 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
-    <meta name="description" content="将三角洲行动口琴数字简谱转换为 Logitech G HUB、Razer Synapse 与 ROG Armoury Crate 宏文件。" />
-    <title>HARMONICA DECK.EXE · 口琴宏生成器</title>
+    <meta name="description" content="三角洲口琴宏生成器：将数字简谱或 MIDI 转换为鼠标宏，支持口琴自动演奏、三角洲键盘模式、Logitech G HUB、Razer Synapse 与 ROG Armoury Crate。" />
+    <meta name="keywords" content="三角洲,三角洲口琴,口琴宏,MIDI转宏,口琴自动演奏,三角洲口琴宏生成器,数字简谱转宏" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <link rel="canonical" href="https://jiko-official.top/delta/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="三角洲口琴演奏家" />
+    <meta property="og:locale" content="zh_CN" />
+    <meta property="og:title" content="三角洲口琴宏生成器｜MIDI 转宏与口琴自动演奏" />
+    <meta property="og:description" content="将三角洲口琴数字简谱或 MIDI 转换为可导入鼠标软件的宏文件，在线试听、编辑与分享曲谱。" />
+    <meta property="og:url" content="https://jiko-official.top/delta/" />
+    <meta property="og:image" content="https://jiko-official.top/delta/assets/og-cover.svg" />
+    <meta property="og:image:alt" content="三角洲口琴演奏家：口琴宏生成器与 MIDI 转宏工具" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="三角洲口琴宏生成器｜MIDI 转宏与口琴自动演奏" />
+    <meta name="twitter:description" content="在线制作三角洲口琴宏：支持数字简谱、MIDI 导入、口琴自动演奏和多种宏软件导出。" />
+    <meta name="twitter:image" content="https://jiko-official.top/delta/assets/og-cover.svg" />
+    <meta name="twitter:image:alt" content="三角洲口琴演奏家：口琴宏生成器与 MIDI 转宏工具" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://jiko-official.top/delta/#website",
+            "url": "https://jiko-official.top/delta/",
+            "name": "三角洲口琴演奏家",
+            "description": "三角洲口琴宏生成器，支持数字简谱、MIDI 转宏与口琴自动演奏。",
+            "inLanguage": "zh-CN"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://jiko-official.top/delta/#software",
+            "url": "https://jiko-official.top/delta/",
+            "name": "三角洲口琴宏生成器",
+            "applicationCategory": "MultimediaApplication",
+            "operatingSystem": "Web Browser",
+            "description": "把三角洲口琴数字简谱或 MIDI 转换为鼠标宏，支持在线试听、编辑和自动演奏。",
+            "isAccessibleForFree": true,
+            "featureList": [
+              "三角洲口琴数字简谱转宏",
+              "MIDI 转宏",
+              "口琴自动演奏预览",
+              "Logitech G HUB、Razer Synapse 和 ROG Armoury Crate 导出"
+            ],
+            "keywords": "三角洲,三角洲口琴,口琴宏,MIDI转宏,口琴自动演奏"
+          },
+          {
+            "@type": "Organization",
+            "@id": "https://jiko-official.top/delta/#organization",
+            "name": "三角洲口琴演奏家",
+            "url": "https://jiko-official.top/delta/",
+            "sameAs": ["https://github.com/JikoSchnee/delta-harmonica-macro"]
+          }
+        ]
+      }
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
@@ -24,23 +78,22 @@
           <span aria-hidden="true">｜</span>
           <span>今日访问量<b id="todayVisitorCount">--</b></span>
         </div>
-        <button class="qq-group-link" id="qqGroupButton" type="button" aria-label="复制群号 1102489399">分享曲目、反馈问题请加群：1102489399</button>
-        <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="在 GitHub 给三角洲口琴演奏家点 Star">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6-6.8 3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
-          <span>GitHub · Star</span>
-        </a>
         <button class="account-button" id="accountButton" type="button" aria-haspopup="dialog" hidden><span class="account-indicator" aria-hidden="true"></span><span id="accountButtonLabel">登录 / 注册</span></button>
       </nav>
     </header>
 
     <main id="top">
-      <section class="hero window-shell" hidden>
+      <section class="hero window-shell">
         <div class="window-titlebar"><span>HARMONICA DECK.EXE — START SCREEN</span></div>
         <div class="eyebrow">DELTA FORCE · HARMONICA SEQUENCER</div>
-        <h1>三角洲口琴演奏家</h1>
-        <p>三角洲口琴简谱-鼠标宏转换器</p>
-        <div class="legend" aria-label="琴键映射">
-          <span><kbd>Z</kbd><b>1</b></span><span><kbd>X</kbd><b>2</b></span><span><kbd>C</kbd><b>3</b></span><span><kbd>V</kbd><b>4</b></span><span><kbd>B</kbd><b>5</b></span><span><kbd>N</kbd><b>6</b></span><span><kbd>M</kbd><b>7</b></span><span class="high"><kbd>,</kbd><b>1′</b></span>
+        <h1>三角洲口琴宏生成器</h1>
+        <p>三角洲口琴数字简谱与 MIDI 转宏工具，支持口琴自动演奏、在线试听和多种鼠标宏导出。</p>
+        <div class="hero-actions" aria-label="分享与项目链接">
+          <button class="qq-group-link" id="qqGroupButton" type="button" aria-label="复制群号 1102489399">分享曲目、反馈问题请加群：1102489399</button>
+          <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="觉得好用请到 GitHub 点亮小星星">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
+            <span>觉得好用请到 GitHub 点亮小星星</span>
+          </a>
         </div>
       </section>
 
@@ -320,8 +373,8 @@
           </div>
           <div class="export-grid export-grid-general">
             <article class="export-card recording-helper">
-              <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手</h3><p>Windows 64 位 · 一键录制</p></div></div>
-              <p class="export-copy">将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。录制 Logitech G HUB 时请使用默认的「G HUB 兼容」模式。</p>
+              <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手（强烈推荐）</h3><p>Windows 64 位 · 一键录制</p></div></div>
+              <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。录制 Logitech G HUB 时请使用默认的「G HUB 兼容」模式。</p>
               <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button></div>
             </article>
             <article class="export-card manual-entry">
@@ -388,8 +441,31 @@
         <div class="notice warning"><span>!</span><p><strong>ROG 兼容说明</strong> GMAC 格式按 Armoury Crate 当前导出结构生成。不同版本或外设的宏能力可能不同；若导入失败，请用该版本录制并导出一个单键宏后与生成文件比对。</p></div>
         <div class="notice"><span>◎</span><p><strong>使用前确认</strong> 请自行确认游戏规则与服务器政策是否允许宏。此工具不会连接游戏、鼠标软件或任何外部服务。</p></div>
       </section>
+
+      <section class="seo-intro panel" aria-labelledby="seoIntroTitle">
+        <div class="window-titlebar"><span>ABOUT.EXE — DELTA HARMONICA MACRO</span></div>
+        <div class="seo-intro-content">
+          <span class="index">ABOUT THE TOOL</span>
+          <h2 id="seoIntroTitle">三角洲口琴宏：从 MIDI 转宏到自动演奏</h2>
+          <p>三角洲口琴演奏家是一款在浏览器中运行的口琴宏生成器，适合把《三角洲行动》的口琴数字简谱转换成可导入鼠标软件的宏文件。你可以直接输入简谱、导入 MIDI，或从曲库载入现成曲目，再试听旋律、调整 BPM 和导出宏。</p>
+          <div class="seo-intro-grid">
+            <section aria-labelledby="seoScoreTitle">
+              <h3 id="seoScoreTitle">三角洲口琴数字简谱转宏</h3>
+              <p>支持普通音、升降音、八度、附点、休止和精确拍数输入，并提供三角洲键盘模式，方便校对按键与毫秒时值。</p>
+            </section>
+            <section aria-labelledby="seoMidiTitle">
+              <h3 id="seoMidiTitle">MIDI 转宏与口琴自动演奏</h3>
+              <p>导入 MIDI 后可选择主旋律音轨和演奏片段，生成口琴谱并在页面内预览，适合制作口琴自动演奏曲目。</p>
+            </section>
+            <section aria-labelledby="seoExportTitle">
+              <h3 id="seoExportTitle">多种宏软件导出</h3>
+              <p>可导出通用录制助手、Logitech G HUB Lua、Razer Synapse XML 和 ROG Armoury Crate GMAC 等格式。</p>
+            </section>
+          </div>
+        </div>
+      </section>
     </main>
-    <footer><span>HARMONICA DECK</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v1.0.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="macro-download-dialog" id="macroDownloadDialog" aria-labelledby="macroDownloadTitle">
       <form method="dialog" class="macro-download-form">
         <div class="window-titlebar"><span>MACRO_DOWNLOAD.EXE — DISCLAIMER</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭宏下载窗口">×</button></div>

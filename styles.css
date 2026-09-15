@@ -163,22 +163,15 @@ main {
 }
 .hero h1 em { color: var(--teal); font-style: normal; }
 .hero > p { max-width: 610px; margin: 0; color: #333; font-size: 15px; line-height: 1.8; }
-.legend { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 25px; }
-.legend span {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 8px 5px 5px;
-  background: var(--surface-light);
-  border-top: 2px solid var(--white);
-  border-left: 2px solid var(--white);
-  border-right: 2px solid var(--surface-deep);
-  border-bottom: 2px solid var(--surface-deep);
-  font: 700 11px/1 var(--mono);
-}
-.legend kbd { padding: 4px 6px; color: var(--white); background: var(--teal); border: 1px solid var(--teal-dark); font: 700 12px/1 var(--mono); }
-.legend b { color: var(--black); }
-.legend .high kbd { background: var(--teal-dark); }
+.seo-intro { margin-top: 14px; }
+.seo-intro-content { padding: 22px 24px 26px; }
+.seo-intro-content h2 { max-width: 760px; margin: 10px 0 12px; font-family: var(--pixel); font-size: clamp(23px, 3vw, 38px); line-height: 1.2; }
+.seo-intro-content > p { max-width: 920px; margin: 0; color: #334c4a; line-height: 1.85; }
+.seo-intro-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 22px; }
+.seo-intro-grid section { padding: 15px; background: rgba(255, 255, 255, .42); border: 2px inset var(--surface-light); }
+.seo-intro-grid h3 { margin: 0 0 8px; color: var(--teal-dark); font-size: 16px; line-height: 1.4; }
+.seo-intro-grid p { margin: 0; color: #334c4a; font-size: 13px; line-height: 1.75; }
+.hero-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 25px; }
 
 .directory-deck { margin-top: 14px; padding: 0 22px 20px; animation: rise .42s ease both; }
 .directory-deck > .window-titlebar { margin: 0 -22px 17px; }
@@ -868,11 +861,12 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .hero { padding: 0 14px 18px; }
   .hero .window-titlebar { margin: 0 -14px 18px; }
   .hero h1 { font-size: 38px; }
-  .legend { gap: 3px; }
-  .legend span { gap: 4px; padding: 4px; }
-  .legend kbd { padding: 3px 5px; }
+  .hero-actions { align-items: stretch; }
+  .hero-actions .qq-group-link, .hero-actions .github-star-link { white-space: normal; }
   .directory-deck, .tutorial-deck, .library-deck, .exports { padding-left: 14px; padding-right: 14px; }
   .directory-deck > .window-titlebar, .tutorial-deck > .window-titlebar, .library-deck .window-titlebar, .exports > .window-titlebar { margin-left: -14px; margin-right: -14px; }
+  .seo-intro-content { padding: 18px 14px 20px; }
+  .seo-intro-grid { grid-template-columns: 1fr; gap: 10px; }
   .tutorial-deck-content { align-items: start; flex-direction: column; }
   .tutorial-video-link { align-self: stretch; justify-content: space-between; }
   .directory-heading, .tutorial-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }

@@ -1,4 +1,6 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
+const WEBSITE_VERSION = "1.0.0";
+const RECORDER_COMPATIBILITY_PREFIX = WEBSITE_VERSION.split(".").slice(0, 2).join(".");
 // G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
 // for recording and Razer scancodes, then translate only for Lua export.
 const GHUB_KEY_NAMES = { ",": "comma" };
@@ -2470,6 +2472,7 @@ async function encodeGzipUrlPayload(payload) {
 async function launchIndependentRecorder(sequence) {
   const payload = {
     v: 1,
+    wv: WEBSITE_VERSION,
     title: safeName(),
     events: sequence.notes.map((item) => item.isRest
       ? { w: item.durationMs }
@@ -2486,7 +2489,7 @@ async function launchIndependentRecorder(sequence) {
     return;
   }
   window.location.assign(url);
-  toast("正在请求独立录制助手导入当前曲谱。若未打开，请先在帮助中下载并运行 Install.cmd。 ");
+  toast(`网页 v${WEBSITE_VERSION} 已请求助手。若未显示曲谱，请确认助手前两位版本为 ${RECORDER_COMPATIBILITY_PREFIX}，并重新运行 Install.cmd。 `);
 }
 
 function razerKeyboardEvent(type, delay, makeCode) {

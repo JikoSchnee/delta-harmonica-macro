@@ -1,5 +1,7 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -19,8 +21,13 @@ internal static class Program
 
 internal sealed class PlaybackRequest
 {
+    internal const string HelperVersion = "1.0.0";
+
     [JsonPropertyName("v")]
     public int Version { get; init; }
+
+    [JsonPropertyName("wv")]
+    public string? WebVersion { get; init; }
 
     [JsonPropertyName("title")]
     public string Title { get; init; } = "当前曲谱";
@@ -29,6 +36,8 @@ internal sealed class PlaybackRequest
     public List<PlaybackEvent> Events { get; init; } = [];
 
     public long TotalDurationMs => Math.Max(1, Events.Sum(item => item.IsRest ? (long)item.WaitMs : (long)item.HoldMs + item.WaitMs));
+
+    internal bool IsVersionCompatible => VersionPrefix(WebVersion) is string webPrefix && webPrefix == VersionPrefix(HelperVersion);
 
     public static PlaybackRequest? FromProtocolArgument(string? argument)
     {
@@ -63,6 +72,14 @@ internal sealed class PlaybackRequest
     }
 
     private bool IsValid() => Version == 1 && Events.Count is > 0 and <= 5000 && Events.All(item => item.IsValid());
+
+    private static string? VersionPrefix(string? version)
+    {
+        var parts = version?.Trim().Split('.', StringSplitOptions.RemoveEmptyEntries);
+        return parts is { Length: >= 2 } && int.TryParse(parts[0], out var major) && int.TryParse(parts[1], out var minor)
+            ? $"{major}.{minor}"
+            : null;
+    }
 }
 
 internal sealed class PlaybackEvent
@@ -98,6 +115,8 @@ internal sealed class PlaybackEvent
 
 internal sealed class RecorderForm : Form
 {
+    private const string QqGroup = "1102489399";
+    private const string UpdateManifestUrl = "https://jiko-official.top/delta/recording-helper/version.json";
     private const int HotKeyId = 1;
     private const int WmHotKey = 0x0312;
     private readonly PlaybackRequest? request;
@@ -135,7 +154,7 @@ internal sealed class RecorderForm : Form
         ForeColor = Color.FromArgb(216, 255, 255);
         Font = new Font("Microsoft YaHei UI", 10F);
 
-        var banner = new Label { Dock = DockStyle.Top, Height = 39, Text = "  HARMONICA RECORDER.EXE  ·  INPUT ONLY", BackColor = Color.FromArgb(0, 123, 120), ForeColor = Color.White, Font = new Font("Consolas", 9F, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
+        var banner = new Label { Dock = DockStyle.Top, Height = 39, Text = $"  HARMONICA RECORDER.EXE  ·  v{PlaybackRequest.HelperVersion}  ·  QQ {QqGroup}", BackColor = Color.FromArgb(0, 123, 120), ForeColor = Color.White, Font = new Font("Consolas", 9F, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
         titleLabel.SetBounds(22, 58, 466, 31);
         titleLabel.Font = new Font("Microsoft YaHei UI", 16F, FontStyle.Bold);
         detailsLabel.SetBounds(22, 96, 466, 38);
@@ -195,18 +214,27 @@ internal sealed class RecorderForm : Form
         hotKeyBox.KeyDown += CaptureEmergencyStopHotKey;
         inputModeBox.SelectedIndexChanged += (_, _) => UpdateInputMode();
         FormClosing += (_, _) => StopPlayback("正在退出。");
+        Shown += async (_, _) => await CheckForUpdatesAsync();
 
         if (request is null)
         {
             titleLabel.Text = "等待从网页导入曲谱";
             detailsLabel.Text = "请在网站的「口琴鼠标宏录制助手」卡片中点击“导出到宏录制助手”。";
-            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n紧急停止快捷键：{activeHotKey.DisplayName}";
+            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n紧急停止：{activeHotKey.DisplayName} · 反馈 QQ 群：{QqGroup}";
             startButton.Enabled = false;
+        }
+        else if (!request.IsVersionCompatible)
+        {
+            titleLabel.Text = "网页与助手版本不匹配";
+            detailsLabel.Text = $"网页 v{request.WebVersion ?? "未知"} · 本助手 v{PlaybackRequest.HelperVersion}";
+            statusLabel.Text = $"网页与助手的前两位版本号必须一致，当前无法导入。\n请下载最新版助手并运行 Install.cmd；反馈 QQ 群：{QqGroup}";
+            startButton.Enabled = false;
+            Shown += (_, _) => MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n\n两者前两位版本号必须一致，请下载与网页匹配的最新版助手。\n反馈 QQ 群：{QqGroup}", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         else
         {
             titleLabel.Text = request.Title;
-            detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 总时长 {FormatDuration(request.TotalDurationMs)}";
+            detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 总时长 {FormatDuration(request.TotalDurationMs)} · v{PlaybackRequest.HelperVersion}";
             statusLabel.Text = $"先在目标宏软件中打开录制，再回到本助手点击“开始录制”。\n录制期间请勿操作鼠标或键盘，并让鼠标焦点始终停留在本助手；紧急停止：{activeHotKey.DisplayName}";
         }
     }
@@ -217,6 +245,71 @@ internal sealed class RecorderForm : Form
         if (!RegisterEmergencyStopHotKey())
         {
             statusLabel.Text = $"无法注册紧急停止快捷键 {activeHotKey.DisplayName}。它可能已被其他软件占用，请选择其他组合。";
+        }
+    }
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(6) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"HarmonicaRecorder/{PlaybackRequest.HelperVersion}");
+            var manifestJson = await client.GetStringAsync(UpdateManifestUrl);
+            var manifest = JsonSerializer.Deserialize<RecorderUpdateManifest>(manifestJson);
+            if (manifest is null || !Version.TryParse(manifest.Version, out var latest) || !Version.TryParse(PlaybackRequest.HelperVersion, out var current) || latest <= current) return;
+            if (!Uri.TryCreate(manifest.DownloadUrl, UriKind.Absolute, out var downloadUri) || downloadUri.Scheme != Uri.UriSchemeHttps || string.IsNullOrWhiteSpace(manifest.Sha256)) return;
+
+            var choice = MessageBox.Show(this, $"发现录制助手新版本 v{manifest.Version}。\n当前版本：v{PlaybackRequest.HelperVersion}\n\n是否下载并覆盖更新？", "发现新版本", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+            if (choice == DialogResult.Yes) await DownloadAndInstallUpdateAsync(manifest, downloadUri);
+        }
+        catch (Exception)
+        {
+            // Update checks are best-effort and must not prevent recording when offline.
+        }
+    }
+
+    private async Task DownloadAndInstallUpdateAsync(RecorderUpdateManifest manifest, Uri downloadUri)
+    {
+        var updateRoot = Path.Combine(Path.GetTempPath(), $"HarmonicaRecorder-update-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(updateRoot);
+        var archivePath = Path.Combine(updateRoot, "HarmonicaRecorder.zip");
+        try
+        {
+            statusLabel.Text = $"正在下载助手 v{manifest.Version}… 请稍候。";
+            startButton.Enabled = false;
+            using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd($"HarmonicaRecorder/{PlaybackRequest.HelperVersion}");
+            using var response = await client.GetAsync(downloadUri, HttpCompletionOption.ResponseHeadersRead);
+            response.EnsureSuccessStatusCode();
+            await using (var input = await response.Content.ReadAsStreamAsync())
+            await using (var output = File.Create(archivePath))
+            {
+                await input.CopyToAsync(output);
+            }
+
+            await using (var archive = File.OpenRead(archivePath))
+            {
+                var actualHash = Convert.ToHexString(await SHA256.HashDataAsync(archive));
+                if (!actualHash.Equals(manifest.Sha256.Trim(), StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("更新包校验失败。");
+            }
+
+            var extractRoot = Path.Combine(updateRoot, "new");
+            ZipFile.ExtractToDirectory(archivePath, extractRoot);
+            var newExecutable = Path.Combine(extractRoot, "HarmonicaRecorder.exe");
+            if (!File.Exists(newExecutable)) throw new FileNotFoundException("更新包中没有找到 HarmonicaRecorder.exe。", newExecutable);
+
+            var currentExecutable = Application.ExecutablePath;
+            var scriptPath = Path.Combine(updateRoot, "update.cmd");
+            var script = $"@echo off\r\nset \"APP_PID={Environment.ProcessId}\"\r\n:wait\r\ntasklist /FI \"PID eq %APP_PID%\" | find \"%APP_PID%\" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto wait\r\n)\r\ncopy /Y \"{newExecutable}\" \"{currentExecutable}\" >nul\r\nstart \"\" \"{currentExecutable}\"\r\ndel \"%~f0\"\r\n";
+            await File.WriteAllTextAsync(scriptPath, script, Encoding.Default);
+            Process.Start(new ProcessStartInfo { FileName = scriptPath, UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
+            statusLabel.Text = "更新已下载，助手即将重启。";
+            Application.Exit();
+        }
+        catch (Exception error)
+        {
+            statusLabel.Text = "更新失败，当前版本仍可继续使用。";
+            MessageBox.Show(this, $"自动更新失败：{error.Message}\n\n请从网页重新下载最新版助手。", "更新失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
@@ -392,6 +485,11 @@ internal sealed class RecorderForm : Form
         activeModifiers.Clear();
     }
 }
+
+internal sealed record RecorderUpdateManifest(
+    [property: JsonPropertyName("version")] string Version,
+    [property: JsonPropertyName("downloadUrl")] string DownloadUrl,
+    [property: JsonPropertyName("sha256")] string Sha256);
 
 internal sealed record HotKeyOption(string DisplayName, uint Modifiers, uint VirtualKey)
 {
