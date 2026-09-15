@@ -21,7 +21,7 @@ internal static class Program
 
 internal sealed class PlaybackRequest
 {
-    internal const string HelperVersion = "1.1.0";
+    internal const string HelperVersion = "1.1.1";
 
     [JsonPropertyName("v")]
     public int Version { get; init; }
@@ -275,24 +275,50 @@ internal sealed class RecorderForm : Form
         var archivePath = Path.Combine(updateRoot, "HarmonicaRecorder.zip");
         try
         {
-            statusLabel.Text = $"正在下载助手 v{manifest.Version}… 请稍候。";
-            startButton.Enabled = false;
+            PrepareUpdateProgress(manifest.Version);
             using var client = new HttpClient { Timeout = TimeSpan.FromMinutes(5) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd($"HarmonicaRecorder/{PlaybackRequest.HelperVersion}");
             using var response = await client.GetAsync(downloadUri, HttpCompletionOption.ResponseHeadersRead);
             response.EnsureSuccessStatusCode();
+            var totalBytes = response.Content.Headers.ContentLength;
+            var downloadedBytes = 0L;
+            if (totalBytes is null or <= 0) progressBar.Style = ProgressBarStyle.Marquee;
             await using (var input = await response.Content.ReadAsStreamAsync())
             await using (var output = File.Create(archivePath))
             {
-                await input.CopyToAsync(output);
+                var buffer = new byte[64 * 1024];
+                int bytesRead;
+                while ((bytesRead = await input.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
+                {
+                    await output.WriteAsync(buffer.AsMemory(0, bytesRead));
+                    downloadedBytes += bytesRead;
+                    if (totalBytes is > 0)
+                    {
+                        var percent = (int)Math.Clamp(downloadedBytes * 100 / totalBytes.Value, 0, 100);
+                        progressBar.Value = percent;
+                        remainingLabel.Text = $"{percent}%";
+                        statusLabel.Text = $"正在下载助手 v{manifest.Version}… {FormatBytes(downloadedBytes)} / {FormatBytes(totalBytes.Value)}";
+                    }
+                    else
+                    {
+                        statusLabel.Text = $"正在下载助手 v{manifest.Version}… 已下载 {FormatBytes(downloadedBytes)}";
+                    }
+                }
             }
 
+            progressBar.Style = ProgressBarStyle.Continuous;
+            progressBar.Value = 85;
+            remainingLabel.Text = "85%";
+            statusLabel.Text = "正在校验更新包…";
             await using (var archive = File.OpenRead(archivePath))
             {
                 var actualHash = Convert.ToHexString(await SHA256.HashDataAsync(archive));
                 if (!actualHash.Equals(manifest.Sha256.Trim(), StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("更新包校验失败。");
             }
 
+            progressBar.Value = 95;
+            remainingLabel.Text = "95%";
+            statusLabel.Text = "正在准备覆盖安装…";
             var extractRoot = Path.Combine(updateRoot, "new");
             ZipFile.ExtractToDirectory(archivePath, extractRoot);
             var newExecutable = Path.Combine(extractRoot, "HarmonicaRecorder.exe");
@@ -303,14 +329,48 @@ internal sealed class RecorderForm : Form
             var script = $"@echo off\r\nset \"APP_PID={Environment.ProcessId}\"\r\n:wait\r\ntasklist /FI \"PID eq %APP_PID%\" | find \"%APP_PID%\" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto wait\r\n)\r\ncopy /Y \"{newExecutable}\" \"{currentExecutable}\" >nul\r\nstart \"\" \"{currentExecutable}\"\r\ndel \"%~f0\"\r\n";
             await File.WriteAllTextAsync(scriptPath, script, Encoding.Default);
             Process.Start(new ProcessStartInfo { FileName = scriptPath, UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
-            statusLabel.Text = "更新已下载，助手即将重启。";
+            progressBar.Value = 100;
+            remainingLabel.Text = "100%";
+            statusLabel.Text = "更新已下载，正在覆盖安装并重启…";
             Application.Exit();
         }
         catch (Exception error)
         {
+            RestoreRecorderProgress();
             statusLabel.Text = "更新失败，当前版本仍可继续使用。";
             MessageBox.Show(this, $"自动更新失败：{error.Message}\n\n请从网页重新下载最新版助手。", "更新失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    private void PrepareUpdateProgress(string version)
+    {
+        progressLabel.Text = "更新进度";
+        progressBar.Style = ProgressBarStyle.Continuous;
+        progressBar.Value = 0;
+        remainingLabel.Text = "0%";
+        statusLabel.Text = $"正在下载助手 v{version}… 请稍候。";
+        startButton.Enabled = false;
+        stopButton.Enabled = false;
+        inputModeBox.Enabled = false;
+        hotKeyBox.Enabled = false;
+    }
+
+    private void RestoreRecorderProgress()
+    {
+        progressLabel.Text = "录制进度 / 剩余时间";
+        progressBar.Style = ProgressBarStyle.Continuous;
+        progressBar.Value = 0;
+        remainingLabel.Text = request is null ? "剩余 --:--" : $"剩余 {FormatDuration(request.TotalDurationMs)}";
+        startButton.Enabled = request?.IsVersionCompatible == true;
+        stopButton.Enabled = false;
+        inputModeBox.Enabled = true;
+        hotKeyBox.Enabled = true;
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024 * 1024) return $"{Math.Max(1, bytes / 1024)} KB";
+        return $"{bytes / 1024d / 1024d:0.0} MB";
     }
 
     protected override void OnHandleDestroyed(EventArgs e)

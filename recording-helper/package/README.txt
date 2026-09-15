@@ -1,4 +1,4 @@
-HARMONICA RECORDER v1.1.0 — Windows independent input helper
+HARMONICA RECORDER v1.1.1 — Windows independent input helper
 
 1. Extract this ZIP to a permanent folder.
 2. Run Install.cmd once. This lets the website open the helper with the current score.
