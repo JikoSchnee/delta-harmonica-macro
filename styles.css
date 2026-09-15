@@ -34,6 +34,15 @@ button, input, textarea { font: inherit; }
 button { cursor: pointer; }
 button:focus-visible, input:focus-visible, textarea:focus-visible, a:focus-visible { outline: 2px dotted var(--black); outline-offset: 3px; }
 
+textarea { scrollbar-color: var(--teal) #0a3230; scrollbar-width: thin; }
+textarea::-webkit-scrollbar { width: 12px; height: 12px; background: #0a3230; }
+textarea::-webkit-scrollbar-track { background: #0a3230; border-left: 1px solid #315956; }
+textarea::-webkit-scrollbar-thumb { background: var(--teal); border: 2px outset #69b5b5; border-bottom-color: var(--teal-dark); }
+textarea::-webkit-scrollbar-thumb:hover { background: #129b9b; border-color: #9ae9e3; border-bottom-color: var(--teal-dark); }
+textarea::-webkit-scrollbar-thumb:active { background: var(--teal-dark); border-style: inset; }
+textarea::-webkit-scrollbar-button { background: var(--surface); border: 2px outset var(--surface); }
+textarea::-webkit-scrollbar-button:active { border-style: inset; }
+
 .noise {
   position: fixed;
   z-index: 9;
@@ -372,7 +381,7 @@ main {
 .symbol-rack span { padding: 5px 7px; color: #333; background: var(--surface-light); border: 1px solid var(--surface-dark); font-size: 9px; }
 .symbol-rack code { margin-right: 4px; color: var(--teal-dark); font: 700 10px var(--mono); }
 .jianpu-soft-keyboard { min-width: 0; margin-top: 10px; padding: 9px; background: var(--screen-soft); border: 2px inset var(--surface); }
-.jianpu-note-keys { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 4px; }
+.jianpu-note-keys { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 4px; }
 .jianpu-note-keys button, .jianpu-modifier-group button, .jianpu-modifier-reset { min-width: 0; color: var(--screen-text); background: var(--teal-deep); border: 2px outset #4e8f8c; font: 700 12px/1 var(--mono); }
 .jianpu-note-keys button { min-height: 31px; padding: 4px 1px; }
 .jianpu-note-keys button:hover, .jianpu-modifier-group button:hover, .jianpu-modifier-reset:hover { color: var(--white); background: var(--teal); border-bottom-color: var(--teal-dark); }
@@ -389,6 +398,8 @@ main {
 .notation-preview.octave-high::after { top: -5px; }
 .notation-preview.duration-half { text-decoration: underline; text-underline-offset: 3px; }
 .notation-preview.duration-quarter { text-decoration-line: underline; text-decoration-style: double; text-underline-offset: 3px; }
+.notation-preview.duration-eighth { padding-bottom: 8px; text-decoration: none; }
+.notation-preview.duration-eighth::after { position: absolute; right: 0; bottom: 0; left: 0; height: 1px; content: ""; background: currentColor; box-shadow: 0 -3px 0 currentColor, 0 -6px 0 currentColor; }
 .jianpu-modifier-reset { min-height: 29px; padding: 5px 8px; font-size: 9px; white-space: nowrap; }
 .record-result { min-width: 0; max-width: 100%; margin-top: 12px; }
 .record-result label { display: flex; justify-content: space-between; color: #333; font-size: 11px; }
@@ -433,6 +444,9 @@ main {
 .keyboard-syntax-note { align-items: flex-start; }
 .bracket { color: var(--teal); font: 500 30px/1 var(--mono); }
 .editor-actions { display: flex; align-items: center; min-width: 0; max-width: 100%; flex-wrap: wrap; gap: 16px; margin-top: 5px; }
+.primary-button.repair-button { color: #465451; background: #b7bfbd; border-top-color: #e4e8e7; border-left-color: #e4e8e7; border-right-color: #727c79; border-bottom-color: #727c79; }
+.primary-button.repair-button:hover { color: #263331; background: #d2d8d6; border-right-color: #626d6a; border-bottom-color: #626d6a; }
+.primary-button.repair-button:active { border-style: inset; border-right-color: #727c79; border-bottom-color: #727c79; }
 .primary-button, .preview-button {
   display: inline-flex;
   align-items: center;
@@ -526,6 +540,7 @@ main {
 .text-button:hover { color: var(--black); text-decoration: underline; }
 .validation { min-height: 19px; margin-top: 14px; color: #405d5a; font: 11px/1.6 var(--mono); }
 .validation.error { color: var(--danger); }
+.validation.warning { color: #9a5b00; }
 .validation.success { color: var(--teal-dark); }
 
 .meter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin-top: 0; background: var(--surface-dark); border-top: 2px groove var(--surface); border-bottom: 2px groove var(--surface); }

@@ -63,7 +63,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="./styles.css?v=auth-tabs-20260914" />
+    <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
+    <link rel="stylesheet" href="./styles.css?v=20260915" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -224,6 +225,7 @@
                 <button type="button" data-jianpu-key="5" aria-label="输入数字 5">5</button>
                 <button type="button" data-jianpu-key="6" aria-label="输入数字 6">6</button>
                 <button type="button" data-jianpu-key="7" aria-label="输入数字 7">7</button>
+                <button type="button" data-jianpu-key="1" data-jianpu-octave-base="'" aria-label="输入高音 1"><span class="notation-preview octave-high">1</span></button>
                 <button type="button" data-jianpu-key="|" aria-label="输入小节线">|</button>
                 <button type="button" data-jianpu-key="-" aria-label="输入延音线">−</button>
                 <button type="button" data-jianpu-key="~" aria-label="输入连音线">~</button>
@@ -243,6 +245,7 @@
                     <button type="button" role="radio" aria-checked="true" tabindex="0" data-jianpu-modifier="duration" data-value="" aria-label="一拍"><span class="notation-preview">x</span></button>
                     <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="duration" data-value="_" aria-label="半拍"><span class="notation-preview duration-half">x</span></button>
                     <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="duration" data-value="__" aria-label="四分之一拍"><span class="notation-preview duration-quarter">x</span></button>
+                    <button type="button" role="radio" aria-checked="false" tabindex="-1" data-jianpu-modifier="duration" data-value="___" aria-label="八分之一拍"><span class="notation-preview duration-eighth">x</span></button>
                   </div>
                 </div>
                 <div class="jianpu-modifier-group" role="radiogroup" aria-label="附点">
@@ -264,7 +267,7 @@
               </div>
             </section>
             <div class="symbol-rack" aria-label="简谱符号说明">
-              <span><code>0</code>休止</span><span><code>-</code>延一拍</span><span><code>.</code>附点</span><span><code>_</code>半拍</span><span><code>__</code>¼拍</span><span><code>5:1.25</code>精确拍数</span><span><code># / ♭</code>升降号</span><span><code>1' / ,1</code>高低音</span><span><code>~</code>连音</span><span><code>| ||: :||</code>小节/反复线</span>
+              <span><code>0</code>休止</span><span><code>-</code>延一拍</span><span><code>.</code>附点</span><span><code>_ / __ / ___</code>减时线（最多三条）</span><span><code>5:1.25</code>精确拍数</span><span><code># / ♭</code>升降号</span><span><code>1' / 1'' / ,1 / ,,1</code>高低音点（上下最多两点）</span><span><code>~</code>连音</span><span><code>| ||: :||</code>小节/反复线</span>
             </div>
           </section>
 
@@ -322,6 +325,7 @@
               <button class="primary-button" id="communityUploadButton" type="button" hidden><span>上传到曲库</span><b>↑</b></button>
               <button class="primary-button" id="exportScoreButton" type="button">分享 .deltamusic</button>
               <button class="primary-button" id="clearButton" type="button">清空</button>
+              <button class="primary-button repair-button" id="repairCurrentModeButton" type="button" title="试验性：按当前编辑模式修复并同步四种谱子">修复(试验性)</button>
             </div>
             <div class="validation" id="validation" role="status" aria-live="polite"></div>
         </div>
@@ -662,8 +666,8 @@
       </section>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./data/pdmx-top-1000.js"></script>
-    <script src="./data/community-songs.js"></script>
-    <script src="./app.js?v=feedback-first-visit-20260914"></script>
+    <script src="./data/pdmx-top-1000.js?v=20260915"></script>
+    <script src="./data/community-songs.js?v=20260915"></script>
+    <script src="./app.js?v=20260915"></script>
   </body>
 </html>

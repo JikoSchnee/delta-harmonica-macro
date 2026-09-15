@@ -476,13 +476,13 @@ const SECTION_GUIDES = {
 const elements = {
   score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), exportModeButtons: [...document.querySelectorAll("[data-export-mode]")], exportModePanels: [...document.querySelectorAll("[data-export-panel]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"),
-  convertButton: document.querySelector("#convertButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   qqGroupButton: document.querySelector("#qqGroupButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
@@ -515,6 +515,7 @@ let macroDownloadTimer = null;
 let macroDownloadFinalizeTimer = null;
 let inputMode = "jianpu";
 let lastMidiFile = null;
+let suppressUploadCompatibilityWarning = false;
 const jianpuModifierState = { octave: "", duration: "", dot: "", accidental: "" };
 let midiImportState = null;
 let midiNotePickerState = null;
@@ -751,7 +752,7 @@ function encodeJianpuPitch(accidental, lowMark, digit, highMark) {
     if (accidental || lowMark || highMark) return null;
     return { note: "0", modifier: null };
   }
-  const octave = (highMark ? 12 : 0) - (lowMark ? 12 : 0);
+  const octave = (highMark.length * 12) - (lowMark.length * 12);
   const accidentalOffset = accidental === "#" || accidental === "♯" ? 1 : accidental === "b" || accidental === "♭" ? -1 : 0;
   const midi = DIATONIC_MIDI[digit] + octave + accidentalOffset;
   return PLAYABLE_PITCHES.find((candidate) => candidate.midi === midi) || null;
@@ -779,9 +780,11 @@ function parseJianpu(source, bpm) {
       tiePending = true;
       continue;
     }
+    if (token.replace(/ /g, "").includes(",,,") || /'{3,}/.test(token)) return { error: { message: "高低音标记最多各两个点（文本写法为最多两个逗号或撇号）。", ...position } };
+    if (token.includes("____")) return { error: { message: "减时线最多三条（半拍、四分之一拍或八分之一拍）。", ...position } };
     const physicalFound = token.match(/^([LMR]{1,2})(0|1'|[1-7])(_{0,2})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/i);
-    const found = token.match(/^([#b♯♭]?)(,?)(0|[1-7])('?)(_{0,2})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/);
-    if (!found && !physicalFound) return { error: { message: `无法识别“${match[0]}”。可输入 5、0、#4、1'、,1、5_、5.，或用 5:1.25 写精确拍数。`, ...position } };
+    const found = token.match(/^([#b♯♭]?)(,{0,2})(0|[1-7])('{0,2})(_{0,3})(\.*)(-*)(?::(\d+(?:\.\d+)?))?(~?)$/);
+    if (!found && !physicalFound) return { error: { message: `无法识别“${match[0]}”。可输入 5、0、#4、1'、1''、,1、,,1、5_、5___、5.，或用 5:1.25 写精确拍数。`, ...position } };
     const [, accidental = "", lowMark = "", digit, highMark = "", standardUnderscores = "", standardDots = "", standardDashes = "", standardExplicitBeats, standardTieMark = ""] = found || [];
     const [, physicalModifier = "", physicalDigit, physicalUnderscores = "", physicalDots = "", physicalDashes = "", physicalExplicitBeats, physicalTieMark = ""] = physicalFound || [];
     const note = physicalDigit || digit;
@@ -802,7 +805,15 @@ function parseJianpu(source, bpm) {
     const dotFactor = dots.length ? 2 - (1 / (2 ** dots.length)) : 1;
     const beats = explicitBeats ? Number(explicitBeats) : baseBeats * dotFactor + dashes.length;
     if (!Number.isFinite(beats) || beats <= 0) return { error: { message: "拍数必须是大于 0 的数字。", ...position } };
-    const item = { ...pitch, beats, start: match.index, ...position };
+    // Keep the user's standard spelling: #7' and physical R1' share MIDI 84,
+    // but only the latter is an upload-incompatible physical-key notation.
+    const item = {
+      ...pitch,
+      ...(physicalFound ? { physicalSourcePitch: `${physicalModifier}${physicalDigit}` } : { sourcePitch: `${accidental}${lowMark}${note}${highMark}` }),
+      beats,
+      start: match.index,
+      ...position
+    };
     const previous = notes[notes.length - 1];
     const samePitch = previous && (
       (Number.isFinite(previous.midi) && Number.isFinite(item.midi) && previous.midi === item.midi) ||
@@ -1567,8 +1578,180 @@ function sequenceToPrecise(sequence) {
   return serializeSequence(sequence, (item) => `${item.modifier || ""}${item.note}/${formatRecordedBeat(item.beats)}`);
 }
 
+function standardJianpuPitch(item) {
+  if (item.note === "0") return "0";
+  const midi = Number.isFinite(item.midi) ? item.midi : macroMidi(item);
+  if (!Number.isFinite(midi)) return jianpuPitch(item.note, item.modifier);
+  const candidates = [];
+  ["", "#", "b"].forEach((accidental) => {
+    ["", "'", "''", ",", ",,"].forEach((octaveMark) => {
+      for (let digit = 1; digit <= 7; digit += 1) {
+        const candidate = encodeJianpuPitch(accidental, octaveMark.startsWith(",") ? octaveMark : "", String(digit), octaveMark.startsWith("'") ? octaveMark : "");
+        if (candidate?.midi !== midi) continue;
+        const text = `${accidental}${octaveMark === "," ? "," : ""}${digit}${octaveMark === "'" ? "'" : ""}`;
+        candidates.push({ text, score: (accidental ? 1 : 0) + (octaveMark ? 1 : 0) });
+      }
+    });
+  });
+  candidates.sort((left, right) => left.score - right.score || left.text.localeCompare(right.text));
+  return candidates[0]?.text || jianpuPitch(item.note, item.modifier);
+}
+
 function sequenceToJianpu(sequence) {
-  return serializeSequence(sequence, (item) => `${jianpuPitch(item.note, item.modifier)}${beatsToJianpu(item.beats)}`);
+  return serializeSequence(sequence, (item) => `${item.sourcePitch || standardJianpuPitch(item)}${beatsToJianpu(item.beats)}`);
+}
+
+function uploadCompatibilityIssue(sequence) {
+  const item = sequence?.notes?.find((candidate) => candidate.physicalSourcePitch && candidate.note === "1'" && /[LR]/.test(candidate.modifier || ""));
+  if (!item) return null;
+  const token = jianpuPitch(item.note, item.modifier);
+  const legacyHint = token === "R1'" ? "；如果这是旧文件由 #7' 产生的，请改回 #7'" : "";
+  return {
+    message: `${token} 是物理键位写法，可试听和导出宏，但暂不支持曲库上传${legacyHint}。`,
+    line: item.line || 1,
+    column: item.column || 1
+  };
+}
+
+function editorForMode(mode = inputMode) {
+  return {
+    jianpu: elements.jianpuScore,
+    record: elements.recordedScore,
+    precise: elements.score,
+    keyboard: elements.keyboardScore
+  }[mode] || null;
+}
+
+function parseEditorSource(source, bpm, mode = inputMode) {
+  if (mode === "jianpu") return parseJianpu(source, bpm);
+  if (mode === "keyboard") return parseKeyboardScore(source, bpm);
+  return parseScore(source, bpm);
+}
+
+function formatNoteForMode(item, mode) {
+  if (mode === "jianpu") return `${item.sourcePitch || standardJianpuPitch(item)}${beatsToJianpu(item.beats)}`;
+  if (mode === "keyboard") return `${keyboardLabel(item)} / ${item.durationMs}ms`;
+  return `${item.modifier || ""}${item.note}/${formatRecordedBeat(item.beats)}`;
+}
+
+function sequenceToMode(sequence, mode) {
+  if (mode === "keyboard") return sequenceToKeyboard(sequence);
+  return serializeSequence(sequence, (item) => formatNoteForMode(item, mode));
+}
+
+function isIgnorableMixedToken(token, isLinePrefix = false) {
+  if (/^(?:\d{1,2})\/(?:1|2|4|8|16)$/.test(token)) return isLinePrefix && Number(token.split("/")[0]) > 1;
+  return /^(?:\|+|\|\|:|:\|\||:|\(|\)|\[|\]|\{|\}|[1-7]=[A-G](?:[#b♯♭])?|(?:♩|♪)=?\d+)$/i.test(token);
+}
+
+function parseMixedFragment(fragment, start, line, column, bpm, preferredMode) {
+  const modes = [preferredMode, "jianpu", "record", "precise", "keyboard"].filter((mode, index, all) => all.indexOf(mode) === index);
+  for (const mode of modes) {
+    const parsed = parseEditorSource(fragment, bpm, mode);
+    if (parsed.error || !parsed.notes?.length) continue;
+    return parsed.notes.map((item) => ({ ...item, start, line, column }));
+  }
+  return null;
+}
+
+function parseMixedEditorSource(source, bpm, preferredMode) {
+  const notes = [];
+  const invalid = [];
+  const repairedLines = [];
+  const lines = source.split("\n");
+  lines.forEach((rawLine, lineIndex) => {
+    const line = lineIndex + 1;
+    const trimmed = rawLine.trim();
+    if (!trimmed) {
+      repairedLines.push(rawLine);
+      return;
+    }
+
+    const keyboard = parseEditorSource(trimmed, bpm, "keyboard");
+    if (!keyboard.error && keyboard.notes?.length && /\/\s*\d+\s*ms\s*$/i.test(trimmed)) {
+      const column = rawLine.indexOf(trimmed) + 1;
+      const rebased = keyboard.notes.map((item) => ({ ...item, line, column, start: rawLine.indexOf(trimmed) }));
+      notes.push(...rebased);
+      repairedLines.push(formatNoteForMode(rebased[0], preferredMode));
+      return;
+    }
+
+    const tokenMatches = [...rawLine.matchAll(/\S+/g)];
+    const repairedTokens = [];
+    tokenMatches.forEach((match) => {
+      const token = match[0];
+      if (isIgnorableMixedToken(token, match.index === rawLine.search(/\S/))) {
+        repairedTokens.push(token);
+        return;
+      }
+      const parsed = parseMixedFragment(token, match.index, line, match.index + 1, bpm, preferredMode);
+      if (!parsed) {
+        repairedTokens.push(token);
+        invalid.push({ token, line, column: match.index + 1 });
+        return;
+      }
+      notes.push(...parsed);
+      repairedTokens.push(parsed.map((item) => formatNoteForMode(item, preferredMode)).join(" "));
+    });
+    repairedLines.push(repairedTokens.join(" "));
+  });
+  return { notes, invalid, repairedText: repairedLines.join("\n") };
+}
+
+function applyRepairedSequence(sequence, mode, { currentText = null } = {}) {
+  sequence.notes.forEach((item, index) => { item.index = index; });
+  currentSequence = sequence;
+  syncSequenceToEditors(sequence, { except: mode });
+  const editor = editorForMode(mode);
+  if (editor) editor.value = currentText ?? sequenceToMode(sequence, mode);
+  updateLineNumbers();
+  updateMonitor(sequence);
+  updateTransposeControls(sequence);
+  elements.status.textContent = "序列已就绪";
+}
+
+function setRepairValidation(sequence, invalid = []) {
+  const uploadIssue = suppressUploadCompatibilityWarning ? null : uploadCompatibilityIssue(sequence);
+  const invalidMessage = invalid.length
+    ? `保留无法识别内容：${invalid.map((item) => `${item.token}（${item.line}:${item.column}）`).join("、")}。请修正后再导出或上传。`
+    : "";
+  const compatibilityMessage = uploadIssue
+    ? `校验提醒 · 第 ${uploadIssue.line} 行，第 ${uploadIssue.column} 列：${uploadIssue.message}`
+    : "";
+  const messages = [invalidMessage, compatibilityMessage].filter(Boolean);
+  setValidation(messages.length
+    ? `试验性修复完成 · ${messages.join(" ")}`
+    : `试验性修复完成 · 已按${MODE_LABELS[inputMode]}同步四种谱子。`, messages.length ? "warning" : "success");
+  return messages.length;
+}
+
+function repairCurrentMode() {
+  const editor = editorForMode();
+  if (!editor) return;
+  const source = editor.value;
+  const bpm = Number(elements.bpm.value);
+  const strict = parseEditorSource(source, bpm, inputMode);
+  if (!strict.error && strict.notes?.length) {
+    applyRepairedSequence(strict, inputMode);
+    const hasWarning = setRepairValidation(strict);
+    toast(hasWarning ? "已修复当前曲谱，但仍有上传兼容性提醒。" : `已按${MODE_LABELS[inputMode]}修复并同步当前曲谱。`);
+    return;
+  }
+
+  const mixed = parseMixedEditorSource(source, bpm, inputMode);
+  if (!mixed.notes.length) {
+    setValidation(`试验性修复失败 · ${strict.error?.message || "没有找到可转换的谱子内容。"}`, "error");
+    toast("没有找到可修复的谱子内容。 ");
+    return;
+  }
+  const sequence = enrichNotes(mixed.notes, bpm);
+  if (sequence.error) {
+    setValidation(`试验性修复失败 · ${sequence.error.message}`, "error");
+    return;
+  }
+  applyRepairedSequence(sequence, inputMode, { currentText: mixed.repairedText });
+  const hasWarning = setRepairValidation(sequence, mixed.invalid);
+  toast(hasWarning ? `已修复可识别内容，仍有 ${mixed.invalid.length ? `${mixed.invalid.length} 项需要手动处理` : "上传兼容性问题"}。` : `已按${MODE_LABELS[inputMode]}修复并同步当前曲谱。`);
 }
 
 function keyboardLabel(item) {
@@ -1581,11 +1764,11 @@ function sequenceToKeyboard(sequence) {
   return sequence.notes.map((item) => `${keyboardLabel(item)} / ${item.durationMs}ms`).join("\n");
 }
 
-function syncSequenceToEditors(sequence, { except = null } = {}) {
-  if (except !== "jianpu") elements.jianpuScore.value = sequenceToJianpu(sequence);
+function syncSequenceToEditors(sequence, { except = null, sourceMode = null, sourceText = "" } = {}) {
+  if (except !== "jianpu") elements.jianpuScore.value = sourceMode === "jianpu" ? sourceText : sequenceToJianpu(sequence);
   const precise = sequenceToPrecise(sequence);
-  if (except !== "precise") elements.score.value = precise;
-  if (except !== "record") elements.recordedScore.value = precise;
+  if (except !== "precise") elements.score.value = sourceMode === "precise" ? sourceText : precise;
+  if (except !== "record") elements.recordedScore.value = sourceMode === "precise" ? sourceText : precise;
   if (except !== "keyboard") elements.keyboardScore.value = sequenceToKeyboard(sequence);
   updateLineNumbers();
 }
@@ -1595,19 +1778,22 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   finishRecording({ apply: false });
   lastMidiFile = null;
   resetMidiTrackPicker();
+  suppressUploadCompatibilityWarning = song.title === "口琴按键映射测试";
   elements.macroName.value = song.title;
   elements.artistName.value = song.artist || "";
   elements.keySignature.value = song.key || "1=C";
   elements.timeSignature.value = song.meter || "4/4";
   elements.bpm.value = song.bpm;
   currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "" };
-  const sequence = song.jianpu ? parseJianpu(song.jianpu, song.bpm) : parseScore(song.score, song.bpm);
+  const sourceMode = song.jianpu ? "jianpu" : song.score ? "precise" : null;
+  const sourceText = sourceMode === "jianpu" ? String(song.sourceJianpu || song.jianpu || "") : String(song.score || "");
+  const sequence = sourceMode === "jianpu" ? parseJianpu(sourceText, song.bpm) : parseScore(sourceText, song.bpm);
   if (sequence.error) {
     toast(`《${song.title}》的曲库数据无法载入。`);
     return;
   }
   sequence.notes.forEach((item, index) => { item.index = index; });
-  syncSequenceToEditors(sequence);
+  syncSequenceToEditors(sequence, { sourceMode, sourceText });
   [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
   elements.jianpuLineNumbers.scrollTop = 0;
   elements.lineNumbers.scrollTop = 0;
@@ -1821,7 +2007,10 @@ function convert() {
   updateMonitor(sequence);
   updateTransposeControls(sequence);
   elements.status.textContent = "序列已就绪";
-  setValidation(`校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, "success");
+  const uploadIssue = suppressUploadCompatibilityWarning ? null : uploadCompatibilityIssue(sequence);
+  setValidation(uploadIssue
+    ? `校验提醒 · 第 ${uploadIssue.line} 行，第 ${uploadIssue.column} 列：${uploadIssue.message}`
+    : `校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, uploadIssue ? "warning" : "success");
   return sequence;
 }
 
@@ -1875,7 +2064,10 @@ function handleBpmChange() {
   updateMonitor(sequence);
   updateTransposeControls(sequence);
   elements.status.textContent = "序列已就绪";
-  setValidation(`校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, "success");
+  const uploadIssue = suppressUploadCompatibilityWarning ? null : uploadCompatibilityIssue(sequence);
+  setValidation(uploadIssue
+    ? `校验提醒 · 第 ${uploadIssue.line} 行，第 ${uploadIssue.column} 列：${uploadIssue.message}`
+    : `校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, uploadIssue ? "warning" : "success");
 }
 
 function getAudioEngine() {
@@ -3013,7 +3205,7 @@ function validateScorePackage(payload) {
   const sequence = parseJianpu(jianpu, metadata.value.bpm);
   if (sequence.error) return { error: `简谱无法载入：${sequence.error.message}` };
   const { displayUrl, ...scoreMetadata } = metadata.value;
-  return { value: { ...scoreMetadata, ...(displayUrl ? { displayUrl } : {}), jianpu: sequenceToJianpu(sequence), source: "社区投稿" } };
+  return { value: { ...scoreMetadata, ...(displayUrl ? { displayUrl } : {}), jianpu: sequenceToJianpu(sequence), sourceJianpu: jianpu, source: "社区投稿" } };
 }
 
 function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy, displayUrl = currentScoreCredit.displayUrl) {
@@ -3070,6 +3262,8 @@ function openScoreExportDialog(mode = "download") {
 function scorePackageFromDialog() {
   const sequence = convert();
   if (!sequence) return { error: "请先修正谱子错误。" };
+  const uploadIssue = uploadCompatibilityIssue(sequence);
+  if (uploadIssue) return { error: uploadIssue.message };
   const metadata = validateScoreMetadata({
     title: elements.exportSongTitle.value,
     artist: elements.exportArtistName.value,
@@ -3269,6 +3463,7 @@ async function copyLua(sequence) {
 }
 
 function handleScoreInput() {
+  suppressUploadCompatibilityWarning = false;
   lastMidiFile = null;
   resetMidiTrackPicker();
   stopPreview();
@@ -3292,17 +3487,20 @@ function resetJianpuModifiers() {
   elements.jianpuModifierChoices.filter((choice) => choice.dataset.value === "").forEach((choice) => setJianpuModifier(choice));
 }
 
-function jianpuTokenForKey(key) {
+function jianpuTokenForKey(key, baseOctave = "") {
   if (!/^[0-7]$/.test(key)) return key;
   const { octave, duration, dot, accidental } = jianpuModifierState;
   if (key === "0") return `0${duration}${dot}`;
-  const lowMark = octave === "," ? "," : "";
-  const highMark = octave === "'" ? "'" : "";
+  const selectedOctave = octave.startsWith(",") ? -octave.length : octave.startsWith("'") ? octave.length : 0;
+  const baseLevel = baseOctave === "'" ? 1 : 0;
+  const octaveLevel = selectedOctave + baseLevel;
+  const lowMark = octaveLevel < 0 ? ",".repeat(-octaveLevel) : "";
+  const highMark = octaveLevel > 0 ? "'".repeat(octaveLevel) : "";
   return `${accidental}${lowMark}${key}${highMark}${duration}${dot}`;
 }
 
-function insertJianpuSoftKey(key) {
-  const token = jianpuTokenForKey(key);
+function insertJianpuSoftKey(key, baseOctave = "") {
+  const token = jianpuTokenForKey(key, baseOctave);
   const editor = elements.jianpuScore;
   editor.setRangeText(`${token} `, editor.selectionStart, editor.selectionEnd, "end");
   handleScoreInput();
@@ -3313,7 +3511,7 @@ function insertJianpuSoftKey(key) {
 editorLineNumberPairs.forEach(([textarea, gutter]) => textarea.addEventListener("scroll", () => syncLineNumbers(textarea, gutter)));
 elements.jianpuSoftKeyboard.addEventListener("click", (event) => {
   const key = event.target.closest("[data-jianpu-key]");
-  if (key) insertJianpuSoftKey(key.dataset.jianpuKey);
+  if (key) insertJianpuSoftKey(key.dataset.jianpuKey, key.dataset.jianpuOctaveBase || "");
 });
 elements.jianpuModifierChoices.forEach((button) => {
   button.addEventListener("click", () => setJianpuModifier(button));
@@ -3331,6 +3529,7 @@ elements.bpm.addEventListener("input", handleBpmChange);
 elements.transposeDown.addEventListener("click", () => transposeCurrentScore(-1));
 elements.transposeUp.addEventListener("click", () => transposeCurrentScore(1));
 elements.convertButton.addEventListener("click", playPreview);
+elements.repairCurrentModeButton.addEventListener("click", repairCurrentMode);
 elements.importMidiButton.addEventListener("click", () => {
   if (activeTour?.steps[activeTour.stepIndex]?.action === "midi-file") setTourStatus("系统文件选择器已打开；请选择 MIDI 文件。若取消，可再次点击导入。");
   elements.importMidiInput.click();
