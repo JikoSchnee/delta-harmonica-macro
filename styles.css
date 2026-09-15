@@ -212,6 +212,23 @@ main {
 .directory-tutorial-link:active { transform: translateY(1px); }
 .directory-action-card > i { color: var(--teal-dark); font: 700 17px/1 var(--mono); font-style: normal; }
 
+.remix-code-deck { margin-top: 14px; padding: 0 22px 20px; animation: rise .42s .03s ease both; }
+.remix-code-deck > .window-titlebar { margin: 0 -22px 17px; }
+.remix-code-heading { display: flex; align-items: end; justify-content: space-between; gap: 18px; }
+.remix-code-heading h2 { margin: 8px 0 0; color: var(--black); font: 700 27px/1 var(--pixel); }
+.remix-code-heading p { max-width: 440px; margin: 0; color: #526767; font-size: 11px; line-height: 1.65; text-align: right; }
+.remix-code-browser { display: grid; grid-template-columns: minmax(190px, 1fr) auto; align-items: center; gap: 10px; margin-top: 15px; }
+.remix-code-search { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 0 9px; color: var(--teal); background: var(--white); border-top: 2px solid var(--surface-dark); border-left: 2px solid var(--surface-dark); border-right: 2px solid var(--white); border-bottom: 2px solid var(--white); }
+.remix-code-search input { width: 100%; min-width: 0; padding: 7px 0; border: 0; outline: 0; color: var(--black); background: transparent; font: 11px var(--mono); }
+.remix-code-search input::placeholder { color: #657777; }
+.remix-code-status { color: var(--teal-dark); font: 700 10px/1 var(--mono); letter-spacing: .03em; white-space: nowrap; }
+.remix-code-result { grid-template-columns: minmax(0, 1fr); margin-top: 12px; }
+.remix-code-result .song-card { min-height: 140px; }
+.song-card .song-remix-code { flex: 0 1 auto; max-width: 190px; overflow: hidden; padding: 3px 5px; color: #704923; background: #fff0c9; border: 1px solid #d4a455; font: 700 9px/1 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.song-card-action.remix-code-action { color: #704923; background: #fff0c9; border-color: #f8d98a; border-bottom-color: #b88421; }
+.song-card-action.remix-code-action:hover { color: var(--white); background: #9b691b; border-bottom-color: #70430b; }
+.song-card-action:disabled { cursor: wait; opacity: .55; }
+
 .tutorial-dialog { width: min(980px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .tutorial-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .tutorial-form { margin: 0; }
@@ -355,6 +372,15 @@ main {
 .editor-tutorial-link:hover, .editor-tutorial-link:focus-visible { color: var(--white); background: #129b9b; border-color: #7ce5df; border-bottom-color: var(--teal-dark); }
 .editor-tutorial-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 3px; }
 .editor-tutorial-link:active { border-style: inset; box-shadow: none; transform: translate(2px, 2px); }
+.recording-helper-tutorial-link { display: grid; grid-template-columns: 29px minmax(0, 1fr) auto; align-items: center; gap: 9px; min-width: 0; margin-top: 11px; padding: 8px 10px; color: var(--white); background: #6a3777; border: 2px outset #b281bb; border-bottom-color: #452452; box-shadow: 2px 2px 0 #452452; font-family: var(--mono); text-decoration: none; }
+.recording-helper-tutorial-link > b { display: grid; width: 29px; height: 29px; place-items: center; color: #6a3777; background: #f3e8f5; border: 1px solid #fff5ff; font-size: 10px; }
+.recording-helper-tutorial-link span { display: grid; min-width: 0; gap: 2px; }
+.recording-helper-tutorial-link strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.recording-helper-tutorial-link small { overflow: hidden; color: #ead8ed; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.recording-helper-tutorial-link i { font: 700 15px/1 var(--mono); font-style: normal; }
+.recording-helper-tutorial-link:hover, .recording-helper-tutorial-link:focus-visible { color: var(--white); background: #754a80; border-color: #d8b6dc; border-bottom-color: #452452; }
+.recording-helper-tutorial-link:focus-visible { outline: 2px solid #b281bb; outline-offset: 3px; }
+.recording-helper-tutorial-link:active { border-style: inset; box-shadow: none; transform: translate(2px, 2px); }
 
 .controls-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); min-width: 0; max-width: 100%; gap: 11px; margin-top: 17px; }
 .song-title-label { grid-column: span 2; }
@@ -674,6 +700,7 @@ main {
 .tutorial-deck > .window-titlebar { margin: 0 -22px 16px; }
 .tutorial-deck-content { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; background: var(--screen-soft); border: 2px inset var(--surface); }
 .tutorial-deck-content--inline { margin-top: 10px; border-color: #1c5754; background: var(--screen); }
+.tutorial-deck-content--macro { border-color: #6a3777; background: #24182b; }
 .tutorial-deck h2 { margin: 7px 0 4px; color: #e1ffff; font: 700 20px/1.2 var(--pixel); }
 .tutorial-deck p { margin: 0; color: #abc5c2; font: 10px/1.5 var(--mono); }
 .tutorial-video-link { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 10px; padding: 9px 11px; color: var(--white); background: var(--teal); border: 2px outset #4d8884; border-bottom-color: var(--teal-dark); box-shadow: 2px 2px 0 var(--black); font: 700 11px/1 var(--mono); text-decoration: none; }
@@ -1004,17 +1031,18 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .hero-actions { align-items: stretch; }
   .hero-actions .qq-group-link, .hero-actions .github-star-link { white-space: normal; }
   .directory-deck, .tutorial-deck, .library-deck, .exports { padding-left: 14px; padding-right: 14px; }
-  .directory-deck > .window-titlebar, .tutorial-deck > .window-titlebar, .library-deck .window-titlebar, .exports > .window-titlebar { margin-left: -14px; margin-right: -14px; }
+  .remix-code-deck { padding-left: 14px; padding-right: 14px; }
+  .directory-deck > .window-titlebar, .tutorial-deck > .window-titlebar, .remix-code-deck > .window-titlebar, .library-deck .window-titlebar, .exports > .window-titlebar { margin-left: -14px; margin-right: -14px; }
   .seo-intro-content { padding: 18px 14px 20px; }
   .seo-intro-grid { grid-template-columns: 1fr; gap: 10px; }
   .tutorial-deck-content { align-items: start; flex-direction: column; }
   .tutorial-video-link { align-self: stretch; justify-content: space-between; }
-  .directory-heading, .tutorial-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
+  .directory-heading, .tutorial-heading, .remix-code-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
   .export-mode-tabs { gap: 5px; }
   .export-mode-tab { flex: 1; justify-content: center; padding: 8px 7px; font-size: 10px; }
   .export-mode-heading { align-items: start; flex-direction: column; gap: 7px; }
   .export-mode-heading p { max-width: none; text-align: left; }
-  .directory-heading p, .tutorial-heading > p, .source-import-copy p { max-width: none; text-align: left; }
+  .directory-heading p, .tutorial-heading > p, .remix-code-heading p, .source-import-copy p { max-width: none; text-align: left; }
   .directory-action-card { padding: 0 9px; gap: 7px; }
   .directory-button { min-height: 54px; }
   .source-import-actions { align-items: stretch; }
@@ -1033,6 +1061,8 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .midi-range-labels { align-items: start; flex-wrap: wrap; }
   .midi-range-labels strong { order: 3; width: 100%; text-align: left; }
   .library-deck-browser { grid-template-columns: 1fr auto; }
+  .remix-code-browser { grid-template-columns: 1fr; }
+  .remix-code-status { white-space: normal; }
   .library-grid { grid-template-columns: 1fr; max-height: 390px; }
   .editor-panel { padding-left: 14px; padding-right: 14px; }
   .editor-panel > .window-titlebar { margin-left: -14px; margin-right: -14px; }

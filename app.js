@@ -774,7 +774,7 @@ const elements = {
   timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), remixCodeSection: document.querySelector("#remix-code"), remixCodeInput: document.querySelector("#remixCodeInput"), remixCodeStatus: document.querySelector("#remixCodeStatus"), remixCodeResult: document.querySelector("#remixCodeResult"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
@@ -1844,6 +1844,111 @@ function normalizeSong(song) {
   };
 }
 
+const REMIX_CODE_LENGTH = 21;
+const REMIX_CODE_PATTERN = new RegExp(`^[0-9a-f]{${REMIX_CODE_LENGTH}}$`, "i");
+const remixCodeCache = new Map();
+const remixCodePending = new Map();
+
+function remixCodePayload(song) {
+  return JSON.stringify([
+    String(song.title || "").trim(),
+    String(song.artist || "").trim(),
+    String(song.sharedBy || "").trim(),
+    String(song.key || "").trim(),
+    String(song.meter || "").trim(),
+    Number(song.bpm) || 120,
+    song.jianpu ? "jianpu" : "score",
+    String(song.jianpu || song.score || "")
+  ]);
+}
+
+function fallbackRemixCode(value) {
+  const seeds = [2166136261, 2654435761, 2246822519];
+  return seeds.map((seed) => {
+    let hash = seed;
+    for (const character of value) {
+      hash ^= character.codePointAt(0);
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, "0");
+  }).join("").slice(0, REMIX_CODE_LENGTH);
+}
+
+async function remixCodeForSong(song) {
+  const payload = remixCodePayload(song);
+  if (remixCodeCache.has(payload)) {
+    song.remixCode = remixCodeCache.get(payload);
+    return song.remixCode;
+  }
+  if (remixCodePending.has(payload)) {
+    song.remixCode = await remixCodePending.get(payload);
+    return song.remixCode;
+  }
+  const pending = (async () => {
+    let code = "";
+    if (globalThis.crypto?.subtle && globalThis.TextEncoder) {
+      try {
+        const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
+        code = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("").slice(0, REMIX_CODE_LENGTH);
+      } catch {
+        code = fallbackRemixCode(payload);
+      }
+    } else {
+      code = fallbackRemixCode(payload);
+    }
+    remixCodeCache.set(payload, code);
+    return code;
+  })();
+  remixCodePending.set(payload, pending);
+  try {
+    song.remixCode = await pending;
+    return song.remixCode;
+  } finally {
+    remixCodePending.delete(payload);
+  }
+}
+
+async function ensureRemixCodes() {
+  const songs = [...SONG_LIBRARY, ...mySongLibrary];
+  await Promise.all(songs.map((song) => remixCodeForSong(song)));
+}
+
+function remixCodeFromInput(value = "") {
+  const raw = String(value || "").trim();
+  if (!raw) return { value: "", state: "empty" };
+  let candidate = raw;
+  try {
+    const url = new URL(raw, window.location.href);
+    if (url.searchParams.has("code")) candidate = url.searchParams.get("code") || "";
+  } catch {}
+  candidate = candidate.trim().toLowerCase();
+  if (!REMIX_CODE_PATTERN.test(candidate)) return { value: candidate, state: "invalid" };
+  return { value: candidate, state: "valid" };
+}
+
+function remixCodeSong(code) {
+  return [...SONG_LIBRARY, ...mySongLibrary].find((song) => song.remixCode === code) || null;
+}
+
+function remixCodeLink(code) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.searchParams.set("code", code);
+  url.hash = "";
+  return url.toString();
+}
+
+async function copyRemixCodeLink(code) {
+  if (!code) return;
+  const link = remixCodeLink(code);
+  try {
+    await navigator.clipboard.writeText(link);
+    toast("改曲码链接已复制");
+  } catch {
+    toast("复制失败，请手动复制改曲码链接");
+  }
+}
+
 function songsForLibraryView() {
   if (activeLibraryView === "recommended") {
     return recommendedSongIdentities
@@ -1876,39 +1981,84 @@ function songLibraryIndex(song) {
   return SONG_LIBRARY.findIndex((candidate) => candidate.title === song.title && candidate.artist === song.artist && candidate.sharedBy === song.sharedBy);
 }
 
-function renderSongLibrary(query = "") {
-  const sourceSongs = songsForLibraryView();
-  elements.libraryCount.textContent = `${sourceSongs.length} TRACK${sourceSongs.length === 1 ? "" : "S"}`;
-  const normalizedQuery = query.trim().toLocaleLowerCase();
-  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song), exportCount: scoreExportCount(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm}`.toLocaleLowerCase().includes(normalizedQuery));
-  if (activeLibraryView === "mine" && !authState.account) {
-    elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
-    return;
-  }
-  elements.songGrid.innerHTML = songs.length ? songs.map((song) => {
-    const isRecommended = recommendedSongKeys.has(recommendationKey(song));
-    const canManageRecommendations = Boolean(authState.account?.isAdmin);
-    const recommendationAction = isRecommended ? "unrecommend" : "recommend";
-    const recommendationLabel = isRecommended ? "取消推荐" : "推荐";
-    return `
-    <article class="song-card" data-song-index="${song.index}" data-index="${String(song.index + 1).padStart(2, "0")}">
+function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
+  const index = songLibraryIndex(song);
+  const isRecommended = recommendedSongKeys.has(recommendationKey(song));
+  const canManageRecommendations = Boolean(authState.account?.isAdmin);
+  const recommendationAction = isRecommended ? "unrecommend" : "recommend";
+  const recommendationLabel = isRecommended ? "取消推荐" : "推荐";
+  const remixCodeAction = song.remixCode
+    ? `<button class="song-card-action remix-code-action" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接">改曲码</button>`
+    : '<button class="song-card-action remix-code-action" type="button" disabled>改曲码</button>';
+  return `
+    <article class="song-card" data-song-index="${index}" data-index="${String(index + 1).padStart(2, "0")}">
       <button class="song-card-main" data-song-action="view" type="button" aria-label="查看《${escapeHtml(song.title)}》并打开编辑器">
-      <span class="song-number">TRACK ${String(song.index + 1).padStart(2, "0")}</span>
+      <span class="song-number">TRACK ${String(index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
-      <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount}</span></div>
+      <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
       </button>
-      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
+      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<span class="song-remix-code" title="改曲码">${escapeHtml(song.remixCode)}</span>` : ""}${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
+        ${remixCodeAction}
         <button class="song-card-action" data-song-action="view" type="button">查看</button>
-        ${activeLibraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
+        ${libraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
         <button class="song-card-action export" data-song-action="export" type="button">导出</button>
-        ${activeLibraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
+        ${libraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
         ${canManageRecommendations ? `<button class="song-card-action recommendation-action${isRecommended ? " is-recommended" : ""}" data-song-action="${recommendationAction}" type="button">${recommendationLabel}</button>` : ""}
       </div>
     </article>
   `;
-  }).join("") : '<p class="library-empty">没有匹配的曲目，换个关键词试试。</p>';
+}
+
+function renderSongLibrary(query = "") {
+  const sourceSongs = songsForLibraryView();
+  elements.libraryCount.textContent = `${sourceSongs.length} TRACK${sourceSongs.length === 1 ? "" : "S"}`;
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song), exportCount: scoreExportCount(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm} ${song.remixCode || ""}`.toLocaleLowerCase().includes(normalizedQuery));
+  if (activeLibraryView === "mine" && !authState.account) {
+    elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
+    return;
+  }
+  elements.songGrid.innerHTML = songs.length ? songs.map((song) => renderSongCard(song)).join("") : '<p class="library-empty">没有匹配的曲目，换个关键词试试。</p>';
+}
+
+function renderRemixCodeResult(value = elements.remixCodeInput.value) {
+  const parsed = remixCodeFromInput(value);
+  if (parsed.state === "empty") {
+    elements.remixCodeStatus.textContent = "等待输入";
+    elements.remixCodeResult.innerHTML = '<p class="library-empty">输入改曲码后，这里会显示对应的曲目卡片。</p>';
+    return;
+  }
+  if (parsed.state === "invalid") {
+    elements.remixCodeStatus.textContent = "格式错误 · 需要 21 位十六进制改曲码";
+    elements.remixCodeResult.innerHTML = '<p class="library-empty remix-code-empty">改曲码应为 21 位数字或 a–f 字母，请检查输入。</p>';
+    return;
+  }
+  const song = remixCodeSong(parsed.value);
+  if (!song) {
+    elements.remixCodeStatus.textContent = "未找到曲目";
+    elements.remixCodeResult.innerHTML = '<p class="library-empty remix-code-empty">没有找到对应曲目，请确认改曲码或分享链接是否完整。</p>';
+    return;
+  }
+  elements.remixCodeStatus.textContent = "已找到 1 首曲目";
+  elements.remixCodeResult.innerHTML = renderSongCard(song);
+}
+
+async function refreshRemixCodeViews() {
+  await ensureRemixCodes();
+  renderSongLibrary(elements.songSearch.value);
+  renderRemixCodeResult(elements.remixCodeInput.value);
+}
+
+function applyRemixCodeFromUrl() {
+  const code = new URL(window.location.href).searchParams.get("code");
+  if (!code) return;
+  elements.remixCodeInput.value = code;
+  renderRemixCodeResult(code);
+  window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+    elements.remixCodeSection.scrollIntoView({ behavior: "auto", block: "start" });
+  }));
 }
 
 function beatsToJianpu(beats) {
@@ -3481,7 +3631,7 @@ function handleOAuthRedirectStatus() {
 function replaceCommunitySongs(songs) {
   if (!Array.isArray(songs)) return;
   SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONGS_FOR_LIBRARY(), ...songs].map((song) => normalizeSong(song)));
-  renderSongLibrary(elements.songSearch.value);
+  void refreshRemixCodeViews();
 }
 
 function setLibraryView(view = "recommended") {
@@ -3533,7 +3683,7 @@ async function loadMySongLibrary() {
   } catch {
     mySongLibrary = [];
   }
-  renderSongLibrary(elements.songSearch.value);
+  void refreshRemixCodeViews();
 }
 
 function setSongEditStatus(message = "", success = false) {
@@ -4539,7 +4689,7 @@ elements.songSearch.addEventListener("input", () => {
   if (queryLength) librarySearchAnalyticsTimer = window.setTimeout(() => trackAnalytics("library_search", { query_length: queryLength }), 650);
 });
 elements.libraryTabs.forEach((tab) => tab.addEventListener("click", () => setLibraryView(tab.dataset.libraryView)));
-elements.songGrid.addEventListener("click", (event) => {
+function handleSongCardClick(event) {
   if (event.target.closest("[data-library-login]")) {
     showAuthDialog();
     return;
@@ -4547,6 +4697,10 @@ elements.songGrid.addEventListener("click", (event) => {
   const actionButton = event.target.closest("[data-song-action]");
   const card = actionButton?.closest("[data-song-index]");
   if (!actionButton || !card) return;
+  if (actionButton.dataset.songAction === "copy-remix-code") {
+    void copyRemixCodeLink(actionButton.dataset.remixCode);
+    return;
+  }
   const song = SONG_LIBRARY[Number(card.dataset.songIndex)];
   if (!song) return;
   if (["recommend", "unrecommend"].includes(actionButton.dataset.songAction)) {
@@ -4564,7 +4718,10 @@ elements.songGrid.addEventListener("click", (event) => {
   const destination = actionButton.dataset.songAction === "export" ? "export" : "editor";
   loadSong(song, { destination });
   if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
-});
+}
+elements.songGrid.addEventListener("click", handleSongCardClick);
+elements.remixCodeResult.addEventListener("click", handleSongCardClick);
+elements.remixCodeInput.addEventListener("input", () => renderRemixCodeResult(elements.remixCodeInput.value));
 elements.libraryDeleteConfirm.addEventListener("click", confirmLibraryDelete);
 elements.libraryDeleteDialog.addEventListener("close", () => {
   pendingLibrarySong = null;
@@ -4680,6 +4837,7 @@ authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });
+void refreshRemixCodeViews().then(applyRemixCodeFromUrl);
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
 window.setTimeout(refreshScoreExportCounts, 1700);
