@@ -9,8 +9,10 @@ const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
 // API (PressMouseButton / ReleaseMouseButton) uses left=1, middle=2, right=3.
 // Razer XML follows the raw physical-button order.
 const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 2, razer: 3 }, R: { name: "右键升调", ghub: 3, razer: 2 } };
-// Armoury Crate GMAC stores a display name alongside Linux input and Windows
-// virtual-key codes. Keep its mapping separate from the Razer event values.
+// Armoury Crate GMAC stores the display name and the same 301/302/303 button
+// code in both numeric fields. These values are taken from a real GMAC export;
+// the generic Linux input codes (272/273/274) are not accepted by Armoury
+// Crate for imported mouse-click events.
 const ROG_KEYS = {
   z: { name: "Z", linuxCode: 44, windowsCode: 90 }, x: { name: "X", linuxCode: 45, windowsCode: 88 },
   c: { name: "C", linuxCode: 46, windowsCode: 67 }, v: { name: "V", linuxCode: 47, windowsCode: 86 },
@@ -18,11 +20,9 @@ const ROG_KEYS = {
   m: { name: "M", linuxCode: 50, windowsCode: 77 }, ",": { name: "Comma", linuxCode: 51, windowsCode: 188 }
 };
 const ROG_MOUSE_BUTTONS = {
-  // Armoury Crate identifies mouse actions by the generic Mouse Click label;
-  // the Linux/Windows button codes select left, middle, or right click.
-  L: { name: "Mouse Click", linuxCode: 272, windowsCode: 1 },
-  M: { name: "Mouse Click", linuxCode: 274, windowsCode: 4 },
-  R: { name: "Mouse Click", linuxCode: 273, windowsCode: 2 }
+  L: { name: "Left Click", linuxCode: 301, windowsCode: 301 },
+  M: { name: "Scroll Click", linuxCode: 303, windowsCode: 303 },
+  R: { name: "Right Click", linuxCode: 302, windowsCode: 302 }
 };
 // Leave a short release window between every pair of played notes.  A gap only
 // between repeated notes works for a plain melody, but modifier changes (for
