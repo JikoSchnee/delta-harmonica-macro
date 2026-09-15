@@ -21,7 +21,7 @@ internal static class Program
 
 internal sealed class PlaybackRequest
 {
-    internal const string HelperVersion = "1.0.0";
+    internal const string HelperVersion = "1.1.0";
 
     [JsonPropertyName("v")]
     public int Version { get; init; }
@@ -384,7 +384,8 @@ internal sealed class RecorderForm : Form
             {
                 ApplyPlaybackProgress(request.TotalDurationMs, completed: true);
                 statusLabel.Text = "录制完成。请回到宏软件停止录制并保存。";
-                MessageBox.Show(this, "录制完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始录制”产生的一次鼠标按下/放开，请删除这两个事件。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                var result = MessageBox.Show(this, "录制完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始录制”产生的一次鼠标按下/放开，请删除这两个事件。\n\n点击“确定”后关闭本助手。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (result == DialogResult.OK) Close();
             }
         }
         catch (OperationCanceledException) { }
@@ -402,29 +403,38 @@ internal sealed class RecorderForm : Form
 
     private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionMode inputMode, Action<long> reportProgress)
     {
+        var clock = Stopwatch.StartNew();
         var plannedElapsed = 0L;
-        foreach (var item in events)
+        var highResolutionTimer = NativeInput.BeginHighResolutionTimer();
+        try
         {
-            token.ThrowIfCancellationRequested();
-            if (item.IsRest)
+            foreach (var item in events)
             {
-                plannedElapsed = Wait(item.WaitMs, token, plannedElapsed, reportProgress);
-                continue;
+                token.ThrowIfCancellationRequested();
+                if (item.IsRest)
+                {
+                    plannedElapsed = Wait(item.WaitMs, token, clock, plannedElapsed, reportProgress);
+                    continue;
+                }
+                foreach (var modifier in item.Modifiers ?? string.Empty)
+                {
+                    NativeInput.Mouse(modifier, true, inputMode);
+                    activeModifiers.Add(modifier);
+                }
+                plannedElapsed = Wait(item.LeadMs, token, clock, plannedElapsed, reportProgress);
+                activeKey = item.Key;
+                NativeInput.Key(item.Key!, true, inputMode);
+                plannedElapsed = Wait(Math.Max(0, item.HoldMs - item.LeadMs), token, clock, plannedElapsed, reportProgress);
+                NativeInput.Key(item.Key!, false, inputMode);
+                activeKey = null;
+                for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode);
+                activeModifiers.Clear();
+                plannedElapsed = Wait(item.WaitMs, token, clock, plannedElapsed, reportProgress);
             }
-            foreach (var modifier in item.Modifiers ?? string.Empty)
-            {
-                NativeInput.Mouse(modifier, true, inputMode);
-                activeModifiers.Add(modifier);
-            }
-            plannedElapsed = Wait(item.LeadMs, token, plannedElapsed, reportProgress);
-            activeKey = item.Key;
-            NativeInput.Key(item.Key!, true, inputMode);
-            plannedElapsed = Wait(Math.Max(0, item.HoldMs - item.LeadMs), token, plannedElapsed, reportProgress);
-            NativeInput.Key(item.Key!, false, inputMode);
-            activeKey = null;
-            for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode);
-            activeModifiers.Clear();
-            plannedElapsed = Wait(item.WaitMs, token, plannedElapsed, reportProgress);
+        }
+        finally
+        {
+            if (highResolutionTimer) NativeInput.EndHighResolutionTimer();
         }
     }
 
@@ -445,20 +455,22 @@ internal sealed class RecorderForm : Form
         remainingLabel.Text = $"剩余 {FormatDuration(completed ? 0 : Math.Max(1, total - elapsed))}";
     }
 
-    private static long Wait(int milliseconds, CancellationToken token, long plannedStart, Action<long> reportProgress)
+    private static long Wait(int milliseconds, CancellationToken token, Stopwatch clock, long plannedStart, Action<long> reportProgress)
     {
-        var remaining = milliseconds;
-        var progressed = 0;
-        while (remaining > 0)
+        var target = plannedStart + Math.Max(0, milliseconds);
+        while (true)
         {
             token.ThrowIfCancellationRequested();
-            var slice = Math.Min(remaining, 10);
-            Thread.Sleep(slice);
-            remaining -= slice;
-            progressed += slice;
-            reportProgress(plannedStart + progressed);
+            var remaining = target - clock.ElapsedMilliseconds;
+            if (remaining <= 0) break;
+            // Sleep in short slices against an absolute deadline.  The
+            // elapsed clock, rather than the requested sleep duration, is the
+            // source of truth, so OS timer rounding cannot accumulate drift.
+            NativeInput.SleepMilliseconds((uint)Math.Min(remaining, remaining > 2 ? 2 : 1));
+            reportProgress(Math.Min(target, clock.ElapsedMilliseconds));
         }
-        return plannedStart + milliseconds;
+        reportProgress(Math.Min(target, clock.ElapsedMilliseconds));
+        return target;
     }
 
     private static string FormatDuration(long milliseconds)
@@ -596,6 +608,15 @@ internal static class NativeInput
     private const uint RightDown = 0x0008;
     private const uint RightUp = 0x0010;
 
+    [DllImport("kernel32.dll")]
+    private static extern void Sleep(uint milliseconds);
+
+    [DllImport("winmm.dll")]
+    private static extern uint timeBeginPeriod(uint period);
+
+    [DllImport("winmm.dll")]
+    private static extern uint timeEndPeriod(uint period);
+
     [DllImport("user32.dll", SetLastError = true)]
     internal static extern bool RegisterHotKey(IntPtr handle, int id, uint modifiers, uint key);
 
@@ -610,6 +631,12 @@ internal static class NativeInput
 
     [DllImport("user32.dll")]
     private static extern void mouse_event(uint flags, uint dx, uint dy, uint data, UIntPtr extraInfo);
+
+    internal static void SleepMilliseconds(uint milliseconds) => Sleep(milliseconds);
+
+    internal static bool BeginHighResolutionTimer() => timeBeginPeriod(1) == 0;
+
+    internal static void EndHighResolutionTimer() => timeEndPeriod(1);
 
     internal static void Key(string key, bool down, InputInjectionMode inputMode)
     {

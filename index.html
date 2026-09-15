@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.0.4</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.1.0</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -408,7 +408,7 @@
             </div>
             <div class="macro-settings-controls">
               <label for="macroTriggerButton">开始键<input id="macroTriggerButton" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
-              <label for="macroStopButton">停止键 <span class="unit">只能填 4 和 5</span><input id="macroStopButton" type="number" min="4" max="5" step="1" value="5" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
+              <label for="macroStopButton">停止键 <span class="unit">只能选择 4 或 5</span><select id="macroStopButton" required aria-describedby="macroStopReason macroTriggerValidation"><option value="4">4</option><option value="5" selected>5</option></select></label>
               <fieldset class="macro-pitch-map" aria-describedby="macroTriggerValidation">
                 <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
                 <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
@@ -416,13 +416,14 @@
                 <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="5" step="1" value="3" inputmode="numeric" /></label>
               </fieldset>
             </div>
+            <p class="macro-settings-hint" id="macroStopReason"><strong>原因：</strong>G HUB Lua 的停止检测使用 <code>IsMouseButtonPressed</code> 状态轮询；这里固定使用 4/5 停止状态编号，避免与默认的 1–3 变调模拟编号混淆。</p>
             <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
           </div>
           <div class="export-grid">
           <article class="export-card logitech testing">
             <div class="export-top"><span class="driver-mark">G</span><div><h3>Logitech G HUB</h3><p>Lua 脚本 · 手动粘贴</p></div></div>
             <span class="export-card-status">测试中</span>
-            <p class="export-copy">开始键触发一次播放；停止键可填 4 或 5。停止时会释放正在按住的琴键和变调键。</p>
+            <p class="export-copy">开始键触发一次播放；停止键请选择 4 或 5。停止时会释放正在按住的琴键和变调键。</p>
             <div class="export-actions"><button data-action="copy-lua" type="button">复制 Lua</button><button data-action="download-lua" type="button">下载 .lua</button></div>
           </article>
           <article class="export-card razer testing">
@@ -476,13 +477,13 @@
         </div>
       </section>
     </main>
-    <footer><span>HARMONICA DECK · WEB v1.0.4</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v1.1.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v1.0.4</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v1.1.0</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -501,7 +502,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v1.0.4</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v1.1.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -793,6 +794,6 @@
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/community-songs.js?v=20260916"></script>
-    <script src="./app.js?v=20260916"></script>
+    <script src="./app.js?v=20260918"></script>
   </body>
 </html>

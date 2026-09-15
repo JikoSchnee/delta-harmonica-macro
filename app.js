@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "1.0.4";
+const WEBSITE_VERSION = "1.1.0";
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
 const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
@@ -756,7 +756,7 @@ const SECTION_GUIDES = {
     title: "导出为宏 · 配置与交付",
     intro: "在这里将已校验的曲谱输出为鼠标软件脚本、驱动配置文件，或查看便于手动录入的键盘事件。请先确认目标环境允许使用宏。",
     steps: [
-      ["01", "设置 G HUB 触发", "填写开始键与停止键；停止键只能填写 4 或 5。"],
+      ["01", "设置 G HUB 触发", "填写开始键，并从下拉框选择停止键 4 或 5。"],
       ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
       ["04", "导出 ROG GMAC", "下载 <code>.gmac</code> 后，在 Armoury Crate 的 Macro 页面选择 Import；导入成功后再将该宏绑定到支持宏功能的 ROG 外设按键。"],
@@ -4475,7 +4475,7 @@ elements.volume.addEventListener("input", () => {
   if (audioContext && masterGain) masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, audioContext.currentTime, 0.01);
 });
 elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
-elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
+elements.macroStopButton.addEventListener("change", clearMacroTriggerValidation);
 [
   elements.macroLowButton,
   elements.macroMiddleButton,
