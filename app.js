@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "1.0.3";
+const WEBSITE_VERSION = "1.0.4";
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
 const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
@@ -358,8 +358,12 @@ const LIBRARY_TITLE_COLLATOR = new Intl.Collator("zh-CN", { numeric: true, sensi
 // Score operations include the current score title/artist for the private analytics console;
 // never add score text, file names, search terms, IP data, or clipboard content here.
 const ANALYTICS_ENDPOINT = "./api/analytics/events";
+const ANONYMOUS_MACRO_EXPORT_LIMIT = 3;
+const ANONYMOUS_MACRO_EXPORT_COUNT_KEY = "delta-anonymous-macro-export-count";
 let analyticsQueue = [];
 let analyticsFlushTimer = null;
+let anonymousMacroExportReservations = 0;
+let authReadyPromise = Promise.resolve();
 
 function analyticsSession() {
   try {
@@ -371,6 +375,51 @@ function analyticsSession() {
   } catch {
     return `${Date.now()}${Math.random()}`.replace(/[^a-z0-9]/gi, "");
   }
+}
+
+function anonymousMacroExportCount() {
+  try {
+    const value = Number.parseInt(window.sessionStorage.getItem(ANONYMOUS_MACRO_EXPORT_COUNT_KEY) || "0", 10);
+    return Number.isInteger(value) && value >= 0 ? value : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function setAnonymousMacroExportCount(value) {
+  try {
+    window.sessionStorage.setItem(ANONYMOUS_MACRO_EXPORT_COUNT_KEY, String(Math.max(0, value)));
+  } catch {}
+}
+
+function promptAnonymousMacroExportLogin() {
+  toast("匿名导出次数已用完，请注册或登录后继续。 ");
+  showAuthDialog({ reason: "anonymous-export-limit" });
+}
+
+async function reserveMacroExportSlot() {
+  await authReadyPromise.catch(() => {});
+  if (!authState.available || !authState.statusKnown || authState.account) return { commit() {}, release() {} };
+  const used = anonymousMacroExportCount();
+  if (used + anonymousMacroExportReservations >= ANONYMOUS_MACRO_EXPORT_LIMIT) {
+    promptAnonymousMacroExportLogin();
+    return null;
+  }
+  anonymousMacroExportReservations += 1;
+  let settled = false;
+  return {
+    commit() {
+      if (settled) return;
+      settled = true;
+      anonymousMacroExportReservations = Math.max(0, anonymousMacroExportReservations - 1);
+      if (!authState.account) setAnonymousMacroExportCount(anonymousMacroExportCount() + 1);
+    },
+    release() {
+      if (settled) return;
+      settled = true;
+      anonymousMacroExportReservations = Math.max(0, anonymousMacroExportReservations - 1);
+    }
+  };
 }
 
 function analyticsEntrySource() {
@@ -447,6 +496,13 @@ function analyticsScoreDetails(score = null) {
 function trackScoreAnalytics(event, properties = {}, scoreId = currentAnalyticsScoreId(), score = null) {
   if (!scoreId) return;
   trackAnalytics(event, { ...properties, ...analyticsScoreDetails(score), score_id: scoreId });
+}
+
+function trackMacroExport(format) {
+  trackScoreAnalytics("macro_exported", { format });
+  // Export actions may immediately navigate away or finish a browser download;
+  // send the event while the authenticated cookie is still available.
+  flushAnalytics();
 }
 
 function songAnalyticsOrigin(song) {
@@ -783,7 +839,7 @@ let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
-let authState = { available: false, account: null, pendingCommunityUpload: false, email: "", mode: "login", providers: [] };
+let authState = { available: false, statusKnown: false, account: null, pendingCommunityUpload: false, email: "", mode: "login", providers: [] };
 let pendingLibrarySong = null;
 let pendingSongEdit = null;
 let activeAnalyticsScoreId = "";
@@ -3011,6 +3067,8 @@ async function encodeGzipUrlPayload(payload) {
 }
 
 async function launchIndependentRecorder(sequence) {
+  const reservation = await reserveMacroExportSlot();
+  if (!reservation) return;
   const payload = {
     v: 1,
     wv: WEBSITE_VERSION,
@@ -3024,12 +3082,21 @@ async function launchIndependentRecorder(sequence) {
     ? `harmonica-recorder://play?encoding=gzip&payload=${compressedPayload}`
     : `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
   if (url.length > 30000) {
+    reservation.release();
     toast(compressedPayload
       ? "当前曲谱压缩后仍超过系统导入上限，请拆分为较短的段落。 "
       : "当前浏览器不支持压缩导入，且曲谱过长；请拆分为较短的段落。 ");
     return;
   }
-  window.location.assign(url);
+  try {
+    window.location.assign(url);
+  } catch {
+    reservation.release();
+    toast("无法启动宏录制助手，请确认助手已安装。 ");
+    return;
+  }
+  reservation.commit();
+  trackMacroExport("recorder");
   toast(`网页 v${WEBSITE_VERSION} 已请求助手。若未显示曲谱，请确认助手前两位版本为 ${RECORDER_COMPATIBILITY_PREFIX}，并重新运行 Install.cmd。 `);
 }
 
@@ -3256,7 +3323,7 @@ function resetMacroDownloadProgress() {
   elements.confirmMacroDownload.disabled = false;
 }
 
-function openMacroDownloadDialog(action) {
+async function openMacroDownloadDialog(action) {
   const config = MACRO_DOWNLOAD_CONFIG[action];
   if (!config) return;
   const sequence = convert();
@@ -3277,13 +3344,16 @@ function openMacroDownloadDialog(action) {
   const archive = config.buildArchive
     ? { blob: config.buildArchive(files), filename: `${normalizedFileBase}${config.suffix}` }
     : null;
+  const reservation = await reserveMacroExportSlot();
+  if (!reservation) return;
   pendingMacroDownload = {
     action,
     config,
     files,
     archive,
     sequence,
-    triggerSettings
+    triggerSettings,
+    exportReservation: reservation
   };
   resetMacroDownloadProgress();
   elements.macroDownloadFilename.textContent = archive
@@ -3313,9 +3383,24 @@ function startMacroDownload() {
     clearMacroDownloadTimers();
     macroDownloadFinalizeTimer = window.setTimeout(() => {
       if (pendingMacroDownload !== pending) return;
-      if (pending.archive) downloadBlob(pending.archive.blob, pending.archive.filename);
-      else pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
-      trackScoreAnalytics("macro_downloaded", { format: ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog" })[pending.action] || "lua" });
+      try {
+        if (pending.archive) downloadBlob(pending.archive.blob, pending.archive.filename);
+        else pending.files.forEach((file) => download(file.content, file.filename, pending.config.type));
+      } catch {
+        pending.exportReservation.release();
+        if (elements.macroDownloadDialog.open) {
+          elements.macroDownloadDialog.close();
+        } else {
+          pendingMacroDownload = null;
+          resetMacroDownloadProgress();
+        }
+        toast("宏文件生成失败，请稍后重试。 ");
+        return;
+      }
+      const format = ({ "download-lua": "lua", "download-rz3": "synapse_3", "download-rz4": "synapse_4", "download-rog": "rog" })[pending.action] || "lua";
+      pending.exportReservation.commit();
+      trackScoreAnalytics("macro_downloaded", { format });
+      trackMacroExport(format);
       if (elements.macroDownloadDialog.open) {
         elements.macroDownloadDialog.close();
       } else {
@@ -3337,7 +3422,11 @@ async function authRequest(path, { method = "GET", body } = {}) {
   const text = await response.text();
   let payload = {};
   try { payload = text ? JSON.parse(text) : {}; } catch {}
-  if (!response.ok) throw new Error(payload.error || "账户服务暂时不可用。 ");
+  if (!response.ok) {
+    const error = new Error(payload.error || "账户服务暂时不可用。 ");
+    error.status = response.status;
+    throw error;
+  }
   return payload;
 }
 
@@ -3687,11 +3776,14 @@ function resetAuthDialog() {
   elements.authUserId.value = "";
 }
 
-function showAuthDialog() {
+function showAuthDialog({ reason = "" } = {}) {
   resetAuthDialog();
   setAuthMode("login");
+  if (reason === "anonymous-export-limit") {
+    elements.authDescription.textContent = "匿名导出次数已用完，请注册或登录后继续使用宏导出。";
+  }
   if (typeof elements.authDialog.showModal === "function") elements.authDialog.showModal();
-  else toast("请输入邮箱以登录后上传曲谱。 ");
+  else toast(reason === "anonymous-export-limit" ? "请注册或登录后继续导出宏。 " : "请输入邮箱以登录后上传曲谱。 ");
   elements.authEmail.focus();
 }
 
@@ -3702,7 +3794,7 @@ async function requestLoginCode() {
   fields.request.disabled = true;
   setAuthStatus(elements.authStatus, "正在发送验证码…", true);
   try {
-    await authRequest("./api/auth/request-code", { method: "POST", body: { email } });
+    await authRequest("./api/auth/request-code", { method: "POST", body: { email, mode: authState.mode } });
     authState.email = email;
     setAuthStatus(elements.authStatus);
     fields.email.disabled = true;
@@ -3785,14 +3877,22 @@ async function logoutAccount() {
 
 async function initializeCommunityAuth(status) {
   authState.available = Boolean(status?.publicLibrary && status?.authAvailable);
+  authState.statusKnown = false;
   setOAuthProviders(status?.authProviders);
   elements.accountButton.hidden = !authState.available;
   if (!authState.available) return;
   try {
     const result = await authRequest("./api/auth/me");
     setSignedInAccount(result.account);
-    await loadMySongLibrary();
-  } catch {}
+    authState.statusKnown = true;
+  } catch (error) {
+    // 401 is the normal anonymous state; network and server failures should
+    // leave exports unrestricted until the account state can be checked.
+    authState.statusKnown = error?.status === 401;
+  }
+  if (authState.account) {
+    try { await loadMySongLibrary(); } catch {}
+  }
   handleOAuthRedirectStatus();
 }
 
@@ -4099,11 +4199,16 @@ async function copyLua(sequence) {
   const triggerSettings = requireMacroTriggerSettings();
   if (!triggerSettings) return;
   const lua = generateLua(sequence, triggerSettings);
+  const reservation = await reserveMacroExportSlot();
+  if (!reservation) return;
   try {
     await navigator.clipboard.writeText(lua);
+    reservation.commit();
     trackScoreAnalytics("lua_copied", { format: "lua" });
+    trackMacroExport("lua");
     toast("Lua 已复制到剪贴板。");
   } catch {
+    reservation.release();
     toast("浏览器未授权剪贴板；请使用下载功能。 ");
   }
 }
@@ -4368,6 +4473,7 @@ elements.macroStopButton.addEventListener("input", clearMacroTriggerValidation);
 elements.confirmMacroDownload.addEventListener("click", startMacroDownload);
 elements.macroDownloadDialog.addEventListener("close", () => {
   clearMacroDownloadTimers();
+  pendingMacroDownload?.exportReservation?.release();
   pendingMacroDownload = null;
   elements.confirmMacroDownload.disabled = false;
   elements.macroDownloadProgress.value = 0;
@@ -4378,8 +4484,8 @@ elements.exportButtons.forEach((button) => button.addEventListener("click", asyn
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const action = button.dataset.action;
   if (action === "copy-lua") await copyLua(sequence);
-  if (action === "launch-independent-recorder") launchIndependentRecorder(sequence);
-  if (["download-lua", "download-rz3", "download-rz4", "download-rog"].includes(action)) openMacroDownloadDialog(action);
+  if (action === "launch-independent-recorder") await launchIndependentRecorder(sequence);
+  if (["download-lua", "download-rz3", "download-rz4", "download-rog"].includes(action)) await openMacroDownloadDialog(action);
 }));
 elements.exportModeButtons.forEach((button) => button.addEventListener("click", () => setExportMode(button.dataset.exportMode)));
 elements.guideButtons.forEach((button) => button.addEventListener("click", () => openSectionGuide(button.dataset.guide)));
@@ -4559,7 +4665,7 @@ if (navigator.mediaDevices?.addEventListener) navigator.mediaDevices.addEventLis
 
 setLibraryView("recommended");
 enableLocalLibraryEntry();
-enableCommunityUploadEntry();
+authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });

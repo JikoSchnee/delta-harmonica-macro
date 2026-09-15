@@ -76,18 +76,19 @@ ANALYTICS_EVENTS = {
     "page_view", "directory_selected", "library_search", "song_loaded", "input_mode_selected",
     "midi_import_opened", "midi_selection_applied", "score_imported", "preview_started",
     "macro_section_opened", "export_mode_selected", "score_downloaded", "community_upload_succeeded", "macro_downloaded",
-    "lua_copied", "score_edit_opened", "score_edit_saved", "tour_started", "heartbeat",
+    "macro_exported", "lua_copied", "score_edit_opened", "score_edit_saved", "tour_started", "heartbeat",
 }
 ANALYTICS_ENUMERATIONS = {
     "entry": {"direct", "search", "social", "referral", "internal"},
     "origin": {"builtin", "community", "imported", "midi"},
     "mode": {"jianpu", "record", "precise", "keyboard"},
     "export_mode": {"general", "special"},
-    "format": {"lua", "synapse_3", "synapse_4", "rog", "deltamusic"},
+    "format": {"lua", "synapse_3", "synapse_4", "rog", "recorder", "deltamusic"},
     "directory": {"library", "midi", "manual"},
 }
 ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$")
-SCORE_EXPORT_EVENTS = {"macro_downloaded", "score_downloaded", "lua_copied"}
+SCORE_EXPORT_EVENTS = {"macro_exported", "macro_downloaded", "lua_copied"}
+HOT_RANKING_METRIC_VERSION = 2
 OAUTH_PROVIDER_LABELS = {"qq": "QQ", "wechat": "微信"}
 
 
@@ -157,11 +158,23 @@ def cleanup_analytics(retention_days: int, today: date) -> None:
             continue
 
 
-def record_analytics_events(session: str, events: list[dict[str, Any]], retention_days: int) -> None:
+def record_analytics_events(
+    session: str,
+    events: list[dict[str, Any]],
+    retention_days: int,
+    actor_key: str | None = None,
+) -> None:
     now = datetime.now(timezone.utc)
     record_time = now.replace(microsecond=0).isoformat().replace("+00:00", "Z")
     path = analytics_event_path(now.date())
-    lines = [json.dumps({"time": record_time, "session": session, "event": item["event"], "properties": item["properties"]}, ensure_ascii=False, separators=(",", ":")) for item in events]
+    lines = []
+    for item in events:
+        record = {"time": record_time, "session": session, "event": item["event"], "properties": item["properties"]}
+        if item["event"] in SCORE_EXPORT_EVENTS:
+            # Keep the stable account identity server-side and opaque. Legacy
+            # records without this field fall back to their anonymous session.
+            record["actor"] = actor_key or session
+        lines.append(json.dumps(record, ensure_ascii=False, separators=(",", ":")))
     with ANALYTICS_LOCK:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("a", encoding="utf-8") as output:
@@ -183,6 +196,7 @@ def analytics_label(event: dict[str, Any]) -> str:
         "macro_section_opened": "宏导出区",
         "export_mode_selected": f"导出板块:{properties.get('export_mode', '其他')}",
         "macro_downloaded": f"下载:{properties.get('format', '宏')}",
+        "macro_exported": f"导出:{properties.get('format', '宏')}",
         "score_downloaded": "下载谱子",
         "community_upload_succeeded": "上传曲库",
         "lua_copied": "复制 Lua",
@@ -224,8 +238,8 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         "loaded": 0,
         "editOpened": 0,
         "editSaved": 0,
-        "exports": 0,
         "formats": Counter(),
+        "exportActors": set(),
     })
     score_edit_events = {"score_edit_opened", "score_edit_saved"}
     score_export_events = SCORE_EXPORT_EVENTS
@@ -252,9 +266,11 @@ def build_analytics_report(days: int) -> dict[str, Any]:
                 stats["editOpened"] += item["event"] == "score_edit_opened"
                 stats["editSaved"] += item["event"] == "score_edit_saved"
             if item["event"] in score_export_events:
-                stats["exports"] += 1
-                format_name = properties.get("format") or item["event"].removesuffix("_downloaded").replace("_", " ")
-                stats["formats"][format_name] += 1
+                actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item["session"]
+                if actor not in stats["exportActors"]:
+                    stats["exportActors"].add(actor)
+                    format_name = properties.get("format") or item["event"].removesuffix("_downloaded").replace("_", " ")
+                    stats["formats"][format_name] += 1
 
     path_counts: Counter[str] = Counter()
     for journey in journeys.values():
@@ -272,7 +288,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         "获得曲谱": {"song_loaded", "midi_selection_applied", "score_imported"},
         "开始试听": {"preview_started"},
         "前往导出": {"macro_section_opened"},
-        "完成宏导出": {"macro_downloaded", "lua_copied"},
+        "完成宏导出": {"macro_exported", "macro_downloaded", "lua_copied"},
     }
     funnel = [{"name": name, "sessions": len(set().union(*(event_sessions[event] for event in events)))} for name, events in funnel_groups.items()]
     timeline = []
@@ -282,7 +298,8 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     score_operations = []
     for score_id, stats in score_stats.items():
         edit_count = stats["editOpened"] + stats["editSaved"]
-        operation_count = stats["loaded"] + edit_count + stats["exports"]
+        export_count = len(stats["exportActors"])
+        operation_count = stats["loaded"] + edit_count + export_count
         if not operation_count:
             continue
         score_operations.append({
@@ -293,7 +310,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
             "edits": edit_count,
             "editOpened": stats["editOpened"],
             "editSaved": stats["editSaved"],
-            "exports": stats["exports"],
+            "exports": export_count,
             "operations": operation_count,
             "sessions": len(stats["sessions"]),
             "formats": dict(stats["formats"].most_common()),
@@ -348,6 +365,7 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     today = datetime.now(timezone.utc).date()
     start = today - timedelta(days=safe_days - 1)
     exports: Counter[str] = Counter()
+    seen: set[tuple[str, str]] = set()
     for offset in range(safe_days):
         path = analytics_event_path(start + timedelta(days=offset))
         if not path.exists():
@@ -360,7 +378,13 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
                 properties = item.get("properties")
                 score_id = properties.get("score_id") if isinstance(properties, dict) else None
                 if isinstance(score_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id):
-                    exports[score_id] += 1
+                    actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session")
+                    if not isinstance(actor, str):
+                        continue
+                    export_key = (score_id, actor)
+                    if export_key not in seen:
+                        seen.add(export_key)
+                        exports[score_id] += 1
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
     return exports
@@ -378,8 +402,12 @@ def initialize_hot_ranking_database() -> None:
         connection.execute(
             "CREATE TABLE IF NOT EXISTS daily_hot_rankings ("
             "ranking_date TEXT PRIMARY KEY, generated_at TEXT NOT NULL, "
-            "retention_days INTEGER NOT NULL, scores_json TEXT NOT NULL)"
+            "retention_days INTEGER NOT NULL, scores_json TEXT NOT NULL, "
+            "metric_version INTEGER NOT NULL DEFAULT 1)"
         )
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(daily_hot_rankings)").fetchall()}
+        if "metric_version" not in columns:
+            connection.execute("ALTER TABLE daily_hot_rankings ADD COLUMN metric_version INTEGER NOT NULL DEFAULT 1")
 
 
 def build_daily_hot_ranking(retention_days: int, ranking_date: str | None = None) -> dict[str, Any]:
@@ -402,11 +430,11 @@ def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
     initialize_hot_ranking_database()
     with HOT_RANKING_LOCK, hot_ranking_database() as connection:
         row = connection.execute(
-            "SELECT ranking_date, generated_at, retention_days, scores_json "
+            "SELECT ranking_date, generated_at, retention_days, scores_json, metric_version "
             "FROM daily_hot_rankings WHERE ranking_date = ?",
             (ranking_date,),
         ).fetchone()
-        if row and row["retention_days"] == safe_days:
+        if row and row["retention_days"] == safe_days and row["metric_version"] == HOT_RANKING_METRIC_VERSION:
             try:
                 scores = json.loads(row["scores_json"])
                 if isinstance(scores, list):
@@ -415,10 +443,11 @@ def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
                 pass
         ranking = build_daily_hot_ranking(safe_days, ranking_date)
         connection.execute(
-            "INSERT INTO daily_hot_rankings(ranking_date, generated_at, retention_days, scores_json) "
-            "VALUES (?, ?, ?, ?) ON CONFLICT(ranking_date) DO UPDATE SET "
-            "generated_at = excluded.generated_at, retention_days = excluded.retention_days, scores_json = excluded.scores_json",
-            (ranking["rankingDate"], ranking["generatedAt"], safe_days, json.dumps(ranking["scores"], separators=(",", ":"))),
+            "INSERT INTO daily_hot_rankings(ranking_date, generated_at, retention_days, scores_json, metric_version) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(ranking_date) DO UPDATE SET "
+            "generated_at = excluded.generated_at, retention_days = excluded.retention_days, "
+            "scores_json = excluded.scores_json, metric_version = excluded.metric_version",
+            (ranking["rankingDate"], ranking["generatedAt"], safe_days, json.dumps(ranking["scores"], separators=(",", ":")), HOT_RANKING_METRIC_VERSION),
         )
         return ranking
 
@@ -757,6 +786,11 @@ def remove_recommendation(payload: Any) -> list[dict[str, str]]:
 
 def auth_digest(server: ThreadingHTTPServer, value: str) -> str:
     return hmac.new(server.auth_secret.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def analytics_actor_key(server: ThreadingHTTPServer, account_id: str) -> str:
+    """Return an opaque, stable identity for authenticated export deduplication."""
+    return auth_digest(server, f"analytics:{account_id}")
 
 
 def oauth_provider_label(provider: str) -> str:
@@ -1461,6 +1495,18 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 if not isinstance(payload, dict):
                     raise ValueError("认证请求格式无效。")
                 email = normalize_email(payload.get("email"))
+                mode = payload.get("mode", "login")
+                if mode not in ("login", "register"):
+                    raise ValueError("认证模式无效。")
+                if mode == "login":
+                    with AUTH_LOCK, auth_database() as connection:
+                        account_exists = connection.execute(
+                            "SELECT 1 FROM accounts WHERE email = ?",
+                            (email,),
+                        ).fetchone()
+                    if account_exists is None:
+                        self.send_json(HTTPStatus.BAD_REQUEST, {"error": "该邮箱尚未注册，请切换到注册。"})
+                        return
                 client = self.headers.get("X-Forwarded-For", "").split(",", 1)[0].strip() if self.server.trust_proxy else self.client_address[0]
                 if not auth_rate_allowed(self.server, f"email:{email}", AUTH_CODE_EMAIL_LIMIT) or not auth_rate_allowed(self.server, f"ip:{client}", AUTH_CODE_IP_LIMIT):
                     self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "验证码发送过于频繁，请稍后再试。"})
@@ -1508,7 +1554,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             try:
                 session, events = parse_analytics_payload(self.read_analytics_payload())
-                record_analytics_events(session, events, self.server.analytics_retention_days)
+                account = authenticate_request(self) if self.server.auth_enabled else None
+                actor_key = analytics_actor_key(self.server, account["id"]) if account else None
+                record_analytics_events(session, events, self.server.analytics_retention_days, actor_key)
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法记录统计事件。"})
                 return

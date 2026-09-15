@@ -31,7 +31,7 @@
         <div class="hero">
           <span class="eyebrow">HARMONICA DECK · ANONYMOUS PRODUCT SIGNALS</span>
           <h1>站内数据分析</h1>
-          <p>只显示匿名会话、功能使用和聚合路径；谱子按匿名标识统计，不包含曲名、谱面、搜索词、IP 或文件内容。</p>
+          <p>只显示匿名会话、功能使用和聚合路径；谱子按匿名标识统计，导出量按匿名账号或 session 去重，不包含曲名、谱面、搜索词、IP 或文件内容。</p>
           <form id="accessForm">
             <input id="token" type="password" autocomplete="current-password" placeholder="管理令牌" aria-label="管理令牌" required />
             <select id="days" aria-label="统计区间"><option value="7">最近 7 天</option><option value="30" selected>最近 30 天</option><option value="90">最近 90 天</option></select>
@@ -53,7 +53,7 @@
     </main>
     <script>
       const $ = (selector) => document.querySelector(selector);
-      const labels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", export_mode_selected:"切换导出板块", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", lua_copied:"复制 Lua", score_edit_opened:"打开编辑", score_edit_saved:"保存编辑", tour_started:"打开教程" };
+      const labels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", export_mode_selected:"切换导出板块", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", macro_exported:"完成宏导出", lua_copied:"复制 Lua", score_edit_opened:"打开编辑", score_edit_saved:"保存编辑", tour_started:"打开教程" };
       const number = new Intl.NumberFormat("zh-CN");
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[character]));
       function rows(target, items, render, empty = "尚无数据", colspan = 3) { const node = $(target); node.innerHTML = items.length ? items.map(render).join("") : `<tr><td class="empty" colspan="${colspan}">${empty}</td></tr>`; }
