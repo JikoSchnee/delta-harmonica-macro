@@ -696,10 +696,12 @@ main {
 .song-showcase-link:hover, .song-showcase-link:focus-visible { color: var(--white); background: var(--teal); border-color: var(--teal-dark); }
 .song-showcase-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
 .song-card::after { position: absolute; right: -8px; bottom: -31px; color: rgba(0, 128, 128, .08); font: 700 90px/1 var(--pixel); content: attr(data-index); }
-.song-card-actions { position: absolute; z-index: 2; top: 10px; right: 10px; display: flex; gap: 5px; }
+.song-card-actions { position: absolute; z-index: 2; top: 10px; right: 10px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; max-width: calc(100% - 20px); }
 .song-card-action { padding: 5px 7px; color: var(--teal-dark); background: var(--surface); border: 2px outset var(--surface); font: 700 9px/1 var(--mono); }
 .song-card-action.export { color: var(--white); background: var(--teal-dark); border-color: #4d8884; }
 .song-card-action.edit { color: var(--white); background: #38677a; border-color: #7cb5c4; border-bottom-color: #1d4658; }
+.song-card-action.recommendation-action { color: #4a3000; background: #f2c86b; border-color: #ffe8a8; border-bottom-color: #a76b00; }
+.song-card-action.recommendation-action.is-recommended { color: var(--white); background: #7b4c86; border-color: #c292cb; border-bottom-color: #4b2754; }
 .song-card-action.delete { color: var(--white); background: #6f1d1b; border-color: #b65b55; border-bottom-color: #3b0d0d; }
 .song-card-action:hover { color: var(--white); background: var(--teal); border-bottom-color: var(--teal-dark); }
 .song-card-action.delete:hover { color: var(--white); background: #8d241f; border-bottom-color: #4d1110; }

@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "1.0.1";
+const WEBSITE_VERSION = "1.0.2";
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
 const GITHUB_COMMITS_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?per_page=10`;
 const RECORDER_COMPATIBILITY_PREFIX = WEBSITE_VERSION.split(".").slice(0, 2).join(".");
@@ -336,17 +336,19 @@ const BUILTIN_SONG_METADATA = {
   "父亲": { artist: "筷子兄弟", key: "1=E", meter: "4/4" },
   "贝加尔湖畔": { artist: "李健", key: "1=C", meter: "4/4" }
 };
-const PDMX_SONG_LIBRARY = Array.isArray(globalThis.PDMX_SONGS) ? globalThis.PDMX_SONGS : [];
 const COMMUNITY_SONG_LIBRARY = Array.isArray(globalThis.COMMUNITY_SONGS) ? globalThis.COMMUNITY_SONGS : [];
 const SONG_FILE_FORMAT = "delta-music";
 const LEGACY_SONG_FILE_FORMAT = "harmonica-deck-score";
 const SONG_FILE_VERSION = 1;
 const MIGRATED_COMMUNITY_SONG_TITLES = new Set(["鸟之诗", "天使爱美丽", "天空之城", "皇后大道东", "父亲", "贝加尔湖畔"]);
 const BUILTIN_SONGS_FOR_LIBRARY = () => BUILTIN_SONG_LIBRARY.filter((song) => !MIGRATED_COMMUNITY_SONG_TITLES.has(song.title));
-const SONG_LIBRARY = [...BUILTIN_SONGS_FOR_LIBRARY(), ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
+const SONG_LIBRARY = [...BUILTIN_SONGS_FOR_LIBRARY(), ...COMMUNITY_SONG_LIBRARY].map((song) => normalizeSong(song));
 let activeLibraryView = "community";
 let mySongLibrary = [];
 let scoreExportCounts = new Map();
+let hotScoreRanks = new Map();
+let recommendedSongIdentities = [];
+let recommendedSongKeys = new Set();
 const LIBRARY_TITLE_COLLATOR = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
 // The built-in service records only anonymous, allow-listed product events.
 // Score identifiers are local hashes; never add score text, titles, file names, search terms, IP data, or clipboard content here.
@@ -426,7 +428,6 @@ function trackScoreAnalytics(event, properties = {}, scoreId = currentAnalyticsS
 }
 
 function songAnalyticsOrigin(song) {
-  if (song?.source === "PDMX") return "pdmx";
   if (song?.source === "社区投稿") return "community";
   return "builtin";
 }
@@ -451,7 +452,37 @@ async function refreshScoreExportCounts() {
     scoreExportCounts = new Map(payload.scores
       .filter((item) => /^s[0-9a-f]{8}$/.test(item?.scoreId) && Number.isInteger(item?.exports) && item.exports >= 0)
       .map((item) => [item.scoreId, item.exports]));
+    hotScoreRanks = new Map(payload.scores
+      .filter((item) => /^s[0-9a-f]{8}$/.test(item?.scoreId) && Number.isInteger(item?.rank) && item.rank > 0)
+      .map((item) => [item.scoreId, item.rank]));
     renderSongLibrary(elements.songSearch?.value || "");
+  } catch {}
+}
+
+function recommendationKey(identity = {}) {
+  return [identity.title, identity.artist, identity.sharedBy]
+    .map((value) => String(value ?? "").trim().toLocaleLowerCase())
+    .join("\u241f");
+}
+
+function recommendationIdentityForSong(song) {
+  return { title: song.title, artist: song.artist, sharedBy: song.sharedBy };
+}
+
+function setRecommendedSongIdentities(items) {
+  recommendedSongIdentities = Array.isArray(items)
+    ? items.filter((item) => item && typeof item.title === "string" && typeof item.artist === "string" && typeof item.sharedBy === "string")
+    : [];
+  recommendedSongKeys = new Set(recommendedSongIdentities.map(recommendationKey));
+  renderSongLibrary(elements.songSearch?.value || "");
+}
+
+async function refreshRecommendations() {
+  try {
+    const response = await fetch("./api/public-library/recommendations", { headers: { Accept: "application/json" }, cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || !Array.isArray(payload.recommendations)) return;
+    setRecommendedSongIdentities(payload.recommendations);
   } catch {}
 }
 
@@ -524,7 +555,7 @@ const SECTION_GUIDES = {
     intro: "曲库用于快速载入现成曲谱。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
     steps: [
       ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
-      ["02", "切换曲库分类", "「热门」按总导出量展示前 10 首；「全部」包含内置、社区和 PDMX 曲目；「社区」只显示用户上传的曲目；登录后可在「我的」查看当前账号的上传记录。"],
+      ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；「社区」只显示用户上传的曲目；登录后可在「我的」查看当前账号的上传记录。"],
       ["03", "查看与编辑", "点击卡片或「查看」会载入该曲并定位到编辑器；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
       ["05", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
@@ -1654,9 +1685,17 @@ function normalizeSong(song) {
 }
 
 function songsForLibraryView() {
+  if (activeLibraryView === "recommended") {
+    return recommendedSongIdentities
+      .map((identity) => SONG_LIBRARY.find((song) => recommendationKey(song) === recommendationKey(identity)))
+      .filter(Boolean);
+  }
   if (activeLibraryView === "hot") {
     return [...SONG_LIBRARY]
-      .sort((left, right) => scoreExportCount(right) - scoreExportCount(left) || compareLibrarySongs(left, right))
+      .filter((song) => hotScoreRanks.has(analyticsScoreIdForSong(song)))
+      .sort((left, right) => (hotScoreRanks.get(analyticsScoreIdForSong(left)) || Number.MAX_SAFE_INTEGER)
+        - (hotScoreRanks.get(analyticsScoreIdForSong(right)) || Number.MAX_SAFE_INTEGER)
+        || compareLibrarySongs(left, right))
       .slice(0, 10);
   }
   const songs = activeLibraryView === "all"
@@ -1690,7 +1729,12 @@ function renderSongLibrary(query = "") {
     elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
     return;
   }
-  elements.songGrid.innerHTML = songs.length ? songs.map((song) => `
+  elements.songGrid.innerHTML = songs.length ? songs.map((song) => {
+    const isRecommended = recommendedSongKeys.has(recommendationKey(song));
+    const canManageRecommendations = Boolean(authState.account?.isAdmin);
+    const recommendationAction = isRecommended ? "unrecommend" : "recommend";
+    const recommendationLabel = isRecommended ? "取消推荐" : "推荐";
+    return `
     <article class="song-card" data-song-index="${song.index}" data-index="${String(song.index + 1).padStart(2, "0")}">
       <button class="song-card-main" data-song-action="view" type="button" aria-label="查看《${escapeHtml(song.title)}》并打开编辑器">
       <span class="song-number">TRACK ${String(song.index + 1).padStart(2, "0")}</span>
@@ -1704,9 +1748,11 @@ function renderSongLibrary(query = "") {
         ${activeLibraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
         <button class="song-card-action export" data-song-action="export" type="button">导出</button>
         ${activeLibraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
+        ${canManageRecommendations ? `<button class="song-card-action recommendation-action${isRecommended ? " is-recommended" : ""}" data-song-action="${recommendationAction}" type="button">${recommendationLabel}</button>` : ""}
       </div>
     </article>
-  `).join("") : '<p class="library-empty">没有匹配的曲目，换个关键词试试。</p>';
+  `;
+  }).join("") : '<p class="library-empty">没有匹配的曲目，换个关键词试试。</p>';
 }
 
 function beatsToJianpu(beats) {
@@ -2256,7 +2302,31 @@ function getAudioEngine() {
   compressor.knee.value = 12;
   compressor.ratio.value = 7;
   masterGain.connect(compressor).connect(audioContext.destination);
+  const contextForStateChange = audioContext;
+  audioContext.addEventListener("statechange", () => {
+    if (audioContext !== contextForStateChange) return;
+    if (contextForStateChange.state === "closed") {
+      audioContext = null;
+      masterGain = null;
+      if (activePreview?.context === contextForStateChange) stopPreview({ resetProgress: false });
+    }
+  });
   return audioContext;
+}
+
+function resetAudioEngine() {
+  const context = audioContext;
+  audioContext = null;
+  masterGain = null;
+  if (context && context.state !== "closed") void context.close().catch(() => {});
+}
+
+function handleAudioOutputChange() {
+  const wasPlaying = activePreview?.state === "playing";
+  if (activePreview) stopPreview({ resetProgress: false });
+  if (liveRecordingVoice) releaseLiveRecordingVoice();
+  resetAudioEngine();
+  if (wasPlaying) toast("音频输出设备已变化，请再次点击试听。 ");
 }
 
 async function wakeAudioEngine() {
@@ -3184,12 +3254,12 @@ function setAuthStatus(target, message = "", success = false) {
 
 function replaceCommunitySongs(songs) {
   if (!Array.isArray(songs)) return;
-  SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONGS_FOR_LIBRARY(), ...songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
+  SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONGS_FOR_LIBRARY(), ...songs].map((song) => normalizeSong(song)));
   renderSongLibrary(elements.songSearch.value);
 }
 
 function setLibraryView(view = "community") {
-  const selectedView = ["all", "community", "hot", "mine"].includes(view) ? view : "community";
+  const selectedView = ["all", "community", "recommended", "hot", "mine"].includes(view) ? view : "community";
   activeLibraryView = selectedView;
   elements.libraryTabs.forEach((tab) => {
     const selected = tab.dataset.libraryView === selectedView;
@@ -3198,6 +3268,27 @@ function setLibraryView(view = "community") {
     tab.tabIndex = selected ? 0 : -1;
   });
   renderSongLibrary(elements.songSearch.value);
+}
+
+async function updateSongRecommendation(song, shouldRecommend, button) {
+  if (!authState.account?.isAdmin) {
+    toast("只有管理员可以配置推荐曲库。 ");
+    return;
+  }
+  button.disabled = true;
+  try {
+    const result = await authRequest("./api/public-library/recommendations", {
+      method: shouldRecommend ? "POST" : "DELETE",
+      body: recommendationIdentityForSong(song)
+    });
+    if (!Array.isArray(result.recommendations)) throw new Error("服务器返回的推荐曲库数据无效。");
+    setRecommendedSongIdentities(result.recommendations);
+    toast(shouldRecommend ? `《${song.title}》已加入推荐曲库。` : `《${song.title}》已取消推荐。`);
+  } catch (error) {
+    toast(error.message || (shouldRecommend ? "加入推荐失败，请稍后重试。" : "取消推荐失败，请稍后重试。"));
+  } finally {
+    button.disabled = false;
+  }
 }
 
 async function loadMySongLibrary() {
@@ -4212,6 +4303,10 @@ elements.songGrid.addEventListener("click", (event) => {
   if (!actionButton || !card) return;
   const song = SONG_LIBRARY[Number(card.dataset.songIndex)];
   if (!song) return;
+  if (["recommend", "unrecommend"].includes(actionButton.dataset.songAction)) {
+    updateSongRecommendation(song, actionButton.dataset.songAction === "recommend", actionButton);
+    return;
+  }
   if (actionButton.dataset.songAction === "delete") {
     openLibraryDeleteDialog(song);
     return;
@@ -4323,6 +4418,7 @@ elements.uploadScoreButton.addEventListener("click", () => {
 });
 elements.uploadMethodTabs.forEach((tab) => tab.addEventListener("click", () => setUploadMethod(tab.dataset.uploadMethod)));
 elements.localLibraryButton.addEventListener("click", () => openScoreExportDialog("local-library"));
+if (navigator.mediaDevices?.addEventListener) navigator.mediaDevices.addEventListener("devicechange", handleAudioOutputChange);
 
 setLibraryView("community");
 enableLocalLibraryEntry();
@@ -4333,19 +4429,28 @@ if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: fal
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
 window.setTimeout(refreshScoreExportCounts, 1700);
+window.setTimeout(refreshRecommendations, 1800);
 window.setInterval(() => {
   if (document.visibilityState === "visible") {
     trackAnalytics("heartbeat");
     refreshPublicAnalyticsSummary();
     refreshScoreExportCounts();
+    refreshRecommendations();
   }
 }, 60_000);
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "hidden") flushAnalytics();
   else {
+    if (activePreview?.state === "playing" && activePreview.context === audioContext && audioContext?.state !== "running") {
+      void wakeAudioEngine().catch((error) => {
+        stopPreview({ resetProgress: false });
+        toast(error.message || "浏览器音频已暂停，请再次点击试听。 ");
+      });
+    }
     trackAnalytics("heartbeat");
     refreshPublicAnalyticsSummary();
     refreshScoreExportCounts();
+    refreshRecommendations();
   }
 });
 window.addEventListener("resize", () => {

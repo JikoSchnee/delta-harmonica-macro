@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.0.1</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.0.2</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -142,6 +142,7 @@
           <div class="library-tabs" role="tablist" aria-label="曲库分类">
             <button class="library-tab" data-library-view="all" type="button" role="tab" aria-selected="false">全部</button>
             <button class="library-tab active" data-library-view="community" type="button" role="tab" aria-selected="true">社区</button>
+            <button class="library-tab recommendation" data-library-view="recommended" type="button" role="tab" aria-selected="false">推荐</button>
             <button class="library-tab" data-library-view="hot" type="button" role="tab" aria-selected="false">热门</button>
             <button class="library-tab" data-library-view="mine" type="button" role="tab" aria-selected="false">我的</button>
           </div>
@@ -476,13 +477,13 @@
         </div>
       </section>
     </main>
-    <footer><span>HARMONICA DECK · WEB v1.0.1</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v1.0.2</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v1.0.1</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v1.0.2</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -770,7 +771,6 @@
       </section>
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
-    <script src="./data/pdmx-top-1000.js?v=20260915"></script>
     <script src="./data/community-songs.js?v=20260915"></script>
     <script src="./app.js?v=20260915"></script>
   </body>

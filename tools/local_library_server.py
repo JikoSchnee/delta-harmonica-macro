@@ -53,14 +53,17 @@ AUTH_CODE_IP_LIMIT = 12
 AUTH_CODE_RATE_WINDOW_SECONDS = 60 * 60
 AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 AUTH_COOKIE_NAME = "delta_auth_session"
+ADMIN_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_USER_ID = "jiko"
 AUTH_DATABASE = REPOSITORY_ROOT / "data" / "auth.sqlite3"
+HOT_RANKING_DATABASE = REPOSITORY_ROOT / "data" / "hot-rankings.sqlite3"
 USER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,24}$")
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 LIBRARY_LOCK = threading.Lock()
 ANALYTICS_LOCK = threading.Lock()
 AUTH_LOCK = threading.Lock()
+HOT_RANKING_LOCK = threading.Lock()
 ANALYTICS_DIRECTORY = REPOSITORY_ROOT / "data" / "analytics"
 DEFAULT_ANALYTICS_RETENTION_DAYS = 90
 ACTIVE_VISITOR_WINDOW_SECONDS = 300
@@ -72,7 +75,7 @@ ANALYTICS_EVENTS = {
 }
 ANALYTICS_ENUMERATIONS = {
     "entry": {"direct", "search", "social", "referral", "internal"},
-    "origin": {"builtin", "community", "pdmx", "imported", "midi"},
+    "origin": {"builtin", "community", "imported", "midi"},
     "mode": {"jianpu", "record", "precise", "keyboard"},
     "export_mode": {"general", "special"},
     "format": {"lua", "synapse_3", "synapse_4", "rog", "deltamusic"},
@@ -321,8 +324,8 @@ def build_public_analytics_summary() -> dict[str, int]:
     }
 
 
-def build_public_score_export_summary(retention_days: int) -> dict[str, list[dict[str, int | str]]]:
-    """Return export totals by anonymous score ID for public library cards."""
+def score_export_counts_for_period(retention_days: int) -> Counter[str]:
+    """Read export totals once for the daily hot-ranking job."""
     safe_days = max(1, retention_days)
     today = datetime.now(timezone.utc).date()
     start = today - timedelta(days=safe_days - 1)
@@ -342,7 +345,84 @@ def build_public_score_export_summary(retention_days: int) -> dict[str, list[dic
                     exports[score_id] += 1
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-    return {"scores": [{"scoreId": score_id, "exports": count} for score_id, count in exports.items()]}
+    return exports
+
+
+def hot_ranking_database() -> sqlite3.Connection:
+    HOT_RANKING_DATABASE.parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(HOT_RANKING_DATABASE)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def initialize_hot_ranking_database() -> None:
+    with HOT_RANKING_LOCK, hot_ranking_database() as connection:
+        connection.execute(
+            "CREATE TABLE IF NOT EXISTS daily_hot_rankings ("
+            "ranking_date TEXT PRIMARY KEY, generated_at TEXT NOT NULL, "
+            "retention_days INTEGER NOT NULL, scores_json TEXT NOT NULL)"
+        )
+
+
+def build_daily_hot_ranking(retention_days: int, ranking_date: str | None = None) -> dict[str, Any]:
+    counts = score_export_counts_for_period(retention_days)
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return {
+        "rankingDate": ranking_date or datetime.now().astimezone().date().isoformat(),
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "scores": [
+            {"scoreId": score_id, "exports": count, "rank": rank}
+            for rank, (score_id, count) in enumerate(ordered, start=1)
+        ],
+    }
+
+
+def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
+    """Return today's persisted ranking; calculate it at most once per day."""
+    safe_days = max(1, retention_days)
+    ranking_date = datetime.now().astimezone().date().isoformat()
+    initialize_hot_ranking_database()
+    with HOT_RANKING_LOCK, hot_ranking_database() as connection:
+        row = connection.execute(
+            "SELECT ranking_date, generated_at, retention_days, scores_json "
+            "FROM daily_hot_rankings WHERE ranking_date = ?",
+            (ranking_date,),
+        ).fetchone()
+        if row and row["retention_days"] == safe_days:
+            try:
+                scores = json.loads(row["scores_json"])
+                if isinstance(scores, list):
+                    return {"rankingDate": row["ranking_date"], "generatedAt": row["generated_at"], "scores": scores}
+            except (TypeError, json.JSONDecodeError):
+                pass
+        ranking = build_daily_hot_ranking(safe_days, ranking_date)
+        connection.execute(
+            "INSERT INTO daily_hot_rankings(ranking_date, generated_at, retention_days, scores_json) "
+            "VALUES (?, ?, ?, ?) ON CONFLICT(ranking_date) DO UPDATE SET "
+            "generated_at = excluded.generated_at, retention_days = excluded.retention_days, scores_json = excluded.scores_json",
+            (ranking["rankingDate"], ranking["generatedAt"], safe_days, json.dumps(ranking["scores"], separators=(",", ":"))),
+        )
+        return ranking
+
+
+def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
+    """Return export totals from the persisted daily ranking, never live analytics."""
+    ranking = get_daily_hot_ranking(retention_days)
+    return {"rankingDate": ranking["rankingDate"], "generatedAt": ranking["generatedAt"], "scores": ranking["scores"]}
+
+
+def hot_ranking_scheduler(retention_days: int, stop_event: threading.Event) -> None:
+    """Refresh the ranking at the next local midnight and every midnight after it."""
+    while True:
+        now = datetime.now().astimezone()
+        next_midnight = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        wait_seconds = max(1, (next_midnight - now).total_seconds())
+        if stop_event.wait(wait_seconds):
+            return
+        try:
+            get_daily_hot_ranking(retention_days)
+        except (OSError, sqlite3.Error, ValueError) as error:
+            print(f"热门曲库每日排行更新失败：{error}", file=sys.stderr)
 
 
 def source_paths() -> list[Path]:
@@ -553,6 +633,14 @@ def initialize_auth_database() -> None:
                 score_path TEXT PRIMARY KEY,
                 account_id TEXT NOT NULL REFERENCES accounts(id)
             );
+            CREATE TABLE IF NOT EXISTS recommended_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL COLLATE NOCASE,
+                artist TEXT NOT NULL COLLATE NOCASE,
+                shared_by TEXT NOT NULL COLLATE NOCASE,
+                created_at INTEGER NOT NULL,
+                UNIQUE(title, artist, shared_by)
+            );
             CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
         """)
 
@@ -584,8 +672,54 @@ def mask_email(email: str) -> str:
     return f"{visible}@{domain}"
 
 
-def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, str]:
-    return {"userId": account["user_id"], "email": mask_email(account["email"])}
+def is_admin_account(account: sqlite3.Row | dict[str, Any] | None) -> bool:
+    return bool(account and str(account["email"]).casefold() == ADMIN_EMAIL.casefold())
+
+
+def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    return {"userId": account["user_id"], "email": mask_email(account["email"]), "isAdmin": is_admin_account(account)}
+
+
+def recommendation_identity(payload: Any) -> dict[str, str]:
+    if not isinstance(payload, dict):
+        raise ValueError("推荐曲目请求格式无效。")
+    identity: dict[str, str] = {}
+    for field, limit, label in (("title", 48, "歌名"), ("artist", 64, "歌手/作者"), ("sharedBy", 48, "共享人")):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
+            raise ValueError(f"推荐曲目中的{label}无效。")
+        identity[field] = value.strip()
+    return identity
+
+
+def list_recommendations() -> list[dict[str, str]]:
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT title, artist, shared_by AS sharedBy FROM recommended_scores ORDER BY id"
+        ).fetchall()
+    return [{"title": row["title"], "artist": row["artist"], "sharedBy": row["sharedBy"]} for row in rows]
+
+
+def add_recommendation(payload: Any) -> list[dict[str, str]]:
+    identity = recommendation_identity(payload)
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute(
+            "INSERT OR IGNORE INTO recommended_scores(title, artist, shared_by, created_at) VALUES (?, ?, ?, ?)",
+            (identity["title"], identity["artist"], identity["sharedBy"], now_timestamp()),
+        )
+    return list_recommendations()
+
+
+def remove_recommendation(payload: Any) -> list[dict[str, str]]:
+    identity = recommendation_identity(payload)
+    with AUTH_LOCK, auth_database() as connection:
+        result = connection.execute(
+            "DELETE FROM recommended_scores WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
+            (identity["title"], identity["artist"], identity["sharedBy"]),
+        )
+        if result.rowcount < 1:
+            raise FileNotFoundError("推荐曲目不存在。")
+    return list_recommendations()
 
 
 def auth_digest(server: ThreadingHTTPServer, value: str) -> str:
@@ -715,19 +849,12 @@ def bind_score_owner(account_id: str, path: Path) -> None:
 
 
 def backfill_legacy_score_owners(account: sqlite3.Row | None) -> None:
-    """Attach legacy Jiko community submissions to the verified owner account.
-
-    PDMX songs are not stored in the community score directory, but the explicit
-    source check keeps this migration safe if another import path ever exposes
-    them through read_scores().
-    """
+    """Attach legacy Jiko community submissions to the verified owner account."""
     if not account or str(account["email"]).casefold() != LEGACY_OWNER_EMAIL:
         return
     legacy_paths = []
     for path, score in read_scores():
         if not is_canonical_source(path):
-            continue
-        if score.get("source") == "PDMX":
             continue
         if str(score.get("sharedBy", "")).strip().casefold() == LEGACY_OWNER_USER_ID:
             legacy_paths.append(str(path.relative_to(REPOSITORY_ROOT)))
@@ -1010,6 +1137,15 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"songs": scores_owned_by(account["id"])})
             return
+        if path == "/api/public-library/recommendations":
+            if not self.server.public_library:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})
+                return
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.OK, {"recommendations": []})
+                return
+            self.send_json(HTTPStatus.OK, {"recommendations": list_recommendations()})
+            return
         if path == "/api/local-library/status":
             if not self.request_is_local():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "维护接口只允许本机访问。"})
@@ -1020,6 +1156,30 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/api/public-library/recommendations":
+            if not self.server.public_library:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的推荐请求。"})
+                return
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            if not is_admin_account(account):
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只有管理员可以配置推荐曲库。"})
+                return
+            try:
+                recommendations = add_recommendation(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法加入推荐曲库。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "recommended", "recommendations": recommendations})
+            return
         if path == "/api/auth/request-code":
             if not self.server.auth_enabled:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
@@ -1142,6 +1302,33 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_DELETE(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/api/public-library/recommendations":
+            if not self.server.public_library:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的取消推荐请求。"})
+                return
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            if not is_admin_account(account):
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只有管理员可以配置推荐曲库。"})
+                return
+            try:
+                recommendations = remove_recommendation(self.read_payload())
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法取消推荐。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "unrecommended", "recommendations": recommendations})
+            return
         if path != "/api/public-library/songs":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到曲库接口。"})
             return
@@ -1287,9 +1474,24 @@ def main() -> int:
     server.insecure_auth_cookies = args.insecure_auth_cookies
     server.auth_code_requests: dict[str, list[float]] = {}
     server.auth_rate_limit_lock = threading.Lock()
+    server.hot_ranking_stop_event = threading.Event()
+    server.hot_ranking_thread: threading.Thread | None = None
     if server.auth_enabled:
         initialize_auth_database()
         backfill_legacy_score_owners_for_known_account()
+    if server.analytics_enabled:
+        initialize_hot_ranking_database()
+        try:
+            get_daily_hot_ranking(server.analytics_retention_days)
+        except (OSError, sqlite3.Error, ValueError) as error:
+            print(f"热门曲库每日排行初始化失败：{error}", file=sys.stderr)
+        server.hot_ranking_thread = threading.Thread(
+            target=hot_ranking_scheduler,
+            args=(server.analytics_retention_days, server.hot_ranking_stop_event),
+            name="daily-hot-ranking",
+            daemon=True,
+        )
+        server.hot_ranking_thread.start()
     if args.public:
         print(f"公共曲库服务已启动：http://0.0.0.0:{args.port}/")
         print("公共上传已启用；部署时请通过 HTTPS 反向代理，并配置 WAF 或限流。")
@@ -1306,6 +1508,9 @@ def main() -> int:
     except KeyboardInterrupt:
         print("\n本地维护服务已停止。")
     finally:
+        server.hot_ranking_stop_event.set()
+        if server.hot_ranking_thread:
+            server.hot_ranking_thread.join(timeout=1)
         server.server_close()
     return 0
 

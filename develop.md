@@ -9,7 +9,6 @@
 - `data/community-scores/`：已审核的社区曲谱源文件。
 - `data/community-songs.js`：由曲谱源文件生成的浏览器曲库数据，不应手工编辑。
 - `tools/import_community_scores.py`：社区曲谱审核与曲库生成工具。
-- `tools/import_pdmx.py`：PDMX 曲库导入工具。
 - `preview.sh`：本地预览入口；`deploy.sh`：正式服务部署脚本。
 
 ## 本地预览
@@ -30,7 +29,7 @@ GitHub Pages 只能承载静态页面，无法发送验证码、保存会话或�
 
 ### 前端缓存策略
 
-`tools/local_library_server.py` 会对 HTML 和静态资源返回重新验证缓存头，对所有 `/api/` 响应使用 `no-store`，因此正式站点普通刷新即可获取新版本。GitHub Pages 无法由本项目控制响应头；修改 `index.html`、`app.js`、`styles.css` 或曲库数据后，请同步递增 `index.html` 底部脚本和样式链接中的 `?v=YYYYMMDD` 版本号。
+`tools/local_library_server.py` 会对 HTML 和静态资源返回重新验证缓存头，对所有 `/api/` 响应使用 `no-store`，因此正式站点普通刷新即可获取新版本。GitHub Pages 无法由本项目控制响应头；修改 `index.html`、`app.js`、`styles.css` 或曲库数据后，请同步递增 `index.html` 底部脚本和样式链接中的 `?v=YYYYMMDD` 版本号。管理员账号按邮箱识别，当前管理员为 `274492469@qq.com`；管理员登录后可在曲库中维护「推荐」曲库。
 
 ## 公共服务配置
 
@@ -46,7 +45,7 @@ DELTA_SMTP_FROM='三角洲口琴演奏家 <noreply@example.com>' \
 python3 tools/local_library_server.py --public --trust-proxy --port 8765
 ```
 
-将 HTTPS 反向代理指向该端口，并让服务用户拥有 `data/` 的写权限。生产环境必须使用 HTTPS：认证 Cookie 默认带 `Secure` 标记。`data/auth.sqlite3` 保存邮箱、账户、会话和投稿归属，应使用持久化数据卷且不得提交到 Git。
+将 HTTPS 反向代理指向该端口，并让服务用户拥有 `data/` 的写权限。生产环境必须使用 HTTPS：认证 Cookie 默认带 `Secure` 标记。`data/auth.sqlite3` 保存邮箱、账户、会话和投稿归属，`data/hot-rankings.sqlite3` 保存每日热门榜结果；两者都应使用持久化数据卷且不得提交到 Git。
 
 `--public` 监听所有网卡并启用公共直传；只有端口不直接暴露、且 `X-Forwarded-For` 由自有反向代理覆盖时，才可使用 `--trust-proxy`。
 
@@ -93,7 +92,7 @@ python3 tools/local_library_server.py --public --trust-proxy --port 8765
 
 Docker 方式增加 `-e DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌'`。后台地址为 `/admin/analytics.html`，可查看最近 7、30 或 90 天数据。令牌只由浏览器提交给本站接口，不会写入前端代码或 Git。
 
-分析仅记录临时匿名会话 ID、匿名谱子标识、来源类别、入口选择、曲库来源类别、输入模式、试听、编辑打开/保存、导出格式和投稿成功等事件；不记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。后台会按匿名谱子标识聚合载入、编辑和导出操作量；曲库卡片和热门曲库使用同一保留周期内的导出计数。数据按天存于 `data/analytics/`，默认保留 90 天，可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客。
+分析仅记录临时匿名会话 ID、匿名谱子标识、来源类别、入口选择、曲库来源类别、输入模式、试听、编辑打开/保存、导出格式和投稿成功等事件；不记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。后台会按匿名谱子标识聚合载入、编辑和导出操作量；热门曲库每天按服务器本地时间凌晨 0 点计算一次，结果保存在 `data/hot-rankings.sqlite3`，页面不会实时重排。分析数据按天存于 `data/analytics/`，默认保留 90 天，可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客。
 
 ## 社区曲谱维护
 
@@ -133,32 +132,3 @@ python3 tools/local_library_server.py
 生产环境的公开投稿位于 Docker 卷，不会自动进入 Git。可在服务器上使用 `tools/sync_community_to_github.sh` 同步 `data/community-scores/` 与 `data/community-songs.js`。该脚本只在内容变化时创建 `chore: sync community songs` 提交并推送到 `track` 分支。
 
 先为仓库配置具有写权限的 Deploy Key，并将私钥保存到 `/root/.ssh/delta_harmonica_github`。维护者审核后手动将 `track` 合并回目标分支。
-
-## 导入 PDMX 热门曲目
-
-`tools/import_pdmx.py` 根据浏览量、收藏数、评分数和平均评分计算热度，保留无许可冲突、存在 MXL、去重后的最佳编曲。每首曲目选择音符最多的可演奏声部，并移调到当前口琴的 C3–B5 范围。
-
-完整索引约 225 MB，MXL 压缩包约 1.9 GB；不要将原始文件提交到网页仓库。推荐从 [Zenodo PDMX v9](https://zenodo.org/records/15571083) 下载 `PDMX.csv` 与 `mxl.tar.gz`：
-
-```bash
-python3 tools/import_pdmx.py \
-  --csv /path/to/PDMX.csv \
-  --mxl-archive /path/to/mxl.tar.gz \
-  --output data/pdmx-top-1000.js
-```
-
-也支持旧版 MusicRender JSON 单文件镜像，例如 [openmusic/pdmx](https://huggingface.co/datasets/openmusic/pdmx)：
-
-```bash
-python3 tools/import_pdmx.py \
-  --pdmx-archive /path/to/PDMX.tar.gz \
-  --output data/pdmx-top-1000.js
-```
-
-也可由脚本下载：
-
-```bash
-python3 tools/import_pdmx.py --download-csv --download-mxl
-```
-
-`--download-mxl` 会下载约 1.9 GB。默认使用 `no_license_conflict` 子集，并要求候选项存在可解析乐谱数据；使用或再分发前仍须核验每首曲目的许可。
