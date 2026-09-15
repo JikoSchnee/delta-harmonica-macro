@@ -339,7 +339,11 @@ const COMMUNITY_SONG_LIBRARY = Array.isArray(globalThis.COMMUNITY_SONGS) ? globa
 const SONG_FILE_FORMAT = "delta-music";
 const LEGACY_SONG_FILE_FORMAT = "harmonica-deck-score";
 const SONG_FILE_VERSION = 1;
-const SONG_LIBRARY = [...BUILTIN_SONG_LIBRARY, ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
+const MIGRATED_COMMUNITY_SONG_TITLES = new Set(["鸟之诗", "天使爱美丽", "天空之城", "皇后大道东", "父亲", "贝加尔湖畔"]);
+const BUILTIN_SONGS_FOR_LIBRARY = () => BUILTIN_SONG_LIBRARY.filter((song) => !MIGRATED_COMMUNITY_SONG_TITLES.has(song.title));
+const SONG_LIBRARY = [...BUILTIN_SONGS_FOR_LIBRARY(), ...COMMUNITY_SONG_LIBRARY, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song));
+let activeLibraryView = "community";
+let mySongLibrary = [];
 // The built-in service records only anonymous, allow-listed product events.
 // Never add score text, titles, file names, search terms, IP data, or clipboard content here.
 const ANALYTICS_ENDPOINT = "./api/analytics/events";
@@ -424,9 +428,10 @@ const SECTION_GUIDES = {
     intro: "曲库用于快速载入现成曲谱。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
     steps: [
       ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
-      ["02", "点击卡片或「编辑」", "两种操作都会载入该曲并定位到编辑器。随后可修改谱子、歌曲信息与速度。"],
-      ["03", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
-      ["04", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
+      ["02", "切换曲库分类", "「全部」包含内置、社区和 PDMX 曲目；「社区」只显示用户上传的曲目；登录后可在「我的」查看当前账号的上传记录。"],
+      ["03", "点击卡片或「编辑」", "两种操作都会载入该曲并定位到编辑器。随后可修改谱子、歌曲信息与速度。"],
+      ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
+      ["05", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
   },
   editor: {
@@ -503,6 +508,16 @@ Object.assign(elements, {
   authVerifyRegister: document.querySelector("#authVerifyRegister")
 });
 
+Object.assign(elements, {
+  libraryDeleteDialog: document.querySelector("#libraryDeleteDialog"),
+  libraryDeleteTitle: document.querySelector("#libraryDeleteTitle"),
+  libraryDeleteDescription: document.querySelector("#libraryDeleteDescription"),
+  libraryDeleteModify: document.querySelector("#libraryDeleteModify"),
+  libraryDeleteConfirm: document.querySelector("#libraryDeleteConfirm"),
+  qqGroupDialog: document.querySelector("#qqGroupDialog"),
+  qqGroupCopyButton: document.querySelector("#qqGroupCopyButton")
+});
+
 let currentSequence = null;
 let audioContext = null;
 let masterGain = null;
@@ -524,6 +539,7 @@ let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
 let authState = { available: false, account: null, pendingCommunityUpload: false, email: "", mode: "login" };
+let pendingLibrarySong = null;
 const PREVIEW_SCHEDULE_AHEAD_MS = 2500;
 const PREVIEW_SCHEDULER_INTERVAL_MS = 100;
 
@@ -948,7 +964,7 @@ function parseScore(source, bpm) {
     if (!Number.isFinite(beats) || beats <= 0) return { error: { message: "拍数必须是大于 0 的数字。", ...position } };
     if (note === "0" && modifier) return { error: { message: "休止符不能添加变调前缀。", ...position } };
     if (modifier && (new Set(modifier).size !== modifier.length || (modifier.includes("L") && modifier.includes("R")))) return { error: { message: "变调前缀不能重复，也不能同时使用 L 与 R。", ...position } };
-    notes.push({ note, key: NOTE_KEYS[note] || null, modifier, isRest: note === "0", beats, start: match.index, ...position });
+    notes.push({ note, key: NOTE_KEYS[note] || null, modifier, ...(modifier && /[LR]/.test(modifier) ? { physicalSourcePitch: `${modifier}${note}` } : {}), isRest: note === "0", beats, start: match.index, ...position });
   }
   if (!notes.length) return { error: { message: "小节线不是音符，请输入例如 1/1。", line: 1, column: 1 } };
   return enrichNotes(notes, bpm);
@@ -1518,10 +1534,25 @@ function normalizeSong(song) {
   };
 }
 
+function songsForLibraryView() {
+  if (activeLibraryView === "all") return SONG_LIBRARY;
+  if (activeLibraryView === "mine") return mySongLibrary;
+  return SONG_LIBRARY.filter((song) => song.source === "社区投稿");
+}
+
+function songLibraryIndex(song) {
+  return SONG_LIBRARY.findIndex((candidate) => candidate.title === song.title && candidate.artist === song.artist && candidate.sharedBy === song.sharedBy);
+}
+
 function renderSongLibrary(query = "") {
-  elements.libraryCount.textContent = `${SONG_LIBRARY.length} TRACK${SONG_LIBRARY.length === 1 ? "" : "S"}`;
+  const sourceSongs = songsForLibraryView();
+  elements.libraryCount.textContent = `${sourceSongs.length} TRACK${sourceSongs.length === 1 ? "" : "S"}`;
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const songs = SONG_LIBRARY.map((song, index) => ({ ...song, index })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm}`.toLocaleLowerCase().includes(normalizedQuery));
+  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm}`.toLocaleLowerCase().includes(normalizedQuery));
+  if (activeLibraryView === "mine" && !authState.account) {
+    elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
+    return;
+  }
   elements.songGrid.innerHTML = songs.length ? songs.map((song) => `
     <article class="song-card" data-song-index="${song.index}" data-index="${String(song.index + 1).padStart(2, "0")}">
       <button class="song-card-main" data-song-action="edit" type="button" aria-label="编辑《${escapeHtml(song.title)}》">
@@ -1534,6 +1565,7 @@ function renderSongLibrary(query = "") {
       <div class="song-card-actions" aria-label="曲目操作">
         <button class="song-card-action" data-song-action="edit" type="button">编辑</button>
         <button class="song-card-action export" data-song-action="export" type="button">导出</button>
+        ${activeLibraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
       </div>
     </article>
   `).join("") : '<p class="library-empty">没有匹配的曲目，换个关键词试试。</p>';
@@ -3000,8 +3032,75 @@ function setAuthStatus(target, message = "", success = false) {
 
 function replaceCommunitySongs(songs) {
   if (!Array.isArray(songs)) return;
-  SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONG_LIBRARY, ...songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
+  SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONGS_FOR_LIBRARY(), ...songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
   renderSongLibrary(elements.songSearch.value);
+}
+
+function setLibraryView(view = "community") {
+  const selectedView = ["all", "community", "mine"].includes(view) ? view : "community";
+  activeLibraryView = selectedView;
+  elements.libraryTabs.forEach((tab) => {
+    const selected = tab.dataset.libraryView === selectedView;
+    tab.classList.toggle("active", selected);
+    tab.setAttribute("aria-selected", String(selected));
+    tab.tabIndex = selected ? 0 : -1;
+  });
+  renderSongLibrary(elements.songSearch.value);
+}
+
+async function loadMySongLibrary() {
+  if (!authState.account) {
+    mySongLibrary = [];
+    renderSongLibrary(elements.songSearch.value);
+    return;
+  }
+  try {
+    const result = await authRequest("./api/public-library/songs");
+    if (!Array.isArray(result.songs)) throw new Error("服务器返回的我的曲库数据无效。");
+    mySongLibrary = result.songs.map((song) => normalizeSong(song));
+    mySongLibrary.forEach((song) => {
+      if (songLibraryIndex(song) < 0) SONG_LIBRARY.push(song);
+    });
+  } catch {
+    mySongLibrary = [];
+  }
+  renderSongLibrary(elements.songSearch.value);
+}
+
+function openLibraryDeleteDialog(song) {
+  pendingLibrarySong = song;
+  elements.libraryDeleteTitle.textContent = `删除《${song.title}》`;
+  elements.libraryDeleteDescription.textContent = `确定删除《${song.title}》吗？删除后无法恢复。`;
+  if (typeof elements.libraryDeleteDialog.showModal === "function") elements.libraryDeleteDialog.showModal();
+}
+
+function modifyPendingLibrarySong() {
+  const song = pendingLibrarySong;
+  pendingLibrarySong = null;
+  if (elements.libraryDeleteDialog.open) elements.libraryDeleteDialog.close();
+  if (song) loadSong(song, { destination: "editor" });
+}
+
+async function confirmLibraryDelete() {
+  const song = pendingLibrarySong;
+  if (!song) return;
+  elements.libraryDeleteConfirm.disabled = true;
+  try {
+    const result = await authRequest("./api/public-library/songs", {
+      method: "DELETE",
+      body: { title: song.title, artist: song.artist, sharedBy: song.sharedBy }
+    });
+    if (!Array.isArray(result.songs)) throw new Error("服务器返回的曲库数据无效。");
+    pendingLibrarySong = null;
+    replaceCommunitySongs(result.songs);
+    await loadMySongLibrary();
+    elements.libraryDeleteDialog.close();
+    toast(`《${song.title}》已从我的曲库删除。`);
+  } catch (error) {
+    toast(error.message || "删除曲目失败，请稍后重试。 ");
+  } finally {
+    elements.libraryDeleteConfirm.disabled = false;
+  }
 }
 
 function setSignedInAccount(account) {
@@ -3009,10 +3108,12 @@ function setSignedInAccount(account) {
   elements.accountButton.hidden = !authState.available;
   elements.accountButton.classList.toggle("is-signed-in", Boolean(account));
   elements.accountButtonLabel.textContent = account ? `@${account.userId}` : "登录 / 注册";
+  if (!account) mySongLibrary = [];
   if (account) {
     elements.accountEmail.textContent = account.email;
     elements.accountUserId.value = account.userId;
   }
+  renderSongLibrary(elements.songSearch.value);
 }
 
 function authFieldsForMode(mode = authState.mode) {
@@ -3097,6 +3198,7 @@ async function verifyLoginCode() {
   try {
     const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, userId, mode: authState.mode } });
     setSignedInAccount(result.account);
+    await loadMySongLibrary();
     elements.authDialog.close();
     toast(`已登录为 @${result.account.userId}。`);
     if (authState.pendingCommunityUpload) {
@@ -3126,6 +3228,7 @@ async function saveAccountUserId() {
     const result = await authRequest("./api/auth/me", { method: "PATCH", body: { userId: elements.accountUserId.value.trim() } });
     setSignedInAccount(result.account);
     replaceCommunitySongs(result.songs);
+    await loadMySongLibrary();
     setAuthStatus(elements.accountStatus, "用户 ID 已保存，曲库署名已同步。", true);
   } catch (error) {
     setAuthStatus(elements.accountStatus, error.message || "无法保存用户 ID。 ");
@@ -3139,6 +3242,7 @@ async function logoutAccount() {
   try {
     await authRequest("./api/auth/logout", { method: "POST", body: {} });
     setSignedInAccount(null);
+    renderSongLibrary(elements.songSearch.value);
     elements.accountDialog.close();
     toast("已退出登录。 ");
   } catch (error) {
@@ -3155,6 +3259,7 @@ async function initializeCommunityAuth(status) {
   try {
     const result = await authRequest("./api/auth/me");
     setSignedInAccount(result.account);
+    await loadMySongLibrary();
   } catch {}
 }
 
@@ -3314,8 +3419,7 @@ async function saveScoreToLocalLibrary() {
     if (!response.ok) throw new Error(result.error || "写入本地曲库失败。");
     if (!Array.isArray(result.songs)) throw new Error("本地服务返回的曲库数据无效。");
     applyScorePackageMetadata(packaged.value);
-    SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONG_LIBRARY, ...result.songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
-    renderSongLibrary(elements.songSearch.value);
+    replaceCommunitySongs(result.songs);
     elements.scoreExportDialog.close();
     toast(`《${packaged.value.title}》已${result.action === "updated" ? "更新" : "收录"}到本地工作区，待手动提交。`);
   } catch (error) {
@@ -3339,11 +3443,11 @@ async function uploadScoreToCommunityLibrary() {
     if (!response.ok) throw new Error(result.error || "上传到曲库失败，请稍后重试。");
     if (!Array.isArray(result.songs)) throw new Error("服务器返回的曲库数据无效。");
     applyScorePackageMetadata(packaged.value);
-    SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONG_LIBRARY, ...result.songs, ...PDMX_SONG_LIBRARY].map((song) => normalizeSong(song)));
-    renderSongLibrary(elements.songSearch.value);
+    replaceCommunitySongs(result.songs);
+    await loadMySongLibrary();
     elements.scoreExportDialog.close();
     trackAnalytics("community_upload_succeeded");
-    toast(`《${packaged.value.title}》已上传到公共曲库。`);
+    toast(`《${packaged.value.title}》已${result.action === "updated" ? "更新" : "上传"}到公共曲库。`);
   } catch (error) {
     toast(error.message || "上传到曲库失败，请稍后重试。");
   } finally {
@@ -3763,13 +3867,30 @@ elements.songSearch.addEventListener("input", () => {
   const queryLength = elements.songSearch.value.trim().length;
   if (queryLength) librarySearchAnalyticsTimer = window.setTimeout(() => trackAnalytics("library_search", { query_length: queryLength }), 650);
 });
+elements.libraryTabs.forEach((tab) => tab.addEventListener("click", () => setLibraryView(tab.dataset.libraryView)));
 elements.songGrid.addEventListener("click", (event) => {
+  if (event.target.closest("[data-library-login]")) {
+    showAuthDialog();
+    return;
+  }
   const actionButton = event.target.closest("[data-song-action]");
   const card = actionButton?.closest("[data-song-index]");
   if (!actionButton || !card) return;
+  const song = SONG_LIBRARY[Number(card.dataset.songIndex)];
+  if (!song) return;
+  if (actionButton.dataset.songAction === "delete") {
+    openLibraryDeleteDialog(song);
+    return;
+  }
   const destination = actionButton.dataset.songAction === "export" ? "export" : "editor";
-  loadSong(SONG_LIBRARY[Number(card.dataset.songIndex)], { destination });
+  loadSong(song, { destination });
   if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
+});
+elements.libraryDeleteModify.addEventListener("click", modifyPendingLibrarySong);
+elements.libraryDeleteConfirm.addEventListener("click", confirmLibraryDelete);
+elements.libraryDeleteDialog.addEventListener("close", () => {
+  pendingLibrarySong = null;
+  elements.libraryDeleteConfirm.disabled = false;
 });
 elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
 elements.recordingHelperHelpButton.addEventListener("click", openRecordingHelperDialog);
@@ -3820,27 +3941,37 @@ function openUploadHelpDialogOnFirstVisit() {
   try { window.localStorage.setItem(storageKey, "1"); } catch {}
 }
 
-elements.qqGroupButton.addEventListener("click", async () => {
-  try {
-    await navigator.clipboard.writeText("1102489399");
-    openUploadHelpDialog("群号已复制");
-  } catch {
-    openUploadHelpDialog("复制失败，请手动复制群号 1102489399");
+function copyQqGroupNumber() {
+  const copyPromise = navigator.clipboard?.writeText("1102489399");
+  copyPromise?.catch(() => {});
+}
+
+function openQqGroupDialog() {
+  if (typeof elements.qqGroupDialog.showModal === "function") {
+    elements.qqGroupDialog.showModal();
+    return;
   }
+  toast("QQ群号：1102489399");
+}
+
+elements.qqGroupButton.addEventListener("click", () => {
+  copyQqGroupNumber();
+  openQqGroupDialog();
 });
+elements.qqGroupCopyButton.addEventListener("click", copyQqGroupNumber);
 elements.uploadScoreButton.addEventListener("click", () => {
-  openUploadHelpDialog();
+  elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  toast("请先在编辑器中使用 MIDI 导入或手动打谱，再点击「上传到曲库」。");
 });
 elements.uploadMethodTabs.forEach((tab) => tab.addEventListener("click", () => setUploadMethod(tab.dataset.uploadMethod)));
 elements.localLibraryButton.addEventListener("click", () => openScoreExportDialog("local-library"));
 
-renderSongLibrary();
+setLibraryView("community");
 enableLocalLibraryEntry();
 enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });
-openUploadHelpDialogOnFirstVisit();
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
 window.setInterval(() => {

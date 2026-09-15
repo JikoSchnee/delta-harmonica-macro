@@ -138,7 +138,12 @@
         <div class="library-deck-copy">
           <span class="index">02 · SCORE ARCHIVE</span>
           <h2 id="libraryTitle">曲库</h2>
-          <p class="library-actions"><button class="upload-link" id="uploadScoreButton" type="button" aria-haspopup="dialog">我要上传</button><button class="local-library-button" id="localLibraryButton" type="button" aria-haspopup="dialog" hidden>收录当前曲目</button></p>
+          <div class="library-tabs" role="tablist" aria-label="曲库分类">
+            <button class="library-tab" data-library-view="all" type="button" role="tab" aria-selected="false">全部</button>
+            <button class="library-tab active" data-library-view="community" type="button" role="tab" aria-selected="true">社区</button>
+            <button class="library-tab" data-library-view="mine" type="button" role="tab" aria-selected="false">我的</button>
+          </div>
+          <p class="library-actions"><button class="upload-link" id="uploadScoreButton" type="button">去编辑器上传</button><button class="local-library-button" id="localLibraryButton" type="button" aria-haspopup="dialog" hidden>收录当前曲目</button></p>
         </div>
         <div class="library-deck-browser">
           <label class="song-search"><span>⌕</span><input id="songSearch" type="search" placeholder="查找曲名、拍号或版本" aria-label="搜索曲库" /></label>
@@ -527,6 +532,34 @@
         </div>
       </form>
     </dialog>
+    <dialog class="library-delete-dialog" id="libraryDeleteDialog" aria-labelledby="libraryDeleteTitle" aria-describedby="libraryDeleteDescription">
+      <form method="dialog" class="library-delete-form">
+        <div class="window-titlebar"><span>COMMUNITY_SCORE.EXE — MY LIBRARY</span></div>
+        <div class="library-delete-body">
+          <span class="index">MY LIBRARY · SCORE MANAGEMENT</span>
+          <h2 id="libraryDeleteTitle">删除曲目</h2>
+          <p id="libraryDeleteDescription">确定要删除这首曲目吗？删除后无法恢复。</p>
+          <p class="library-delete-hint">如果你是想修改，最快的方法是点击“修改”或曲目卡片上的“编辑”，将原本内容放回编辑区；修改后使用同一账号，并填写相同的歌曲名和作者名重新上传即可覆盖原曲。</p>
+          <div class="dialog-actions"><button class="text-button" id="libraryDeleteModify" type="button">修改</button><button class="danger-button" id="libraryDeleteConfirm" type="button">确认删除</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="qq-group-dialog" id="qqGroupDialog" aria-labelledby="qqGroupTitle" aria-describedby="qqGroupDescription">
+      <form method="dialog" class="qq-group-form">
+        <div class="window-titlebar"><span>COMMUNITY_CONTACT.EXE — QQ GROUP</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭群聊信息">×</button></div>
+        <div class="qq-group-body">
+          <span class="index">COMMUNITY CONTACT</span>
+          <h2 id="qqGroupTitle">分享曲目、反馈问题</h2>
+          <p id="qqGroupDescription">欢迎加入 QQ 群交流口琴曲谱、宏文件和使用问题。</p>
+          <button class="qq-group-number" id="qqGroupCopyButton" type="button" aria-label="点击复制 QQ 群号 1102489399"><span>QQ群号</span><strong>1102489399</strong></button>
+          <figure class="upload-qr qq-group-qr">
+            <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
+            <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
+          </figure>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
+        </div>
+      </form>
+    </dialog>
     <dialog class="auth-dialog" id="authDialog" aria-labelledby="authTitle" aria-describedby="authDescription">
       <form method="dialog" class="auth-form">
         <div class="window-titlebar"><span>ACCOUNT.EXE — EMAIL ACCESS</span><button class="dialog-close" id="authDialogClose" type="button" aria-label="关闭登录或注册窗口">×</button></div>
@@ -550,7 +583,7 @@
             <button class="primary-button auth-submit" id="authRegisterRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
             <p class="auth-email-note" id="authRegisterEmailNote" hidden></p>
             <label>6 位验证码<input id="authRegisterCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
-            <label>用户 ID<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" required /></label>
+            <label>用户 ID（用户名）<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" aria-describedby="authUserIdHint" required /><small id="authUserIdHint">这是你的用户名，上传曲目时会自动作为共享人显示。</small></label>
             <button class="primary-button auth-submit" id="authVerifyRegister" type="button"><span>注册并登录</span><b>✓</b></button>
           </section>
           <p class="auth-status" id="authStatus" role="status" aria-live="polite" hidden></p>
@@ -564,7 +597,7 @@
           <span class="index">COMMUNITY IDENTITY</span>
           <h2 id="accountTitle">账户资料</h2>
           <p>已验证邮箱：<b id="accountEmail">--</b></p>
-          <label>用户 ID<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" /></label>
+          <label>用户 ID（用户名）<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" aria-describedby="accountUserIdHint" /><small id="accountUserIdHint">这是你的用户名，上传曲目时会作为共享人显示。</small></label>
           <p class="auth-account-note">修改后，所有通过本站直传发布的曲谱会同步显示新 ID；旧 ID 会永久保留，无法被其他账户使用。</p>
           <p class="auth-status" id="accountStatus" role="status" aria-live="polite" hidden></p>
           <div class="dialog-actions"><button class="text-button" id="logoutButton" type="button">退出登录</button><button class="primary-button" id="saveAccountButton" type="button"><span>保存用户 ID</span><b>✓</b></button></div>

@@ -53,6 +53,8 @@ AUTH_CODE_IP_LIMIT = 12
 AUTH_CODE_RATE_WINDOW_SECONDS = 60 * 60
 AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 AUTH_COOKIE_NAME = "delta_auth_session"
+LEGACY_OWNER_EMAIL = "274492469@qq.com"
+LEGACY_OWNER_USER_ID = "jiko"
 AUTH_DATABASE = REPOSITORY_ROOT / "data" / "auth.sqlite3"
 USER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,24}$")
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -313,7 +315,14 @@ def is_canonical_source(path: Path) -> bool:
         return False
 
 
-def save_score(payload: Any, *, allow_replace: bool = True) -> tuple[str, list[dict[str, Any]], Path]:
+def score_owner_account_id(path: Path) -> str | None:
+    relative = str(path.relative_to(REPOSITORY_ROOT))
+    with AUTH_LOCK, auth_database() as connection:
+        row = connection.execute("SELECT account_id FROM score_owners WHERE score_path = ?", (relative,)).fetchone()
+    return row["account_id"] if row else None
+
+
+def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: str | None = None) -> tuple[str, list[dict[str, Any]], Path]:
     """Validate, store, and expose one score while serialising concurrent uploads."""
     score = validate_package(payload)
     with LIBRARY_LOCK:
@@ -321,6 +330,10 @@ def save_score(payload: Any, *, allow_replace: bool = True) -> tuple[str, list[d
         matches = [(path, item) for path, item in existing_scores if dedupe_key(item) == dedupe_key(score)]
         if len(matches) > 1:
             raise ValueError("曲库中存在多个相同身份的曲目，请先手动整理源文件。")
+        if matches and not allow_replace:
+            owned_by_requester = owner_account_id and len(matches) == 1 and score_owner_account_id(matches[0][0]) == owner_account_id
+            if owned_by_requester:
+                allow_replace = True
         if matches and not allow_replace:
             raise DuplicateScoreError("该歌名、歌手/作者和共享人组合已存在，不能覆盖已上传曲目。")
 
@@ -527,7 +540,8 @@ def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any
         elif mode == "register":
             raise ValueError("该邮箱已注册，请切换到登录。")
         connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
-        return account
+    backfill_legacy_score_owners(account)
+    return account
 
 
 def bind_score_owner(account_id: str, path: Path) -> None:
@@ -538,6 +552,79 @@ def bind_score_owner(account_id: str, path: Path) -> None:
             "ON CONFLICT(score_path) DO UPDATE SET account_id = excluded.account_id",
             (relative, account_id),
         )
+
+
+def backfill_legacy_score_owners(account: sqlite3.Row | None) -> None:
+    """Attach legacy Jiko community submissions to the verified owner account.
+
+    PDMX songs are not stored in the community score directory, but the explicit
+    source check keeps this migration safe if another import path ever exposes
+    them through read_scores().
+    """
+    if not account or str(account["email"]).casefold() != LEGACY_OWNER_EMAIL:
+        return
+    legacy_paths = []
+    for path, score in read_scores():
+        if not is_canonical_source(path):
+            continue
+        if score.get("source") == "PDMX":
+            continue
+        if str(score.get("sharedBy", "")).strip().casefold() == LEGACY_OWNER_USER_ID:
+            legacy_paths.append(str(path.relative_to(REPOSITORY_ROOT)))
+    if not legacy_paths:
+        return
+    with AUTH_LOCK, auth_database() as connection:
+        connection.executemany(
+            "INSERT INTO score_owners(score_path, account_id) VALUES (?, ?) "
+            "ON CONFLICT(score_path) DO UPDATE SET account_id = excluded.account_id",
+            [(path, account["id"]) for path in legacy_paths],
+        )
+
+
+def backfill_legacy_score_owners_for_known_account() -> None:
+    with AUTH_LOCK, auth_database() as connection:
+        account = connection.execute("SELECT id, email, user_id FROM accounts WHERE email = ?", (LEGACY_OWNER_EMAIL,)).fetchone()
+    backfill_legacy_score_owners(account)
+
+
+def scores_owned_by(account_id: str) -> list[dict[str, Any]]:
+    with AUTH_LOCK, auth_database() as connection:
+        owned_paths = {row["score_path"] for row in connection.execute("SELECT score_path FROM score_owners WHERE account_id = ?", (account_id,)).fetchall()}
+    if not owned_paths:
+        return []
+    return [score for path, score in read_scores() if str(path.relative_to(REPOSITORY_ROOT)) in owned_paths]
+
+
+def delete_owned_score(account_id: str, payload: Any) -> list[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        raise ValueError("删除请求格式无效。")
+    identity = {}
+    for field, limit in (("title", 48), ("artist", 64), ("sharedBy", 48)):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
+            raise ValueError("删除请求中的曲目信息无效。")
+        identity[field] = value.strip()
+
+    with LIBRARY_LOCK:
+        matches = [
+            (path, score)
+            for path, score in read_scores()
+            if is_canonical_source(path)
+            and all(score.get(field) == value for field, value in identity.items())
+        ]
+        if not matches:
+            raise FileNotFoundError("未找到该曲目。")
+        for path, _ in matches:
+            if score_owner_account_id(path) != account_id:
+                raise PermissionError("只能删除自己上传的曲目。")
+        relative_paths = [str(path.relative_to(REPOSITORY_ROOT)) for path, _ in matches]
+        for path, _ in matches:
+            path.unlink()
+        with AUTH_LOCK, auth_database() as connection:
+            connection.executemany("DELETE FROM score_owners WHERE score_path = ?", [(path,) for path in relative_paths])
+        songs = [item for _, item in read_scores()]
+        write_library(LIBRARY_OUTPUT, songs)
+        return songs
 
 
 def rename_account_user_id(account: sqlite3.Row, user_id: Any) -> list[dict[str, Any]]:
@@ -566,6 +653,28 @@ def rename_account_user_id(account: sqlite3.Row, user_id: Any) -> list[dict[str,
 
 class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+
+    def end_headers(self) -> None:  # noqa: N802
+        """Make ordinary reloads see newly deployed static files.
+
+        The app is deliberately served without content-hashed filenames, so
+        static responses must be revalidated. API responses already set their
+        own ``Cache-Control`` header and are left unchanged here.
+        """
+        has_cache_control = any(
+            header.lower().startswith(b"cache-control:")
+            for header in self._headers_buffer
+        )
+        if not has_cache_control:
+            path = urlparse(self.path).path
+            if path.startswith("/api/"):
+                cache_control = "no-store"
+            elif path == "/" or path.endswith(".html"):
+                cache_control = "no-cache, no-store, must-revalidate"
+            else:
+                cache_control = "no-cache, must-revalidate"
+            self.send_header("Cache-Control", cache_control)
+        super().end_headers()
 
     def send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
@@ -713,6 +822,19 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"publicLibrary": True, "authRequired": True, "authAvailable": self.server.auth_enabled})
             return
+        if path == "/api/public-library/songs":
+            if not self.server.public_library:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共上传未启用。"})
+                return
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录后查看我的曲库。"})
+                return
+            self.send_json(HTTPStatus.OK, {"songs": scores_owned_by(account["id"])})
+            return
         if path == "/api/local-library/status":
             if not self.request_is_local():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "维护接口只允许本机访问。"})
@@ -812,7 +934,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 if not isinstance(payload, dict):
                     raise ValueError("上传内容格式无效。")
                 payload = {**payload, "sharedBy": account["user_id"]}
-                _, songs, destination = save_score(payload, allow_replace=False)
+                action, songs, destination = save_score(payload, allow_replace=False, owner_account_id=account["id"])
                 bind_score_owner(account["id"], destination)
             except DuplicateScoreError as error:
                 self.send_json(HTTPStatus.CONFLICT, {"error": str(error)})
@@ -820,7 +942,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法上传曲目。"})
                 return
-            self.send_json(HTTPStatus.CREATED, {"action": "created", "songs": songs})
+            self.send_json(HTTPStatus.CREATED if action == "created" else HTTPStatus.OK, {"action": action, "songs": songs})
             return
         if path != "/api/local-library/songs":
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到维护接口。"})
@@ -834,6 +956,37 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法写入本地曲库。"})
             return
         self.send_json(HTTPStatus.OK, {"action": action, "songs": songs})
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        path = self.path.split("?", 1)[0]
+        if path != "/api/public-library/songs":
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到曲库接口。"})
+            return
+        if not self.server.public_library:
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共上传未启用。"})
+            return
+        if not self.request_is_same_origin():
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的删除请求。"})
+            return
+        if not self.server.auth_enabled:
+            self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱登录尚未配置，暂不能删除。"})
+            return
+        account = authenticate_request(self)
+        if not account:
+            self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录后再删除曲目。"})
+            return
+        try:
+            songs = delete_owned_score(account["id"], self.read_payload())
+        except PermissionError as error:
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": str(error)})
+            return
+        except FileNotFoundError as error:
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+            return
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法删除曲目。"})
+            return
+        self.send_json(HTTPStatus.OK, {"action": "deleted", "songs": songs})
 
     def do_PATCH(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
@@ -922,6 +1075,7 @@ def main() -> int:
     server.auth_rate_limit_lock = threading.Lock()
     if server.auth_enabled:
         initialize_auth_database()
+        backfill_legacy_score_owners_for_known_account()
     if args.public:
         print(f"公共曲库服务已启动：http://0.0.0.0:{args.port}/")
         print("公共上传已启用；部署时请通过 HTTPS 反向代理，并配置 WAF 或限流。")

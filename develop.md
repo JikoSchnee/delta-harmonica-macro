@@ -28,6 +28,10 @@
 
 GitHub Pages 只能承载静态页面，无法发送验证码、保存会话或接收用户写入；页面会隐藏登录和直传入口。需要公共投稿时请部署内置服务。
 
+### 前端缓存策略
+
+`tools/local_library_server.py` 会对 HTML 和静态资源返回重新验证缓存头，对所有 `/api/` 响应使用 `no-store`，因此正式站点普通刷新即可获取新版本。GitHub Pages 无法由本项目控制响应头；修改 `index.html`、`app.js`、`styles.css` 或曲库数据后，请同步递增 `index.html` 底部脚本和样式链接中的 `?v=YYYYMMDD` 版本号。
+
 ## 公共服务配置
 
 最小部署命令：

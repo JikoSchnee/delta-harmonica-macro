@@ -250,6 +250,11 @@ main {
 .library-deck-copy { padding: 3px 22px 3px 0; border-right: 2px groove var(--surface); }
 .library-deck h2 { margin: 10px 0 12px; font: 700 34px/1 var(--pixel); letter-spacing: .02em; }
 .library-deck-copy p { max-width: 315px; margin: 0; color: #333; font-size: 12px; line-height: 1.75; }
+.library-tabs { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 12px; padding: 3px; background: var(--surface-light); border: 2px inset var(--surface); }
+.library-tab { min-width: 48px; padding: 6px 9px; color: var(--teal-dark); background: transparent; border: 1px solid transparent; font: 700 11px/1 var(--mono); cursor: pointer; }
+.library-tab:hover { color: var(--black); background: #d2e8e8; }
+.library-tab.active { color: var(--white); background: var(--teal); border-color: var(--teal-dark); box-shadow: inset 1px 1px 0 #69b5b5; }
+.library-tab:active { transform: translateY(1px); }
 .library-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .upload-link { padding: 0; color: var(--teal-dark); background: transparent; border: 0; font: inherit; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .upload-link:hover { color: var(--teal); }
@@ -687,12 +692,27 @@ main {
 .song-card-actions { position: absolute; z-index: 2; top: 10px; right: 10px; display: flex; gap: 5px; }
 .song-card-action { padding: 5px 7px; color: var(--teal-dark); background: var(--surface); border: 2px outset var(--surface); font: 700 9px/1 var(--mono); }
 .song-card-action.export { color: var(--white); background: var(--teal-dark); border-color: #4d8884; }
+.song-card-action.delete { color: var(--white); background: #6f1d1b; border-color: #b65b55; border-bottom-color: #3b0d0d; }
 .song-card-action:hover { color: var(--white); background: var(--teal); border-bottom-color: var(--teal-dark); }
+.song-card-action.delete:hover { color: var(--white); background: #8d241f; border-bottom-color: #4d1110; }
 .song-card-action:active { border-style: inset; transform: translateY(1px); }
 .library-empty { grid-column: 1 / -1; margin: 0; padding: 28px 0; color: #526767; font-size: 12px; text-align: center; }
+.library-empty-action { margin-left: 6px; padding: 4px 7px; color: var(--teal-dark); background: var(--surface-light); border: 2px outset var(--surface); font: 700 10px/1 var(--mono); }
+.library-empty-action:hover { color: var(--white); background: var(--teal); border-bottom-color: var(--teal-dark); }
+.library-empty-action:active { border-style: inset; }
 
 .score-export-dialog { width: min(560px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .score-export-dialog::backdrop { background: rgba(0, 35, 35, .68); }
+.library-delete-dialog { width: min(560px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
+.library-delete-dialog::backdrop { background: rgba(0, 35, 35, .72); }
+.library-delete-form { margin: 0; }
+.library-delete-body { padding: 20px; }
+.library-delete-body h2 { margin: 10px 0 7px; font: 700 27px/1 var(--pixel); }
+.library-delete-body > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.75; }
+.library-delete-hint { margin-top: 12px !important; padding: 10px 11px; color: #704923 !important; background: #fff0c9; border: 1px solid #d4a455; }
+.danger-button { padding: 7px 10px; color: #fff; background: #6f1d1b; border: 2px outset #b65b55; border-bottom-color: #3b0d0d; font: 700 11px/1.2 var(--mono); }
+.danger-button:hover { background: #8d241f; border-bottom-color: #4d1110; }
+.danger-button:active { border-style: inset; transform: translateY(1px); }
 .auth-dialog { width: min(440px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .auth-dialog::backdrop { background: rgba(0, 35, 35, .72); }
 .auth-form { margin: 0; }
@@ -725,6 +745,8 @@ main {
 .recording-helper-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .upload-help-dialog { width: min(430px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .upload-help-dialog::backdrop { background: rgba(0, 35, 35, .68); }
+.qq-group-dialog { width: min(430px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
+.qq-group-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .keyboard-macro-dialog { width: min(680px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .keyboard-macro-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .section-guide-dialog { width: min(680px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
@@ -733,12 +755,14 @@ main {
 .macro-download-form { margin: 0; }
 .recording-helper-form { margin: 0; }
 .upload-help-form { margin: 0; }
+.qq-group-form { margin: 0; }
 .keyboard-macro-form { margin: 0; }
 .section-guide-form { margin: 0; }
 .score-export-dialog .window-titlebar { padding-right: 4px; }
 .macro-download-dialog .window-titlebar { padding-right: 4px; }
 .recording-helper-dialog .window-titlebar { padding-right: 4px; }
 .upload-help-dialog .window-titlebar { padding-right: 4px; }
+.qq-group-dialog .window-titlebar { padding-right: 4px; }
 .keyboard-macro-dialog .window-titlebar { padding-right: 4px; }
 .section-guide-dialog .window-titlebar { padding-right: 4px; }
 .dialog-close { width: 24px; height: 22px; padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); font: 700 16px/1 var(--mono); }
@@ -793,6 +817,15 @@ main {
 .upload-qr { display: grid; justify-items: center; gap: 7px; margin: 16px auto 0; }
 .upload-qr img { display: block; width: min(100%, 250px); height: auto; aspect-ratio: 903 / 948; object-fit: contain; background: var(--white); border: 3px inset var(--surface); }
 .upload-qr figcaption { color: var(--teal-dark); font: 700 10px var(--mono); text-align: center; }
+.qq-group-body { max-height: calc(100vh - 74px); padding: 20px; overflow: auto; }
+.qq-group-body h2 { margin: 10px 0 7px; font: 700 25px/1 var(--pixel); }
+.qq-group-body > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
+.qq-group-number { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; margin-top: 15px; padding: 11px 12px; color: var(--teal-dark); background: var(--surface-light); border: 2px inset var(--surface); text-align: left; }
+.qq-group-number:hover { color: var(--black); background: #d2e8e8; }
+.qq-group-number:active { border-style: inset; transform: translateY(1px); }
+.qq-group-number span { font: 700 10px/1.2 var(--mono); }
+.qq-group-number strong { color: var(--black); font: 700 19px/1 var(--mono); letter-spacing: .08em; }
+.qq-group-qr { margin-top: 14px; }
 .keyboard-macro-body { padding: 20px; }
 .keyboard-macro-body h2 { margin: 10px 0 7px; font: 700 23px/1 var(--pixel); }
 .keyboard-macro-body > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
@@ -859,6 +892,8 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .tutorial-layout { grid-template-columns: 1fr; }
   .library-deck { grid-template-columns: 1fr; }
   .library-deck-copy { padding: 3px 0 17px; border-right: 0; border-bottom: 2px groove var(--surface); }
+  .library-tabs { display: flex; width: max-content; max-width: 100%; }
+  .library-tab { flex: 1 1 auto; }
   .workbench { grid-template-columns: 1fr; grid-template-rows: auto; }
   .editor-panel { height: auto; max-height: none; overflow: visible; }
   .monitor-panel { height: auto; min-height: 430px; max-height: 720px; }
