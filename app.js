@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "1.1.0";
+const WEBSITE_VERSION = "1.0.3";
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
 const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";

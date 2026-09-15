@@ -10,7 +10,7 @@
 
 - 正式站点：[三角洲口琴演奏家](https://jiko-official.top/delta/)
 - 备用站点（可能需要网络工具）：[GitHub Pages](https://jikoschnee.github.io/delta-harmonica-macro/)
-- 网页版本：`1.1.0`（录制助手需使用前两位为 `1.0` 的版本）
+- 网页版本：`1.0.3`（录制助手需使用前两位为 `1.0` 的版本）
 - QQ 群：`1102489399`（[入群二维码](assets/qq-group-qr.jpeg)）
 
 ## 快速开始
