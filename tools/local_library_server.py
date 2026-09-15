@@ -588,6 +588,15 @@ def backfill_legacy_score_owners_for_known_account() -> None:
 
 
 def scores_owned_by(account_id: str) -> list[dict[str, Any]]:
+    # Existing sessions may survive a deployment, so do not rely only on
+    # startup or the verification-code flow to attach legacy Jiko submissions.
+    # The migration is idempotent and safe to repeat whenever the library is read.
+    with AUTH_LOCK, auth_database() as connection:
+        account = connection.execute(
+            "SELECT id, email, user_id FROM accounts WHERE id = ?",
+            (account_id,),
+        ).fetchone()
+    backfill_legacy_score_owners(account)
     with AUTH_LOCK, auth_database() as connection:
         owned_paths = {row["score_path"] for row in connection.execute("SELECT score_path FROM score_owners WHERE account_id = ?", (account_id,)).fetchall()}
     if not owned_paths:
