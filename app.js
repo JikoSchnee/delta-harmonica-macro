@@ -1,5 +1,7 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
 const WEBSITE_VERSION = "1.1.0";
+// 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
+const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
 const GITHUB_COMMITS_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?per_page=10`;
 const WEBSITE_UPDATE_METADATA_URL = "./version.json";
@@ -3346,7 +3348,9 @@ function setAuthStatus(target, message = "", success = false) {
 }
 
 function setOAuthProviders(providers = []) {
-  authState.providers = Array.isArray(providers) ? providers.filter((provider) => ["qq", "wechat"].includes(provider)) : [];
+  authState.providers = THIRD_PARTY_LOGIN_UI_ENABLED && Array.isArray(providers)
+    ? providers.filter((provider) => ["qq", "wechat"].includes(provider))
+    : [];
   const available = new Set(authState.providers);
   elements.oauthLoginButtons.forEach((button) => {
     button.hidden = !available.has(button.dataset.oauthProvider);
