@@ -50,6 +50,7 @@ LIBRARY_OUTPUT = REPOSITORY_ROOT / "data" / "community-songs.js"
 MAX_REQUEST_BYTES = 1_000_000
 MAX_ANALYTICS_REQUEST_BYTES = 25_000
 PUBLIC_UPLOAD_COOLDOWN_SECONDS = 30
+PUBLIC_EXPORT_COUNT_REFRESH_SECONDS = 10 * 60
 AUTH_CODE_TTL_SECONDS = 10 * 60
 AUTH_CODE_MAX_ATTEMPTS = 5
 AUTH_CODE_EMAIL_LIMIT = 5
@@ -71,6 +72,8 @@ LIBRARY_LOCK = threading.Lock()
 ANALYTICS_LOCK = threading.Lock()
 AUTH_LOCK = threading.Lock()
 HOT_RANKING_LOCK = threading.Lock()
+PUBLIC_EXPORT_COUNT_CACHE_LOCK = threading.Lock()
+PUBLIC_EXPORT_COUNT_CACHE: dict[int, tuple[float, dict[str, Any]]] = {}
 ANALYTICS_DIRECTORY = REPOSITORY_ROOT / "data" / "analytics"
 DEFAULT_ANALYTICS_RETENTION_DAYS = 90
 ACTIVE_VISITOR_WINDOW_SECONDS = 300
@@ -522,9 +525,26 @@ def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
 
 
 def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
-    """Return export totals from the persisted daily ranking, never live analytics."""
-    ranking = get_daily_hot_ranking(retention_days)
-    return {"rankingDate": ranking["rankingDate"], "generatedAt": ranking["generatedAt"], "scores": ranking["scores"]}
+    """Return export totals from a short-lived cache, independent of the daily hot ranking."""
+    safe_days = max(1, retention_days)
+    now = time.monotonic()
+    with PUBLIC_EXPORT_COUNT_CACHE_LOCK:
+        cached = PUBLIC_EXPORT_COUNT_CACHE.get(safe_days)
+        if cached and now - cached[0] < PUBLIC_EXPORT_COUNT_REFRESH_SECONDS:
+            return cached[1]
+
+    counts = score_export_counts_for_period(safe_days)
+    summary = {
+        "rankingDate": datetime.now().astimezone().date().isoformat(),
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "scores": [
+            {"scoreId": score_id, "exports": count, "rank": rank}
+            for rank, (score_id, count) in enumerate(sorted(counts.items(), key=lambda item: (-item[1], item[0])), start=1)
+        ],
+    }
+    with PUBLIC_EXPORT_COUNT_CACHE_LOCK:
+        PUBLIC_EXPORT_COUNT_CACHE[safe_days] = (time.monotonic(), summary)
+    return summary
 
 
 def hot_ranking_scheduler(retention_days: int, stop_event: threading.Event) -> None:
