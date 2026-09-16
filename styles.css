@@ -944,7 +944,7 @@ main {
 .recording-helper-independent > p { color: #6a3777; }
 .recording-helper-independent .helper-download-link { background: #8d5c99; border-color: #b281bb; border-bottom-color: #6a3777; }
 .recording-helper-independent .helper-download-link:hover { background: #754a80; border-bottom-color: #6a3777; }
-.helper-download-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; color: var(--white); background: var(--teal); border: 2px outset #4a908b; border-bottom-color: var(--teal-dark); text-decoration: none; font: 700 11px/1.25 var(--mono); }
+.helper-download-link { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 9px 10px; color: var(--white); background: var(--teal); border: 2px outset #4a908b; border-bottom-color: var(--teal-dark); text-align: left; text-decoration: none; font: 700 11px/1.25 var(--mono); }
 .helper-download-link:hover { background: #007070; border-bottom-color: var(--teal-dark); }
 .helper-download-link:active { border-style: inset; transform: translateY(1px); }
 .helper-download-link b { font: 700 15px/1 var(--mono); }

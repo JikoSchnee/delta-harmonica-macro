@@ -31,7 +31,7 @@ GitHub Pages 只能承载静态页面，无法发送验证码、保存会话或�
 
 `tools/local_library_server.py` 会对 HTML 和静态资源返回重新验证缓存头，对所有 `/api/` 响应使用 `no-store`，因此正式站点普通刷新即可获取新版本。GitHub Pages 无法由本项目控制响应头；修改 `index.html`、`app.js`、`styles.css` 或曲库数据后，请同步递增 `index.html` 底部脚本和样式链接中的 `?v=YYYYMMDD` 版本号。管理员账号按邮箱识别，当前管理员为 `274492469@qq.com`；管理员登录后可在曲库中维护「推荐」曲库。
 
-发布新网页版本时，请同步更新 `app.js`、`index.html`、`README.md` 和 `version.json` 中的版本号；`version.json` 还应填写更新标题、摘要和变更列表，供在线页面自动提示用户刷新。
+发布新网页版本时，请同步更新 `app.js`、`index.html`、`README.md` 和 `version.json` 中的版本号；`version.json` 还应填写更新标题、摘要和变更列表，供在线页面自动提示用户刷新。录制助手 ZIP 包必须使用 `HarmonicaRecorder-win-x64-v<助手版本>.zip` 命名，并同步更新网页下载链接和 `recording-helper/version.json` 的 `downloadUrl`。
 
 ## 公共服务配置
 
