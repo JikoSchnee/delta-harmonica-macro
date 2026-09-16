@@ -14,14 +14,17 @@ readonly WEBSITE_VERSION_FILE="$PROJECT_DIR/version.json"
 readonly DEPLOYED_WEBSITE_VERSION_URL="${DEPLOYED_WEBSITE_VERSION_URL:-https://jiko-official.top/delta/version.json}"
 
 BUMP_VERSION=""
+REDEPLOY=0
 
 usage() {
   cat <<'USAGE'
 用法：
   ./deploy.sh
+  ./deploy.sh --redeploy
   ./deploy.sh --bump-version <新版本号>
 
-部署前会比较本地 version.json 与正式站点版本；版本未更新或低于线上版本时会停止部署，并给出一键更新命令。
+部署前会比较本地 version.json 与正式站点版本；版本未更新或低于线上版本时会停止部署。
+如需不改版本号重复部署同一版本，可使用 --redeploy；该参数只允许本地与线上版本完全相同。
 USAGE
 }
 
@@ -33,6 +36,9 @@ fi
 if [[ "${1:-}" == "--bump-version" ]]; then
   [[ -n "${2:-}" && -z "${3:-}" ]] || { usage >&2; exit 2; }
   BUMP_VERSION="$2"
+elif [[ "${1:-}" == "--redeploy" ]]; then
+  [[ -z "${2:-}" ]] || { usage >&2; exit 2; }
+  REDEPLOY=1
 elif [[ $# -gt 0 ]]; then
   echo "未知参数：$1" >&2
   usage >&2
@@ -75,13 +81,13 @@ PY
 }
 
 bump_website_version() {
-  python3 - "$PROJECT_DIR/version.json" "$PROJECT_DIR/app.js" "$PROJECT_DIR/README.md" "$1" <<'PY'
+  python3 - "$PROJECT_DIR/version.json" "$PROJECT_DIR/app.js" "$PROJECT_DIR/README.md" "$PROJECT_DIR/index.html" "$1" <<'PY'
 import json
 import os
 import re
 import sys
 
-version_path, app_path, readme_path, new_version = sys.argv[1:]
+version_path, app_path, readme_path, index_path, new_version = sys.argv[1:]
 if not re.fullmatch(r"\d+\.\d+\.\d+", new_version):
     raise SystemExit("版本号必须是类似 2.0.0 的三段式数字版本号")
 
@@ -123,6 +129,18 @@ if replacements != 1:
     raise SystemExit("README.md 中没有找到网页版本说明")
 with open(readme_path, "w", encoding="utf-8") as handle:
     handle.write(readme)
+
+with open(index_path, encoding="utf-8") as handle:
+    index_source = handle.read()
+index_source, replacements = re.subn(
+    r"v\d+\.\d+\.\d+",
+    f"v{new_version}",
+    index_source,
+)
+if replacements < 1:
+    raise SystemExit("index.html 中没有找到网页版本标记")
+with open(index_path, "w", encoding="utf-8") as handle:
+    handle.write(index_source)
 PY
 }
 
@@ -152,13 +170,17 @@ if [[ ! "$LOCAL_WEBSITE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$REMOTE_WEBSI
   exit 1
 fi
 if ! version_is_newer "$LOCAL_WEBSITE_VERSION" "$REMOTE_WEBSITE_VERSION"; then
-  NEXT_WEBSITE_VERSION="$(next_patch_version "$REMOTE_WEBSITE_VERSION")"
-  echo "本地网页版本未更新或低于正式站点版本，已停止部署。" >&2
-  echo "正式站点当前版本：v$REMOTE_WEBSITE_VERSION" >&2
-  echo "本地待部署版本：v$LOCAL_WEBSITE_VERSION" >&2
-  echo "一键更新并重新部署：" >&2
-  echo "  ./deploy.sh --bump-version $NEXT_WEBSITE_VERSION && ./deploy.sh" >&2
-  exit 1
+  if (( REDEPLOY )) && [[ "$LOCAL_WEBSITE_VERSION" == "$REMOTE_WEBSITE_VERSION" ]]; then
+    echo "允许同版本重新部署：正式站点 v$REMOTE_WEBSITE_VERSION → 本地 v$LOCAL_WEBSITE_VERSION"
+  else
+    NEXT_WEBSITE_VERSION="$(next_patch_version "$REMOTE_WEBSITE_VERSION")"
+    echo "本地网页版本未更新或低于正式站点版本，已停止部署。" >&2
+    echo "正式站点当前版本：v$REMOTE_WEBSITE_VERSION" >&2
+    echo "本地待部署版本：v$LOCAL_WEBSITE_VERSION" >&2
+    echo "一键更新并重新部署：" >&2
+    echo "  ./deploy.sh --bump-version $NEXT_WEBSITE_VERSION && ./deploy.sh" >&2
+    exit 1
+  fi
 fi
 echo "版本检查通过：正式站点 v$REMOTE_WEBSITE_VERSION → 本地 v$LOCAL_WEBSITE_VERSION"
 
