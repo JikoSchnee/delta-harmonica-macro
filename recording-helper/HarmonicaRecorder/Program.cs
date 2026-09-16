@@ -287,7 +287,12 @@ internal sealed class RecorderForm : Form
             if (!Uri.TryCreate(manifest.DownloadUrl, UriKind.Absolute, out var downloadUri) || downloadUri.Scheme != Uri.UriSchemeHttps || string.IsNullOrWhiteSpace(manifest.Sha256)) return;
 
             var choice = MessageBox.Show(this, $"发现录制助手新版本 v{manifest.Version}。\n当前版本：v{PlaybackRequest.HelperVersion}\n\n是否下载并覆盖更新？", "发现新版本", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-            if (choice == DialogResult.Yes) await DownloadAndInstallUpdateAsync(manifest, downloadUri);
+            if (choice == DialogResult.Yes)
+            {
+                var currentExecutable = Application.ExecutablePath;
+                if (!ConfirmUpdatePreflight(currentExecutable)) return;
+                await DownloadAndInstallUpdateAsync(manifest, downloadUri);
+            }
         }
         catch (Exception)
         {
@@ -362,10 +367,28 @@ internal sealed class RecorderForm : Form
             if (!File.Exists(newExecutable)) throw new FileNotFoundException("更新包中没有找到 HarmonicaRecorder.exe。", newExecutable);
 
             var currentExecutable = Application.ExecutablePath;
-            var scriptPath = Path.Combine(updateRoot, "update.cmd");
-            var script = $"@echo off\r\nset \"APP_PID={Environment.ProcessId}\"\r\n:wait\r\ntasklist /FI \"PID eq %APP_PID%\" | find \"%APP_PID%\" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto wait\r\n)\r\ncopy /Y \"{newExecutable}\" \"{currentExecutable}\" >nul\r\nstart \"\" \"{currentExecutable}\" --update-complete\r\ndel \"%~f0\"\r\n";
-            await File.WriteAllTextAsync(scriptPath, script, Encoding.Default);
-            Process.Start(new ProcessStartInfo { FileName = scriptPath, UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
+            var scriptPath = Path.Combine(updateRoot, "update.ps1");
+            await File.WriteAllTextAsync(scriptPath, BuildUpdateScript(), new UTF8Encoding(encoderShouldEmitUTF8Identifier: true));
+            var updater = new ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+            updater.ArgumentList.Add("-NoProfile");
+            updater.ArgumentList.Add("-ExecutionPolicy");
+            updater.ArgumentList.Add("Bypass");
+            updater.ArgumentList.Add("-File");
+            updater.ArgumentList.Add(scriptPath);
+            updater.ArgumentList.Add("-ProcessId");
+            updater.ArgumentList.Add(Environment.ProcessId.ToString());
+            updater.ArgumentList.Add("-SourcePath");
+            updater.ArgumentList.Add(newExecutable);
+            updater.ArgumentList.Add("-TargetPath");
+            updater.ArgumentList.Add(currentExecutable);
+            updater.ArgumentList.Add("-ExpectedVersion");
+            updater.ArgumentList.Add(manifest.Version);
+            Process.Start(updater);
             progressBar.Value = 100;
             remainingLabel.Text = "100%";
             statusLabel.Text = "更新已下载，正在覆盖安装并重启…";
@@ -377,6 +400,197 @@ internal sealed class RecorderForm : Form
             statusLabel.Text = "更新失败，当前版本仍可继续使用。";
             MessageBox.Show(this, $"自动更新失败：{error.Message}\n\n请从网页重新下载最新版助手。", "更新失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    private bool ConfirmUpdatePreflight(string currentExecutable)
+    {
+        var blockingIssues = new List<string>();
+        var warnings = new List<string>();
+        var otherInstances = FindOtherHelperInstances(currentExecutable);
+        if (otherInstances.Count > 0)
+        {
+            var processLabel = otherInstances.Count == 1 ? "1 个" : $"{otherInstances.Count} 个";
+            blockingIssues.Add($"检测到同一安装目录还有 {processLabel} HarmonicaRecorder.exe 进程运行。\n请先关闭其他助手窗口后再更新。\n\n这会导致旧 EXE 仍被占用，覆盖安装无法完成。");
+        }
+
+        var targetDirectory = Path.GetDirectoryName(currentExecutable);
+        if (string.IsNullOrWhiteSpace(targetDirectory))
+        {
+            blockingIssues.Add("无法确定助手所在目录，暂时不能安全更新。");
+        }
+        else
+        {
+            if (IsProtectedInstallDirectory(targetDirectory))
+            {
+                blockingIssues.Add($"助手位于受保护目录：\n{targetDirectory}\n\nProgram Files 或 Windows 目录通常不允许普通用户直接覆盖 EXE。请把助手移动到“文档”等可写目录后，再运行 Install.cmd。");
+            }
+            else if (!CanWriteToDirectory(targetDirectory))
+            {
+                blockingIssues.Add($"当前账号没有权限写入助手目录：\n{targetDirectory}\n\n请将助手移动到有写权限的目录，或检查文件夹安全权限。");
+            }
+
+            var specialCharacters = FindCommandSpecialCharacters(currentExecutable);
+            if (specialCharacters.Length > 0)
+            {
+                warnings.Add($"检测到安装路径包含命令特殊字符：{specialCharacters}\n本次将使用安全的字面量路径更新方式；如果仍失败，建议移动到不含这些字符的目录。");
+            }
+        }
+
+        if (blockingIssues.Count > 0)
+        {
+            MessageBox.Show(this, string.Join("\n\n", blockingIssues), "无法开始自动更新", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+
+        if (warnings.Count > 0)
+        {
+            var choice = MessageBox.Show(this, string.Join("\n\n", warnings) + "\n\n是否继续更新？", "更新路径检查", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+            return choice == DialogResult.Yes;
+        }
+
+        return true;
+    }
+
+    private static List<int> FindOtherHelperInstances(string currentExecutable)
+    {
+        var currentPath = NormalizePath(currentExecutable);
+        var processName = Path.GetFileNameWithoutExtension(currentExecutable);
+        var matches = new List<int>();
+        foreach (var process in Process.GetProcessesByName(processName))
+        {
+            try
+            {
+                if (process.Id == Environment.ProcessId) continue;
+                var processPath = process.MainModule?.FileName;
+                if (string.IsNullOrWhiteSpace(processPath) || string.Equals(NormalizePath(processPath), currentPath, StringComparison.OrdinalIgnoreCase)) matches.Add(process.Id);
+            }
+            catch (Exception)
+            {
+                // An inaccessible same-named process may still be holding the EXE.
+                matches.Add(process.Id);
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+
+        return matches;
+    }
+
+    private static bool CanWriteToDirectory(string directory)
+    {
+        var probePath = Path.Combine(directory, $".harmonica-recorder-write-test-{Guid.NewGuid():N}.tmp");
+        try
+        {
+            using (new FileStream(probePath, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.SequentialScan)) { }
+            File.Delete(probePath);
+            return true;
+        }
+        catch (Exception) when (File.Exists(probePath))
+        {
+            try { File.Delete(probePath); } catch { }
+            return false;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsProtectedInstallDirectory(string directory)
+    {
+        var protectedDirectories = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86),
+            Environment.GetFolderPath(Environment.SpecialFolder.Windows)
+        };
+        return protectedDirectories.Any(path => !string.IsNullOrWhiteSpace(path) && IsPathWithin(directory, path));
+    }
+
+    private static bool IsPathWithin(string path, string parent)
+    {
+        var normalizedPath = NormalizePath(path);
+        var normalizedParent = NormalizePath(parent);
+        return string.Equals(normalizedPath, normalizedParent, StringComparison.OrdinalIgnoreCase)
+            || normalizedPath.StartsWith(normalizedParent + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string FindCommandSpecialCharacters(string path)
+    {
+        return new string(path.Where(character => character is '%' or '!' or '&' or '^' or '(' or ')').Distinct().ToArray());
+    }
+
+    private static string NormalizePath(string path)
+    {
+        return Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
+
+    private static string BuildUpdateScript()
+    {
+        return """
+param(
+    [Parameter(Mandatory = $true)][int]$ProcessId,
+    [Parameter(Mandatory = $true)][string]$SourcePath,
+    [Parameter(Mandatory = $true)][string]$TargetPath,
+    [Parameter(Mandatory = $true)][string]$ExpectedVersion
+)
+
+$ErrorActionPreference = 'Stop'
+$maxAttempts = 20
+$attempt = 0
+
+function Show-UpdateFailure([string]$Details) {
+    $message = "自动更新失败。`n`n可能原因：`n· 还有其他 HarmonicaRecorder 窗口或进程运行；`n· 安装目录没有写权限；`n· Windows Defender 或杀毒软件暂时锁定了文件。`n`n请关闭所有助手窗口，确认目录可写；如果仍失败，请把助手移动到“文档”等普通目录后重试。`n`n详细信息：$Details"
+    try {
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show($message, 'Harmonica Recorder 更新失败', [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Warning) | Out-Null
+    } catch {
+        Write-Error $message
+    }
+}
+
+try {
+    while (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue) {
+        Start-Sleep -Milliseconds 250
+    }
+
+    $targetFullPath = [IO.Path]::GetFullPath($TargetPath)
+    $processName = [IO.Path]::GetFileNameWithoutExtension($TargetPath)
+    $conflicts = @(Get-Process -Name $processName -ErrorAction SilentlyContinue | Where-Object {
+        if ($_.Id -eq $ProcessId) { return $false }
+        try { return [string]::Equals([IO.Path]::GetFullPath($_.Path), $targetFullPath, [StringComparison]::OrdinalIgnoreCase) }
+        catch { return $true }
+    })
+    if ($conflicts.Count -gt 0) { throw "检测到其他 HarmonicaRecorder 进程仍在运行。" }
+
+    do {
+        try {
+            Copy-Item -LiteralPath $SourcePath -Destination $TargetPath -Force -ErrorAction Stop
+            $attempt = $maxAttempts
+        } catch {
+            $attempt++
+            if ($attempt -ge $maxAttempts) { throw }
+            Start-Sleep -Milliseconds 750
+        }
+    } while ($attempt -lt $maxAttempts)
+
+    if (-not (Test-Path -LiteralPath $TargetPath -PathType Leaf)) { throw '覆盖后没有找到 HarmonicaRecorder.exe。' }
+    $actualVersion = [version](Get-Item -LiteralPath $TargetPath).VersionInfo.FileVersion
+    if ($actualVersion -lt [version]$ExpectedVersion) { throw "覆盖后的助手版本仍为 $actualVersion，期望至少为 $ExpectedVersion。" }
+    Start-Process -FilePath $TargetPath -ArgumentList '--update-complete'
+} catch {
+    Show-UpdateFailure $_.Exception.Message
+    try { Start-Process -FilePath $TargetPath } catch { }
+}
+
+try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction SilentlyContinue } catch { }
+""";
     }
 
     private void PrepareUpdateProgress(string version)
