@@ -10,7 +10,7 @@
 
 - 正式站点：[三角洲口琴演奏家](https://jiko-official.top/delta/)
 - 备用站点（可能需要网络工具）：[GitHub Pages](https://jikoschnee.github.io/delta-harmonica-macro/)
-- 网页版本：`2.0.0`（录制助手兼容范围以 `recording-helper/version.json` 为准）
+- 网页版本：`2.0.0`（录制助手启动时会自动检查更新）
 - QQ 群：`1102489399`（[入群二维码](assets/qq-group-qr.jpeg)）
 
 ## 快速开始
@@ -53,7 +53,18 @@
 - **ROG Armoury Crate**：导入 `.gmac` 后，在 Macro 页面绑定到支持宏功能的设备按键。
 - **录制助手**：下载 Windows 宏录制助手后，先在目标宏软件中打开录制，再在助手中点击开始按钮并等待录制完毕。录制期间不要进行操作，鼠标焦点应始终停留在助手上；完成后停止并保存宏，删除开头点击开始按钮产生的一次鼠标按下/放开。助手启动时会检查更新，发现新版后可确认下载、校验并覆盖更新。GitHub 下载速度更快，无法下载时可使用服务器下载。
 
-迈从录制若无法捕获助手输入，请在助手的「输入兼容模式」中选择「迈从兼容 · SendInput 扫描码」；旧版助手没有该选项时选择「标准 SendInput · 通用软件」。
+如果目标宏软件或迈从录制无法捕获助手输入，请在助手的「输入兼容模式」中逐项测试。当前助手提供以下 8 种 Windows 内置模拟输入组合：
+
+- 默认兼容：`keybd_event` 扫描码 + `mouse_event`
+- 兼容虚拟键：`keybd_event` 虚拟键 + `mouse_event`
+- 标准 SendInput：`SendInput` 虚拟键 + `SendInput` 鼠标
+- 迈从兼容：`SendInput` 扫描码 + `SendInput` 鼠标
+- 混合 A：`keybd_event` 扫描码 + `SendInput` 鼠标
+- 混合 B：`keybd_event` 虚拟键 + `SendInput` 鼠标
+- 混合 C：`SendInput` 虚拟键 + `mouse_event`
+- 混合 D：`SendInput` 扫描码 + `mouse_event`
+
+建议使用短谱按顺序测试；每次切换方案后重新点击「开始录制」。这些方案都是 Windows 标准用户态输入 API，若目标程序使用驱动级拦截，仍可能无法捕获。
 
 不同驱动版本和设备对宏事件的支持可能不同。若导入失败，请从该驱动导出一个最小单键宏作对照。
 
