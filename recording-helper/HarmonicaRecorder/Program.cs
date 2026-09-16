@@ -15,7 +15,8 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
         var request = PlaybackRequest.FromProtocolArgument(args.FirstOrDefault());
-        Application.Run(new RecorderForm(request));
+        var updateCompleted = args.Any(argument => string.Equals(argument, "--update-complete", StringComparison.OrdinalIgnoreCase));
+        Application.Run(new RecorderForm(request, updateCompleted));
     }
 }
 
@@ -143,6 +144,7 @@ internal sealed class RecorderForm : Form
     private const int HotKeyId = 1;
     private const int WmHotKey = 0x0312;
     private readonly PlaybackRequest? request;
+    private readonly bool updateCompleted;
     private readonly Label titleLabel = new();
     private readonly Label detailsLabel = new();
     private readonly Label statusLabel = new();
@@ -164,9 +166,10 @@ internal sealed class RecorderForm : Form
     private bool hotKeyRegistered;
     private long lastProgressReport = -1;
 
-    public RecorderForm(PlaybackRequest? request)
+    public RecorderForm(PlaybackRequest? request, bool updateCompleted = false)
     {
         this.request = request;
+        this.updateCompleted = updateCompleted;
         Text = "Harmonica Recorder";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         MaximizeBox = false;
@@ -199,14 +202,13 @@ internal sealed class RecorderForm : Form
         activeHotKey = EmergencyStopHotKeySettings.Load() ?? HotKeyOption.Default;
         hotKeyBox.Text = activeHotKey.DisplayName;
         inputModeLabel.SetBounds(22, 247, 184, 27);
-        inputModeLabel.Text = "输入兼容模式";
+        inputModeLabel.Text = "输入兼容模式（可逐项测试）";
         inputModeLabel.TextAlign = ContentAlignment.MiddleLeft;
         inputModeBox.SetBounds(208, 244, 280, 29);
         inputModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
         inputModeBox.FlatStyle = FlatStyle.Flat;
-        inputModeBox.Items.Add(InputInjectionMode.Default);
-        inputModeBox.Items.Add(InputInjectionMode.MchoseCompatible);
-        inputModeBox.Items.Add(InputInjectionMode.StandardSendInput);
+        inputModeBox.DropDownWidth = 420;
+        inputModeBox.Items.AddRange(InputInjectionMode.All);
         activeInputMode = InputInjectionMode.Default;
         inputModeBox.SelectedItem = activeInputMode;
         progressLabel.SetBounds(22, 280, 184, 27);
@@ -239,6 +241,7 @@ internal sealed class RecorderForm : Form
         inputModeBox.SelectedIndexChanged += (_, _) => UpdateInputMode();
         FormClosing += (_, _) => StopPlayback("正在退出。");
         Shown += async (_, _) => await CheckForUpdatesAsync();
+        if (updateCompleted) Shown += (_, _) => ShowUpdateCompletedNotice();
 
         if (request is null)
         {
@@ -290,6 +293,16 @@ internal sealed class RecorderForm : Form
         {
             // Update checks are best-effort and must not prevent recording when offline.
         }
+    }
+
+    private void ShowUpdateCompletedNotice()
+    {
+        statusLabel.Text = $"更新完成。当前版本：v{PlaybackRequest.HelperVersion}，新版本已经启动，可以继续使用。";
+        MessageBox.Show(this,
+            $"录制助手已更新完成。\n当前版本：v{PlaybackRequest.HelperVersion}\n\n新版本已经启动，可以继续使用。",
+            "更新完成",
+            MessageBoxButtons.OK,
+            MessageBoxIcon.Information);
     }
 
     private async Task DownloadAndInstallUpdateAsync(RecorderUpdateManifest manifest, Uri downloadUri)
@@ -350,7 +363,7 @@ internal sealed class RecorderForm : Form
 
             var currentExecutable = Application.ExecutablePath;
             var scriptPath = Path.Combine(updateRoot, "update.cmd");
-            var script = $"@echo off\r\nset \"APP_PID={Environment.ProcessId}\"\r\n:wait\r\ntasklist /FI \"PID eq %APP_PID%\" | find \"%APP_PID%\" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto wait\r\n)\r\ncopy /Y \"{newExecutable}\" \"{currentExecutable}\" >nul\r\nstart \"\" \"{currentExecutable}\"\r\ndel \"%~f0\"\r\n";
+            var script = $"@echo off\r\nset \"APP_PID={Environment.ProcessId}\"\r\n:wait\r\ntasklist /FI \"PID eq %APP_PID%\" | find \"%APP_PID%\" >nul\r\nif not errorlevel 1 (\r\n  timeout /t 1 /nobreak >nul\r\n  goto wait\r\n)\r\ncopy /Y \"{newExecutable}\" \"{currentExecutable}\" >nul\r\nstart \"\" \"{currentExecutable}\" --update-complete\r\ndel \"%~f0\"\r\n";
             await File.WriteAllTextAsync(scriptPath, script, Encoding.Default);
             Process.Start(new ProcessStartInfo { FileName = scriptPath, UseShellExecute = true, WindowStyle = ProcessWindowStyle.Hidden });
             progressBar.Value = 100;
@@ -445,7 +458,7 @@ internal sealed class RecorderForm : Form
     {
         if (inputModeBox.SelectedItem is not InputInjectionMode selectedInputMode) return;
         activeInputMode = selectedInputMode;
-        if (cancellation is null) statusLabel.Text = $"已选择 {activeInputMode.DisplayName}。迈从录制请使用“迈从兼容”。";
+        if (cancellation is null) statusLabel.Text = $"已选择：{activeInputMode.DisplayName}\n{activeInputMode.Description}";
     }
 
     private async Task StartPlaybackAsync()
@@ -462,7 +475,7 @@ internal sealed class RecorderForm : Form
         remainingLabel.Text = $"剩余 {FormatDuration(request.TotalDurationMs)}";
         try
         {
-            statusLabel.Text = $"正在录制… 请勿操作鼠标或键盘，并保持鼠标焦点在本助手。\n紧急停止：{activeHotKey.DisplayName}";
+            statusLabel.Text = $"正在录制… {activePlaybackInputMode.DisplayName}\n请勿操作鼠标或键盘，并保持鼠标焦点在本助手。紧急停止：{activeHotKey.DisplayName}";
             await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode, ReportPlaybackProgress), cancellation.Token);
             if (!cancellation.IsCancellationRequested)
             {
@@ -615,11 +628,85 @@ internal sealed record HotKeyOption(string DisplayName, uint Modifiers, uint Vir
     public override string ToString() => DisplayName;
 }
 
-internal sealed record InputInjectionMode(string DisplayName, bool UseLegacyScanCodeEvents, bool UseScanCodeSendInput = false)
+internal enum KeyboardInjectionMode
 {
-    internal static readonly InputInjectionMode Default = new("默认模式", true);
-    internal static readonly InputInjectionMode MchoseCompatible = new("迈从兼容 · SendInput 扫描码", false, true);
-    internal static readonly InputInjectionMode StandardSendInput = new("标准 SendInput · 通用软件", false);
+    LegacyScanCode,
+    LegacyVirtualKey,
+    SendInputVirtualKey,
+    SendInputScanCode
+}
+
+internal enum MouseInjectionMode
+{
+    LegacyMouseEvent,
+    SendInput
+}
+
+internal sealed record InputInjectionMode(
+    string DisplayName,
+    string Description,
+    KeyboardInjectionMode KeyboardMode,
+    MouseInjectionMode MouseMode)
+{
+    internal static readonly InputInjectionMode Default = new(
+        "默认兼容 · keybd_event 扫描码 + mouse_event",
+        "旧式扫描码键盘 + 旧式鼠标事件；建议先从这里开始。",
+        KeyboardInjectionMode.LegacyScanCode,
+        MouseInjectionMode.LegacyMouseEvent);
+
+    internal static readonly InputInjectionMode LegacyVirtualKey = new(
+        "兼容虚拟键 · keybd_event 虚拟键 + mouse_event",
+        "旧式虚拟键键盘 + 旧式鼠标事件；适合只识别虚拟键的录制器。",
+        KeyboardInjectionMode.LegacyVirtualKey,
+        MouseInjectionMode.LegacyMouseEvent);
+
+    internal static readonly InputInjectionMode StandardSendInput = new(
+        "标准 SendInput · 虚拟键 + SendInput 鼠标",
+        "现代虚拟键键盘 + 现代鼠标事件；适合大多数通用宏软件。",
+        KeyboardInjectionMode.SendInputVirtualKey,
+        MouseInjectionMode.SendInput);
+
+    internal static readonly InputInjectionMode MchoseCompatible = new(
+        "迈从兼容 · SendInput 扫描码 + 鼠标",
+        "现代扫描码键盘 + 现代鼠标事件；迈从可优先尝试。",
+        KeyboardInjectionMode.SendInputScanCode,
+        MouseInjectionMode.SendInput);
+
+    internal static readonly InputInjectionMode LegacyKeyboardSendInputMouse = new(
+        "混合 A · keybd_event 扫描码 + SendInput 鼠标",
+        "旧式扫描码键盘 + 现代鼠标事件；用于拆开排查键盘或鼠标捕获。",
+        KeyboardInjectionMode.LegacyScanCode,
+        MouseInjectionMode.SendInput);
+
+    internal static readonly InputInjectionMode LegacyVirtualKeySendInputMouse = new(
+        "混合 B · keybd_event 虚拟键 + SendInput 鼠标",
+        "旧式虚拟键键盘 + 现代鼠标事件；用于拆开排查键盘或鼠标捕获。",
+        KeyboardInjectionMode.LegacyVirtualKey,
+        MouseInjectionMode.SendInput);
+
+    internal static readonly InputInjectionMode SendInputKeyboardLegacyMouse = new(
+        "混合 C · SendInput 虚拟键 + mouse_event",
+        "现代虚拟键键盘 + 旧式鼠标事件；兼容只抓取传统鼠标事件的录制器。",
+        KeyboardInjectionMode.SendInputVirtualKey,
+        MouseInjectionMode.LegacyMouseEvent);
+
+    internal static readonly InputInjectionMode SendInputScanCodeLegacyMouse = new(
+        "混合 D · SendInput 扫描码 + mouse_event",
+        "现代扫描码键盘 + 旧式鼠标事件；迈从仍无响应时可尝试。",
+        KeyboardInjectionMode.SendInputScanCode,
+        MouseInjectionMode.LegacyMouseEvent);
+
+    internal static readonly InputInjectionMode[] All =
+    [
+        Default,
+        LegacyVirtualKey,
+        StandardSendInput,
+        MchoseCompatible,
+        LegacyKeyboardSendInputMouse,
+        LegacyVirtualKeySendInputMouse,
+        SendInputKeyboardLegacyMouse,
+        SendInputScanCodeLegacyMouse
+    ];
 
     public override string ToString() => DisplayName;
 }
@@ -731,23 +818,30 @@ internal static class NativeInput
             "b" => (0x42, 48), "n" => (0x4E, 49), "m" => (0x4D, 50), "," => (0xBC, 51),
             _ => throw new ArgumentOutOfRangeException(nameof(key))
         };
-        if (inputMode.UseLegacyScanCodeEvents)
+        var flags = down ? 0u : KeyUp;
+        switch (inputMode.KeyboardMode)
         {
-            keybd_event(0, (byte)scanCode, KeyScanCode | (down ? 0 : KeyUp), UIntPtr.Zero);
-            return;
+            case KeyboardInjectionMode.LegacyScanCode:
+                keybd_event(0, (byte)scanCode, KeyScanCode | flags, UIntPtr.Zero);
+                return;
+            case KeyboardInjectionMode.LegacyVirtualKey:
+                keybd_event((byte)virtualKey, 0, flags, UIntPtr.Zero);
+                return;
+            case KeyboardInjectionMode.SendInputScanCode:
+                Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = 0, ScanCode = (ushort)scanCode, Flags = KeyScanCode | flags } } }]);
+                return;
+            case KeyboardInjectionMode.SendInputVirtualKey:
+                Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = (ushort)virtualKey, Flags = flags } } }]);
+                return;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(inputMode.KeyboardMode));
         }
-        if (inputMode.UseScanCodeSendInput)
-        {
-            Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = 0, ScanCode = (ushort)scanCode, Flags = KeyScanCode | (down ? 0 : KeyUp) } } }]);
-            return;
-        }
-        Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = (ushort)virtualKey, Flags = down ? 0 : KeyUp } } }]);
     }
 
     internal static void Mouse(char modifier, bool down, InputInjectionMode inputMode)
     {
         var flag = modifier switch { 'L' => down ? LeftDown : LeftUp, 'M' => down ? MiddleDown : MiddleUp, 'R' => down ? RightDown : RightUp, _ => throw new ArgumentOutOfRangeException(nameof(modifier)) };
-        if (inputMode.UseLegacyScanCodeEvents)
+        if (inputMode.MouseMode == MouseInjectionMode.LegacyMouseEvent)
         {
             mouse_event(flag, 0, 0, 0, UIntPtr.Zero);
             return;
@@ -757,7 +851,12 @@ internal static class NativeInput
 
     private static void Send(INPUT[] inputs)
     {
-        if (SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>()) != (uint)inputs.Length) throw new InvalidOperationException("Windows 拒绝了模拟输入。");
+        var sent = SendInput((uint)inputs.Length, inputs, Marshal.SizeOf<INPUT>());
+        if (sent != (uint)inputs.Length)
+        {
+            var error = Marshal.GetLastWin32Error();
+            throw new InvalidOperationException($"Windows 拒绝了模拟输入（错误码 {error}）。");
+        }
     }
 
     [StructLayout(LayoutKind.Sequential)]

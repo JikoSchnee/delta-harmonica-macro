@@ -11,7 +11,16 @@ Emergency stop: Ctrl + Alt + End by default. Click the shortcut field and press 
 Version compatibility: the webpage reads the current helper release lines from recording-helper/version.json. Web and helper versions are maintained independently. QQ feedback group: 1102489399.
 The helper checks the update manifest at startup. If a newer version is available, you can confirm the download; the package is hash-checked and the helper restarts after replacing itself.
 
-For general recording, use the default mode. For MCHOSE recording, select “MCHOSE compatible · SendInput scan code”; this sends keyboard scan codes through the modern SendInput API, which is more likely to be captured by MCHOSE. If an older helper does not show this option, select “Standard SendInput” as a fallback. Use “Standard SendInput” for other recorders if needed.
+The “Input compatibility mode” menu contains eight Windows built-in input combinations. Test them with a short score when the target recorder does not react:
+1. Default compatibility: keybd_event scan code + mouse_event.
+2. Compatibility virtual key: keybd_event virtual key + mouse_event.
+3. Standard SendInput: SendInput virtual key + SendInput mouse.
+4. MCHOSE compatibility: SendInput scan code + SendInput mouse.
+5. Hybrid A: keybd_event scan code + SendInput mouse.
+6. Hybrid B: keybd_event virtual key + SendInput mouse.
+7. Hybrid C: SendInput virtual key + mouse_event.
+8. Hybrid D: SendInput scan code + mouse_event.
+After changing the mode, click Start again. For MCHOSE, try mode 4 first, then the remaining modes in order. These are all standard user-mode Windows input APIs; software that uses driver-level interception may still ignore them.
 
 This program only uses standard Windows keyboard and left/middle/right mouse simulation APIs.
 Some target applications may ignore synthetic input. Do not use it in a focused game window.
