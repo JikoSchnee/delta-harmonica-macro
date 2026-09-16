@@ -392,6 +392,73 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     return exports
 
 
+def yesterday_export_ranking() -> list[dict[str, Any]]:
+    """Return unique-actor score exports for the previous local calendar day."""
+    target_date = datetime.now().astimezone().date() - timedelta(days=1)
+    exports: Counter[str] = Counter()
+    seen: set[tuple[str, str]] = set()
+    if not ANALYTICS_DIRECTORY.exists():
+        return []
+    for path in ANALYTICS_DIRECTORY.glob("events-*.ndjson"):
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        for line in lines:
+            try:
+                item = json.loads(line)
+                recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
+            except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if recorded_at.astimezone().date() != target_date or item.get("event") not in SCORE_EXPORT_EVENTS:
+                continue
+            properties = item.get("properties")
+            score_id = properties.get("score_id") if isinstance(properties, dict) else None
+            actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session")
+            if not isinstance(score_id, str) or not ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id) or not isinstance(actor, str):
+                continue
+            export_key = (score_id, actor)
+            if export_key not in seen:
+                seen.add(export_key)
+                exports[score_id] += 1
+    ordered = sorted(exports.items(), key=lambda item: (-item[1], item[0]))[:10]
+    return [{"rank": rank, "scoreId": score_id, "exports": count} for rank, (score_id, count) in enumerate(ordered, start=1)]
+
+
+def contribution_ranking(auth_enabled: bool) -> list[dict[str, Any]]:
+    """Count each account's currently published, owned community scores."""
+    if not auth_enabled:
+        return []
+    public_paths = {
+        str(path.relative_to(REPOSITORY_ROOT))
+        for path, _ in read_scores()
+        if is_canonical_source(path)
+    }
+    if not public_paths:
+        return []
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT accounts.user_id AS user_id, score_owners.score_path AS score_path "
+            "FROM score_owners JOIN accounts ON accounts.id = score_owners.account_id"
+        ).fetchall()
+    counts: Counter[str] = Counter(
+        str(row["user_id"]) for row in rows if str(row["score_path"]) in public_paths
+    )
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0].casefold(), item[0]))
+    return [{"rank": rank, "userId": user_id, "contributions": count} for rank, (user_id, count) in enumerate(ordered, start=1)]
+
+
+def build_public_rankings(auth_enabled: bool) -> dict[str, Any]:
+    """Build the privacy-safe rankings consumed by the public homepage."""
+    yesterday = datetime.now().astimezone().date() - timedelta(days=1)
+    return {
+        "rankingDate": yesterday.isoformat(),
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "contributions": contribution_ranking(auth_enabled),
+        "yesterdayExports": yesterday_export_ranking(),
+    }
+
+
 def hot_ranking_database() -> sqlite3.Connection:
     HOT_RANKING_DATABASE.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(HOT_RANKING_DATABASE)
@@ -1523,6 +1590,12 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
                 return
             self.send_json(HTTPStatus.OK, build_public_score_export_summary(self.server.analytics_retention_days))
+            return
+        if path == "/api/public-rankings":
+            if not self.server.analytics_enabled:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
+                return
+            self.send_json(HTTPStatus.OK, build_public_rankings(self.server.auth_enabled))
             return
         if path == "/api/admin/analytics":
             if not self.server.analytics_enabled:

@@ -64,7 +64,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261002" />
+    <link rel="stylesheet" href="./styles.css?v=20261004" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.1.3</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.1.5</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -112,21 +112,47 @@
         <div class="notice warning disclaimer"><span>!</span><p><strong id="disclaimerTitle">免责声明</strong> 本项目仅提供用于鼠标软件的宏脚本与配置文件生成、导出功能，不提供外挂、注入、改包或游戏内操作服务。请在使用前确认目标游戏、平台及服务器规则是否允许鼠标宏；因使用宏引起的封号、限制、处罚、数据损失或其他后果，均由使用者自行承担，与本项目及维护者无关。</p></div>
       </section>
 
-      <section class="tutorial-deck panel" aria-labelledby="featuredTutorialTitle">
-        <div class="window-titlebar"><span>VIDEO_GUIDE.EXE — FEATURED TUTORIAL</span></div>
-        <div class="tutorial-deck-content">
-          <div><span class="index">00 · FEATURED VIDEO</span><h2 id="featuredTutorialTitle">贝加尔湖畔一键自动演奏</h2><p>长弓吟游诗人 · 三角洲口琴演奏教程</p></div>
-          <a class="tutorial-video-link" href="https://v.douyin.com/mSGVHl9rimc/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
-        </div>
-        <div class="tutorial-deck-content tutorial-deck-content--inline" aria-labelledby="jianpuTutorialTitle">
-          <div><span class="index">01 · JIANPU TUTORIAL</span><h2 id="jianpuTutorialTitle">简谱编辑器教学</h2><p>数字简谱输入与软键盘使用教学</p></div>
-          <a class="tutorial-video-link" href="https://v.douyin.com/CxDLAfpTU3c/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
-        </div>
-        <div class="tutorial-deck-content tutorial-deck-content--inline tutorial-deck-content--macro" aria-labelledby="macroTutorialTitle">
-          <div><span class="index">02 · MACRO EXPORT TUTORIAL</span><h2 id="macroTutorialTitle">通用宏录制导出教程</h2><p>从当前曲谱导出到目标宏软件的完整流程</p></div>
-          <a class="tutorial-video-link" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
-        </div>
-      </section>
+      <div class="tutorial-rankings-row">
+        <section class="tutorial-deck panel" aria-labelledby="tutorialTitle">
+          <div class="window-titlebar"><span>VIDEO_GUIDE.EXE — FEATURED TUTORIAL</span></div>
+          <div class="tutorial-heading">
+            <div><span class="index">00 · VIDEO GUIDE</span><h2 id="tutorialTitle">视频教程</h2></div>
+            <p>从选曲、打谱到宏导出，按步骤快速上手。</p>
+          </div>
+          <div class="tutorial-deck-content">
+            <div><span class="index">00 · FEATURED VIDEO</span><h2 id="featuredTutorialTitle">贝加尔湖畔一键自动演奏</h2><p>长弓吟游诗人 · 三角洲口琴演奏教程</p></div>
+            <a class="tutorial-video-link" href="https://v.douyin.com/mSGVHl9rimc/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
+          </div>
+          <div class="tutorial-deck-content tutorial-deck-content--inline" aria-labelledby="jianpuTutorialTitle">
+            <div><span class="index">01 · JIANPU TUTORIAL</span><h2 id="jianpuTutorialTitle">简谱编辑器教学</h2><p>数字简谱输入与软键盘使用教学</p></div>
+            <a class="tutorial-video-link" href="https://v.douyin.com/CxDLAfpTU3c/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
+          </div>
+          <div class="tutorial-deck-content tutorial-deck-content--inline tutorial-deck-content--macro" aria-labelledby="macroTutorialTitle">
+            <div><span class="index">02 · MACRO EXPORT TUTORIAL</span><h2 id="macroTutorialTitle">通用宏录制导出教程</h2><p>从当前曲谱导出到目标宏软件的完整流程</p></div>
+            <a class="tutorial-video-link" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer"><span>打开抖音教程</span><b aria-hidden="true">↗</b></a>
+          </div>
+        </section>
+
+        <section class="public-rankings panel" aria-labelledby="rankingsTitle">
+          <div class="window-titlebar"><span>RANKING.EXE — COMMUNITY SIGNALS</span></div>
+          <div class="public-rankings-body">
+            <div class="public-rankings-heading">
+              <div><span class="index">01 · COMMUNITY RANKINGS</span><h2 id="rankingsTitle">榜单</h2></div>
+              <span class="public-rankings-date" id="publicRankingsDate">等待数据</span>
+            </div>
+            <div class="public-rankings-tabs" role="tablist" aria-label="选择榜单">
+              <button class="public-rankings-tab active" id="contributionRankingTab" data-ranking-view="contributions" type="button" role="tab" aria-selected="true" aria-controls="contributionRankingPanel">贡献榜</button>
+              <button class="public-rankings-tab" id="exportRankingTab" data-ranking-view="yesterdayExports" type="button" role="tab" aria-selected="false" aria-controls="exportRankingPanel" tabindex="-1">昨日导出榜</button>
+            </div>
+            <section class="public-ranking-panel active" id="contributionRankingPanel" data-ranking-panel="contributions" role="tabpanel" aria-labelledby="contributionRankingTab">
+              <div class="public-ranking-list" id="contributionRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取贡献数据……</p></div>
+            </section>
+            <section class="public-ranking-panel" id="exportRankingPanel" data-ranking-panel="yesterdayExports" role="tabpanel" aria-labelledby="exportRankingTab" hidden>
+              <div class="public-ranking-list" id="exportRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取导出数据……</p></div>
+            </section>
+          </div>
+        </section>
+      </div>
 
       <div class="directory-remix-row">
       <section class="directory-deck panel" aria-labelledby="directoryTitle">
@@ -511,13 +537,13 @@
         </div>
       </section>
     </main>
-    <footer><span>HARMONICA DECK · WEB v1.1.3</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v1.1.5</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v1.1.3</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v1.1.5</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -536,7 +562,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v1.1.3</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v1.1.5</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -586,7 +612,6 @@
             <button class="helper-download-link" id="recordingHelperQqButton" type="button" aria-haspopup="dialog" aria-controls="qqGroupDialog"><span>进 QQ 群下载</span><b>↗</b></button>
             <small>GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。解压后运行一次 <code>Install.cmd</code>，随后即可从网页直接导入当前曲谱。</small>
           </section>
-          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
       </form>
     </dialog>
@@ -684,7 +709,6 @@
             <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
             <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
           </figure>
-          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
       </form>
     </dialog>
@@ -836,6 +860,6 @@
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/community-songs.js?v=20260916"></script>
-    <script src="./app.js?v=20261001"></script>
+    <script src="./app.js?v=20261003"></script>
   </body>
 </html>

@@ -717,8 +717,12 @@ main {
 .notice p { margin: 0; font-size: 11px; line-height: 1.8; }
 .notice strong { color: var(--black); }
 
-.tutorial-deck { margin-top: 14px; padding: 0 22px 18px; animation: rise .42s .02s ease both; }
+.tutorial-rankings-row { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(290px, .75fr); align-items: stretch; gap: 14px; margin-top: 14px; }
+.tutorial-rankings-row > .tutorial-deck, .tutorial-rankings-row > .public-rankings { margin-top: 0; }
+.tutorial-deck { min-width: 0; padding: 0 22px 18px; animation: rise .42s .02s ease both; }
 .tutorial-deck > .window-titlebar { margin: 0 -22px 16px; }
+.tutorial-deck > .tutorial-heading { margin-bottom: 16px; }
+.tutorial-deck .tutorial-heading h2 { color: var(--black); }
 .tutorial-deck-content { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 15px; background: var(--screen-soft); border: 2px inset var(--surface); }
 .tutorial-deck-content--inline { margin-top: 10px; border-color: #1c5754; background: var(--screen); }
 .tutorial-deck-content--macro { border-color: #6a3777; background: #24182b; }
@@ -728,6 +732,40 @@ main {
 .tutorial-video-link:hover, .tutorial-video-link:focus-visible { color: var(--white); background: #129b9b; border-color: #5cc1bd; border-bottom-color: var(--teal-dark); }
 .tutorial-video-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 3px; }
 .tutorial-video-link:active { border-style: inset; box-shadow: none; transform: translate(2px, 2px); }
+
+.public-rankings { display: flex; min-width: 0; flex-direction: column; animation: rise .42s .05s ease both; }
+.public-rankings-body { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; padding: 18px 18px 16px; }
+.public-rankings-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+.public-rankings-heading h2 { margin: 8px 0 0; color: var(--black); font: 700 27px/1 var(--pixel); }
+.public-rankings-date { color: #526767; font: 700 9px/1.2 var(--mono); text-align: right; }
+.public-rankings-tabs { display: flex; gap: 5px; margin-top: 17px; padding: 4px; background: var(--surface-light); border: 2px inset var(--surface); }
+.public-rankings-tab { flex: 1 1 0; min-width: 0; padding: 8px 6px; color: #405d5a; background: var(--surface-light); border: 2px outset var(--surface); font: 700 10px/1.2 var(--mono); white-space: nowrap; }
+.public-rankings-tab:hover { color: var(--teal-dark); background: #dcebea; }
+.public-rankings-tab.active { color: var(--white); background: var(--teal-dark); border-top-color: #5da5a0; border-left-color: #5da5a0; border-right-color: #012e2c; border-bottom-color: #012e2c; }
+.public-rankings-tab:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+.public-rankings-tab:active { border-style: inset; }
+.public-ranking-panel { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; margin-top: 11px; }
+.public-ranking-panel[hidden] { display: none; }
+.public-ranking-list { display: grid; align-content: start; gap: 5px; min-height: 0; max-height: 292px; overflow: auto; padding: 2px; }
+.public-ranking-list::-webkit-scrollbar { width: 9px; }
+.public-ranking-list::-webkit-scrollbar-track { background: var(--surface-light); }
+.public-ranking-list::-webkit-scrollbar-thumb { background: var(--teal); border: 2px solid var(--surface-light); }
+.public-ranking-row { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-width: 0; padding: 8px 7px; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); text-align: left; }
+.public-ranking-row--song { width: 100%; cursor: pointer; }
+.public-ranking-row--song:hover, .public-ranking-row--song:focus-visible { color: var(--white); background: var(--teal-dark); border-color: #5da5a0; border-bottom-color: #012e2c; outline: 0; }
+.public-ranking-row--song:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+.public-ranking-row--song:active { border-style: inset; transform: translate(1px, 1px); }
+.public-ranking-rank { color: var(--teal-dark); font: 700 10px/1 var(--mono); }
+.public-ranking-main { display: grid; min-width: 0; gap: 3px; }
+.public-ranking-main strong, .public-ranking-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.public-ranking-main strong { font-size: 11px; }
+.public-ranking-main small { color: #526767; font: 9px/1.2 var(--mono); }
+.public-ranking-row--song:hover .public-ranking-rank, .public-ranking-row--song:focus-visible .public-ranking-rank, .public-ranking-row--song:hover .public-ranking-main small, .public-ranking-row--song:focus-visible .public-ranking-main small { color: #d0ffff; }
+.public-ranking-value { color: #8a5600; font: 700 10px/1 var(--mono); white-space: nowrap; }
+.public-ranking-row--song:hover .public-ranking-value, .public-ranking-row--song:focus-visible .public-ranking-value { color: #ffd166; }
+.public-ranking-row--song > i { color: var(--teal); font: 700 13px/1 var(--mono); font-style: normal; }
+.public-ranking-row--song:hover > i, .public-ranking-row--song:focus-visible > i { color: #d7ffff; }
+.public-ranking-empty { margin: 0; padding: 28px 10px; color: #526767; background: var(--surface-light); border: 2px inset var(--surface); font: 10px/1.6 var(--mono); text-align: center; }
 
 .song-grid { display: grid; gap: 10px; }
 .song-card { position: relative; display: flex; min-height: 176px; flex-direction: column; overflow: hidden; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); transition: transform .15s, background .15s; }
@@ -1061,6 +1099,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
 }
 @media (max-width: 860px) {
   .directory-remix-row { grid-template-columns: 1fr; }
+  .tutorial-rankings-row { grid-template-columns: 1fr; }
   .directory-actions { grid-template-columns: 1fr; }
   .tutorial-layout { grid-template-columns: 1fr; }
   .library-deck { grid-template-columns: 1fr; }
@@ -1097,6 +1136,7 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .seo-intro-grid { grid-template-columns: 1fr; gap: 10px; }
   .tutorial-deck-content { align-items: start; flex-direction: column; }
   .tutorial-video-link { align-self: stretch; justify-content: space-between; }
+  .public-rankings-body { padding: 16px 14px 14px; }
   .directory-heading, .tutorial-heading, .remix-code-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
   .recording-helper-version-board { grid-template-columns: 1fr; }
   .recording-helper-version-board > div { grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
