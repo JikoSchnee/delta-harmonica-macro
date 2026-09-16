@@ -24,7 +24,10 @@ LEGACY_FORMAT = "harmonica-deck-score"
 VERSION = 1
 KEY_PATTERN = re.compile(r"^(?:1=)?[A-G](?:[#b♯♭])?$", re.IGNORECASE)
 METER_PATTERN = re.compile(r"^(\d{1,2})/(\d{1,2})$")
-TOKEN_PATTERN = re.compile(r"^(?:[#b♯♭]?[,]?(?:0|[1-7])['']?_{0,2}\.*-*(?::\d+(?:\.\d+)?)?~?|[-~]+)$")
+# The upload format supports one extra high octave only for note 1.  Keep
+# other double-high notes rejected until their playback/macro semantics are
+# explicitly supported end-to-end.
+TOKEN_PATTERN = re.compile(r"^(?:[#b♯♭]?[,]?(?:1''|(?:0|[1-7])'?)_{0,2}\.*-*(?::\d+(?:\.\d+)?)?~?|[-~]+)$")
 MAX_DISPLAY_URL_LENGTH = 2048
 
 
