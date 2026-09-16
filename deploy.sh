@@ -10,6 +10,128 @@ readonly REMOTE_ARCHIVE="/tmp/delta-harmonica-macro.tgz"
 readonly CONTAINER_NAME="delta-harmonica-macro"
 readonly IMAGE_NAME="delta-harmonica-macro:latest"
 readonly DOCKER_NETWORK="study-desk-webdav_default"
+readonly WEBSITE_VERSION_FILE="$PROJECT_DIR/version.json"
+readonly DEPLOYED_WEBSITE_VERSION_URL="${DEPLOYED_WEBSITE_VERSION_URL:-https://jiko-official.top/delta/version.json}"
+
+BUMP_VERSION=""
+
+usage() {
+  cat <<'USAGE'
+用法：
+  ./deploy.sh
+  ./deploy.sh --bump-version <新版本号>
+
+部署前会比较本地 version.json 与正式站点版本；版本未更新或低于线上版本时会停止部署，并给出一键更新命令。
+USAGE
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+if [[ "${1:-}" == "--bump-version" ]]; then
+  [[ -n "${2:-}" && -z "${3:-}" ]] || { usage >&2; exit 2; }
+  BUMP_VERSION="$2"
+elif [[ $# -gt 0 ]]; then
+  echo "未知参数：$1" >&2
+  usage >&2
+  exit 2
+fi
+
+read_version_from_json() {
+  python3 - "$1" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    value = json.load(handle).get("version")
+if not isinstance(value, str) or not value.strip():
+    raise SystemExit("version.json 缺少有效的 version 字段")
+print(value.strip())
+PY
+}
+
+next_patch_version() {
+  python3 - "$1" <<'PY'
+import sys
+
+parts = sys.argv[1].split(".")
+if len(parts) != 3 or not all(part.isdigit() for part in parts):
+    raise SystemExit("无法计算下一个补丁版本")
+parts[-1] = str(int(parts[-1]) + 1)
+print(".".join(parts))
+PY
+}
+
+version_is_newer() {
+  python3 - "$1" "$2" <<'PY'
+import sys
+
+left = tuple(int(part) for part in sys.argv[1].split("."))
+right = tuple(int(part) for part in sys.argv[2].split("."))
+raise SystemExit(0 if left > right else 1)
+PY
+}
+
+bump_website_version() {
+  python3 - "$PROJECT_DIR/version.json" "$PROJECT_DIR/app.js" "$PROJECT_DIR/README.md" "$1" <<'PY'
+import json
+import os
+import re
+import sys
+
+version_path, app_path, readme_path, new_version = sys.argv[1:]
+if not re.fullmatch(r"\d+\.\d+\.\d+", new_version):
+    raise SystemExit("版本号必须是类似 2.0.0 的三段式数字版本号")
+
+with open(version_path, encoding="utf-8") as handle:
+    metadata = json.load(handle)
+old_version = metadata.get("version")
+metadata["version"] = new_version
+for index, change in enumerate(metadata.get("changes", [])):
+    if isinstance(change, str) and "网页版本" in change and isinstance(old_version, str):
+        metadata["changes"][index] = change.replace(old_version, new_version)
+temporary_path = f"{version_path}.tmp"
+with open(temporary_path, "w", encoding="utf-8") as handle:
+    json.dump(metadata, handle, ensure_ascii=False, indent=2)
+    handle.write("\n")
+os.replace(temporary_path, version_path)
+
+with open(app_path, encoding="utf-8") as handle:
+    app_source = handle.read()
+app_source, replacements = re.subn(
+    r'(const WEBSITE_VERSION = ")[^"]+(";)',
+    rf'\g<1>{new_version}\g<2>',
+    app_source,
+    count=1,
+)
+if replacements != 1:
+    raise SystemExit("app.js 中没有找到 WEBSITE_VERSION")
+with open(app_path, "w", encoding="utf-8") as handle:
+    handle.write(app_source)
+
+with open(readme_path, encoding="utf-8") as handle:
+    readme = handle.read()
+readme, replacements = re.subn(
+    r'(- 网页版本：)`[^`]+`',
+    rf'\g<1>`{new_version}`',
+    readme,
+    count=1,
+)
+if replacements != 1:
+    raise SystemExit("README.md 中没有找到网页版本说明")
+with open(readme_path, "w", encoding="utf-8") as handle:
+    handle.write(readme)
+PY
+}
+
+if [[ -n "$BUMP_VERSION" ]]; then
+  bump_website_version "$BUMP_VERSION"
+  echo "已将网页版本更新为 v${BUMP_VERSION}。"
+  echo "请检查变更后重新执行：./deploy.sh"
+  exit 0
+fi
 
 cleanup() {
   rm -f "$ARCHIVE_PATH"
@@ -17,6 +139,29 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$PROJECT_DIR"
+echo "[0/4] 正在检查网站版本…"
+LOCAL_WEBSITE_VERSION="$(read_version_from_json "$WEBSITE_VERSION_FILE")"
+REMOTE_WEBSITE_VERSION="$(curl -fsSL --retry 2 "${DEPLOYED_WEBSITE_VERSION_URL}?t=$(date +%s)" | python3 -c 'import json, sys; value = json.load(sys.stdin).get("version"); print(value.strip() if isinstance(value, str) else "")')"
+if [[ -z "$REMOTE_WEBSITE_VERSION" ]]; then
+  echo "正式站点版本清单中没有有效的 version 字段，已停止部署。" >&2
+  exit 1
+fi
+if [[ ! "$LOCAL_WEBSITE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ || ! "$REMOTE_WEBSITE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "本地或正式站点版本不是有效的三段式版本号，已停止部署。" >&2
+  echo "本地版本：$LOCAL_WEBSITE_VERSION；正式站点版本：$REMOTE_WEBSITE_VERSION" >&2
+  exit 1
+fi
+if ! version_is_newer "$LOCAL_WEBSITE_VERSION" "$REMOTE_WEBSITE_VERSION"; then
+  NEXT_WEBSITE_VERSION="$(next_patch_version "$REMOTE_WEBSITE_VERSION")"
+  echo "本地网页版本未更新或低于正式站点版本，已停止部署。" >&2
+  echo "正式站点当前版本：v$REMOTE_WEBSITE_VERSION" >&2
+  echo "本地待部署版本：v$LOCAL_WEBSITE_VERSION" >&2
+  echo "一键更新并重新部署：" >&2
+  echo "  ./deploy.sh --bump-version $NEXT_WEBSITE_VERSION && ./deploy.sh" >&2
+  exit 1
+fi
+echo "版本检查通过：正式站点 v$REMOTE_WEBSITE_VERSION → 本地 v$LOCAL_WEBSITE_VERSION"
+
 echo "[1/4] 正在打包项目…"
 COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" \
   --exclude='.git' \

@@ -33,6 +33,8 @@ GitHub Pages 只能承载静态页面，无法发送验证码、保存会话或�
 
 发布新网页版本时，请同步更新 `app.js`、`index.html`、`README.md` 和根目录 `version.json` 中的网站版本号；根目录 `version.json` 还应填写更新标题、摘要和变更列表，供在线页面自动提示用户刷新。录制助手只维护 `recording-helper/version.json`，发布时执行 `./release-helper.sh <助手版本>`，脚本会构建并生成 `<助手版本>-HarmonicaRecorder-win-x64.zip`、下载链接和 SHA-256。
 
+执行 `./deploy.sh` 时会先比较本地根目录 `version.json` 与正式站点版本；版本未更新或低于线上版本会停止部署，并提示 `./deploy.sh --bump-version <新版本> && ./deploy.sh`。该命令会同步更新网页版本文件、`app.js` 和 README 后重新部署。
+
 ## 公共服务配置
 
 最小部署命令：
