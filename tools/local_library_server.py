@@ -764,6 +764,99 @@ def list_recommendations() -> list[dict[str, str]]:
     return [{"title": row["title"], "artist": row["artist"], "sharedBy": row["sharedBy"]} for row in rows]
 
 
+def admin_library_catalog() -> list[dict[str, Any]]:
+    """Return the editable community catalogue for the private admin console."""
+    with AUTH_LOCK, auth_database() as connection:
+        owner_rows = connection.execute(
+            "SELECT score_path, accounts.user_id FROM score_owners "
+            "JOIN accounts ON accounts.id = score_owners.account_id"
+        ).fetchall()
+        recommendation_rows = connection.execute(
+            "SELECT title, artist, shared_by FROM recommended_scores"
+        ).fetchall()
+    owners = {row["score_path"]: row["user_id"] for row in owner_rows}
+    recommendations = {
+        "|".join(str(row[field]).casefold().strip() for field in ("title", "artist", "shared_by"))
+        for row in recommendation_rows
+    }
+    items: list[dict[str, Any]] = []
+    for path, score in read_scores():
+        relative_path = str(path.relative_to(REPOSITORY_ROOT))
+        identity = dedupe_key(score)
+        items.append({
+            "id": hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12],
+            "title": score["title"],
+            "artist": score["artist"],
+            "sharedBy": score["sharedBy"],
+            "key": score["key"],
+            "meter": score["meter"],
+            "bpm": score["bpm"],
+            "source": score.get("source", "社区投稿"),
+            "owner": owners.get(relative_path, "—"),
+            "recommended": identity in recommendations,
+            "file": relative_path,
+            "updatedAt": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        })
+    return items
+
+
+def admin_user_catalog() -> list[dict[str, Any]]:
+    """Return privacy-safe account rows and lightweight activity counts."""
+    now = now_timestamp()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT accounts.id, accounts.email, accounts.user_id, accounts.created_at, accounts.updated_at, "
+            "COUNT(DISTINCT score_owners.score_path) AS uploads, "
+            "COUNT(DISTINCT CASE WHEN sessions.expires_at > ? THEN sessions.token_hash END) AS active_sessions "
+            "FROM accounts "
+            "LEFT JOIN score_owners ON score_owners.account_id = accounts.id "
+            "LEFT JOIN sessions ON sessions.account_id = accounts.id "
+            "GROUP BY accounts.id ORDER BY accounts.created_at DESC",
+            (now,),
+        ).fetchall()
+    return [{
+        "id": row["id"],
+        "userId": row["user_id"],
+        "email": mask_email(str(row["email"])),
+        "role": "管理员" if is_admin_account(row) else "用户",
+        "uploads": row["uploads"],
+        "active": bool(row["active_sessions"]),
+        "registeredAt": datetime.fromtimestamp(row["created_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "updatedAt": datetime.fromtimestamp(row["updated_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+    } for row in rows]
+
+
+def admin_delete_score(payload: Any) -> list[dict[str, Any]]:
+    """Delete one canonical community score and its admin metadata."""
+    if not isinstance(payload, dict):
+        raise ValueError("删除请求格式无效。")
+    identity: dict[str, str] = {}
+    for field, limit in (("title", 48), ("artist", 64), ("sharedBy", 48)):
+        value = payload.get(field)
+        if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
+            raise ValueError("删除请求中的曲目信息无效。")
+        identity[field] = value.strip()
+    with LIBRARY_LOCK:
+        matches = [
+            (path, score) for path, score in read_scores()
+            if is_canonical_source(path) and dedupe_key(score) == dedupe_key(identity)
+        ]
+        if not matches:
+            raise FileNotFoundError("未找到该曲目。")
+        relative_paths = [str(path.relative_to(REPOSITORY_ROOT)) for path, _ in matches]
+        for path, _ in matches:
+            path.unlink()
+        with AUTH_LOCK, auth_database() as connection:
+            connection.executemany("DELETE FROM score_owners WHERE score_path = ?", [(path,) for path in relative_paths])
+            connection.execute(
+                "DELETE FROM recommended_scores WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
+                (identity["title"], identity["artist"], identity["sharedBy"]),
+            )
+        songs = [item for _, item in read_scores()]
+        write_library(LIBRARY_OUTPUT, songs)
+        return songs
+
+
 def add_recommendation(payload: Any) -> list[dict[str, str]]:
     identity = recommendation_identity(payload)
     with AUTH_LOCK, auth_database() as connection:
@@ -1335,6 +1428,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         supplied = header.removeprefix("Bearer ") if header.startswith("Bearer ") else ""
         return bool(configured) and hmac.compare_digest(supplied, configured)
 
+    def is_admin_console_request(self) -> bool:
+        """Use the existing private analytics token for all admin mutations."""
+        if not self.server.analytics_enabled:
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "管理后台尚未启用。"})
+            return False
+        if not self.is_analytics_admin():
+            self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "管理令牌无效。"})
+            return False
+        return True
+
     def allow_public_upload(self) -> bool:
         """Provide a small per-IP cooldown; production should also use proxy/WAF limits."""
         now = time.monotonic()
@@ -1436,6 +1539,53 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             days = min(self.server.analytics_retention_days, max(1, requested_days))
             self.send_json(HTTPStatus.OK, build_analytics_report(days))
             return
+        if path == "/api/admin/overview":
+            if not self.is_admin_console_request():
+                return
+            try:
+                requested_days = int(parse_qs(urlparse(self.path).query).get("days", ["30"])[0])
+            except (TypeError, ValueError):
+                requested_days = 30
+            days = min(self.server.analytics_retention_days, max(1, requested_days))
+            library = admin_library_catalog()
+            users = admin_user_catalog()
+            report = build_analytics_report(days)
+            self.send_json(HTTPStatus.OK, {
+                "generatedAt": report["generatedAt"],
+                "summary": report["summary"],
+                "library": {
+                    "total": len(library),
+                    "recommended": sum(item["recommended"] for item in library),
+                    "uploaders": len({item["owner"] for item in library if item["owner"] != "—"}),
+                },
+                "users": {
+                    "total": len(users),
+                    "active": sum(item["active"] for item in users),
+                },
+            })
+            return
+        if path == "/api/admin/library":
+            if not self.is_admin_console_request():
+                return
+            query = parse_qs(urlparse(self.path).query)
+            needle = query.get("q", [""])[0].strip().casefold()
+            items = admin_library_catalog()
+            if needle:
+                items = [item for item in items if needle in " ".join(
+                    str(item[field]).casefold() for field in ("title", "artist", "sharedBy", "owner")
+                )]
+            self.send_json(HTTPStatus.OK, {"songs": items, "total": len(items)})
+            return
+        if path == "/api/admin/users":
+            if not self.is_admin_console_request():
+                return
+            query = parse_qs(urlparse(self.path).query)
+            needle = query.get("q", [""])[0].strip().casefold()
+            users = admin_user_catalog()
+            if needle:
+                users = [item for item in users if needle in f"{item['userId']} {item['email']}".casefold()]
+            self.send_json(HTTPStatus.OK, {"users": users, "total": len(users)})
+            return
         if path == "/api/public-library/status":
             if not self.server.public_library:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共上传未启用。"})
@@ -1480,6 +1630,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
         if self.serve_maintenance_if_active(path):
+            return
+        if path == "/api/admin/library/recommendation":
+            if not self.is_admin_console_request():
+                return
+            try:
+                recommendations = add_recommendation(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法设置推荐曲目。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "recommended", "recommendations": recommendations})
             return
         if path == "/api/public-library/recommendations":
             if not self.server.public_library:
@@ -1641,6 +1801,32 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_DELETE(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/library/song":
+            if not self.is_admin_console_request():
+                return
+            try:
+                songs = admin_delete_score(self.read_payload())
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法删除曲目。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "deleted", "songs": songs})
+            return
+        if path == "/api/admin/library/recommendation":
+            if not self.is_admin_console_request():
+                return
+            try:
+                recommendations = remove_recommendation(self.read_payload())
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法取消推荐。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "unrecommended", "recommendations": recommendations})
+            return
         if path == "/api/public-library/recommendations":
             if not self.server.public_library:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})
@@ -1842,8 +2028,9 @@ def main() -> int:
     server.auth_rate_limit_lock = threading.Lock()
     server.hot_ranking_stop_event = threading.Event()
     server.hot_ranking_thread: threading.Thread | None = None
-    if server.auth_enabled:
+    if server.auth_enabled or server.analytics_enabled:
         initialize_auth_database()
+    if server.auth_enabled:
         backfill_legacy_score_owners_for_known_account()
     if server.analytics_enabled:
         initialize_hot_ranking_database()

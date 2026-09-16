@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#071816" />
+    <title>ADMIN://HARMONICA DECK</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #d6f6e8; --dim: #83aa9b; --paper: #081b18; --panel: #0f302b;
+        --panel-2: #123b34; --line: #2b7667; --aqua: #6ce8c7; --amber: #ffca5f;
+        --pink: #ff9e9e; --shadow: #03100d;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-width: 320px; color: var(--ink); background: #061512; font: 14px/1.55 "Noto Sans SC", sans-serif; }
+      body::before { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 10; opacity: .15; background: repeating-linear-gradient(0deg, transparent 0 3px, rgba(99,228,196,.14) 3px 4px); }
+      button, input { font: inherit; }
+      button { cursor: pointer; }
+      .shell { display: grid; grid-template-columns: 208px minmax(0, 1fr); min-height: 100vh; max-width: 1440px; margin: auto; }
+      .rail { position: sticky; top: 0; align-self: start; height: 100vh; padding: 22px 15px; border-right: 2px solid var(--line); background: rgba(7, 24, 21, .95); }
+      .brand { padding: 4px 9px 25px; border-bottom: 1px solid rgba(122,168,151,.32); }
+      .brand small, .eyebrow, .mono { color: var(--dim); font: 11px "JetBrains Mono", monospace; letter-spacing: .08em; }
+      .brand h1 { margin: 8px 0 0; color: var(--aqua); font: 700 16px/1.35 "Silkscreen", sans-serif; }
+      .brand p { margin: 7px 0 0; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
+      .nav { display: grid; gap: 7px; margin-top: 24px; }
+      .nav button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 10px; color: var(--dim); border: 1px solid transparent; background: transparent; text-align: left; }
+      .nav button:hover, .nav button.active { color: var(--ink); border-color: var(--line); background: var(--panel); }
+      .nav b { width: 22px; color: var(--aqua); font: 12px "JetBrains Mono", monospace; }
+      .rail-foot { position: absolute; right: 15px; bottom: 20px; left: 15px; padding: 12px 10px; border: 1px solid rgba(122,168,151,.28); color: var(--dim); font-size: 11px; }
+      .rail-foot span { display: inline-block; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--aqua); box-shadow: 0 0 10px var(--aqua); }
+      .content { min-width: 0; padding: 28px clamp(18px, 4vw, 54px) 60px; }
+      .topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 26px; }
+      .topline h2 { margin: 5px 0 0; color: var(--ink); font: 700 clamp(22px, 3vw, 33px)/1.25 "Silkscreen", sans-serif; }
+      .topline p { max-width: 590px; margin: 9px 0 0; color: var(--dim); }
+      .top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+      .button { min-height: 38px; padding: 0 13px; color: var(--ink); border: 1px solid var(--line); background: var(--panel-2); }
+      .button:hover { color: #061512; border-color: var(--aqua); background: var(--aqua); }
+      .button.ghost { background: transparent; }
+      .button.danger { color: var(--pink); border-color: rgba(255,158,158,.4); background: transparent; }
+      .button.danger:hover { color: #210b0b; background: var(--pink); }
+      .window { border: 2px solid var(--line); background: rgba(15,48,43,.94); box-shadow: 7px 7px 0 var(--shadow); }
+      .titlebar { display: flex; align-items: center; min-height: 37px; padding: 7px 12px; border-bottom: 2px solid var(--line); color: #061512; background: var(--aqua); font: 700 12px "JetBrains Mono", monospace; letter-spacing: .04em; }
+      .titlebar::before { content: "● ● ●"; margin-right: 10px; color: #196454; font-size: 9px; letter-spacing: 3px; }
+      .panel { padding: 19px; }
+      .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+      .metric { min-height: 122px; padding: 16px; }
+      .metric p { margin: 5px 0 0; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
+      .metric strong { display: block; margin-top: 12px; color: var(--aqua); font: 700 27px "Silkscreen", sans-serif; }
+      .metric:nth-child(2) strong { color: var(--amber); }
+      .metric:nth-child(3) strong { color: #c6b7ff; }
+      .metric:nth-child(4) strong { color: var(--pink); }
+      .split { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; margin-top: 20px; }
+      .section-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 14px; }
+      .section-heading h3 { margin: 3px 0 0; color: var(--amber); font-size: 18px; }
+      .section-heading a { color: var(--aqua); font: 11px "JetBrains Mono", monospace; text-decoration: none; }
+      .section-heading a:hover { text-decoration: underline; }
+      .searchbar { display: flex; gap: 10px; margin: 0 0 17px; }
+      .searchbar input, .login input { width: 100%; min-height: 42px; padding: 0 12px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
+      .searchbar input:focus, .login input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
+      .searchbar .button { flex: 0 0 auto; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 11px 7px; border-bottom: 1px solid rgba(122,168,151,.22); text-align: left; vertical-align: middle; }
+      th { color: var(--dim); font: 10px "JetBrains Mono", monospace; letter-spacing: .06em; }
+      td { color: #c8e7dc; }
+      td:last-child, th:last-child { text-align: right; }
+      .title-cell b { display: block; color: var(--ink); font-size: 14px; }
+      .title-cell small, td small { display: block; margin-top: 2px; color: var(--dim); font-size: 11px; }
+      .tag { display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; color: var(--aqua); border: 1px solid rgba(108,232,199,.45); border-radius: 2px; font: 10px "JetBrains Mono", monospace; }
+      .tag.amber { color: var(--amber); border-color: rgba(255,202,95,.5); }
+      .tag.muted { color: var(--dim); border-color: rgba(122,168,151,.3); }
+      .actions { display: flex; justify-content: flex-end; gap: 7px; }
+      .actions .button { min-height: 30px; padding: 0 9px; font-size: 12px; }
+      .empty { padding: 25px 8px; color: var(--dim); text-align: center; }
+      .notice { min-height: 24px; margin-top: 11px; color: var(--pink); }
+      .login-screen { display: grid; place-items: center; min-height: 100vh; padding: 20px; }
+      .login { width: min(520px, 100%); padding: 28px; }
+      .login h1 { margin: 8px 0 0; color: var(--aqua); font: 700 27px "Silkscreen", sans-serif; }
+      .login p { margin: 12px 0 22px; color: var(--dim); }
+      .login label { display: block; margin-bottom: 8px; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
+      .login .button { width: 100%; margin-top: 12px; }
+      [hidden] { display: none !important; }
+      @media (max-width: 900px) { .shell { grid-template-columns: 74px minmax(0, 1fr); } .rail { padding: 15px 10px; } .brand { padding: 4px 2px 16px; } .brand h1 { font-size: 10px; } .brand p, .brand small, .nav span, .rail-foot { display: none; } .nav button { justify-content: center; padding: 12px 0; } .nav b { text-align: center; } .split { grid-template-columns: 1fr; } }
+      @media (max-width: 650px) { .content { padding: 18px 12px 40px; } .topline { flex-direction: column; } .top-actions { justify-content: flex-start; } .metrics { grid-template-columns: repeat(2, 1fr); } .window { box-shadow: 4px 4px 0 var(--shadow); } .panel { padding: 14px 10px; } table { display: block; overflow-x: auto; white-space: nowrap; } }
+      @media (max-width: 380px) { .metrics { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <section id="loginScreen" class="login-screen">
+      <div class="window login">
+        <div class="eyebrow">HARMONICA DECK · PRIVATE CONTROL ROOM</div>
+        <h1>ADMIN://ACCESS</h1>
+        <p>输入站点管理令牌，进入曲库和用户管理。令牌仅保存在当前浏览器会话中。</p>
+        <form id="loginForm">
+          <label for="token">管理令牌 / ADMIN TOKEN</label>
+          <input id="token" type="password" autocomplete="current-password" required placeholder="Bearer token" />
+          <button class="button" type="submit">连接控制台 →</button>
+        </form>
+        <div id="loginNotice" class="notice" role="alert"></div>
+      </div>
+    </section>
+
+    <div id="app" class="shell" hidden>
+      <aside class="rail">
+        <div class="brand"><small>DELTA / 01</small><h1>HARMONICA<br />DECK</h1><p>ADMIN CONSOLE</p></div>
+        <nav class="nav" aria-label="后台导航">
+          <button class="active" data-page="overview"><b>01</b><span>总览</span></button>
+          <button data-page="library"><b>02</b><span>曲库管理</span></button>
+          <button data-page="users"><b>03</b><span>用户管理</span></button>
+        </nav>
+        <div class="rail-foot"><span></span>TOKEN LINKED<br /><small>private / no-store</small></div>
+      </aside>
+
+      <main class="content">
+        <header class="topline">
+          <div><div class="eyebrow" id="pageEyebrow">CONTROL ROOM · OVERVIEW</div><h2 id="pageTitle">后台总览</h2><p id="pageDescription">曲库、账号与站内信号都在这里。最后同步：<span id="generatedAt">—</span></p></div>
+          <div class="top-actions"><a class="button ghost" href="./">管理首页 ↗</a><a class="button ghost" href="./analytics.html">打开数据分析 ↗</a><button id="refreshButton" class="button" type="button">刷新数据 ⟳</button><button id="logoutButton" class="button danger" type="button">断开</button></div>
+        </header>
+
+        <section id="overviewPage" data-view>
+          <div class="metrics" id="metrics"></div>
+          <div class="split">
+            <section class="window panel"><div class="section-heading"><div><div class="eyebrow">LIBRARY PULSE</div><h3>曲库状态</h3></div><a href="#library" data-jump="library">管理全部 →</a></div><div id="libraryPreview"></div></section>
+            <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT PULSE</div><h3>最近加入</h3></div><a href="#users" data-jump="users">查看用户 →</a></div><div id="userPreview"></div></section>
+          </div>
+        </section>
+
+        <section id="libraryPage" data-view hidden>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><span id="libraryCount" class="tag">—</span></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><div id="libraryTable"></div></section>
+        </section>
+
+        <section id="usersPage" data-view hidden>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><span id="userCount" class="tag">—</span></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID 或脱敏邮箱…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
+        </section>
+        <div id="pageNotice" class="notice" role="status"></div>
+      </main>
+    </div>
+
+    <script>
+      const $ = selector => document.querySelector(selector);
+      const number = new Intl.NumberFormat("zh-CN");
+      const state = { token: "", overview: null, songs: [], users: [] };
+      const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
+      const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
+      const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
+      async function api(path, options = {}) {
+        const response = await fetch(`../api/${path}`, { ...options, headers: { Authorization: `Bearer ${state.token}`, Accept: "application/json", ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) }, cache: "no-store" });
+        const body = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(body.error || "后台请求失败。");
+        return body;
+      }
+      function showPage(page) {
+        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "维护公开社区曲谱，设置推荐或移除不再展示的内容。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"] }[page];
+        $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
+        document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
+        document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
+        if (page === "library") loadLibrary(); if (page === "users") loadUsers();
+      }
+      function renderOverview() {
+        const item = state.overview; if (!item) return;
+        const cards = [["曲库曲目", item.library.total, "COMMUNITY SCORES"], ["推荐曲目", item.library.recommended, "PINNED PICKS"], ["注册用户", item.users.total, `${item.users.active} 个活跃会话`], ["今日访问", item.summary.pageViews, `${item.summary.sessions} 个匿名会话`]];
+        $("#metrics").innerHTML = cards.map(card => `<section class="window metric"><p>${card[2]}</p><span>${card[0]}</span><strong>${number.format(card[1])}</strong></section>`).join("");
+        const stamp = $("#generatedAt"); if (stamp) stamp.textContent = formatDate(item.generatedAt);
+      }
+      function renderLibraryPreview() {
+        const songs = state.songs.slice(0, 5);
+        $("#libraryPreview").innerHTML = songs.length ? `<table><thead><tr><th>曲目</th><th>状态</th><th>BPM</th></tr></thead><tbody>${songs.map(song => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)} · ${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐</span>' : '<span class="tag muted">普通</span>'}</td><td class="mono">${song.bpm}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无社区曲谱。</div>';
+      }
+      function renderUsersPreview() {
+        const users = state.users.slice(0, 5);
+        $("#userPreview").innerHTML = users.length ? `<table><thead><tr><th>用户</th><th>曲谱</th></tr></thead><tbody>${users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td class="mono">${number.format(user.uploads)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无注册用户。</div>';
+      }
+      function renderLibrary() {
+        $("#libraryCount").textContent = `${number.format(state.songs.length)} 首曲目`;
+        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}</td><td><div class="actions"><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
+      }
+      function renderUsers() {
+        $("#userCount").textContent = `${number.format(state.users.length)} 位用户`;
+        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th><th>角色</th><th>上传</th><th>状态</th><th>加入时间</th><th>最近更新</th></tr></thead><tbody>${state.users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td><td class="mono">${formatDate(user.registeredAt)}</td><td class="mono">${formatDate(user.updatedAt)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+      }
+      async function loadAll() {
+        setNotice("正在同步…");
+        try { const [overview, library, users] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api(`admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}`)]); state.overview = overview; state.songs = library.songs || []; state.users = users.users || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderUsers(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
+      }
+      async function loadLibrary() { try { const result = await api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`); state.songs = result.songs || []; renderLibrary(); } catch (error) { setNotice(error.message); } }
+      async function loadUsers() { try { const result = await api(`admin/users?q=${encodeURIComponent($("#userSearch").value)}`); state.users = result.users || []; renderUsers(); } catch (error) { setNotice(error.message); } }
+      async function connect(token) { state.token = token.trim(); if (!state.token) return; sessionStorage.setItem("delta-admin-token", state.token); await loadAll(); if (state.overview) { $("#loginScreen").hidden = true; $("#app").hidden = false; } }
+      $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginNotice").textContent = "正在验证…"; try { await connect($("#token").value); if (!state.overview) $("#loginNotice").textContent = "无法连接控制台。"; } catch (error) { $("#loginNotice").textContent = error.message; } });
+      document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => showPage(button.dataset.page)));
+      document.querySelectorAll("[data-jump]").forEach(link => link.addEventListener("click", event => { event.preventDefault(); showPage(link.dataset.jump); }));
+      $("#refreshButton").addEventListener("click", loadAll); $("#logoutButton").addEventListener("click", () => { state.token = ""; sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
+      $("#librarySearchButton").addEventListener("click", loadLibrary); $("#userSearchButton").addEventListener("click", loadUsers);
+      $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
+      $("#libraryTable").addEventListener("click", async event => { const recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
+      const savedToken = sessionStorage.getItem("delta-admin-token"); if (savedToken) { $("#token").value = savedToken; connect(savedToken).catch(error => { $("#loginNotice").textContent = error.message; }); }
+    </script>
+  </body>
+</html>

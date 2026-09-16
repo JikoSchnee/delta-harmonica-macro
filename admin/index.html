@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#071816" />
+    <title>ADMIN://START · Harmonica Deck</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
+    <style>
+      :root { color-scheme: dark; --ink:#d6f6e8; --dim:#83aa9b; --paper:#071816; --panel:#103630; --line:#2b7667; --aqua:#6ce8c7; --amber:#ffca5f; --pink:#ff9e9e; --shadow:#03100d; }
+      * { box-sizing: border-box; }
+      body { margin:0; min-width:320px; color:var(--ink); background:var(--paper); font:14px/1.55 "Noto Sans SC",sans-serif; }
+      body::before { content:""; position:fixed; inset:0; pointer-events:none; z-index:2; opacity:.15; background:repeating-linear-gradient(0deg,transparent 0 3px,rgba(99,228,196,.14) 3px 4px); }
+      main { position:relative; z-index:1; width:min(1080px,calc(100% - 32px)); margin:42px auto 64px; }
+      .window { border:2px solid var(--line); background:rgba(16,54,48,.94); box-shadow:8px 8px 0 var(--shadow); }
+      .titlebar { display:flex; align-items:center; min-height:39px; padding:7px 12px; border-bottom:2px solid var(--line); color:#061512; background:var(--aqua); font:700 12px "JetBrains Mono",monospace; letter-spacing:.04em; }
+      .titlebar::before { content:"● ● ●"; margin-right:10px; color:#196454; font-size:9px; letter-spacing:3px; }
+      .titlebar a { margin-left:auto; color:#061512; text-decoration:none; }
+      .hero { display:grid; grid-template-columns:1fr 260px; gap:30px; padding:34px; }
+      .eyebrow { color:var(--dim); font:11px "JetBrains Mono",monospace; letter-spacing:.1em; }
+      h1,h2,h3 { margin:0; font-family:"Silkscreen","Noto Sans SC",sans-serif; line-height:1.35; }
+      h1 { max-width:620px; margin-top:12px; color:var(--aqua); font-size:clamp(28px,5vw,48px); }
+      .hero p { max-width:610px; margin:17px 0 0; color:var(--dim); font-size:15px; }
+      .signal { align-self:end; padding:18px; border:1px solid rgba(108,232,199,.4); background:#071d19; }
+      .signal strong { display:block; margin-top:9px; color:var(--aqua); font:700 15px "JetBrains Mono",monospace; }
+      .signal small { display:block; margin-top:8px; color:var(--dim); }
+      .directory { margin-top:22px; }
+      .directory-head { display:flex; justify-content:space-between; align-items:end; gap:16px; padding:18px 20px 14px; border-bottom:1px solid rgba(122,168,151,.28); }
+      .directory-head h2 { margin-top:4px; color:var(--amber); font-size:19px; }
+      .directory-head p { margin:0; color:var(--dim); font-size:12px; }
+      .cards { display:grid; grid-template-columns:repeat(2,1fr); gap:16px; padding:20px; }
+      .card { position:relative; display:flex; flex-direction:column; min-height:230px; padding:21px; border:1px solid var(--line); background:#0b2924; text-decoration:none; color:var(--ink); transition:transform .18s ease, border-color .18s ease, background .18s ease; }
+      .card::after { content:"↗"; position:absolute; top:17px; right:19px; color:var(--aqua); font:18px "JetBrains Mono",monospace; }
+      .card:hover { transform:translate(-3px,-3px); border-color:var(--aqua); background:#123b34; }
+      .card-index { color:var(--aqua); font:700 12px "JetBrains Mono",monospace; }
+      .card h3 { margin-top:28px; font-size:21px; }
+      .card p { margin:10px 0 0; color:var(--dim); }
+      .card-foot { display:flex; flex-wrap:wrap; gap:7px; margin-top:auto; padding-top:22px; }
+      .tag { display:inline-flex; align-items:center; min-height:22px; padding:0 8px; color:var(--aqua); border:1px solid rgba(108,232,199,.45); font:10px "JetBrains Mono",monospace; }
+      .tag.amber { color:var(--amber); border-color:rgba(255,202,95,.5); }
+      footer { display:flex; justify-content:space-between; gap:16px; margin-top:19px; color:var(--dim); font:11px "JetBrains Mono",monospace; }
+      footer a { color:var(--aqua); text-decoration:none; }
+      footer a:hover { text-decoration:underline; }
+      @media (max-width:700px) { main { width:min(100% - 20px,1080px); margin-top:12px; } .hero { grid-template-columns:1fr; gap:22px; padding:23px; } .signal { align-self:stretch; } .cards { grid-template-columns:1fr; padding:12px; } .directory-head { align-items:start; flex-direction:column; padding:16px 13px 13px; } footer { flex-direction:column; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="window">
+        <div class="titlebar">ADMIN://START — HARMONICA DECK <a href="../">返回站点 ↗</a></div>
+        <div class="hero">
+          <div>
+            <div class="eyebrow">DELTA / ADMINISTRATOR LANDING PAGE</div>
+            <h1>管理后台<br />从这里开始。</h1>
+            <p>选择一个工作区进入。需要令牌的页面会在进入后单独验证，不会把管理数据放在这个导航页里。</p>
+          </div>
+          <div class="signal"><div class="eyebrow">SYSTEM STATUS</div><strong><span aria-hidden="true">●</span> ADMIN ROUTES ONLINE</strong><small>private tools · noindex<br />session token required</small></div>
+        </div>
+      </section>
+
+      <section class="window directory">
+        <div class="directory-head"><div><div class="eyebrow">AVAILABLE WORKSPACES / 02</div><h2>管理员页面</h2></div><p>所有管理入口集中于此</p></div>
+        <div class="cards">
+          <a class="card" href="./console.html"><span class="card-index">01 / OPERATIONS</span><h3>后台控制台</h3><p>管理社区曲库与用户目录，查看曲目状态、推荐设置和上传贡献。</p><div class="card-foot"><span class="tag">曲库管理</span><span class="tag">用户管理</span><span class="tag amber">需管理令牌</span></div></a>
+          <a class="card" href="./analytics.html"><span class="card-index">02 / SIGNALS</span><h3>数据分析</h3><p>查看匿名访问、功能使用漏斗、曲谱操作量和高频使用路径。</p><div class="card-foot"><span class="tag">访问走势</span><span class="tag">使用漏斗</span><span class="tag amber">需管理令牌</span></div></a>
+        </div>
+      </section>
+      <footer><span>HARMONICA DECK · PRIVATE ADMIN AREA</span><span><a href="./console.html">打开控制台</a> · <a href="./analytics.html">打开分析</a></span></footer>
+    </main>
+  </body>
+</html>
