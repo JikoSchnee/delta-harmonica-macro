@@ -907,6 +907,7 @@ main {
 
 /* Keep every modal's window controls visible while its content scrolls independently. */
 dialog:not(.midi-note-picker-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 26px); overflow: hidden; }
+dialog:not([open]) { display: none; }
 dialog:not(.midi-note-picker-dialog) > form[method="dialog"] { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; margin: 0; }
 dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar { flex: 0 0 auto; }
 dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div,
@@ -1044,6 +1045,9 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
 
 @media (min-width: 591px) {
   body { zoom: var(--ui-scale); }
+  dialog:not(.midi-note-picker-dialog) { max-height: calc((100dvh - 26px) / var(--ui-scale)); }
+  .midi-note-picker-dialog { height: min(calc(900px / var(--ui-scale)), calc((100dvh - 24px) / var(--ui-scale))); max-height: calc((100dvh - 24px) / var(--ui-scale)); }
+  .tour-popover { max-height: calc(var(--tour-popover-max-height, calc(100dvh - 24px)) / var(--ui-scale)); }
 }
 
 @media (max-width: 1100px) {
