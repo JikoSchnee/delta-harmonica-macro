@@ -12,6 +12,8 @@ from __future__ import annotations
 import argparse
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
+from email import policy
+from email.parser import BytesParser
 import hashlib
 import hmac
 import json
@@ -925,6 +927,7 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "key": score["key"],
             "meter": score["meter"],
             "bpm": score["bpm"],
+            "displayUrl": score.get("displayUrl", ""),
             "source": score.get("source", "社区投稿"),
             "owner": owners.get(relative_path, "—"),
             "recommended": identity in recommendations,
@@ -932,6 +935,125 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "updatedAt": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         })
     return items
+
+
+def admin_score_by_id(score_id: Any) -> tuple[Path, dict[str, Any]]:
+    """Resolve an admin catalogue id without trusting a mutable title field."""
+    if not isinstance(score_id, str) or not re.fullmatch(r"[0-9a-f]{12}", score_id):
+        raise ValueError("曲目标识无效。")
+    matches = [
+        (path, score)
+        for path, score in read_scores()
+        if is_canonical_source(path)
+        and hashlib.sha256(dedupe_key(score).encode("utf-8")).hexdigest()[:12] == score_id
+    ]
+    if not matches:
+        raise FileNotFoundError("未找到该曲目。")
+    if len(matches) > 1:
+        raise ValueError("曲目标识对应多个源文件，请先整理曲库。")
+    return matches[0]
+
+
+def admin_update_score(payload: Any) -> list[dict[str, Any]]:
+    """Update admin-editable fields and optionally replace a score package.
+
+    The existing sharedBy value is deliberately taken from the stored package.
+    It is never accepted from the request or replacement file, so an admin
+    cannot accidentally move a score's author/account binding.
+    """
+    if not isinstance(payload, dict):
+        raise ValueError("曲目编辑请求格式无效。")
+    existing_path, existing_score = admin_score_by_id(payload.get("id"))
+    replacement_bytes = payload.get("_fileBytes")
+    replacement_name = str(payload.get("_fileName") or "").strip()
+    replacement_score: dict[str, Any] | None = None
+    if replacement_bytes is not None:
+        if not isinstance(replacement_bytes, bytes) or not replacement_bytes:
+            raise ValueError("替换文件为空。")
+        if len(replacement_bytes) > MAX_REQUEST_BYTES:
+            raise ValueError("替换文件不能超过 1 MB。")
+        if replacement_name and not replacement_name.casefold().endswith(".deltamusic"):
+            raise ValueError("只支持替换 .deltamusic 文件。")
+        try:
+            replacement_payload = json.loads(replacement_bytes.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError("替换文件不是有效的 .deltamusic JSON 文件。") from error
+        replacement_score = validate_package(replacement_payload)
+
+    source_score = replacement_score or existing_score
+    # These are the only editable fields. sharedBy intentionally comes from
+    # the existing stored score even when a replacement file contains one.
+    candidate_payload = {
+        "format": FORMAT,
+        "version": VERSION,
+        "title": payload.get("title", source_score["title"]),
+        "artist": payload.get("artist", source_score["artist"]),
+        "sharedBy": existing_score["sharedBy"],
+        "key": payload.get("key", source_score["key"]),
+        "meter": payload.get("meter", source_score["meter"]),
+        "bpm": payload.get("bpm", source_score["bpm"]),
+        "jianpu": source_score["jianpu"],
+        "displayUrl": payload.get("displayUrl", source_score.get("displayUrl")),
+        "createdAt": existing_score.get("createdAt"),
+    }
+    candidate = validate_package(candidate_payload)
+    with LIBRARY_LOCK:
+        existing_scores = read_scores()
+        conflicts = [
+            (path, score)
+            for path, score in existing_scores
+            if path != existing_path and is_canonical_source(path) and dedupe_key(score) == dedupe_key(candidate)
+        ]
+        if conflicts:
+            raise DuplicateScoreError("修改后的歌名、歌手/作者和共享人组合已存在，不能覆盖其他曲目。")
+        old_identity = dedupe_key(existing_score)
+        new_identity = dedupe_key(candidate)
+        destination = existing_path if old_identity == new_identity else SOURCE_DIRECTORY / filename_for(candidate)
+        package = {
+            "format": FORMAT,
+            "version": VERSION,
+            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            "createdAt": candidate["createdAt"] or now_iso_timestamp(),
+            **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
+        }
+        write_json_atomically(destination, package)
+        if destination != existing_path:
+            existing_path.unlink()
+            old_relative = str(existing_path.relative_to(REPOSITORY_ROOT))
+            new_relative = str(destination.relative_to(REPOSITORY_ROOT))
+            with AUTH_LOCK, auth_database() as connection:
+                connection.execute(
+                    "UPDATE score_owners SET score_path = ? WHERE score_path = ?",
+                    (new_relative, old_relative),
+                )
+                old_recommended = connection.execute(
+                    "SELECT 1 FROM recommended_scores "
+                    "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
+                    (existing_score["title"], existing_score["artist"], existing_score["sharedBy"]),
+                ).fetchone()
+                new_recommended = connection.execute(
+                    "SELECT 1 FROM recommended_scores "
+                    "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
+                    (candidate["title"], candidate["artist"], candidate["sharedBy"]),
+                ).fetchone()
+                if old_recommended and new_recommended:
+                    connection.execute(
+                        "DELETE FROM recommended_scores "
+                        "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
+                        (existing_score["title"], existing_score["artist"], existing_score["sharedBy"]),
+                    )
+                elif old_recommended:
+                    connection.execute(
+                        "UPDATE recommended_scores SET title = ?, artist = ?, shared_by = ? "
+                        "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
+                        (
+                            candidate["title"], candidate["artist"], candidate["sharedBy"],
+                            existing_score["title"], existing_score["artist"], existing_score["sharedBy"],
+                        ),
+                    )
+        rebuilt_scores = [item for _, item in read_scores()]
+        write_library(LIBRARY_OUTPUT, rebuilt_scores)
+        return rebuilt_scores
 
 
 def admin_user_catalog() -> list[dict[str, Any]]:
@@ -1547,6 +1669,46 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             raise ValueError("请求内容过大或为空。")
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
+    def read_admin_score_payload(self) -> dict[str, Any]:
+        """Read JSON metadata or a multipart metadata + .deltamusic upload."""
+        content_type = self.headers.get("Content-Type", "")
+        if not content_type.lower().startswith("multipart/form-data"):
+            payload = self.read_payload()
+            if not isinstance(payload, dict):
+                raise ValueError("曲目编辑请求格式无效。")
+            return payload
+        try:
+            length = int(self.headers.get("Content-Length", ""))
+        except ValueError as error:
+            raise ValueError("替换请求缺少有效的内容长度。") from error
+        if length < 1 or length > MAX_REQUEST_BYTES:
+            raise ValueError("替换请求内容过大或为空。")
+        body = self.rfile.read(length)
+        envelope = (
+            f"Content-Type: {content_type}\r\n"
+            "MIME-Version: 1.0\r\n\r\n"
+        ).encode("utf-8") + body
+        message = BytesParser(policy=policy.default).parsebytes(envelope)
+        if not message.is_multipart():
+            raise ValueError("替换请求格式无效。")
+        payload: dict[str, Any] = {}
+        for part in message.iter_parts():
+            field = part.get_param("name", header="Content-Disposition")
+            if not field:
+                continue
+            if field in {"file", "scoreFile"}:
+                payload["_fileName"] = part.get_filename() or ""
+                payload["_fileBytes"] = part.get_payload(decode=True) or b""
+                continue
+            value = part.get_content()
+            payload[field] = value if isinstance(value, str) else str(value)
+        if "bpm" in payload:
+            try:
+                payload["bpm"] = int(str(payload["bpm"]).strip())
+            except ValueError as error:
+                raise ValueError("BPM 必须是 30 到 300 的整数。") from error
+        return payload
+
     def read_analytics_payload(self) -> Any:
         try:
             length = int(self.headers.get("Content-Length", ""))
@@ -2034,6 +2196,22 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_PATCH(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/library/song":
+            if not self.is_admin_console_request():
+                return
+            try:
+                songs = admin_update_score(self.read_admin_score_payload())
+            except DuplicateScoreError as error:
+                self.send_json(HTTPStatus.CONFLICT, {"error": str(error), "code": "duplicate_score"})
+                return
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存曲目。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "updated", "songs": songs})
+            return
         if path == "/api/public-library/songs":
             if not self.server.public_library:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})
