@@ -2004,7 +2004,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <span class="song-number">TRACK ${String(index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
-      <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
+      <div class="song-meta"><div class="song-meta-primary"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span></div><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
       </button>
       <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
