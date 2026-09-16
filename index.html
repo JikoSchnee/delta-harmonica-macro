@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v1.1.5</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.0.0</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -269,6 +269,7 @@
                 <span><b>流畅演奏</b><small>自动连接 MIDI 短断音</small></span>
               </label>
               <button class="primary-button deltamusic-import-button" id="importScoreButton" type="button"><span>导入 .deltamusic</span><b>↓</b></button>
+              <button class="primary-button ai-score-button" id="aiScoreButton" type="button" aria-haspopup="dialog" aria-controls="aiScoreDialog"><span>AI 打谱</span><b>✦</b></button>
             </div>
             <input id="importScoreInput" type="file" accept=".deltamusic,.harmonica-score.json,application/json" hidden />
             <input id="importMidiInput" type="file" accept=".mid,.midi,audio/midi,audio/x-midi" hidden />
@@ -482,12 +483,11 @@
           <div class="export-grid export-grid-general">
             <article class="export-card recording-helper">
               <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手（强烈推荐）</h3><p>Windows 64 位 · 一键录制</p></div></div>
-              <div class="recording-helper-version-board recording-helper-version-board--inline" id="compatibility" data-recording-helper-version-board aria-label="网页与录制助手版本兼容信息">
+              <div class="recording-helper-version-board recording-helper-version-board--inline" id="compatibility" data-recording-helper-version-board aria-label="网页与录制助手版本信息">
                 <div><span>网页版本</span><strong data-recording-helper-field="web">WEB v—</strong></div>
                 <div><span>助手当前版本</span><strong data-recording-helper-field="helper">HELPER v—</strong></div>
-                <div class="recording-helper-version-compatible"><span>本网页兼容</span><strong data-recording-helper-field="compatibility">兼容助手：v—</strong></div>
               </div>
-              <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。一般录制使用助手默认模式；录制迈从时请使用「迈从兼容 · SendInput 扫描码」（旧版助手没有该选项时，先使用「标准 SendInput · 通用软件」）。</p>
+              <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。助手现已提供 8 种 Windows 模拟输入组合；目标软件无反应时，可在助手下拉框中逐项切换测试。</p>
               <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button><a class="recording-helper-tutorial-link recording-helper-tutorial-link--compact" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span>教程</span><i aria-hidden="true">↗</i></a></div>
             </article>
             <article class="export-card manual-entry">
@@ -543,14 +543,22 @@
           <article class="export-card mchose testing">
             <div class="export-top"><span class="driver-mark">MC</span><div><h3>迈从 MCHOSE</h3><p>JSON · 宏文件</p></div></div>
             <span class="export-card-status">测试中</span>
-            <p class="export-copy">按迈从导出样例生成 JSON 宏文件，保留键盘、鼠标变调键与毫秒等待事件。下载后可在迈从驱动中导入；不同驱动版本若导入失败，请用该版本录制一个最小宏作对照。</p>
-            <div class="export-actions"><button data-action="download-mchose" type="button">下载 MCHOSE JSON</button></div>
+            <p class="export-copy">迈从单个宏最多支持 100 个键盘／鼠标操作。系统会像 ROG 一样按完整音符分段，并把多个 JSON 打包为一个 ZIP；等待时间不计入上限。</p>
+            <div class="export-card-setting">
+              <label for="mchoseOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="mchoseOperationsPerFile" type="number" min="6" max="100" step="1" value="100" inputmode="numeric" aria-describedby="mchoseSplitStatus" /><b>次</b></span></label>
+              <p id="mchoseSplitStatus" role="status" aria-live="polite">当前每个文件最多 100 个键盘／鼠标操作；等待时间不计入，按完整音符分段。</p>
+            </div>
+            <div class="export-actions"><button data-action="download-mchose" type="button">下载 MCHOSE JSON ZIP（按设置分段）</button></div>
           </article>
           <article class="export-card rog testing">
             <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
             <span class="export-card-status">测试中</span>
-            <p class="export-copy">生成可导入的 Armoury Crate 宏事件。L／M／R 变调键会分别导入为左／中／右鼠标点击。由于 ROG 单个宏最多只能包含 100 个按键/鼠标操作，超过上限时会按每 90–100 个操作拆分；延迟不占操作额度（最后一段为剩余操作）。所有 GMAC 会打包为一个 ZIP 下载，请按文件序号依次导入，再将每一段宏绑定到支持宏功能的 ROG 外设按键；默认设置为单次播放。</p>
-            <div class="export-actions"><button data-action="download-rog" type="button">下载 ROG GMAC ZIP（每 100 操作）</button></div>
+            <p class="export-copy">生成可导入的 Armoury Crate 宏事件。L／M／R 变调键会分别导入为左／中／右鼠标点击。ROG 单个宏最多支持 100 个键盘／鼠标操作，系统会按完整音符分段并将所有 GMAC 打包为一个 ZIP；延迟不占操作额度。</p>
+            <div class="export-card-setting">
+              <label for="rogOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="rogOperationsPerFile" type="number" min="6" max="100" step="1" value="100" inputmode="numeric" aria-describedby="rogSplitStatus" /><b>次</b></span></label>
+              <p id="rogSplitStatus" role="status" aria-live="polite">当前每个文件最多 100 个键盘／鼠标操作；延迟不计入，按完整音符分段。</p>
+            </div>
+            <div class="export-actions"><button data-action="download-rog" type="button">下载 ROG GMAC ZIP（按设置分段）</button></div>
           </article>
           </div>
         </section>
@@ -587,13 +595,13 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v1.1.5</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v2.0.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v1.1.5</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v2.0.0</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -612,7 +620,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v1.1.5</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v2.0.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -641,19 +649,18 @@
         <div class="recording-helper-body">
           <span class="index">WINDOWS · QUICK START</span>
           <h2 id="recordingHelperTitle">录制助手使用方法</h2>
-          <div class="recording-helper-version-board" data-recording-helper-version-board aria-label="网页与录制助手版本兼容信息">
+          <div class="recording-helper-version-board" data-recording-helper-version-board aria-label="网页与录制助手版本信息">
             <div><span>网页版本</span><strong id="recordingHelperWebVersion" data-recording-helper-field="web">WEB v—</strong></div>
             <div><span>助手当前版本</span><strong id="recordingHelperVersion" data-recording-helper-field="helper">HELPER v—</strong></div>
-            <div class="recording-helper-version-compatible"><span>本网页兼容</span><strong id="recordingHelperCompatibility" data-recording-helper-field="compatibility">兼容助手：v—</strong></div>
           </div>
-          <p class="recording-helper-version-note">网页和小助手独立更新；网页导出时会按上面的兼容范围检查助手版本。</p>
+          <p class="recording-helper-version-note">网页和小助手独立更新；小助手启动时会自动检查更新，请保持使用最新版。</p>
           <ol class="recording-helper-steps">
             <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能。</span></li>
             <li><b>02</b><span>回到本页，点击「导出到宏录制助手」，浏览器会把当前曲谱直接交给助手。</span></li>
             <li><b>03</b><span>在目标宏软件中打开录制。</span></li>
             <li><b>04</b><span>点击助手的开始按钮开始录制，并等待录制完毕。期间不要做任何操作，让鼠标焦点始终停留在助手上。</span></li>
           </ol>
-          <p class="recording-helper-warning"><b>注意：</b>建议先用短谱测试。一般录制使用助手默认模式；录制迈从时请使用「迈从兼容 · SendInput 扫描码」。旧版助手若没有该选项，请选择「标准 SendInput · 通用软件」。</p>
+          <p class="recording-helper-warning"><b>注意：</b>建议先用短谱测试。助手的「输入兼容模式」已包含 8 种键盘／鼠标模拟组合：先试「默认兼容」，再试「标准 SendInput」和「迈从兼容」，仍无响应时按下拉列表顺序逐项测试。每次切换后都要重新点击开始录制。</p>
           <a class="recording-helper-tutorial-link" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span><strong>通用宏录制导出教程</strong><small>从曲谱导出到目标宏软件的完整流程</small></span><i aria-hidden="true">↗</i></a>
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
@@ -855,6 +862,30 @@
           <p class="section-guide-intro" id="sectionGuideIntro"></p>
           <div class="section-guide-steps" id="sectionGuideSteps"></div>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="ai-score-dialog" id="aiScoreDialog" aria-labelledby="aiScoreTitle" aria-describedby="aiScoreDescription aiScoreWorkflow">
+      <form method="dialog" class="ai-score-form">
+        <div class="window-titlebar"><span>AI_NOTATION.EXE — PROMPT KIT</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭 AI 打谱提示词">×</button></div>
+        <div class="ai-score-body">
+          <span class="index">EXTERNAL AI · SCORE CONVERSION</span>
+          <div class="ai-score-heading"><div><h2 id="aiScoreTitle">AI 打谱提示词</h2><p id="aiScoreDescription">复制这段提示词到 ChatGPT 或其他 AI，再附上你的曲谱材料。本站不会上传内容或调用 AI。</p></div><span>目标：简谱模式</span></div>
+          <section class="ai-score-target" aria-label="结果回填位置"><span>AI 输出格式</span><strong>本站数字简谱</strong><p>回填到「简谱模式」的“直接输入数字简谱”文本框。</p></section>
+          <section class="ai-score-workflow" id="aiScoreWorkflow" aria-labelledby="aiScoreWorkflowTitle">
+            <div class="ai-score-section-heading"><span>HOW TO USE</span><h3 id="aiScoreWorkflowTitle">三步使用</h3></div>
+            <ol>
+              <li><b>01</b><p>点击下方“复制提示词”，到 ChatGPT、Claude、DeepSeek 等 AI 粘贴。</p></li>
+              <li><b>02</b><p>在提示词后附上数字简谱、五线谱图片或可辨识的旋律材料；只有歌名、歌词或模糊描述时，应让 AI 先索取旋律。</p></li>
+              <li><b>03</b><p>复制 AI 回复中的<strong>纯谱子</strong>，切换本页“简谱模式”，粘贴到“直接输入数字简谱”，设置 BPM 后点击“试听”校验。</p></li>
+            </ol>
+          </section>
+          <section class="ai-score-prompt-panel" aria-labelledby="aiScorePromptTitle">
+            <div class="ai-score-prompt-heading"><div><span>PROMPT.TXT</span><h3 id="aiScorePromptTitle">可复制提示词</h3></div><button class="primary-button" id="copyAiScorePrompt" type="button"><span>复制提示词</span><b>⧉</b></button></div>
+            <textarea id="aiScorePrompt" readonly spellcheck="false" aria-label="AI 打谱提示词，点击复制提示词按钮复制"></textarea>
+            <p>AI 的回复不要包含标题、解释、Markdown 围栏或调号/BPM信息；只保留可粘贴的简谱文本。</p>
+          </section>
+          <p class="ai-score-warning"><b>校验提醒：</b>AI 转写可能有错音或错拍。粘贴后务必试听；若出现错误，按页面显示的行列位置修改。</p>
         </div>
       </form>
     </dialog>

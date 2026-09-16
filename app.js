@@ -13,6 +13,7 @@ const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
 const GITHUB_COMMITS_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?per_page=10`;
 const WEBSITE_UPDATE_METADATA_URL = "./version.json";
 const WEBSITE_UPDATE_DISMISSED_KEY = "delta-harmonica-dismissed-update";
+const AI_SCORE_PROMPT = `你是一名严谨的数字简谱转写助手。请将我随后提供的数字简谱、五线谱图片或可辨识的旋律材料，转换为可直接粘贴到“三角洲口琴演奏家”网站「简谱模式」的纯文本。\n\n输出规则：\n1. 只输出简谱正文，不要标题、作者、调号、拍号、BPM、解释、Markdown 围栏或其他文字。\n2. 音符之间用空格分隔；换行、小节线和反复线可保留。\n3. 如果材料无法确认音高或节奏（例如只有歌名、歌词或模糊描述），先向我索取旋律/曲谱材料，不要编造一份看似准确的谱子。\n4. 默认使用标准数字简谱；只有我明确要求按键映射时，才使用 L/M/R 物理键位前缀。\n\n本站简谱语法与示例：\n- 基础音符：1 2 3 4 5 6 7；休止：0。\n- 时值：裸音 5 为 1 拍；5_ 为半拍，5__ 为四分之一拍，5___ 为八分之一拍；5. 为附点一拍，5.. 为双附点；5- 为两拍，5-- 为三拍；5:1.25 为精确 1.25 拍。精确拍数不能和 _、.、- 混用。\n- 升降音：#4 或 ♯4 为升四，b7 或 ♭7 为降七。\n- 高低八度：1'、1'' 为高八/高两八度；,1、,,1 为低八/低两八度。单个音不能同时有高低八度，且上下最多两层。\n- 连音：5~ 5 表示连接两个相同音高；小节线：|；反复线：||: 和 :||。\n- 高级物理键位（仅明确要求时使用）：L1（左键降调）、M2（中键半音）、R3（右键升调）、LM4、RM5。不能给 0 加前缀，不能重复前缀，也不能同时用 L 和 R。\n\n请严格遵守：减时线最多三条；不要输出无法播放的超高/超低音；最终回复只能是可直接粘贴的简谱文本。`;
 // G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
 // for recording and Razer scancodes, then translate only for Lua export.
 const GHUB_KEY_NAMES = { ",": "comma" };
@@ -36,10 +37,15 @@ const ROG_MOUSE_BUTTONS = {
   M: { name: "Scroll Click", linuxCode: 303, windowsCode: 303 },
   R: { name: "Right Click", linuxCode: 302, windowsCode: 302 }
 };
+const ROG_MIN_OPERATIONS = 6;
+const ROG_OPERATIONS_PER_FILE_KEY = "delta-rog-operations-per-file";
 // MCHOSE macro JSON uses the names emitted by its recorder for mouse buttons.
 // Keep the event shape aligned with a real export sample: waits are explicit
 // `time` events, while zero-delay transitions stay adjacent.
 const MCHOSE_MOUSE_BUTTONS = { L: "mouseLeft", M: "mouseMid", R: "mouseRight" };
+const MCHOSE_MAX_OPERATIONS = 100;
+const MCHOSE_MIN_OPERATIONS = 6;
+const MCHOSE_OPERATIONS_PER_FILE_KEY = "delta-mchose-operations-per-file";
 // Leave a short release window between every pair of played notes.  A gap only
 // between repeated notes works for a plain melody, but modifier changes (for
 // example `#1'` -> `7` in 鸟之诗) otherwise release and press several mouse /
@@ -845,15 +851,15 @@ const SECTION_GUIDES = {
       ["01", "设置 G HUB 触发", "填写开始键，并从下拉框选择停止键 4 或 5。"],
       ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
-      ["04", "导出 MCHOSE JSON", "下载 <code>.json</code> 后，在迈从驱动中导入；文件按迈从样例保留键盘、鼠标和毫秒等待事件。"],
-      ["05", "导出 ROG GMAC", "下载 <code>.gmac</code> 后，在 Armoury Crate 的 Macro 页面选择 Import；导入成功后再将该宏绑定到支持宏功能的 ROG 外设按键。"],
+      ["04", "导出 MCHOSE JSON", "迈从每个宏最多支持 100 个键盘／鼠标操作；下载 ZIP 后按文件序号依次导入，分段数量可在导出卡片中调整。"],
+      ["05", "导出 ROG GMAC", "下载 ZIP 后解压，在 Armoury Crate 的 Macro 页面按文件序号逐个选择 Import；导入成功后再将每段宏绑定到支持宏功能的 ROG 外设按键。"],
       ["06", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
     ]
   }
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), exportModeButtons: [...document.querySelectorAll("[data-export-mode]")], exportModePanels: [...document.querySelectorAll("[data-export-panel]")],
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), exportModeButtons: [...document.querySelectorAll("[data-export-mode]")], exportModePanels: [...document.querySelectorAll("[data-export-panel]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"), pageLayout: document.querySelector(".page-layout"), sectionSidebar: document.querySelector("#sectionSidebar"), sectionSidebarBody: document.querySelector("#sectionSidebarBody"), sectionSidebarToggle: document.querySelector("#sectionSidebarToggle"), sectionSidebarOpen: document.querySelector("#sectionSidebarOpen"), sectionNavLinks: [...document.querySelectorAll("[data-section-nav-target]")],
   convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -866,6 +872,13 @@ const elements = {
   qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]")], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperQqButton: document.querySelector("#recordingHelperQqButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
+
+Object.assign(elements, {
+  aiScoreButton: document.querySelector("#aiScoreButton"),
+  aiScoreDialog: document.querySelector("#aiScoreDialog"),
+  aiScorePrompt: document.querySelector("#aiScorePrompt"),
+  copyAiScorePrompt: document.querySelector("#copyAiScorePrompt")
+});
 
 Object.assign(elements, {
   authDialogClose: document.querySelector("#authDialogClose"),
@@ -2516,6 +2529,32 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   toast(`已载入《${song.title}》· ${song.bpm} BPM。`);
 }
 
+function initializeBlankEditor() {
+  stopPreview();
+  finishRecording({ apply: false });
+  lastMidiFile = null;
+  resetMidiTrackPicker();
+  currentSequence = null;
+  currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "" };
+  activeAnalyticsScoreOrigin = "editor";
+  activeAnalyticsScoreId = "";
+  suppressUploadCompatibilityWarning = false;
+  elements.macroName.value = "自定义曲目";
+  elements.artistName.value = "";
+  elements.keySignature.value = "1=C";
+  elements.timeSignature.value = "4/4";
+  elements.bpm.value = "120";
+  [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => {
+    editor.value = "";
+    editor.scrollTop = 0;
+  });
+  updateLineNumbers();
+  updateMonitor(null);
+  updateTransposeControls(null);
+  elements.status.textContent = "等待输入";
+  setValidation("等待输入");
+}
+
 const MODE_LABELS = { jianpu: "简谱模式", record: "录制模式", precise: "精确模式", keyboard: "三角洲键盘模式" };
 
 function setInputMode(mode, { force = false, silent = false } = {}) {
@@ -2772,7 +2811,6 @@ function syncRecordingHelperVersionBoards() {
   elements.recordingHelperVersionBoards.forEach((board) => {
     board.querySelector('[data-recording-helper-field="web"]')?.replaceChildren(`WEB v${WEBSITE_VERSION}`);
     board.querySelector('[data-recording-helper-field="helper"]')?.replaceChildren(`HELPER v${recorderHelperVersion}`);
-    board.querySelector('[data-recording-helper-field="compatibility"]')?.replaceChildren(`兼容助手：${recorderHelperCompatibility.label}`);
   });
   elements.recordingHelperDownloadLinks.forEach((link) => {
     const url = recorderHelperManifest?.links?.[link.dataset.recordingHelperDownload] || "";
@@ -2802,6 +2840,27 @@ function openSectionGuide(key) {
     </article>
   `).join("");
   elements.sectionGuideDialog.showModal();
+}
+
+function openAiScoreDialog() {
+  elements.aiScorePrompt.value = AI_SCORE_PROMPT;
+  if (typeof elements.aiScoreDialog.showModal !== "function") {
+    toast("当前浏览器不支持 AI 打谱提示词窗口。 ");
+    return;
+  }
+  elements.aiScoreDialog.showModal();
+  window.requestAnimationFrame(() => elements.copyAiScorePrompt.focus({ preventScroll: true }));
+}
+
+async function copyAiScorePrompt() {
+  try {
+    await navigator.clipboard.writeText(AI_SCORE_PROMPT);
+    toast("AI 打谱提示词已复制，去 AI 对话中粘贴并附上曲谱材料吧。 ");
+  } catch {
+    elements.aiScorePrompt.focus({ preventScroll: true });
+    elements.aiScorePrompt.select();
+    toast("无法自动复制，提示词已选中，请手动复制。 ");
+  }
 }
 
 function handleBpmChange() {
@@ -3500,7 +3559,7 @@ async function launchIndependentRecorder(sequence) {
   }
   reservation.commit();
   trackMacroExport("recorder");
-  toast(`网页 v${WEBSITE_VERSION} 已请求助手。兼容助手版本：${recorderHelperCompatibility.label}；若未显示曲谱，请重新运行 Install.cmd。 `);
+  toast(`网页 v${WEBSITE_VERSION} 已请求助手。若未显示曲谱，请重新运行 Install.cmd。 `);
 }
 
 function razerKeyboardEvent(type, delay, makeCode) {
@@ -3537,31 +3596,56 @@ function mchoseTime(delay) {
   return { val: Math.max(0, Math.round(delay)), type: "time", press: null, hover: false };
 }
 
-function generateMchoseJson(sequence) {
-  const keyList = [];
-  const addTime = (delay) => {
-    const value = Math.max(0, Math.round(delay));
-    if (value > 0) keyList.push(mchoseTime(value));
-  };
+function generateMchoseActionGroups(sequence) {
+  const groups = [];
   sequence.notes.forEach((item) => {
+    const group = [];
+    const addTime = (delay) => {
+      const value = Math.max(0, Math.round(delay));
+      if (value > 0) group.push(mchoseTime(value));
+    };
     if (item.isRest) {
       addTime(item.durationMs);
+      groups.push(group);
       return;
     }
     [...(item.modifier || "")].forEach((modifier) => {
-      keyList.push(mchoseAction(MCHOSE_MOUSE_BUTTONS[modifier], "mouse", "down"));
+      group.push(mchoseAction(MCHOSE_MOUSE_BUTTONS[modifier], "mouse", "down"));
     });
     addTime(item.inputLeadMs || 0);
-    keyList.push(mchoseAction(item.key, "key", "down"));
+    group.push(mchoseAction(item.key, "key", "down"));
     addTime(item.pressMs - (item.inputLeadMs || 0));
-    keyList.push(mchoseAction(item.key, "key", "up"));
+    group.push(mchoseAction(item.key, "key", "up"));
     [...(item.modifier || "")].reverse().forEach((modifier) => {
-      keyList.push(mchoseAction(MCHOSE_MOUSE_BUTTONS[modifier], "mouse", "up"));
+      group.push(mchoseAction(MCHOSE_MOUSE_BUTTONS[modifier], "mouse", "up"));
     });
     addTime(item.waitMs || 0);
+    groups.push(group);
   });
+  return groups;
+}
+
+function countMchoseOperations(events) {
+  return events.reduce((count, event) => count + (event.type === "key" || event.type === "mouse" ? 1 : 0), 0);
+}
+
+function splitMchoseOperations(sequence, maxOperations = MCHOSE_MAX_OPERATIONS) {
+  const batches = [];
+  let batch = [];
+  generateMchoseActionGroups(sequence).forEach((group) => {
+    if (batch.length && countMchoseOperations(batch) + countMchoseOperations(group) > maxOperations) {
+      batches.push(batch);
+      batch = [];
+    }
+    batch.push(...group);
+  });
+  if (batch.length || !batches.length) batches.push(batch);
+  return batches;
+}
+
+function generateMchoseJson(keyList, macroName = safeName()) {
   return `${JSON.stringify({
-    name: safeName(),
+    name: macroName,
     type: 1,
     delay: 50,
     info: { keyList },
@@ -3570,6 +3654,70 @@ function generateMchoseJson(sequence) {
     orderNum: 3,
     editRecordStatus: true
   }, null, 2)}\n`;
+}
+
+function normalizeMchoseOperationsPerFile(value) {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return MCHOSE_MAX_OPERATIONS;
+  return Math.min(MCHOSE_MAX_OPERATIONS, Math.max(MCHOSE_MIN_OPERATIONS, parsed));
+}
+
+function readMchoseOperationsPerFile() {
+  try {
+    return normalizeMchoseOperationsPerFile(window.localStorage.getItem(MCHOSE_OPERATIONS_PER_FILE_KEY));
+  } catch {
+    return MCHOSE_MAX_OPERATIONS;
+  }
+}
+
+function syncMchoseOperationsPerFileSetting({ persist = false } = {}) {
+  const value = normalizeMchoseOperationsPerFile(elements.mchoseOperationsPerFile?.value || readMchoseOperationsPerFile());
+  if (elements.mchoseOperationsPerFile) elements.mchoseOperationsPerFile.value = String(value);
+  if (elements.mchoseSplitStatus) elements.mchoseSplitStatus.textContent = `当前每个文件最多 ${value} 个键盘／鼠标操作；等待时间不计入，按完整音符分段。`;
+  if (persist) {
+    try { window.localStorage.setItem(MCHOSE_OPERATIONS_PER_FILE_KEY, String(value)); } catch {}
+  }
+  return value;
+}
+
+function initializeMchoseOperationsPerFileSetting() {
+  if (elements.mchoseOperationsPerFile) elements.mchoseOperationsPerFile.value = String(readMchoseOperationsPerFile());
+  syncMchoseOperationsPerFileSetting();
+}
+
+function readRogOperationsPerFile() {
+  try {
+    return normalizeMchoseOperationsPerFile(window.localStorage.getItem(ROG_OPERATIONS_PER_FILE_KEY));
+  } catch {
+    return ROG_MAX_OPERATIONS;
+  }
+}
+
+function syncRogOperationsPerFileSetting({ persist = false } = {}) {
+  const value = Math.min(ROG_MAX_OPERATIONS, Math.max(ROG_MIN_OPERATIONS, Number.parseInt(elements.rogOperationsPerFile?.value || readRogOperationsPerFile(), 10) || ROG_MAX_OPERATIONS));
+  if (elements.rogOperationsPerFile) elements.rogOperationsPerFile.value = String(value);
+  if (elements.rogSplitStatus) elements.rogSplitStatus.textContent = `当前每个文件最多 ${value} 个键盘／鼠标操作；延迟不计入，按完整音符分段。`;
+  if (persist) {
+    try { window.localStorage.setItem(ROG_OPERATIONS_PER_FILE_KEY, String(value)); } catch {}
+  }
+  return value;
+}
+
+function initializeRogOperationsPerFileSetting() {
+  if (elements.rogOperationsPerFile) elements.rogOperationsPerFile.value = String(readRogOperationsPerFile());
+  syncRogOperationsPerFileSetting();
+}
+
+function generateMchoseJsonFiles(sequence, fileBase, maxOperations = MCHOSE_MAX_OPERATIONS) {
+  const batches = splitMchoseOperations(sequence, normalizeMchoseOperationsPerFile(maxOperations));
+  const digits = String(batches.length).length;
+  const macroBase = safeName();
+  return batches.map((batch, index) => ({
+    content: generateMchoseJson(batch, batches.length === 1 ? macroBase : `${macroBase} - ${index + 1}/${batches.length}`),
+    filename: batches.length === 1
+      ? `${fileBase}-mchose.json`
+      : `${fileBase}-mchose-${String(index + 1).padStart(digits, "0")}-of-${batches.length}.json`
+  }));
 }
 
 function rogGmacEvent(action, input) {
@@ -3632,8 +3780,8 @@ function generateRogGmac(sequence) {
   return formatRogGmac(generateRogGmacEventGroups(sequence).flat());
 }
 
-function generateRogGmacFiles(sequence, fileBase) {
-  const batches = splitRogGmacOperations(sequence);
+function generateRogGmacFiles(sequence, fileBase, maxOperations = ROG_MAX_OPERATIONS) {
+  const batches = splitRogGmacOperations(sequence, maxOperations);
   const digits = String(batches.length).length;
   return batches.map((batch, index) => ({
     content: formatRogGmac(batch),
@@ -3744,18 +3892,23 @@ const MACRO_DOWNLOAD_CONFIG = {
     success: "Synapse 4 XML 已下载。"
   },
   "download-mchose": {
-    suffix: "-mchose.json",
-    type: "application/json",
+    suffix: "-mchose-json.zip",
+    type: "application/zip",
     requiresTriggerSettings: false,
-    build: (sequence) => generateMchoseJson(sequence),
-    success: "迈从 MCHOSE JSON 已下载。"
+    buildFiles: (sequence, fileBase) => generateMchoseJsonFiles(sequence, fileBase, syncMchoseOperationsPerFileSetting()),
+    buildArchive: (files) => createZipArchive(files),
+    archiveEntryLabel: "个 JSON",
+    success: (files) => files.length === 1
+      ? "迈从 MCHOSE JSON ZIP 已下载。"
+      : `迈从 MCHOSE JSON 已分段并打包为 ZIP（内含 ${files.length} 个文件）。`
   },
   "download-rog": {
     suffix: "-rog-gmac.zip",
     type: "text/plain",
     requiresTriggerSettings: false,
-    buildFiles: (sequence, fileBase) => generateRogGmacFiles(sequence, fileBase),
+    buildFiles: (sequence, fileBase) => generateRogGmacFiles(sequence, fileBase, syncRogOperationsPerFileSetting()),
     buildArchive: (files) => createZipArchive(files),
+    archiveEntryLabel: "个 GMAC",
     success: (files) => files.length === 1
       ? "ROG Armoury Crate GMAC ZIP 已下载。"
       : `ROG Armoury Crate GMAC 已打包为 ZIP（内含 ${files.length} 个文件）。`
@@ -3810,7 +3963,7 @@ async function openMacroDownloadDialog(action) {
   };
   resetMacroDownloadProgress();
   elements.macroDownloadFilename.textContent = archive
-    ? `${archive.filename}（内含 ${files.length} 个 GMAC）`
+    ? `${archive.filename}（内含 ${files.length} ${config.archiveEntryLabel || "个文件"}）`
     : files[0].filename;
   if (typeof elements.macroDownloadDialog.showModal === "function") {
     elements.macroDownloadDialog.showModal();
@@ -4647,19 +4800,8 @@ function toast(message) {
   window.clearTimeout(toastTimer);
   window.clearTimeout(toastCloseTimer);
   elements.toast.classList.remove("show");
-  if (typeof elements.toast.showModal === "function") {
-    if (elements.toast.open) elements.toast.close();
-    elements.toast.showModal();
-    window.requestAnimationFrame(() => elements.toast.classList.add("show"));
-    toastTimer = window.setTimeout(() => {
-      elements.toast.classList.remove("show");
-      toastCloseTimer = window.setTimeout(() => {
-        if (!elements.toast.classList.contains("show") && elements.toast.open) elements.toast.close();
-      }, 220);
-    }, 2400);
-    return;
-  }
   if (typeof elements.toast.show === "function") {
+    if (elements.toast.open) elements.toast.close();
     elements.toast.show();
     window.requestAnimationFrame(() => elements.toast.classList.add("show"));
     toastTimer = window.setTimeout(() => {
@@ -4828,6 +4970,8 @@ elements.confirmMidiSelection.addEventListener("click", () => {
   completeTourAction("midi-confirm", "谱子已生成，接下来前往宏导出。");
 });
 elements.importScoreButton.addEventListener("click", () => elements.importScoreInput.click());
+elements.aiScoreButton.addEventListener("click", openAiScoreDialog);
+elements.copyAiScorePrompt.addEventListener("click", copyAiScorePrompt);
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
 elements.macroExportButton.addEventListener("click", () => {
   elements.macroExportSection.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -4948,6 +5092,8 @@ elements.volume.addEventListener("input", () => {
 });
 elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidation);
 elements.macroStopButton.addEventListener("change", clearMacroTriggerValidation);
+elements.mchoseOperationsPerFile.addEventListener("change", () => syncMchoseOperationsPerFileSetting({ persist: true }));
+elements.rogOperationsPerFile.addEventListener("change", () => syncRogOperationsPerFileSetting({ persist: true }));
 [
   elements.macroLowButton,
   elements.macroMiddleButton,
@@ -5181,13 +5327,15 @@ if (navigator.mediaDevices?.addEventListener) navigator.mediaDevices.addEventLis
 
 setupSectionSidebar();
 syncRecordingHelperVersionBoards();
+initializeMchoseOperationsPerFileSetting();
+initializeRogOperationsPerFileSetting();
 loadRecordingHelperManifest();
 setLibraryView("recommended");
 enableLocalLibraryEntry();
 authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
-if (SONG_LIBRARY[0]) loadSong(SONG_LIBRARY[0], { scroll: false, focusEditor: false, analytics: false });
+initializeBlankEditor();
 void refreshRemixCodeViews().then(applyRemixCodeFromUrl);
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
