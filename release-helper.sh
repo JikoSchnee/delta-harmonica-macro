@@ -8,6 +8,7 @@ readonly HELPER_PROJECT="$PROJECT_DIR/recording-helper/HarmonicaRecorder/Harmoni
 readonly GITHUB_REPOSITORY="${HELPER_GITHUB_REPOSITORY:-JikoSchnee/delta-harmonica-macro}"
 readonly SERVER_SSH_TARGET="${HELPER_SERVER_SSH_TARGET:-root@47.102.211.4}"
 readonly SERVER_PROJECT_DIR="${HELPER_SERVER_PROJECT_DIR:-/opt/delta-harmonica-macro}"
+readonly SERVER_CONTAINER_NAME="${HELPER_SERVER_CONTAINER_NAME:-delta-harmonica-macro}"
 readonly SERVER_PUBLIC_BASE_URL="${HELPER_SERVER_PUBLIC_BASE_URL:-https://jiko-official.top/delta/downloads}"
 
 SKIP_GITHUB=0
@@ -25,6 +26,7 @@ usage() {
   HELPER_GITHUB_REPOSITORY   GitHub 仓库，默认 JikoSchnee/delta-harmonica-macro
   HELPER_SERVER_SSH_TARGET   服务器 SSH 目标，默认 root@47.102.211.4
   HELPER_SERVER_PROJECT_DIR  服务器项目目录，默认 /opt/delta-harmonica-macro
+  HELPER_SERVER_CONTAINER_NAME 正式站点容器名，默认 delta-harmonica-macro
   HELPER_SERVER_PUBLIC_BASE_URL 服务器下载目录 URL
   DOTNET_BIN                 dotnet 可执行文件路径
 USAGE
@@ -199,6 +201,13 @@ if (( SKIP_SERVER )); then
 else
   ssh "$SERVER_SSH_TARGET" "mkdir -p -- '$SERVER_PROJECT_DIR/downloads'"
   scp "$PACKAGE_PATH" "$SERVER_SSH_TARGET:$SERVER_PROJECT_DIR/downloads/$ARCHIVE_NAME"
+  # 正式站点从 Docker 容器的 /app 提供静态文件；宿主机项目目录没有挂载
+  # 到容器，因此仅 scp 到 SERVER_PROJECT_DIR 不会让下载地址立即可用。
+  ssh "$SERVER_SSH_TARGET" "set -eu
+    docker inspect '$SERVER_CONTAINER_NAME' >/dev/null 2>&1
+    docker exec '$SERVER_CONTAINER_NAME' mkdir -p /app/downloads
+    docker cp '$SERVER_PROJECT_DIR/downloads/$ARCHIVE_NAME' '$SERVER_CONTAINER_NAME:/app/downloads/$ARCHIVE_NAME'
+  "
 fi
 
 echo "[6/7] 校验本地两份 ZIP…"
@@ -212,8 +221,10 @@ if (( SKIP_VERIFY )); then
 else
   VERIFY_DIR="$(mktemp -d /private/tmp/harmonica-recorder-verify.XXXXXX)"
   trap 'rm -rf "$BUILD_ROOT" "$VERIFY_DIR"' EXIT
-  curl -fsSL --retry 2 --output "$VERIFY_DIR/github.zip" "$GITHUB_DOWNLOAD_URL"
-  curl -fsSL --retry 2 --output "$VERIFY_DIR/server.zip" "$SERVER_DOWNLOAD_URL"
+  echo "  校验 GitHub：$GITHUB_DOWNLOAD_URL"
+  curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors --output "$VERIFY_DIR/github.zip" "$GITHUB_DOWNLOAD_URL"
+  echo "  校验服务器：$SERVER_DOWNLOAD_URL"
+  curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors --output "$VERIFY_DIR/server.zip" "$SERVER_DOWNLOAD_URL"
   test "$(sha256_of "$VERIFY_DIR/github.zip")" = "$SHA256"
   test "$(sha256_of "$VERIFY_DIR/server.zip")" = "$SHA256"
 fi
