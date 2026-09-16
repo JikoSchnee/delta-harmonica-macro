@@ -64,7 +64,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=20260922" />
+    <link rel="stylesheet" href="./styles.css?v=20260925" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -89,7 +89,16 @@
         <div class="window-titlebar"><span>HARMONICA DECK.EXE — START SCREEN</span></div>
         <div class="eyebrow">DELTA FORCE · HARMONICA SEQUENCER</div>
         <h1>三角洲口琴宏生成器</h1>
-        <p>三角洲口琴数字简谱与 MIDI 转宏工具，支持口琴自动演奏、在线试听和多种鼠标宏导出。</p>
+        <p>三角洲口琴数字简谱与 MIDI 转宏工具，支持口琴自动演奏、在线试听，以及罗技、雷蛇、ROG 等鼠标宏和所有带录制功能的宏软件。</p>
+        <div class="hero-support" aria-label="支持的宏软件与录制方式">
+          <span class="hero-support-label">SUPPORTS</span>
+          <div class="hero-support-logos">
+            <span class="software-logo software-logo--logitech"><b>G</b><span>LOGITECH<br />G HUB</span></span>
+            <span class="software-logo software-logo--razer"><b>✣</b><span>RAZER<br />SYNAPSE</span></span>
+            <span class="software-logo software-logo--rog"><b>ROG</b><span>ARMOURY<br />CRATE</span></span>
+            <span class="software-logo software-logo--recorder"><b>REC</b><span>通用录制<br />宏软件</span></span>
+          </div>
+        </div>
         <div class="hero-actions" aria-label="分享与项目链接">
           <button class="qq-group-link" id="qqGroupButton" type="button" aria-label="复制群号 1102489399">分享曲目、反馈问题请加群：1102489399</button>
           <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="觉得好用请到 GitHub 点亮小星星">
@@ -362,7 +371,6 @@
           <div class="window-titlebar"><span>MONITOR.EXE — PLAYBACK STATUS</span><button class="panel-guide-button" data-guide="player" type="button" aria-label="查看播放器帮助" aria-haspopup="dialog">?</button></div>
           <div class="panel-heading">
             <div><span class="index">04</span><h2>播放器</h2></div>
-            <span class="monitor-dot"></span>
           </div>
           <div class="meter-grid">
             <div class="meter"><span>总时长</span><strong id="totalTime">--:--.---</strong></div>
@@ -407,7 +415,7 @@
             <article class="export-card recording-helper">
               <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手（强烈推荐）</h3><p>Windows 64 位 · 一键录制</p></div></div>
               <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。录制 Logitech G HUB 时请使用默认的「G HUB 兼容」模式。</p>
-              <div class="export-actions"><a class="recording-helper-tutorial-link recording-helper-tutorial-link--compact" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span>教程</span><i aria-hidden="true">↗</i></a><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button></div>
+              <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button><a class="recording-helper-tutorial-link recording-helper-tutorial-link--compact" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span>教程</span><i aria-hidden="true">↗</i></a></div>
             </article>
             <article class="export-card manual-entry">
               <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
@@ -822,6 +830,6 @@
     </div>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script src="./data/community-songs.js?v=20260916"></script>
-    <script src="./app.js?v=20260922"></script>
+    <script src="./app.js?v=20260925"></script>
   </body>
 </html>

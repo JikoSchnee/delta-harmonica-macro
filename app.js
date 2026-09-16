@@ -712,7 +712,7 @@ const SECTION_GUIDES = {
     title: "目录 · 从这里开始",
     intro: "目录只负责把你带到正确的起点；曲谱和导出内容始终在当前浏览器中处理。",
     steps: [
-      ["01", "使用曲库", "点击卡片主体可载入编辑器；右上角「导出」会载入该曲并直接前往最后的导出区。卡片内的「教程」会带你逐步完成此路径。"],
+      ["01", "使用曲库", "点击卡片主体会直接导出并复制改曲码链接；右上角「查看」载入编辑器，「导出」直接前往最后的导出区。卡片底部的改曲码整块也可以单独复制。"],
       ["02", "导入 MIDI", "选择 MIDI 文件后，先选择旋律音轨与截取范围，再确认生成；可按需要关闭「流畅演奏」，保留短断音。"],
       ["03", "手动打谱", "从简谱模式开始输入数字简谱；也可在编辑器内切换到录制、精确或三角洲键盘模式。每张入口卡内都有对应教程。"]
     ]
@@ -725,7 +725,7 @@ const SECTION_GUIDES = {
     steps: [
       ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
       ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；登录后可在「我的」查看当前账号的上传记录。"],
-      ["03", "查看与编辑", "点击卡片或「查看」会载入该曲并定位到编辑器；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
+      ["03", "查看与编辑", "点击「查看」会载入该曲并定位到编辑器；点击卡片主体会直接导出并复制改曲码链接；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
       ["05", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
@@ -780,7 +780,7 @@ const elements = {
   convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), clearButton: document.querySelector("#clearButton"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
-  timeline: document.querySelector("#timeline"), monitorDot: document.querySelector(".monitor-dot"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
+  timeline: document.querySelector("#timeline"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), remixCodeSection: document.querySelector("#remix-code"), remixCodeInput: document.querySelector("#remixCodeInput"), remixCodeStatus: document.querySelector("#remixCodeStatus"), remixCodeResult: document.querySelector("#remixCodeResult"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
@@ -1854,6 +1854,7 @@ function normalizeSong(song) {
 }
 
 const REMIX_CODE_LENGTH = 21;
+const DEFAULT_REMIX_CODE = "5B57D7F2146FE568B4629";
 const REMIX_CODE_PATTERN = new RegExp(`^[0-9a-f]{${REMIX_CODE_LENGTH}}$`, "i");
 const remixCodeCache = new Map();
 const remixCodePending = new Map();
@@ -1997,18 +1998,15 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const canManageRecommendations = Boolean(authState.account?.isAdmin);
   const recommendationAction = isRecommended ? "unrecommend" : "recommend";
   const recommendationLabel = isRecommended ? "取消推荐" : "推荐";
-  const remixCodeAction = song.remixCode
-    ? `<button class="song-card-action remix-code-action" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接">改曲码</button>`
-    : '<button class="song-card-action remix-code-action" type="button" disabled>改曲码</button>';
   return `
-    <article class="song-card" data-song-index="${index}" data-index="${String(index + 1).padStart(2, "0")}">
-      <button class="song-card-main" data-song-action="view" type="button" aria-label="查看《${escapeHtml(song.title)}》并打开编辑器">
+    <article class="song-card" data-song-index="${index}" data-remix-code="${escapeHtml(song.remixCode || "")}" data-index="${String(index + 1).padStart(2, "0")}">
+      <button class="song-card-main" data-song-action="card-export-copy-remix" type="button" aria-label="导出《${escapeHtml(song.title)}》并复制改曲码链接">
       <span class="song-number">TRACK ${String(index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(song.title)}</h3>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
       <div class="song-meta"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
       </button>
-      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<span class="song-remix-code" title="改曲码">${escapeHtml(song.remixCode)}</span>` : ""}${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
+      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
         <div class="song-card-actions-main">
           <button class="song-card-action" data-song-action="view" type="button">查看</button>
@@ -2017,7 +2015,6 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
           ${libraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
           ${canManageRecommendations ? `<button class="song-card-action recommendation-action${isRecommended ? " is-recommended" : ""}" data-song-action="${recommendationAction}" type="button">${recommendationLabel}</button>` : ""}
         </div>
-        <div class="song-card-actions-remix">${remixCodeAction}</div>
       </div>
     </article>
   `;
@@ -2064,10 +2061,11 @@ async function refreshRemixCodeViews() {
 }
 
 function applyRemixCodeFromUrl() {
-  const code = new URL(window.location.href).searchParams.get("code");
+  const url = new URL(window.location.href);
+  const code = url.searchParams.get("code");
+  elements.remixCodeInput.value = code || DEFAULT_REMIX_CODE;
+  renderRemixCodeResult(elements.remixCodeInput.value);
   if (!code) return;
-  elements.remixCodeInput.value = code;
-  renderRemixCodeResult(code);
   window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
     elements.remixCodeSection.scrollIntoView({ behavior: "auto", block: "start" });
   }));
@@ -2506,7 +2504,6 @@ function updateMonitor(sequence) {
     elements.eventCount.textContent = "--";
     elements.beatMs.textContent = "-- MS / BEAT";
     elements.timeline.innerHTML = '<li class="empty-state">转换后将在这里显示每个音符的按键时刻。</li>';
-    elements.monitorDot.classList.remove("active");
     setPreviewProgress(0, null);
     return;
   }
@@ -2514,7 +2511,6 @@ function updateMonitor(sequence) {
   elements.noteCount.textContent = sequence.notes.length;
   elements.eventCount.textContent = sequence.events;
   elements.beatMs.textContent = `${sequence.beatMs} MS / BEAT`;
-  elements.monitorDot.classList.add("active");
   elements.timeline.innerHTML = sequence.notes.map((item) => {
     const modifier = item.modifier ? `${item.modifier} + ` : "";
     const modifierLead = item.inputLeadMs ? `变调准备 ${item.inputLeadMs}ms · ` : "";
@@ -4715,14 +4711,20 @@ function handleSongCardClick(event) {
     return;
   }
   const actionButton = event.target.closest("[data-song-action]");
-  const card = actionButton?.closest("[data-song-index]");
-  if (!actionButton || !card) return;
-  if (actionButton.dataset.songAction === "copy-remix-code") {
+  const card = event.target.closest("[data-song-index]");
+  if (!card || (event.target.closest("a") && !actionButton)) return;
+  const remixCode = card.dataset.remixCode;
+  const song = remixCode ? remixCodeSong(remixCode) : SONG_LIBRARY[Number(card.dataset.songIndex)];
+  if (!song) return;
+  if (actionButton?.dataset.songAction === "copy-remix-code") {
     void copyRemixCodeLink(actionButton.dataset.remixCode);
     return;
   }
-  const song = SONG_LIBRARY[Number(card.dataset.songIndex)];
-  if (!song) return;
+  if (!actionButton || actionButton.dataset.songAction === "card-export-copy-remix") {
+    loadSong(song, { destination: "export" });
+    void copyRemixCodeLink(song.remixCode);
+    return;
+  }
   if (["recommend", "unrecommend"].includes(actionButton.dataset.songAction)) {
     updateSongRecommendation(song, actionButton.dataset.songAction === "recommend", actionButton);
     return;
