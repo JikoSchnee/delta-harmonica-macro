@@ -907,6 +907,13 @@ main {
 .macro-download-progress progress::-moz-progress-bar { background: var(--teal); }
 .recording-helper-body { max-height: calc(100vh - 74px); padding: 20px; overflow: auto; }
 .recording-helper-body h2 { margin: 10px 0 7px; font: 700 25px/1 var(--pixel); }
+.recording-helper-version-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 14px; padding: 7px; background: var(--screen); border: 2px inset var(--surface); }
+.recording-helper-version-board > div { display: grid; gap: 5px; min-width: 0; padding: 8px; background: rgba(223, 255, 253, .08); border: 1px solid #46706d; }
+.recording-helper-version-board span { color: #9bbab7; font: 700 9px/1.2 var(--mono); letter-spacing: .04em; }
+.recording-helper-version-board strong { overflow: hidden; color: var(--white); font: 700 12px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.recording-helper-version-board .recording-helper-version-compatible { background: rgba(141, 92, 153, .38); border-color: #b281bb; }
+.recording-helper-version-compatible span { color: #e9c8ed; }
+.recording-helper-version-note { margin: 8px 0 0; color: #526767; font: 10px/1.55 var(--mono); }
 .recording-helper-steps { display: grid; gap: 8px; margin: 17px 0 0; padding: 0; list-style: none; }
 .recording-helper-steps li { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px; color: #405d5a; background: var(--surface-light); border: 2px inset var(--surface); font-size: 12px; line-height: 1.7; }
 .recording-helper-steps b { display: grid; width: 28px; height: 28px; place-items: center; color: var(--white); background: #8d5c99; border: 1px solid #6a3777; font: 700 10px/1 var(--mono); }
@@ -1049,6 +1056,9 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .tutorial-deck-content { align-items: start; flex-direction: column; }
   .tutorial-video-link { align-self: stretch; justify-content: space-between; }
   .directory-heading, .tutorial-heading, .remix-code-heading, .source-import-copy, .midi-picker-heading { align-items: start; flex-direction: column; gap: 6px; }
+  .recording-helper-version-board { grid-template-columns: 1fr; }
+  .recording-helper-version-board > div { grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+  .recording-helper-version-board strong { text-align: right; }
   .export-mode-tabs { gap: 5px; }
   .export-mode-tab { flex: 1; justify-content: center; padding: 8px 7px; font-size: 10px; }
   .export-mode-heading { align-items: start; flex-direction: column; gap: 7px; }

@@ -29,6 +29,9 @@ internal sealed class PlaybackRequest
     [JsonPropertyName("wv")]
     public string? WebVersion { get; init; }
 
+    [JsonPropertyName("hc")]
+    public List<string> CompatibleHelperPrefixes { get; init; } = [];
+
     [JsonPropertyName("title")]
     public string Title { get; init; } = "当前曲谱";
 
@@ -37,7 +40,25 @@ internal sealed class PlaybackRequest
 
     public long TotalDurationMs => Math.Max(1, Events.Sum(item => item.IsRest ? (long)item.WaitMs : (long)item.HoldMs + item.WaitMs));
 
-    internal bool IsVersionCompatible => VersionPrefix(WebVersion) is string webPrefix && webPrefix == VersionPrefix(HelperVersion);
+    internal bool IsVersionCompatible
+    {
+        get
+        {
+            var helperPrefix = VersionPrefix(HelperVersion);
+            if (helperPrefix is null) return false;
+            if (CompatibleHelperPrefixes.Count > 0)
+            {
+                return CompatibleHelperPrefixes.Any(prefix => string.Equals(prefix?.Trim(), helperPrefix, StringComparison.OrdinalIgnoreCase));
+            }
+            // Older webpages did not send an explicit compatibility matrix.
+            // Keep accepting their original major/minor matching rule.
+            return VersionPrefix(WebVersion) is string webPrefix && webPrefix == helperPrefix;
+        }
+    }
+
+    internal string CompatibleHelperVersionLabel => CompatibleHelperPrefixes.Count > 0
+        ? string.Join(" / ", CompatibleHelperPrefixes.Select(prefix => $"v{prefix}.x"))
+        : $"v{VersionPrefix(HelperVersion)}.x";
 
     public static PlaybackRequest? FromProtocolArgument(string? argument)
     {
@@ -227,9 +248,9 @@ internal sealed class RecorderForm : Form
         {
             titleLabel.Text = "网页与助手版本不匹配";
             detailsLabel.Text = $"网页 v{request.WebVersion ?? "未知"} · 本助手 v{PlaybackRequest.HelperVersion}";
-            statusLabel.Text = $"网页与助手的前两位版本号必须一致，当前无法导入。\n请下载最新版助手并运行 Install.cmd；反馈 QQ 群：{QqGroup}";
+            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；反馈 QQ 群：{QqGroup}";
             startButton.Enabled = false;
-            Shown += (_, _) => MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n\n两者前两位版本号必须一致，请下载与网页匹配的最新版助手。\n反馈 QQ 群：{QqGroup}", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Shown += (_, _) => MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n网页兼容范围：{request.CompatibleHelperVersionLabel}\n\n请下载兼容范围内的助手版本，并运行 Install.cmd。\n反馈 QQ 群：{QqGroup}", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         else
         {
