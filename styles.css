@@ -330,18 +330,31 @@ main {
 .hero-support-label { color: #526767; font: 700 9px/1 var(--mono); letter-spacing: .12em; }
 .hero-support-logos { display: flex; flex-wrap: wrap; gap: 6px; }
 .software-logo { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 5px 8px; color: var(--white); border: 2px outset; box-shadow: 2px 2px 0 rgba(0, 42, 42, .55); font-family: var(--mono); }
-.software-logo > b { display: grid; min-width: 23px; height: 23px; place-items: center; font: 700 11px/1 var(--pixel); }
-.software-logo > span { font-size: 8px; font-weight: 700; line-height: 1.05; letter-spacing: .04em; }
+.software-logo-icon { display: block; flex: 0 0 auto; width: 25px; height: 23px; fill: none; stroke: currentColor; stroke-linecap: square; stroke-linejoin: miter; stroke-width: 2; }
+.software-logo-image { position: relative; display: block; flex: 0 0 auto; overflow: hidden; }
+.software-logo-image img { position: absolute; display: block; max-width: none; }
+.software-logo > span { display: grid; gap: 2px; font-size: 8px; font-weight: 700; line-height: 1; letter-spacing: .04em; }
+.software-logo > span strong { display: block; font-size: 9px; letter-spacing: .06em; }
+.software-logo > span small { display: block; font: 700 7px/1 var(--mono); letter-spacing: .05em; }
 .software-logo--logitech { background: #526d8d; border-color: #a9c4dd; border-bottom-color: #2e4059; }
-.software-logo--logitech > b { color: #526d8d; background: #e2edf6; }
-.software-logo--razer { background: #08756f; border-color: #67c8c0; border-bottom-color: #03423f; }
-.software-logo--razer > b { color: #073d3a; background: #8be8df; font-size: 14px; }
-.software-logo--mchose { background: #766047; border-color: #cbb697; border-bottom-color: #4d3c29; }
-.software-logo--mchose > b { min-width: auto; padding: 0 3px; color: #766047; background: #f1e5d1; font-size: 9px; }
+.software-logo-image--logitech { width: 48px; height: 22px; background: #e2edf6; }
+.software-logo-image--logitech img { top: 3px; left: 1px; width: 46px; height: 16px; object-fit: contain; filter: none; }
+.software-logo--logitech small { color: #e2edf6; }
+.software-logo--razer { color: #073d3a; background: #8be8df; border-color: #d5fff8; border-bottom-color: #04504b; }
+.software-logo--razer .software-logo-icon { padding: 2px; color: #073d3a; background: #e8fffb; object-fit: contain; filter: none; }
+.software-logo--razer small { color: #073d3a; }
+.software-logo--mchose { gap: 7px; padding-right: 10px; color: #fff; background: #111; border-color: #666; border-bottom-color: #000; }
+.software-logo-image--mchose { width: 76px; height: 21px; background: #efefef; }
+.software-logo-image--mchose img { top: -33px; left: -8px; width: 92px; height: 92px; filter: invert(1); }
+.software-logo--mchose > span strong { color: #fff; font-size: 10px; letter-spacing: .08em; }
+.software-logo--mchose > span small { color: #cfcfcf; font: 700 7px/1 var(--mono); letter-spacing: .08em; }
 .software-logo--rog { background: #9b4c2f; border-color: #e0a387; border-bottom-color: #5e2b1d; }
-.software-logo--rog > b { min-width: auto; padding: 0 3px; color: #9b4c2f; background: #ffe1c7; font-size: 9px; }
+.software-logo-image--rog { width: 38px; height: 23px; background: #ffe1c7; }
+.software-logo-image--rog img { top: 0; left: -10px; width: 58px; height: 30px; object-fit: contain; filter: brightness(0) saturate(100%) invert(27%) sepia(23%) saturate(1449%) hue-rotate(337deg) brightness(88%) contrast(89%); }
+.software-logo--rog small { color: #ffe1c7; }
 .software-logo--recorder { color: #fff7ff; background: #6a3777; border-color: #c08bc8; border-bottom-color: #452452; }
-.software-logo--recorder > b { color: #6a3777; background: #f3e8f5; font-size: 8px; }
+.software-logo--recorder .software-logo-icon { padding: 2px; color: #6a3777; background: #f3e8f5; stroke-width: 2; }
+.software-logo--recorder small { color: #f3e8f5; }
 
 .directory-remix-row { display: grid; grid-template-columns: minmax(300px, .9fr) minmax(0, 1.1fr); align-items: start; gap: 14px; margin-top: 14px; }
 .directory-remix-row > .directory-deck, .directory-remix-row > .remix-code-deck { margin-top: 0; }
