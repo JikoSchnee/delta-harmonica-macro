@@ -37,6 +37,8 @@ from urllib.request import Request, urlopen
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+MAINTENANCE_MARKER = REPOSITORY_ROOT / "data" / ".maintenance"
+MAINTENANCE_PAGE = REPOSITORY_ROOT / "maintenance.html"
 TOOLS_DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS_DIRECTORY))
 
@@ -1237,6 +1239,22 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
 
+    def serve_maintenance_if_active(self, path: str) -> bool:
+        """Show a retrying maintenance page while the production container swaps."""
+        if path == "/api/public-library/status" or not MAINTENANCE_MARKER.exists():
+            return False
+        try:
+            encoded = MAINTENANCE_PAGE.read_bytes()
+        except OSError:
+            encoded = "<meta charset='utf-8'><title>正在更新</title><h1>正在更新，请稍候</h1>".encode("utf-8")
+        self.send_response(HTTPStatus.SERVICE_UNAVAILABLE)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
+        self.end_headers()
+        self.wfile.write(encoded)
+        return True
+
     def send_redirect(self, location: str, cookie: str | list[str] | None = None) -> None:
         self.send_response(HTTPStatus.FOUND)
         self.send_header("Location", location)
@@ -1331,6 +1349,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if self.serve_maintenance_if_active(path):
+            return
         oauth_match = re.fullmatch(r"/api/auth/oauth/(qq|wechat)/(start|callback)", path)
         if oauth_match:
             provider, action = oauth_match.groups()
@@ -1459,6 +1479,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if self.serve_maintenance_if_active(path):
+            return
         if path == "/api/public-library/recommendations":
             if not self.server.public_library:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "公共曲库尚未启用。"})

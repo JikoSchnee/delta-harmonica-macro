@@ -90,7 +90,7 @@ docker run -d --name delta-harmonica-macro --restart unless-stopped \
 
 ## 一键部署到正式站点
 
-`deploy.sh` 的目标为 `jiko-official.top`。脚本会打包项目、上传服务器、重建镜像并替换容器，再请求 `https://jiko-official.top/delta/api/public-library/status` 验证服务。
+`deploy.sh` 的目标为 `jiko-official.top`。脚本会打包项目、上传服务器并先构建新镜像；构建期间旧容器继续提供服务。切换容器前会启用维护标记，新容器就绪后自动清除标记，访客在切换窗口看到“正在更新”页面而不是 502。脚本最后请求 `https://jiko-official.top/delta/api/public-library/status` 验证服务。
 
 ```bash
 ./deploy.sh

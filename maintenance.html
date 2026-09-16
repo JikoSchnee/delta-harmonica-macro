@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="8">
+  <title>正在更新 · 三角洲口琴演奏家</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: "Courier New", "Noto Sans Mono", monospace;
+      background: #c6c6c6;
+      color: #073e3f;
+    }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #c6c6c6;
+    }
+    .window {
+      width: min(680px, 100%);
+      border: 4px solid #073e3f;
+      border-right-color: #f2f2f2;
+      border-bottom-color: #f2f2f2;
+      background: #d9d9d9;
+      box-shadow: 7px 7px 0 #555;
+    }
+    .titlebar {
+      padding: 16px 20px;
+      background: #087f80;
+      color: #f3ffff;
+      font-size: clamp(15px, 3vw, 22px);
+      font-weight: 700;
+      letter-spacing: .08em;
+    }
+    .content { padding: clamp(24px, 6vw, 48px); }
+    .eyebrow {
+      margin: 0 0 18px;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .14em;
+    }
+    h1 {
+      margin: 0;
+      color: #111;
+      font-family: "Arial Black", "Noto Sans SC", sans-serif;
+      font-size: clamp(34px, 8vw, 64px);
+      line-height: 1;
+    }
+    p {
+      margin: 24px 0 0;
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: clamp(16px, 3vw, 21px);
+      line-height: 1.8;
+    }
+    .status {
+      display: flex;
+      gap: 7px;
+      margin-top: 28px;
+    }
+    .status span {
+      width: 34px;
+      height: 14px;
+      border: 2px solid #073e3f;
+      background: #69d5d1;
+      animation: pulse 1.2s steps(2, end) infinite;
+    }
+    .status span:nth-child(2) { animation-delay: .2s; }
+    .status span:nth-child(3) { animation-delay: .4s; }
+    @keyframes pulse {
+      0%, 100% { opacity: .35; }
+      50% { opacity: 1; }
+    }
+    .note {
+      margin-top: 26px;
+      color: #555;
+      font-family: "Noto Sans SC", sans-serif;
+      font-size: 14px;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .status span { animation: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="window" role="status" aria-live="polite">
+    <div class="titlebar">HARMONICA DECK.EXE — DEPLOYMENT STATUS</div>
+    <div class="content">
+      <p class="eyebrow">SYSTEM MESSAGE · PLEASE STAND BY</p>
+      <h1>正在更新</h1>
+      <p>新版本正在上线，曲库和已有数据会保留。页面将在更新完成后自动恢复，请稍候。</p>
+      <div class="status" aria-label="正在更新">
+        <span></span><span></span><span></span>
+      </div>
+      <p class="note">预计几秒后自动重试 · 请勿关闭页面</p>
+    </div>
+  </main>
+</body>
+</html>
