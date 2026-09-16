@@ -21,6 +21,7 @@ usage() {
   ./release-helper.sh <版本号> [--skip-github] [--skip-server] [--skip-verify]
 
 默认会构建 Windows 自包含助手、生成 ZIP、更新 recording-helper/version.json、创建或更新 GitHub Release、上传服务器镜像并校验两份下载文件。
+发布前会比较目标版本与 recording-helper/version.json；目标版本未更新或低于当前版本时会停止，并提示下一个可用版本号。
 
 环境变量：
   HELPER_GITHUB_REPOSITORY   GitHub 仓库，默认 JikoSchnee/delta-harmonica-macro
@@ -54,6 +55,56 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
+
+read_version_from_json() {
+  python3 - "$1" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    value = json.load(handle).get("version")
+if not isinstance(value, str) or not value.strip():
+    raise SystemExit("版本清单缺少有效的 version 字段")
+print(value.strip())
+PY
+}
+
+version_is_newer() {
+  python3 - "$1" "$2" <<'PY'
+import sys
+
+left = tuple(int(part) for part in sys.argv[1].split("."))
+right = tuple(int(part) for part in sys.argv[2].split("."))
+raise SystemExit(0 if left > right else 1)
+PY
+}
+
+next_patch_version() {
+  python3 - "$1" <<'PY'
+import sys
+
+parts = sys.argv[1].split(".")
+if len(parts) != 3 or not all(part.isdigit() for part in parts):
+    raise SystemExit("无法计算下一个补丁版本")
+parts[-1] = str(int(parts[-1]) + 1)
+print(".".join(parts))
+PY
+}
+
+CURRENT_HELPER_VERSION="$(read_version_from_json "${VERSION_FILE}")"
+if [[ ! "$CURRENT_HELPER_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "当前助手版本不是有效的三段式版本号：$CURRENT_HELPER_VERSION" >&2
+  exit 1
+fi
+if ! version_is_newer "$VERSION" "$CURRENT_HELPER_VERSION"; then
+  NEXT_HELPER_VERSION="$(next_patch_version "$CURRENT_HELPER_VERSION")"
+  echo "助手版本未更新或低于当前版本，已停止发布。" >&2
+  echo "当前版本：v$CURRENT_HELPER_VERSION" >&2
+  echo "目标版本：v$VERSION" >&2
+  echo "请 bump version 后重新执行，例如：" >&2
+  echo "  ./release-helper.sh $NEXT_HELPER_VERSION" >&2
+  exit 1
+fi
 
 readonly ARCHIVE_NAME="${VERSION}-HarmonicaRecorder-win-x64.zip"
 readonly RELEASE_TAG="helper-v${VERSION}"
