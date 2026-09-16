@@ -1701,7 +1701,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 payload["_fileBytes"] = part.get_payload(decode=True) or b""
                 continue
             value = part.get_content()
-            payload[field] = value if isinstance(value, str) else str(value)
+            payload[field] = (value if isinstance(value, str) else str(value)).strip()
         if "bpm" in payload:
             try:
                 payload["bpm"] = int(str(payload["bpm"]).strip())
