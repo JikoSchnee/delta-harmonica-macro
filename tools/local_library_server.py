@@ -49,7 +49,8 @@ SOURCE_DIRECTORY = REPOSITORY_ROOT / "data" / "community-scores"
 LIBRARY_OUTPUT = REPOSITORY_ROOT / "data" / "community-songs.js"
 MAX_REQUEST_BYTES = 1_000_000
 MAX_ANALYTICS_REQUEST_BYTES = 25_000
-PUBLIC_UPLOAD_COOLDOWN_SECONDS = 30
+PUBLIC_UPLOAD_RATE_WINDOW_SECONDS = 30
+PUBLIC_UPLOAD_RATE_LIMIT = 5
 PUBLIC_EXPORT_COUNT_REFRESH_SECONDS = 10 * 60
 AUTH_CODE_TTL_SECONDS = 10 * 60
 AUTH_CODE_MAX_ATTEMPTS = 5
@@ -364,6 +365,20 @@ def build_public_analytics_summary() -> dict[str, int]:
     }
 
 
+def analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
+    """Match the browser's privacy-safe score ID for a public library score."""
+    identity = "\u241f".join(
+        str(score.get(field, "")).strip().lower()
+        for field in ("title", "artist", "sharedBy")
+    )
+    identity = f"{origin}\u241f{identity}"
+    value = 2166136261
+    for character in identity:
+        value ^= ord(character)
+        value = (value * 16777619) & 0xFFFFFFFF
+    return f"s{value:08x}"
+
+
 def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     """Read export totals once for the daily hot-ranking job."""
     safe_days = max(1, retention_days)
@@ -428,36 +443,59 @@ def yesterday_export_ranking() -> list[dict[str, Any]]:
     return [{"rank": rank, "scoreId": score_id, "exports": count} for rank, (score_id, count) in enumerate(ordered, start=1)]
 
 
-def contribution_ranking(auth_enabled: bool) -> list[dict[str, Any]]:
-    """Count each account's currently published, owned community scores."""
+def public_owned_scores(auth_enabled: bool) -> list[tuple[str, str]]:
+    """Return public score IDs paired with their account user IDs."""
     if not auth_enabled:
         return []
-    public_paths = {
-        str(path.relative_to(REPOSITORY_ROOT))
-        for path, _ in read_scores()
+    public_scores = {
+        str(path.relative_to(REPOSITORY_ROOT)): score
+        for path, score in read_scores()
         if is_canonical_source(path)
     }
-    if not public_paths:
+    if not public_scores:
         return []
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
             "SELECT accounts.user_id AS user_id, score_owners.score_path AS score_path "
             "FROM score_owners JOIN accounts ON accounts.id = score_owners.account_id"
         ).fetchall()
-    counts: Counter[str] = Counter(
-        str(row["user_id"]) for row in rows if str(row["score_path"]) in public_paths
-    )
+    return [
+        (str(row["user_id"]), analytics_score_id(public_scores[str(row["score_path"])]))
+        for row in rows
+        if str(row["score_path"]) in public_scores
+    ]
+
+
+def upload_ranking(auth_enabled: bool) -> list[dict[str, Any]]:
+    """Count each account's currently published, owned community scores."""
+    counts: Counter[str] = Counter(user_id for user_id, _ in public_owned_scores(auth_enabled))
     ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0].casefold(), item[0]))
-    return [{"rank": rank, "userId": user_id, "contributions": count} for rank, (user_id, count) in enumerate(ordered, start=1)]
+    return [{"rank": rank, "userId": user_id, "uploads": count} for rank, (user_id, count) in enumerate(ordered, start=1)]
 
 
-def build_public_rankings(auth_enabled: bool) -> dict[str, Any]:
+def contribution_ranking(auth_enabled: bool, retention_days: int) -> list[dict[str, Any]]:
+    """Sum deduplicated exports for each account's currently published scores."""
+    if not auth_enabled:
+        return []
+    exports_by_score = score_export_counts_for_period(retention_days)
+    counts: Counter[str] = Counter()
+    for user_id, score_id in public_owned_scores(auth_enabled):
+        counts[user_id] += exports_by_score.get(score_id, 0)
+    ordered = sorted(
+        ((user_id, count) for user_id, count in counts.items() if count > 0),
+        key=lambda item: (-item[1], item[0].casefold(), item[0]),
+    )
+    return [{"rank": rank, "userId": user_id, "exports": count} for rank, (user_id, count) in enumerate(ordered, start=1)]
+
+
+def build_public_rankings(auth_enabled: bool, retention_days: int) -> dict[str, Any]:
     """Build the privacy-safe rankings consumed by the public homepage."""
     yesterday = datetime.now().astimezone().date() - timedelta(days=1)
     return {
         "rankingDate": yesterday.isoformat(),
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "contributions": contribution_ranking(auth_enabled),
+        "uploads": upload_ranking(auth_enabled),
+        "contributions": contribution_ranking(auth_enabled, retention_days),
         "yesterdayExports": yesterday_export_ranking(),
     }
 
@@ -1535,15 +1573,21 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         return True
 
     def allow_public_upload(self) -> bool:
-        """Provide a small per-IP cooldown; production should also use proxy/WAF limits."""
+        """Allow up to five public upload attempts per IP in a 30-second window."""
         now = time.monotonic()
         forwarded_for = self.headers.get("X-Forwarded-For", "") if self.server.trust_proxy else ""
         client = forwarded_for.split(",", 1)[0].strip() or self.client_address[0]
         with self.server.upload_rate_limit_lock:
-            previous = self.server.last_public_uploads.get(client)
-            if previous is not None and now - previous < PUBLIC_UPLOAD_COOLDOWN_SECONDS:
+            timestamps = [
+                stamp
+                for stamp in self.server.public_uploads.get(client, [])
+                if now - stamp < PUBLIC_UPLOAD_RATE_WINDOW_SECONDS
+            ]
+            if len(timestamps) >= PUBLIC_UPLOAD_RATE_LIMIT:
+                self.server.public_uploads[client] = timestamps
                 return False
-            self.server.last_public_uploads[client] = now
+            timestamps.append(now)
+            self.server.public_uploads[client] = timestamps
         return True
 
     def do_GET(self) -> None:  # noqa: N802
@@ -1624,7 +1668,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.server.analytics_enabled:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
                 return
-            self.send_json(HTTPStatus.OK, build_public_rankings(self.server.auth_enabled))
+            self.send_json(HTTPStatus.OK, build_public_rankings(self.server.auth_enabled, self.server.analytics_retention_days))
             return
         if path == "/api/admin/analytics":
             if not self.server.analytics_enabled:
@@ -1866,14 +1910,17 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             # “我的曲库” first. Ensure legacy Jiko submissions are owned by
             # this verified account before duplicate/replace checks run.
             backfill_legacy_score_owners(account)
-            if not self.allow_public_upload():
-                self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "上传过于频繁，请 30 秒后再试。"})
-                return
             try:
                 payload = self.read_payload()
                 if not isinstance(payload, dict):
                     raise ValueError("上传内容格式无效。")
                 confirm_replace = payload.pop("confirmReplace", False) is True
+                # The overwrite confirmation is the continuation of an
+                # already initiated upload and must not consume a rate-limit
+                # slot or be blocked by the 30-second upload limit.
+                if not confirm_replace and not self.allow_public_upload():
+                    self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "30 秒内最多上传 5 次，请稍后再试。"})
+                    return
                 payload = {**payload, "sharedBy": account["user_id"]}
                 action, songs, destination = save_score(payload, allow_replace=confirm_replace, owner_account_id=account["id"])
                 bind_score_owner(account["id"], destination)
@@ -2109,7 +2156,7 @@ def main() -> int:
     server.analytics_admin_token = args.analytics_admin_token
     server.analytics_enabled = bool(args.analytics_admin_token)
     server.analytics_retention_days = args.analytics_retention_days
-    server.last_public_uploads: dict[str, float] = {}
+    server.public_uploads: dict[str, list[float]] = {}
     server.upload_rate_limit_lock = threading.Lock()
     server.auth_enabled = auth_requested
     server.email_auth_enabled = email_auth_requested
