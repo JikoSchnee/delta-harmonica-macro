@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.0.1</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.0.2</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -183,10 +183,14 @@
               <span class="public-rankings-date" id="publicRankingsDate">等待数据</span>
             </div>
             <div class="public-rankings-tabs" role="tablist" aria-label="选择榜单">
-              <button class="public-rankings-tab active" id="contributionRankingTab" data-ranking-view="contributions" type="button" role="tab" aria-selected="true" aria-controls="contributionRankingPanel">贡献榜</button>
+              <button class="public-rankings-tab active" id="uploadRankingTab" data-ranking-view="uploads" type="button" role="tab" aria-selected="true" aria-controls="uploadRankingPanel">上传榜</button>
+              <button class="public-rankings-tab" id="contributionRankingTab" data-ranking-view="contributions" type="button" role="tab" aria-selected="false" aria-controls="contributionRankingPanel" tabindex="-1">贡献榜</button>
               <button class="public-rankings-tab" id="exportRankingTab" data-ranking-view="yesterdayExports" type="button" role="tab" aria-selected="false" aria-controls="exportRankingPanel" tabindex="-1">昨日导出榜</button>
             </div>
-            <section class="public-ranking-panel active" id="contributionRankingPanel" data-ranking-panel="contributions" role="tabpanel" aria-labelledby="contributionRankingTab">
+            <section class="public-ranking-panel active" id="uploadRankingPanel" data-ranking-panel="uploads" role="tabpanel" aria-labelledby="uploadRankingTab">
+              <div class="public-ranking-list" id="uploadRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取上传数据……</p></div>
+            </section>
+            <section class="public-ranking-panel" id="contributionRankingPanel" data-ranking-panel="contributions" role="tabpanel" aria-labelledby="contributionRankingTab" hidden>
               <div class="public-ranking-list" id="contributionRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取贡献数据……</p></div>
             </section>
             <section class="public-ranking-panel" id="exportRankingPanel" data-ranking-panel="yesterdayExports" role="tabpanel" aria-labelledby="exportRankingTab" hidden>
@@ -595,13 +599,13 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v2.0.1</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
+    <footer><span>HARMONICA DECK · WEB v2.0.2</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽ICP备2026032364号-1</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v2.0.1</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v2.0.2</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -620,7 +624,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v2.0.1</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v2.0.2</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -941,6 +945,6 @@
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
     <script src="./data/community-songs.js?v=20261006"></script>
-    <script src="./app.js?v=20261007"></script>
+    <script src="./app.js?v=20261008"></script>
   </body>
 </html>
