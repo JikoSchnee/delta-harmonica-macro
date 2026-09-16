@@ -13,6 +13,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -79,6 +80,20 @@ def validate_display_url(value: Any) -> str | None:
     return text
 
 
+def validate_created_at(value: Any) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError("创建时间必须是有效的 ISO 8601 时间")
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError as error:
+        raise ValueError("创建时间必须是有效的 ISO 8601 时间") from error
+    if parsed.tzinfo is None:
+        raise ValueError("创建时间必须包含时区")
+    return parsed.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
 def validate_package(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("JSON 根节点必须是对象")
@@ -109,6 +124,9 @@ def validate_package(payload: Any) -> dict[str, Any]:
     display_url = validate_display_url(payload.get("displayUrl"))
     if display_url:
         score["displayUrl"] = display_url
+    created_at = validate_created_at(payload.get("createdAt"))
+    if created_at:
+        score["createdAt"] = created_at
     return score
 
 

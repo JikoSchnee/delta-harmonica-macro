@@ -628,11 +628,14 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
                 raise DuplicateScoreError("该曲目不属于当前账号，不能覆盖已上传曲目。")
 
         existing_path = matches[0][0] if matches else None
+        existing_score = matches[0][1] if matches else None
+        score["createdAt"] = existing_score.get("createdAt") if existing_score else now_iso_timestamp()
         destination = existing_path if existing_path and is_canonical_source(existing_path) else SOURCE_DIRECTORY / filename_for(score)
         package = {
             "format": "delta-music",
             "version": 1,
             **{field: score[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            "createdAt": score["createdAt"],
             **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
         }
         write_json_atomically(destination, package)
@@ -689,10 +692,12 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         if conflicts:
             raise DuplicateScoreError("新的歌名、歌手/作者和共享人组合已存在，不能覆盖其他曲目。")
         destination = existing_path if dedupe_key(existing_score) == dedupe_key(candidate) else SOURCE_DIRECTORY / filename_for(candidate)
+        candidate["createdAt"] = existing_score.get("createdAt") or now_iso_timestamp()
         package = {
             "format": FORMAT,
             "version": VERSION,
             **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            "createdAt": candidate["createdAt"],
             **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
         }
         write_json_atomically(destination, package)
@@ -772,6 +777,10 @@ def initialize_auth_database() -> None:
 
 def now_timestamp() -> int:
     return int(time.time())
+
+
+def now_iso_timestamp() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def normalize_email(value: Any) -> str:
