@@ -732,10 +732,11 @@ main {
 .song-grid { display: grid; gap: 10px; }
 .song-card { position: relative; display: flex; min-height: 176px; flex-direction: column; overflow: hidden; color: var(--black); background: var(--surface-light); border: 2px inset var(--surface); transition: transform .15s, background .15s; }
 .song-card:hover { background: #d2e8e8; transform: translateY(-1px); }
-.song-card-main { display: block; flex: 1 1 auto; width: 100%; min-height: 126px; padding: 14px 148px 12px 14px; color: inherit; background: transparent; border: 0; text-align: left; }
+.song-card-main { display: block; flex: 1 1 auto; width: 100%; min-height: 126px; padding: 14px 148px 12px 14px; color: inherit; background: transparent; border: 0; text-align: left; cursor: pointer; }
 .song-card-main:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: -4px; }
 .song-card .song-number { display: block; color: var(--teal-dark); font: 700 10px/1 var(--mono); white-space: nowrap; }
-.song-card h3 { position: relative; max-width: 100%; margin: 11px 0 3px; overflow: hidden; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+.song-title-row { display: flex; align-items: baseline; gap: 8px; min-width: 0; margin-top: 11px; }
+.song-card h3 { position: relative; flex: 1 1 auto; min-width: 0; max-width: none; margin: 0 0 3px; overflow: hidden; font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .song-card .song-artist { position: relative; min-height: 16px; margin: 0; overflow: hidden; color: #405d5a; font: 10px/1.5 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .song-card .song-meta { position: relative; display: grid; grid-template-columns: 1fr; gap: 4px; margin-top: 7px; color: #526767; font: 9px/1.35 var(--mono); }
 .song-card .song-meta-primary { display: flex; align-items: center; gap: 7px; min-width: 0; white-space: nowrap; }
@@ -743,9 +744,9 @@ main {
 .song-card .song-meta-primary span + span::before { margin-right: 7px; color: var(--teal); content: "·"; }
 .song-card .song-export-count { color: #8a5600; font-weight: 700; }
 .song-card-footer { position: static; z-index: 1; display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 7px; margin: 0 12px 12px; min-width: 0; }
-.song-card .song-share, .song-showcase-link { min-width: 0; max-width: 100%; padding: 4px 5px; color: var(--teal-dark); background: rgba(223, 223, 223, .9); border: 1px solid #99aaaa; font: 700 9px/1.2 var(--mono); white-space: normal; word-break: break-word; }
-.song-showcase-link { flex: 0 0 auto; color: var(--teal-dark); text-decoration: none; }
-.song-showcase-link:hover, .song-showcase-link:focus-visible { color: var(--white); background: var(--teal); border-color: var(--teal-dark); }
+.song-card .song-share { min-width: 0; max-width: 100%; padding: 4px 5px; color: var(--teal-dark); background: rgba(223, 223, 223, .9); border: 1px solid #99aaaa; font: 700 9px/1.2 var(--mono); white-space: normal; word-break: break-word; }
+.song-showcase-link { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; min-width: 0; max-width: 100%; padding: 0; color: var(--teal-dark); background: transparent; border: 0; font: 700 9px/1.2 var(--mono); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.song-showcase-link:hover, .song-showcase-link:focus-visible { color: var(--teal); background: transparent; }
 .song-showcase-link:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
 .song-card::after { position: absolute; right: -8px; bottom: -31px; color: rgba(0, 128, 128, .08); font: 700 90px/1 var(--pixel); content: attr(data-index); }
 .song-card-actions { position: absolute; z-index: 2; top: 10px; right: 10px; display: block; max-width: calc(100% - 20px); }
@@ -922,6 +923,7 @@ main {
 .recording-helper-body { max-height: calc(100vh - 74px); padding: 20px; overflow: auto; }
 .recording-helper-body h2 { margin: 10px 0 7px; font: 700 25px/1 var(--pixel); }
 .recording-helper-version-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 14px; padding: 7px; background: var(--screen); border: 2px inset var(--surface); }
+.recording-helper-version-board--inline { margin-top: -8px; margin-bottom: 16px; }
 .recording-helper-version-board > div { display: grid; gap: 5px; min-width: 0; padding: 8px; background: rgba(223, 255, 253, .08); border: 1px solid #46706d; }
 .recording-helper-version-board span { color: #9bbab7; font: 700 9px/1.2 var(--mono); letter-spacing: .04em; }
 .recording-helper-version-board strong { overflow: hidden; color: var(--white); font: 700 12px/1.2 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
