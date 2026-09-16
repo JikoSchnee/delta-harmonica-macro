@@ -77,6 +77,28 @@
       .actions .button { min-height: 30px; padding: 0 9px; font-size: 12px; }
       .empty { padding: 25px 8px; color: var(--dim); text-align: center; }
       .notice { min-height: 24px; margin-top: 11px; color: var(--pink); }
+      .admin-song-dialog { width: min(760px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--ink); border: 2px solid var(--line); background: var(--paper); box-shadow: 7px 7px 0 var(--shadow); }
+      .admin-song-dialog::backdrop { background: rgba(0, 20, 17, .78); }
+      .admin-song-form { margin: 0; }
+      .admin-song-body { max-height: calc(100vh - 76px); padding: 20px; overflow: auto; }
+      .admin-song-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+      .admin-song-heading h2 { margin: 5px 0 0; color: var(--amber); font-size: 22px; }
+      .admin-song-description { margin: 10px 0 18px; color: var(--dim); font-size: 12px; }
+      .admin-song-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+      .admin-song-grid label { display: grid; gap: 6px; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
+      .admin-song-grid input { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
+      .admin-song-grid input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
+      .admin-song-grid input[readonly] { color: var(--dim); border-style: dashed; background: #0a2621; }
+      .admin-song-wide { grid-column: 1 / -1; }
+      .admin-song-binding { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; grid-column: 1 / -1; padding: 12px; border: 1px solid rgba(122,168,151,.28); background: rgba(7,29,25,.65); }
+      .admin-song-binding-title { grid-column: 1 / -1; color: var(--aqua); font: 11px "JetBrains Mono", monospace; letter-spacing: .06em; }
+      .admin-song-file { grid-column: 1 / -1; padding: 14px; border: 1px dashed var(--line); background: rgba(18,59,52,.55); }
+      .admin-song-file label { display: grid; gap: 8px; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
+      .admin-song-file input[type="file"] { color: var(--ink); font: 12px "Noto Sans SC", sans-serif; }
+      .admin-song-file small { display: block; margin-top: 8px; color: var(--dim); }
+      .admin-song-status { min-height: 24px; margin: 14px 0 0; color: var(--pink); font-size: 12px; }
+      .admin-song-status.success { color: var(--aqua); }
+      .admin-song-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
       .login-screen { display: grid; place-items: center; min-height: 100vh; padding: 20px; }
       .login { width: min(520px, 100%); padding: 28px; }
       .login h1 { margin: 8px 0 0; color: var(--aqua); font: 700 27px "Silkscreen", sans-serif; }
@@ -85,7 +107,7 @@
       .login .button { width: 100%; margin-top: 12px; }
       [hidden] { display: none !important; }
       @media (max-width: 900px) { .shell { grid-template-columns: 74px minmax(0, 1fr); } .rail { padding: 15px 10px; } .brand { padding: 4px 2px 16px; } .brand h1 { font-size: 10px; } .brand p, .brand small, .nav span, .rail-foot { display: none; } .nav button { justify-content: center; padding: 12px 0; } .nav b { text-align: center; } .split { grid-template-columns: 1fr; } }
-      @media (max-width: 650px) { .content { padding: 18px 12px 40px; } .topline { flex-direction: column; } .top-actions { justify-content: flex-start; } .metrics { grid-template-columns: repeat(2, 1fr); } .window { box-shadow: 4px 4px 0 var(--shadow); } .panel { padding: 14px 10px; } table { display: block; overflow-x: auto; white-space: nowrap; } }
+      @media (max-width: 650px) { .content { padding: 18px 12px 40px; } .topline { flex-direction: column; } .top-actions { justify-content: flex-start; } .metrics { grid-template-columns: repeat(2, 1fr); } .window { box-shadow: 4px 4px 0 var(--shadow); } .panel { padding: 14px 10px; } table { display: block; overflow-x: auto; white-space: nowrap; } .admin-song-grid, .admin-song-binding { grid-template-columns: 1fr; } .admin-song-binding-title, .admin-song-wide { grid-column: 1; } .admin-song-body { padding: 14px; } .admin-song-heading { align-items: flex-start; flex-direction: column; } }
       @media (max-width: 380px) { .metrics { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -140,6 +162,35 @@
       </main>
     </div>
 
+    <dialog id="adminSongDialog" class="admin-song-dialog" aria-labelledby="adminSongTitle" aria-describedby="adminSongDescription">
+      <form id="adminSongForm" class="admin-song-form" method="dialog">
+        <div class="titlebar">COMMUNITY_SCORE.EXE — ADMIN EDIT</div>
+        <div class="admin-song-body">
+          <div class="admin-song-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / ADMINISTRATOR</div><h2 id="adminSongTitle">编辑曲目</h2></div><span class="tag amber">作者绑定锁定</span></div>
+          <p id="adminSongDescription" class="admin-song-description">修改基本信息，或选择新的 .deltamusic 文件替换当前曲谱。未选择文件时，仅更新基本信息。</p>
+          <div class="admin-song-grid">
+            <label>歌名<input id="adminSongName" type="text" maxlength="48" required /></label>
+            <label>歌手 / 作者<input id="adminSongArtist" type="text" maxlength="64" required /></label>
+            <label>调号<input id="adminSongKey" type="text" maxlength="8" required /></label>
+            <label>拍号<input id="adminSongMeter" type="text" maxlength="5" inputmode="numeric" required /></label>
+            <label>BPM<input id="adminSongBpm" type="number" min="30" max="300" step="1" required /></label>
+            <label class="admin-song-wide">展示视频链接（可不填）<input id="adminSongDisplayUrl" type="url" maxlength="2048" placeholder="https://example.com/video" /></label>
+            <div class="admin-song-binding">
+              <div class="admin-song-binding-title">OWNERSHIP BINDING / READ ONLY</div>
+              <label>共享人<input id="adminSongSharedBy" type="text" readonly /></label>
+              <label>账号归属<input id="adminSongOwner" type="text" readonly /></label>
+            </div>
+            <div class="admin-song-file">
+              <label for="adminSongFile">替换 .deltamusic 文件<input id="adminSongFile" type="file" accept=".deltamusic,application/json" /></label>
+              <small id="adminSongFileHint">不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。</small>
+            </div>
+          </div>
+          <div id="adminSongStatus" class="admin-song-status" role="status" aria-live="polite"></div>
+          <div class="admin-song-actions"><button id="adminSongCancel" class="button ghost" type="submit" value="cancel">取消</button><button id="adminSongSave" class="button" type="button">保存更新 →</button></div>
+        </div>
+      </form>
+    </dialog>
+
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
@@ -148,7 +199,8 @@
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
       async function api(path, options = {}) {
-        const response = await fetch(`../api/${path}`, { ...options, headers: { Authorization: `Bearer ${state.token}`, Accept: "application/json", ...(options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) }, cache: "no-store" });
+        const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
+        const response = await fetch(`../api/${path}`, { ...options, headers: { Authorization: `Bearer ${state.token}`, Accept: "application/json", ...(!isFormData && options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) }, cache: "no-store" });
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || "后台请求失败。");
         return body;
@@ -176,11 +228,69 @@
       }
       function renderLibrary() {
         $("#libraryCount").textContent = `${number.format(state.songs.length)} 首曲目`;
-        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}</td><td><div class="actions"><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
+        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
       }
       function renderUsers() {
         $("#userCount").textContent = `${number.format(state.users.length)} 位用户`;
         $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th><th>角色</th><th>上传</th><th>状态</th><th>加入时间</th><th>最近更新</th></tr></thead><tbody>${state.users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td><td class="mono">${formatDate(user.registeredAt)}</td><td class="mono">${formatDate(user.updatedAt)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+      }
+      let pendingAdminSong = null;
+      function setAdminSongStatus(message = "", success = false) {
+        const target = $("#adminSongStatus");
+        target.textContent = message;
+        target.classList.toggle("success", Boolean(message && success));
+      }
+      function openAdminSongDialog(song) {
+        pendingAdminSong = song;
+        $("#adminSongTitle").textContent = "编辑《" + song.title + "》";
+        $("#adminSongName").value = song.title || "";
+        $("#adminSongArtist").value = song.artist || "";
+        $("#adminSongKey").value = song.key || "1=C";
+        $("#adminSongMeter").value = song.meter || "4/4";
+        $("#adminSongBpm").value = song.bpm || 120;
+        $("#adminSongDisplayUrl").value = song.displayUrl || "";
+        $("#adminSongSharedBy").value = song.sharedBy || "—";
+        $("#adminSongOwner").value = song.owner || "—";
+        $("#adminSongFile").value = "";
+        $("#adminSongFileHint").textContent = "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。";
+        setAdminSongStatus();
+        if (typeof $("#adminSongDialog").showModal === "function") {
+          $("#adminSongDialog").showModal();
+          $("#adminSongName").focus();
+        }
+      }
+      async function saveAdminSong() {
+        if (!pendingAdminSong) return;
+        const form = $("#adminSongForm");
+        if (!form.reportValidity()) return;
+        const file = $("#adminSongFile").files[0];
+        if (file && file.size > 1024 * 1024) {
+          setAdminSongStatus("替换文件不能超过 1 MB。");
+          return;
+        }
+        const payload = new FormData();
+        payload.append("id", pendingAdminSong.id);
+        payload.append("title", $("#adminSongName").value);
+        payload.append("artist", $("#adminSongArtist").value);
+        payload.append("key", $("#adminSongKey").value);
+        payload.append("meter", $("#adminSongMeter").value);
+        payload.append("bpm", $("#adminSongBpm").value);
+        payload.append("displayUrl", $("#adminSongDisplayUrl").value);
+        if (file) payload.append("scoreFile", file, file.name);
+        $("#adminSongSave").disabled = true;
+        setAdminSongStatus(file ? "正在替换文件并更新曲目…" : "正在更新曲目信息…");
+        try {
+          await api("admin/library/song", { method: "PATCH", body: payload });
+          $("#adminSongDialog").close();
+          pendingAdminSong = null;
+          setNotice("曲目已更新。");
+          await loadAll();
+          showPage("library");
+        } catch (error) {
+          setAdminSongStatus(error.message || "保存曲目失败，请稍后重试。");
+        } finally {
+          $("#adminSongSave").disabled = false;
+        }
       }
       async function loadAll() {
         setNotice("正在同步…");
@@ -195,7 +305,10 @@
       $("#refreshButton").addEventListener("click", loadAll); $("#logoutButton").addEventListener("click", () => { state.token = ""; sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
       $("#librarySearchButton").addEventListener("click", loadLibrary); $("#userSearchButton").addEventListener("click", loadUsers);
       $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
-      $("#libraryTable").addEventListener("click", async event => { const recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
+      $("#libraryTable").addEventListener("click", async event => { const edit = event.target.closest("[data-edit-index]"), recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(edit?.dataset.editIndex ?? recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (edit) { openAdminSongDialog(song); return; } if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
+      $("#adminSongSave").addEventListener("click", saveAdminSong);
+      $("#adminSongFile").addEventListener("change", () => { const file = $("#adminSongFile").files[0]; $("#adminSongFileHint").textContent = file ? "已选择：" + file.name + "（" + number.format(file.size) + " 字节）" : "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。"; });
+      $("#adminSongDialog").addEventListener("close", () => { pendingAdminSong = null; $("#adminSongFile").value = ""; setAdminSongStatus(); $("#adminSongSave").disabled = false; });
       const savedToken = sessionStorage.getItem("delta-admin-token"); if (savedToken) { $("#token").value = savedToken; connect(savedToken).catch(error => { $("#loginNotice").textContent = error.message; }); }
     </script>
   </body>
