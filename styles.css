@@ -835,7 +835,7 @@ main {
 .auth-account-note { padding-top: 2px; font-size: 10px !important; }
 .macro-download-dialog { width: min(560px, calc(100vw - 26px)); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .macro-download-dialog::backdrop { background: rgba(0, 35, 35, .68); }
-.recording-helper-dialog { width: min(560px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
+.recording-helper-dialog { display: flex; flex-direction: column; width: min(560px, calc(100vw - 26px)); max-height: calc(100dvh - 26px); padding: 0; overflow: hidden; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .recording-helper-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .upload-help-dialog { width: min(430px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .6); }
 .upload-help-dialog::backdrop { background: rgba(0, 35, 35, .68); }
@@ -890,20 +890,39 @@ main {
 .section-guide-dialog::backdrop { background: rgba(0, 35, 35, .68); }
 .score-export-form { margin: 0; }
 .macro-download-form { margin: 0; }
-.recording-helper-form { margin: 0; }
+.recording-helper-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; margin: 0; }
 .upload-help-form { margin: 0; }
 .qq-group-form { margin: 0; }
 .keyboard-macro-form { margin: 0; }
 .section-guide-form { margin: 0; }
 .score-export-dialog .window-titlebar { padding-right: 4px; }
 .macro-download-dialog .window-titlebar { padding-right: 4px; }
-.recording-helper-dialog .window-titlebar { padding-right: 4px; }
+.recording-helper-dialog .window-titlebar { flex: 0 0 auto; padding-right: 4px; }
 .upload-help-dialog .window-titlebar { padding-right: 4px; }
 .qq-group-dialog .window-titlebar { padding-right: 4px; }
 .keyboard-macro-dialog .window-titlebar { padding-right: 4px; }
 .section-guide-dialog .window-titlebar { padding-right: 4px; }
 .dialog-close { width: 24px; height: 22px; padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); font: 700 16px/1 var(--mono); }
 .dialog-close:active { border-style: inset; }
+
+/* Keep every modal's window controls visible while its content scrolls independently. */
+dialog:not(.midi-note-picker-dialog) { display: flex; flex-direction: column; max-height: calc(100dvh - 26px); overflow: hidden; }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; margin: 0; }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar { flex: 0 0 auto; }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div,
+.tour-popover-body { flex: 1 1 auto; min-height: 0; max-height: none; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--teal) var(--surface-light); scrollbar-width: thin; }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div::-webkit-scrollbar,
+.tour-popover-body::-webkit-scrollbar { width: 10px; height: 10px; }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div::-webkit-scrollbar-track,
+.tour-popover-body::-webkit-scrollbar-track { background: var(--surface-light); border-left: 1px solid var(--surface-dark); }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div::-webkit-scrollbar-thumb,
+.tour-popover-body::-webkit-scrollbar-thumb { background: var(--teal); border: 2px solid var(--surface-light); }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div::-webkit-scrollbar-thumb:hover,
+.tour-popover-body::-webkit-scrollbar-thumb:hover { background: #129b9b; border-color: #a5d8d4; }
+dialog:not(.midi-note-picker-dialog) > form[method="dialog"] > .window-titlebar + div::-webkit-scrollbar-thumb:active,
+.tour-popover-body::-webkit-scrollbar-thumb:active { background: var(--teal-dark); }
+dialog:not(.midi-note-picker-dialog) .dialog-actions,
+.tour-popover .tour-actions { position: sticky; z-index: 1; bottom: 0; padding-top: 12px; background: linear-gradient(to bottom, transparent 0, var(--surface) 12px); }
 .score-export-body { padding: 20px; }
 .score-export-body h2 { margin: 10px 0 7px; font: 700 27px/1 var(--pixel); }
 .score-export-body > p { margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
@@ -920,7 +939,7 @@ main {
 .macro-download-progress progress::-webkit-progress-bar { background: var(--surface-dark); }
 .macro-download-progress progress::-webkit-progress-value { background: var(--teal); }
 .macro-download-progress progress::-moz-progress-bar { background: var(--teal); }
-.recording-helper-body { max-height: calc(100vh - 74px); padding: 20px; overflow: auto; }
+.recording-helper-body { padding: 20px; }
 .recording-helper-body h2 { margin: 10px 0 7px; font: 700 25px/1 var(--pixel); }
 .recording-helper-version-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; margin-top: 14px; padding: 7px; background: var(--screen); border: 2px inset var(--surface); }
 .recording-helper-version-board--inline { margin-top: 16px; margin-bottom: 16px; }
@@ -990,7 +1009,7 @@ main {
 .tour-shield { position: fixed; z-index: 1; cursor: not-allowed; pointer-events: auto; }
 .tour-spotlight { position: fixed; z-index: 2; box-sizing: border-box; border: 2px solid #bffff9; box-shadow: 0 0 0 5px rgba(0, 128, 128, .6), 0 0 0 100vmax rgba(0, 27, 27, .78), 0 0 18px rgba(142, 255, 244, .8); pointer-events: none; transition: left .22s ease, top .22s ease, width .22s ease, height .22s ease; }
 .tour-target { position: relative !important; z-index: 102 !important; outline: 2px solid #bffff9; outline-offset: 4px; }
-.tour-popover { position: fixed; z-index: 103; display: flex; flex-direction: column; width: min(390px, calc(100vw - 24px)); max-height: var(--tour-popover-max-height, calc(100vh - 24px)); color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .72); pointer-events: auto; }
+.tour-popover { position: fixed; z-index: 103; display: flex; flex-direction: column; width: min(390px, calc(100vw - 24px)); max-height: var(--tour-popover-max-height, calc(100dvh - 24px)); overflow: hidden; color: var(--black); background: var(--surface); border: 2px outset var(--surface); box-shadow: 6px 6px 0 rgba(0, 0, 0, .72); pointer-events: auto; }
 .tour-popover-titlebar { display: flex; align-items: center; justify-content: space-between; min-height: 27px; padding: 3px 4px 3px 9px; color: var(--white); background: var(--teal); font: 700 10px/1 var(--mono); letter-spacing: .07em; }
 .tour-close { width: 22px; height: 20px; padding: 0; color: var(--black); background: var(--surface); border: 2px outset var(--surface); font: 700 15px/1 var(--mono); }
 .tour-close:active { border-style: inset; }
@@ -1093,6 +1112,8 @@ footer { position: relative; z-index: 1; display: flex; justify-content: space-b
   .midi-track-count { grid-column: 3; grid-row: 1; }
   .midi-track-precise { min-width: 58px; padding: 5px; font-size: 8px; }
   .midi-note-picker-dialog { width: 100vw; height: 100dvh; max-height: 100dvh; border: 0; }
+  .recording-helper-dialog { width: min(560px, calc(100vw - 16px)); max-height: calc(100dvh - 16px); }
+  .recording-helper-body { padding: 14px; }
   .midi-note-picker-body { padding: 14px; }
   .midi-note-picker-heading { align-items: start; flex-direction: column; gap: 8px; }
   .midi-note-picker-heading h2 { font-size: 20px; }
