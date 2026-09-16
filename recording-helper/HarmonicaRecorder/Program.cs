@@ -21,7 +21,9 @@ internal static class Program
 
 internal sealed class PlaybackRequest
 {
-    internal const string HelperVersion = "1.1.1";
+    internal static string HelperVersion => typeof(PlaybackRequest).Assembly.GetName().Version is System.Version version
+        ? $"{version.Major}.{version.Minor}.{Math.Max(0, version.Build)}"
+        : "0.0.0";
 
     [JsonPropertyName("v")]
     public int Version { get; init; }
@@ -202,9 +204,10 @@ internal sealed class RecorderForm : Form
         inputModeBox.SetBounds(208, 244, 280, 29);
         inputModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
         inputModeBox.FlatStyle = FlatStyle.Flat;
-        inputModeBox.Items.Add(InputInjectionMode.GHubCompatible);
+        inputModeBox.Items.Add(InputInjectionMode.Default);
+        inputModeBox.Items.Add(InputInjectionMode.MchoseCompatible);
         inputModeBox.Items.Add(InputInjectionMode.StandardSendInput);
-        activeInputMode = InputInjectionMode.GHubCompatible;
+        activeInputMode = InputInjectionMode.Default;
         inputModeBox.SelectedItem = activeInputMode;
         progressLabel.SetBounds(22, 280, 184, 27);
         progressLabel.Text = "录制进度 / 剩余时间";
@@ -442,7 +445,7 @@ internal sealed class RecorderForm : Form
     {
         if (inputModeBox.SelectedItem is not InputInjectionMode selectedInputMode) return;
         activeInputMode = selectedInputMode;
-        if (cancellation is null) statusLabel.Text = $"已选择 {activeInputMode.DisplayName}。G HUB 录制请优先使用“G HUB 兼容”。";
+        if (cancellation is null) statusLabel.Text = $"已选择 {activeInputMode.DisplayName}。迈从录制请使用“迈从兼容”。";
     }
 
     private async Task StartPlaybackAsync()
@@ -612,9 +615,10 @@ internal sealed record HotKeyOption(string DisplayName, uint Modifiers, uint Vir
     public override string ToString() => DisplayName;
 }
 
-internal sealed record InputInjectionMode(string DisplayName, bool UseLegacyScanCodeEvents)
+internal sealed record InputInjectionMode(string DisplayName, bool UseLegacyScanCodeEvents, bool UseScanCodeSendInput = false)
 {
-    internal static readonly InputInjectionMode GHubCompatible = new("G HUB 兼容 · 扫描码事件（推荐）", true);
+    internal static readonly InputInjectionMode Default = new("默认模式", true);
+    internal static readonly InputInjectionMode MchoseCompatible = new("迈从兼容 · SendInput 扫描码", false, true);
     internal static readonly InputInjectionMode StandardSendInput = new("标准 SendInput · 通用软件", false);
 
     public override string ToString() => DisplayName;
@@ -730,6 +734,11 @@ internal static class NativeInput
         if (inputMode.UseLegacyScanCodeEvents)
         {
             keybd_event(0, (byte)scanCode, KeyScanCode | (down ? 0 : KeyUp), UIntPtr.Zero);
+            return;
+        }
+        if (inputMode.UseScanCodeSendInput)
+        {
+            Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = 0, ScanCode = (ushort)scanCode, Flags = KeyScanCode | (down ? 0 : KeyUp) } } }]);
             return;
         }
         Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = (ushort)virtualKey, Flags = down ? 0 : KeyUp } } }]);

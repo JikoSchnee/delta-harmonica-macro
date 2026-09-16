@@ -1,4 +1,4 @@
-HARMONICA RECORDER v1.1.1 — Windows independent input helper
+HARMONICA RECORDER — Windows independent input helper
 
 1. Extract this ZIP to a permanent folder.
 2. Run Install.cmd once. This lets the website open the helper with the current score.
@@ -8,10 +8,10 @@ HARMONICA RECORDER v1.1.1 — Windows independent input helper
 
 Emergency stop: Ctrl + Alt + End by default. Click the shortcut field and press any key combination to replace it; the setting is saved for later launches.
 
-Version compatibility: the webpage declares the compatible helper release lines during export. The current helper v1.1.1 is compatible with webpages that declare v1.1.x. Web and helper versions are maintained independently. QQ feedback group: 1102489399.
+Version compatibility: the webpage reads the current helper release lines from recording-helper/version.json. Web and helper versions are maintained independently. QQ feedback group: 1102489399.
 The helper checks the update manifest at startup. If a newer version is available, you can confirm the download; the package is hash-checked and the helper restarts after replacing itself.
 
-For Logitech G HUB recording, use the default “G HUB compatible” input mode. It sends keyboard scan-code events and legacy mouse events, matching the compatibility path commonly used by macro tools. Use “Standard SendInput” only for other recorders if needed.
+For general recording, use the default mode. For MCHOSE recording, select “MCHOSE compatible · SendInput scan code”; this sends keyboard scan codes through the modern SendInput API, which is more likely to be captured by MCHOSE. If an older helper does not show this option, select “Standard SendInput” as a fallback. Use “Standard SendInput” for other recorders if needed.
 
 This program only uses standard Windows keyboard and left/middle/right mouse simulation APIs.
 Some target applications may ignore synthetic input. Do not use it in a focused game window.
