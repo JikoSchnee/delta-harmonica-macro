@@ -42,6 +42,9 @@ const INPUT_TRANSITION_GAP_MS = 18;
 // octave despite sounding correct in the browser preview.
 const MODIFIER_SETTLE_MS = 24;
 const MIN_NOTE_HOLD_MS = 24;
+// Give Logitech G HUB a short moment to enter the script callback before the
+// first score event. This only shifts the complete score, not its note spacing.
+const LUA_PLAYBACK_START_GUARD_MS = 50;
 // Give the target macro recorder time to enter its capture state after the
 // helper's Start button is clicked.  This is a silent pre-roll and does not
 // change the score's note timing; without it, the first key events can be
@@ -3091,6 +3094,7 @@ function generateLua(sequence, triggerSettings) {
     "local activePlaybackGeneration = 0",
     "local playbackStartedAt = 0",
     "local playbackGeneration = 0",
+    `local PLAYBACK_START_GUARD_MS = ${LUA_PLAYBACK_START_GUARD_MS}`,
     "",
     "local function ReleaseHeldInputs(ownerGeneration)",
     "  if ownerGeneration ~= nil and activePlaybackGeneration ~= ownerGeneration then return end",
@@ -3119,6 +3123,7 @@ function generateLua(sequence, triggerSettings) {
     "",
     "-- Wait against absolute score time so driver call overhead cannot accumulate.",
     "local function WaitUntil(targetMs, ownerGeneration)",
+    "  targetMs = targetMs + PLAYBACK_START_GUARD_MS",
     "  while true do",
     "    if stopRequested or playbackGeneration ~= ownerGeneration then return false end",
     "    if StopButtonPressed() then",
@@ -3127,7 +3132,8 @@ function generateLua(sequence, triggerSettings) {
     "    end",
     "    local remaining = targetMs - (GetRunningTime() - playbackStartedAt)",
     "    if remaining <= 0 then return true end",
-    "    local slice = math.min(remaining, 10)",
+    "    -- Sleep coarsely when far away, then use 1ms slices near the target.",
+    "    local slice = remaining > 8 and remaining - 4 or math.min(remaining, 1)",
     "    Sleep(slice)",
     "  end",
     "end",
