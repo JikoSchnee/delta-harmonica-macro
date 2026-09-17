@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.1.2</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.2.0</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -375,6 +375,11 @@
                 </div>
                 <button class="jianpu-modifier-reset" id="jianpuModifierReset" type="button">全部复位</button>
               </div>
+              <div class="jianpu-history-actions" aria-label="曲谱编辑操作">
+                <button class="jianpu-history-button" id="undoButton" type="button" aria-label="回退（Ctrl+Z）" disabled><span aria-hidden="true">↶</span><strong>回退</strong><kbd>Ctrl+Z</kbd></button>
+                <button class="jianpu-history-button" id="redoButton" type="button" aria-label="前进（Ctrl+Y）" disabled><span aria-hidden="true">↷</span><strong>前进</strong><kbd>Ctrl+Y</kbd></button>
+                <button class="jianpu-history-button jianpu-clear-button" id="clearButton" type="button" aria-haspopup="dialog" aria-controls="clearScoreDialog"><span aria-hidden="true">×</span><strong>清空</strong></button>
+              </div>
             </section>
             <div class="symbol-rack" aria-label="简谱符号说明">
               <span><code>0</code>休止</span><span><code>-</code>延一拍</span><span><code>.</code>附点</span><span><code>_ / __ / ___</code>减时线（最多三条）</span><span><code>5:1.25</code>精确拍数</span><span><code># / ♭</code>升降号</span><span><code>1' / 1'' / ,1 / ,,1</code>高低音点（上下最多两点）</span><span><code>~</code>连音</span><span><code>| ||: :||</code>小节/反复线</span>
@@ -434,7 +439,6 @@
               <button class="primary-button" id="macroExportButton" type="button" aria-controls="macro-export">导出为宏</button>
               <button class="primary-button" id="communityUploadButton" type="button" hidden><span>上传到曲库</span><b>↑</b></button>
               <button class="primary-button" id="exportScoreButton" type="button">分享 .deltamusic</button>
-              <button class="primary-button" id="clearButton" type="button">清空</button>
               <button class="primary-button repair-button" id="repairCurrentModeButton" type="button" title="试验性：按当前编辑模式修复并同步四种谱子">修复(试验性)</button>
             </div>
             <div class="validation" id="validation" role="status" aria-live="polite"></div>
@@ -547,22 +551,24 @@
           <article class="export-card mchose testing">
             <div class="export-top"><span class="driver-mark">MC</span><div><h3>迈从 MCHOSE</h3><p>JSON · 宏文件</p></div></div>
             <span class="export-card-status">测试中</span>
-            <p class="export-copy">迈从单个宏最多支持 100 个键盘／鼠标操作。系统会像 ROG 一样按完整音符分段，并把多个 JSON 打包为一个 ZIP；等待时间不计入上限。</p>
+            <p class="export-copy">可选择按完整音符分段导出，也可以关闭分段并导出一个 JSON 文件。每个文件最多操作可设置为 1–1000 次；等待时间不计入操作数。</p>
             <div class="export-card-setting">
-              <label for="mchoseOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="mchoseOperationsPerFile" type="number" min="6" max="100" step="1" value="100" inputmode="numeric" aria-describedby="mchoseSplitStatus" /><b>次</b></span></label>
-              <p id="mchoseSplitStatus" role="status" aria-live="polite">当前每个文件最多 100 个键盘／鼠标操作；等待时间不计入，按完整音符分段。</p>
+              <label class="export-card-setting-toggle" for="mchoseSplitEnabled"><span>分段导出</span><span class="export-card-setting-control"><input id="mchoseSplitEnabled" type="checkbox" checked aria-describedby="mchoseSplitStatus" /><b class="toggle-indicator" aria-hidden="true"></b></span></label>
+              <label for="mchoseOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="mchoseOperationsPerFile" type="number" min="1" max="1000" step="1" value="100" inputmode="numeric" aria-describedby="mchoseSplitStatus" /><b>次</b></span></label>
+              <p id="mchoseSplitStatus" role="status" aria-live="polite">当前为分段导出；每个文件最多 100 个键盘／鼠标操作，等待时间不计入，按完整音符分段。</p>
             </div>
-            <div class="export-actions"><button data-action="download-mchose" type="button">下载 MCHOSE JSON ZIP（按设置分段）</button></div>
+            <div class="export-actions"><button id="mchoseDownloadButton" data-action="download-mchose" type="button">下载 MCHOSE JSON ZIP（按设置分段）</button></div>
           </article>
           <article class="export-card rog testing">
             <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
             <span class="export-card-status">测试中</span>
-            <p class="export-copy">生成可导入的 Armoury Crate 宏事件。L／M／R 变调键会分别导入为左／中／右鼠标点击。ROG 单个宏最多支持 100 个键盘／鼠标操作，系统会按完整音符分段并将所有 GMAC 打包为一个 ZIP；延迟不占操作额度。</p>
+            <p class="export-copy">生成可导入的 Armoury Crate 宏事件。L／M／R 变调键会分别导入为左／中／右鼠标点击。可选择按完整音符分段导出，也可以关闭分段并导出一个 GMAC 文件；每个文件最多操作可设置为 1–1000 次。</p>
             <div class="export-card-setting">
-              <label for="rogOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="rogOperationsPerFile" type="number" min="6" max="100" step="1" value="100" inputmode="numeric" aria-describedby="rogSplitStatus" /><b>次</b></span></label>
-              <p id="rogSplitStatus" role="status" aria-live="polite">当前每个文件最多 100 个键盘／鼠标操作；延迟不计入，按完整音符分段。</p>
+              <label class="export-card-setting-toggle" for="rogSplitEnabled"><span>分段导出</span><span class="export-card-setting-control"><input id="rogSplitEnabled" type="checkbox" checked aria-describedby="rogSplitStatus" /><b class="toggle-indicator" aria-hidden="true"></b></span></label>
+              <label for="rogOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="rogOperationsPerFile" type="number" min="1" max="1000" step="1" value="100" inputmode="numeric" aria-describedby="rogSplitStatus" /><b>次</b></span></label>
+              <p id="rogSplitStatus" role="status" aria-live="polite">当前为分段导出；每个文件最多 100 个键盘／鼠标操作，延迟不计入，按完整音符分段。</p>
             </div>
-            <div class="export-actions"><button data-action="download-rog" type="button">下载 ROG GMAC ZIP（按设置分段）</button></div>
+            <div class="export-actions"><button id="rogDownloadButton" data-action="download-rog" type="button">下载 ROG GMAC ZIP（按设置分段）</button></div>
           </article>
           </div>
         </section>
@@ -599,13 +605,13 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v2.1.2</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v2.2.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v2.1.2</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v2.2.0</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -624,10 +630,21 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v2.1.2</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v2.2.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="clear-score-dialog" id="clearScoreDialog" aria-labelledby="clearScoreTitle" aria-describedby="clearScoreDescription">
+      <form method="dialog" class="clear-score-form">
+        <div class="window-titlebar"><span>SCORE_EDITOR.EXE — CLEAR CONTENT</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭清空确认窗口">×</button></div>
+        <div class="clear-score-body">
+          <span class="index">EDITOR ACTION · CONFIRMATION</span>
+          <h2 id="clearScoreTitle">确认清空曲谱？</h2>
+          <p id="clearScoreDescription">这会清空四种输入模式中的当前曲谱内容。清空后仍可使用撤销按钮恢复。</p>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="danger-button" id="confirmClearScore" type="button">确认清空</button></div>
         </div>
       </form>
     </dialog>
@@ -804,7 +821,7 @@
             <button class="primary-button auth-submit" id="authRegisterRequestCode" type="button"><span>发送验证码</span><b>→</b></button>
             <p class="auth-email-note" id="authRegisterEmailNote" hidden></p>
             <label>6 位验证码<input id="authRegisterCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
-            <label>用户 ID（用户名）<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" placeholder="例如 Harmony_01" aria-describedby="authUserIdHint" required /><small id="authUserIdHint">这是你的用户名，上传曲目时会自动作为共享人显示。</small></label>
+            <label>用户 ID（用户名）<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[\p{L}\p{N}_]{3,24}" placeholder="例如 口琴玩家_01" aria-describedby="authUserIdHint" required /><small id="authUserIdHint">支持中文、字母、数字和下划线，长度为 3–24 个字符；上传曲目时会自动作为共享人显示。</small></label>
             <button class="primary-button auth-submit" id="authVerifyRegister" type="button"><span>注册并登录</span><b>✓</b></button>
           </section>
           <p class="auth-status" id="authStatus" role="status" aria-live="polite" hidden></p>
@@ -818,7 +835,7 @@
           <span class="index">COMMUNITY IDENTITY</span>
           <h2 id="accountTitle">账户资料</h2>
           <p>登录凭据：<b id="accountEmail">--</b></p>
-          <label>用户 ID（用户名）<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[A-Za-z0-9_]{3,24}" aria-describedby="accountUserIdHint" /><small id="accountUserIdHint">这是你的用户名，上传曲目时会作为共享人显示。</small></label>
+          <label>用户 ID（用户名）<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[\p{L}\p{N}_]{3,24}" aria-describedby="accountUserIdHint" /><small id="accountUserIdHint">支持中文、字母、数字和下划线，长度为 3–24 个字符；上传曲目时会作为共享人显示。</small></label>
           <p class="auth-account-note">修改后，所有通过本站直传发布的曲谱会同步显示新 ID；旧 ID 会永久保留，无法被其他账户使用。</p>
           <p class="auth-status" id="accountStatus" role="status" aria-live="polite" hidden></p>
           <div class="dialog-actions"><button class="text-button" id="logoutButton" type="button">退出登录</button><button class="primary-button" id="saveAccountButton" type="button"><span>保存用户 ID</span><b>✓</b></button></div>
@@ -848,6 +865,15 @@
             <strong id="midiNotePickerCount" aria-live="polite">已选 0 音</strong>
           </div>
           <p id="midiNotePickerCopy">点击钢琴卷帘中的音符以保留或取消。相同起始时刻的和弦只能保留一个音，选择其他音会自动替换。</p>
+          <div class="midi-note-picker-tools midi-overlap-tools">
+            <div class="midi-overlap-heading"><strong>精准调控 · 重叠音批量选择</strong><span>仅处理音条重叠且起点不同的音</span></div>
+            <div class="midi-overlap-settings">
+              <label>起点间隔 <input id="midiOverlapMinGap" type="number" min="0" max="60000" step="1" value="0" inputmode="numeric" aria-label="起点间隔最小值" /><span>至</span><input id="midiOverlapMaxGap" type="number" min="0" max="60000" step="1" value="100" inputmode="numeric" aria-label="起点间隔最大值" /><span>毫秒</span></label>
+              <button class="text-button midi-overlap-choice" data-midi-overlap-choice="earlier" type="button">批量保留前一个</button>
+              <button class="text-button midi-overlap-choice" data-midi-overlap-choice="later" type="button">批量保留后一个</button>
+            </div>
+            <output class="midi-overlap-status" id="midiOverlapStatus" aria-live="polite">设置范围后，选择批量保留方向</output>
+          </div>
           <div class="midi-note-picker-tools"><button class="text-button" id="resetMidiNoteSelection" type="button">恢复自动预选</button><span>自动预选每组和弦中的最高音</span></div>
           <div class="midi-note-scroll" id="midiNoteScroll" tabindex="0" aria-label="可横向滚动的 MIDI 音符钢琴卷帘">
             <div class="midi-note-ruler" id="midiNoteRuler" aria-hidden="true"></div>
