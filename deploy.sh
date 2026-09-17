@@ -189,7 +189,7 @@ COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" \
   --exclude='.git' \
   --exclude='.idea' \
   --exclude='.pdmx-cache' \
-  --exclude='data/analytics' \
+  --exclude='data' \
   --exclude='__pycache__' \
   --exclude='._*' \
   .
@@ -220,21 +220,6 @@ mkdir -p "$remote_dir"
 tar --warning=no-unknown-keyword -xzf "$remote_archive" -C "$remote_dir"
 cd "$remote_dir"
 docker build -t "$image_name" .
-
-# 数据卷会覆盖镜像内的 /app/data。先补入仓库中已审核、但数据卷还没有的谱子，
-# 再从数据卷内的完整谱源重建曲库，既不会漏掉新收录的曲目，也不会覆盖用户直传。
-docker run --rm \
-  -v delta-harmonica-data:/app/data \
-  -v "$remote_dir/data:/seed:ro" \
-  --entrypoint sh "$image_name" -c '
-    set -eu
-    mkdir -p /app/data/community-scores
-    cp -n /seed/community-scores/. /app/data/community-scores/
-    python3 tools/import_community_scores.py /app/data/community-scores \
-      --report /tmp/community-score-review.json \
-      --persist \
-      --output /app/data/community-songs.js
-  '
 
 # 构建和数据导入都完成后再进入维护页，避免用户在准备阶段看到更新提示。
 docker run --rm \

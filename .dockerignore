@@ -1,4 +1,5 @@
 .git
 .pdmx-cache
+data
 **/__pycache__
 **/._*
