@@ -13,5 +13,8 @@
   "legacyAdminIds": [
     "73624cf13165"
   ],
-  "createdAt": "2026-09-17T03:52:33Z"
+  "createdAt": "2026-09-17T03:52:33Z",
+  "legacyAnalyticsIds": [
+    "sfcc5b02e"
+  ]
 }
