@@ -10,6 +10,7 @@ Examples:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -29,6 +30,8 @@ METER_PATTERN = re.compile(r"^(\d{1,2})/(\d{1,2})$")
 # explicitly supported end-to-end.
 TOKEN_PATTERN = re.compile(r"^(?:[#b♯♭]?[,]?(?:1''|(?:0|[1-7])'?)_{0,2}\.*-*(?::\d+(?:\.\d+)?)?~?|[-~]+)$")
 MAX_DISPLAY_URL_LENGTH = 2048
+REMIX_CODE_LENGTH = 21
+REMIX_CODE_PATTERN = re.compile(rf"^[0-9a-f]{{{REMIX_CODE_LENGTH}}}$", re.IGNORECASE)
 
 
 def compact_text(value: Any, field: str, limit: int) -> str:
@@ -97,6 +100,25 @@ def validate_created_at(value: Any) -> str | None:
     return parsed.astimezone(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def remix_code_for_score(score: dict[str, Any]) -> str:
+    """Create the initial code from the score's first saved content."""
+    payload = json.dumps(
+        [
+            str(score.get("title", "")).strip(),
+            str(score.get("artist", "")).strip(),
+            str(score.get("sharedBy", "")).strip(),
+            str(score.get("key", "")).strip(),
+            str(score.get("meter", "")).strip(),
+            int(score.get("bpm", 120)),
+            "jianpu" if score.get("jianpu") else "score",
+            str(score.get("jianpu") or score.get("score") or ""),
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:REMIX_CODE_LENGTH].upper()
+
+
 def validate_package(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("JSON 根节点必须是对象")
@@ -124,6 +146,13 @@ def validate_package(payload: Any) -> dict[str, Any]:
         "jianpu": validate_jianpu(payload.get("jianpu")),
         "source": "社区投稿",
     }
+    remix_code = payload.get("remixCode")
+    if remix_code is None:
+        score["remixCode"] = remix_code_for_score(score)
+    elif not isinstance(remix_code, str) or not REMIX_CODE_PATTERN.fullmatch(remix_code.strip()):
+        raise ValueError("改曲码必须是 21 位十六进制字符")
+    else:
+        score["remixCode"] = remix_code.strip().upper()
     display_url = validate_display_url(payload.get("displayUrl"))
     if display_url:
         score["displayUrl"] = display_url

@@ -737,12 +737,14 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
 
         existing_path = matches[0][0] if matches else None
         existing_score = matches[0][1] if matches else None
+        if existing_score:
+            score["remixCode"] = existing_score.get("remixCode") or score["remixCode"]
         score["createdAt"] = existing_score.get("createdAt") if existing_score else now_iso_timestamp()
         destination = existing_path if existing_path and is_canonical_source(existing_path) else SOURCE_DIRECTORY / filename_for(score)
         package = {
             "format": "delta-music",
             "version": 1,
-            **{field: score[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            **{field: score[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
             "createdAt": score["createdAt"],
             **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
         }
@@ -793,6 +795,7 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         if len(matches) > 1:
             raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
         existing_path, existing_score = matches[0]
+        candidate["remixCode"] = existing_score.get("remixCode") or candidate["remixCode"]
         conflicts = [
             path for path, score in existing_scores
             if path != existing_path and dedupe_key(score) == dedupe_key(candidate)
@@ -804,7 +807,7 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         package = {
             "format": FORMAT,
             "version": VERSION,
-            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
             "createdAt": candidate["createdAt"],
             **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
         }
@@ -1043,6 +1046,7 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         "jianpu": source_score["jianpu"],
         "displayUrl": payload.get("displayUrl", source_score.get("displayUrl")),
         "createdAt": existing_score.get("createdAt"),
+        "remixCode": existing_score.get("remixCode"),
     }
     candidate = validate_package(candidate_payload)
     with LIBRARY_LOCK:
@@ -1060,7 +1064,7 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         package = {
             "format": FORMAT,
             "version": VERSION,
-            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu")},
+            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
             "createdAt": candidate["createdAt"] or now_iso_timestamp(),
             **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
         }
