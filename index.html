@@ -551,17 +551,19 @@
           <article class="export-card mchose testing">
             <div class="export-top"><span class="driver-mark">MC</span><div><h3>迈从 MCHOSE</h3><p>JSON · 宏文件</p></div></div>
             <span class="export-card-status">测试中</span>
-            <p class="export-copy">可选择按完整音符分段导出，也可以关闭分段并导出一个 JSON 文件。每个文件最多操作可设置为 1–1000 次；等待时间不计入操作数。</p>
+            <p class="export-provider" id="mchoseProvider" aria-live="polite">信息提供人：读取中…</p>
+            <p class="export-copy">可选择按完整音符分段导出，也可以关闭分段并导出一个 JSON 文件。每个文件最多操作可设置为 1–2000 次；等待时间不计入操作数。</p>
             <div class="export-card-setting">
               <label class="export-card-setting-toggle" for="mchoseSplitEnabled"><span>分段导出</span><span class="export-card-setting-control"><input id="mchoseSplitEnabled" type="checkbox" checked aria-describedby="mchoseSplitStatus" /><b class="toggle-indicator" aria-hidden="true"></b></span></label>
-              <label for="mchoseOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="mchoseOperationsPerFile" type="number" min="1" max="1000" step="1" value="100" inputmode="numeric" aria-describedby="mchoseSplitStatus" /><b>次</b></span></label>
-              <p id="mchoseSplitStatus" role="status" aria-live="polite">当前为分段导出；每个文件最多 100 个键盘／鼠标操作，等待时间不计入，按完整音符分段。</p>
+              <label for="mchoseOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="mchoseOperationsPerFile" type="number" min="1" max="2000" step="1" value="1000" inputmode="numeric" aria-describedby="mchoseSplitStatus" /><b>次</b></span></label>
+              <p id="mchoseSplitStatus" role="status" aria-live="polite">当前为分段导出；每个文件最多 1000 个键盘／鼠标操作，等待时间不计入，按完整音符分段。</p>
             </div>
             <div class="export-actions"><button id="mchoseDownloadButton" data-action="download-mchose" type="button">下载 MCHOSE JSON ZIP（按设置分段）</button></div>
           </article>
           <article class="export-card rog testing">
             <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
             <span class="export-card-status">测试中</span>
+            <p class="export-provider" id="rogProvider" aria-live="polite">信息提供人：读取中…</p>
             <p class="export-copy">生成可导入的 Armoury Crate 宏事件。L／M／R 变调键会分别导入为左／中／右鼠标点击。可选择按完整音符分段导出，也可以关闭分段并导出一个 GMAC 文件；每个文件最多操作可设置为 1–1000 次。</p>
             <div class="export-card-setting">
               <label class="export-card-setting-toggle" for="rogSplitEnabled"><span>分段导出</span><span class="export-card-setting-control"><input id="rogSplitEnabled" type="checkbox" checked aria-describedby="rogSplitStatus" /><b class="toggle-indicator" aria-hidden="true"></b></span></label>

@@ -47,7 +47,8 @@ const ROG_SPLIT_ENABLED_KEY = "delta-rog-split-enabled";
 // Keep the event shape aligned with a real export sample: waits are explicit
 // `time` events, while zero-delay transitions stay adjacent.
 const MCHOSE_MOUSE_BUTTONS = { L: "mouseLeft", M: "mouseMid", R: "mouseRight" };
-const MCHOSE_MAX_OPERATIONS = 1000;
+const MCHOSE_DEFAULT_OPERATIONS_PER_FILE = 1000;
+const MCHOSE_MAX_OPERATIONS = 2000;
 const MCHOSE_MIN_OPERATIONS = 1;
 const MCHOSE_OPERATIONS_PER_FILE_KEY = "delta-mchose-operations-per-file";
 const MCHOSE_SPLIT_ENABLED_KEY = "delta-mchose-split-enabled";
@@ -901,7 +902,7 @@ const SECTION_GUIDES = {
       ["01", "设置 G HUB 触发", "填写开始键，并从下拉框选择停止键 4 或 5。"],
       ["02", "导出 Logitech Lua", "可先「复制 Lua」审阅内容，或下载 <code>.lua</code>。在 Logitech G HUB 的目标配置文件中打开脚本 / Scripting 页面，粘贴并保存。"],
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
-      ["04", "导出 MCHOSE JSON", "打开分段导出后可将每个文件的操作数设置为 1–1000；关闭后会把整首曲谱导出为一个文件。下载 ZIP 后按文件序号依次导入。"],
+      ["04", "导出 MCHOSE JSON", "打开分段导出后可将每个文件的操作数设置为 1–2000；关闭后会把整首曲谱导出为一个文件。下载 ZIP 后按文件序号依次导入。"],
       ["05", "导出 ROG GMAC", "打开分段导出后可将每个文件的操作数设置为 1–1000；关闭后会把整首曲谱导出为一个文件。下载 ZIP 后解压，在 Armoury Crate 的 Macro 页面按文件序号逐个选择 Import。"],
       ["06", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
     ]
@@ -909,7 +910,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportModeButtons: [...document.querySelectorAll("[data-export-mode]")], exportModePanels: [...document.querySelectorAll("[data-export-panel]")],
+  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportModeButtons: [...document.querySelectorAll("[data-export-mode]")], exportModePanels: [...document.querySelectorAll("[data-export-panel]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"), pageLayout: document.querySelector(".page-layout"), sectionSidebar: document.querySelector("#sectionSidebar"), sectionSidebarBody: document.querySelector("#sectionSidebarBody"), sectionSidebarToggle: document.querySelector("#sectionSidebarToggle"), sectionSidebarOpen: document.querySelector("#sectionSidebarOpen"), sectionNavLinks: [...document.querySelectorAll("[data-section-nav-target]")],
   convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -3894,17 +3895,25 @@ function generateMchoseJson(keyList, macroName = safeName()) {
   }, null, 2)}\n`;
 }
 
-function normalizeMchoseOperationsPerFile(value) {
+function normalizeOperationsPerFile(value, fallback, max) {
   const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return DEFAULT_OPERATIONS_PER_FILE;
-  return Math.min(MCHOSE_MAX_OPERATIONS, Math.max(MCHOSE_MIN_OPERATIONS, parsed));
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.min(max, Math.max(MCHOSE_MIN_OPERATIONS, parsed));
+}
+
+function normalizeMchoseOperationsPerFile(value) {
+  return normalizeOperationsPerFile(value, MCHOSE_DEFAULT_OPERATIONS_PER_FILE, MCHOSE_MAX_OPERATIONS);
+}
+
+function normalizeRogOperationsPerFile(value) {
+  return normalizeOperationsPerFile(value, DEFAULT_OPERATIONS_PER_FILE, ROG_MAX_OPERATIONS);
 }
 
 function readMchoseOperationsPerFile() {
   try {
     return normalizeMchoseOperationsPerFile(window.localStorage.getItem(MCHOSE_OPERATIONS_PER_FILE_KEY));
   } catch {
-    return DEFAULT_OPERATIONS_PER_FILE;
+    return MCHOSE_DEFAULT_OPERATIONS_PER_FILE;
   }
 }
 
@@ -3942,7 +3951,7 @@ function initializeMchoseOperationsPerFileSetting() {
 
 function readRogOperationsPerFile() {
   try {
-    return normalizeMchoseOperationsPerFile(window.localStorage.getItem(ROG_OPERATIONS_PER_FILE_KEY));
+    return normalizeRogOperationsPerFile(window.localStorage.getItem(ROG_OPERATIONS_PER_FILE_KEY));
   } catch {
     return DEFAULT_OPERATIONS_PER_FILE;
   }
@@ -3957,7 +3966,7 @@ function readRogSplitEnabled() {
 }
 
 function syncRogOperationsPerFileSetting({ persist = false } = {}) {
-  const value = normalizeMchoseOperationsPerFile(elements.rogOperationsPerFile?.value || readRogOperationsPerFile());
+  const value = normalizeRogOperationsPerFile(elements.rogOperationsPerFile?.value || readRogOperationsPerFile());
   const splitEnabled = elements.rogSplitEnabled ? elements.rogSplitEnabled.checked : readRogSplitEnabled();
   if (elements.rogOperationsPerFile) elements.rogOperationsPerFile.value = String(value);
   if (elements.rogOperationsPerFile) elements.rogOperationsPerFile.disabled = !splitEnabled;
@@ -5007,6 +5016,28 @@ async function enableLocalLibraryEntry() {
   } catch {}
 }
 
+async function refreshExportProviders() {
+  try {
+    const response = await fetch("./api/public-library/export-providers", {
+      cache: "no-store",
+      headers: { Accept: "application/json" }
+    });
+    const providers = await response.json();
+    if (!response.ok || !providers || typeof providers !== "object") throw new Error("export providers unavailable");
+    const updateLabel = (element, userId) => {
+      if (!element) return;
+      const normalized = typeof userId === "string" ? userId.trim() : "";
+      element.textContent = `信息提供人：${normalized || "未登记"}`;
+    };
+    updateLabel(elements.mchoseProvider, providers.mchose);
+    updateLabel(elements.rogProvider, providers.rog);
+  } catch {
+    [elements.mchoseProvider, elements.rogProvider].forEach((element) => {
+      if (element) element.textContent = "信息提供人：暂不可用";
+    });
+  }
+}
+
 async function enableCommunityUploadEntry() {
   try {
     const response = await fetch("./api/public-library/status", { headers: { Accept: "application/json" } });
@@ -5655,6 +5686,7 @@ updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 initializeBlankEditor();
 void refreshRemixCodeViews().then(applyRemixCodeFromUrl);
+void refreshExportProviders();
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicAnalyticsSummary, 1600);
 window.setTimeout(refreshScoreExportCounts, 1700);
@@ -5668,6 +5700,7 @@ window.setInterval(() => {
     refreshScoreExportCounts();
     refreshRecommendations();
     refreshPublicRankings();
+    refreshExportProviders();
     checkForWebsiteUpdate();
   }
 }, 60_000);
@@ -5685,6 +5718,7 @@ document.addEventListener("visibilitychange", () => {
     refreshScoreExportCounts();
     refreshRecommendations();
     refreshPublicRankings();
+    refreshExportProviders();
     checkForWebsiteUpdate();
   }
 });

@@ -77,6 +77,10 @@ OAUTH_STATE_COOKIE_NAME = "delta_oauth_state"
 ADMIN_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_USER_ID = "jiko"
+EXPORT_PROVIDER_EMAILS = {
+    "mchose": "127709492@qq.com",
+    "rog": "1960046012@qq.com",
+}
 AUTH_DATABASE = REPOSITORY_ROOT / "data" / "auth.sqlite3"
 HOT_RANKING_DATABASE = REPOSITORY_ROOT / "data" / "hot-rankings.sqlite3"
 # User IDs may contain Unicode letters/numbers (including Chinese characters)
@@ -1064,6 +1068,20 @@ def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     return {"userId": account["user_id"], "email": credential, "isAdmin": is_admin_account(account)}
 
 
+def export_provider_payload() -> dict[str, str]:
+    """Return only the current provider IDs used on the export cards."""
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT email, user_id FROM accounts WHERE lower(email) IN (?, ?)",
+            tuple(email.casefold() for email in EXPORT_PROVIDER_EMAILS.values()),
+        ).fetchall()
+    user_ids = {str(row["email"]).casefold(): str(row["user_id"]).strip() for row in rows}
+    return {
+        provider: user_ids.get(email.casefold(), "")
+        for provider, email in EXPORT_PROVIDER_EMAILS.items()
+    }
+
+
 def recommendation_identity(payload: Any) -> dict[str, str]:
     if not isinstance(payload, dict):
         raise ValueError("推荐曲目请求格式无效。")
@@ -2005,6 +2023,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if needle:
                 users = [item for item in users if needle in f"{item['userId']} {item['email']}".casefold()]
             self.send_json(HTTPStatus.OK, {"users": users, "total": len(users)})
+            return
+        if path == "/api/public-library/export-providers":
+            self.send_json(HTTPStatus.OK, export_provider_payload())
             return
         if path == "/api/public-library/status":
             if not self.server.public_library:

@@ -869,6 +869,7 @@ main {
 .export-card.manual-entry { border-top: 3px solid #536e92; }
 .export-card.testing { border-top-color: #9d7130; }
 .export-card-status { position: absolute; z-index: 1; top: 14px; right: 14px; padding: 4px 6px; color: #fff3c9; background: #80633b; border: 1px solid #5f451f; font: 700 9px/1 var(--mono); }
+.export-provider { position: relative; z-index: 1; margin: 10px 0 -10px; color: #76502f; font: 700 10px/1.4 var(--mono); }
 .export-top { display: flex; align-items: center; gap: 12px; }
 .driver-mark { display: grid; width: 36px; height: 36px; place-items: center; color: var(--white); background: var(--teal); border: 2px outset #69b5b5; font: 700 17px/1 var(--pixel); }
 .logitech .driver-mark { background: #607b9a; }
