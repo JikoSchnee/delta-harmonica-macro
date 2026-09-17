@@ -19,9 +19,13 @@
       .titlebar::before { content:"● ● ●"; margin-right:10px; color:#196454; font-size:10px; letter-spacing:3px; }
       .hero { padding:26px; } .eyebrow, .muted { color:var(--dim); font:12px "JetBrains Mono", monospace; letter-spacing:.08em; } h1,h2 { margin:0; font-family:"Silkscreen","Noto Sans SC",sans-serif; line-height:1.35; } h1 { margin-top:8px; font-size:28px; color:var(--aqua); } h2 { font-size:17px; } p { margin:8px 0 0; }
       form { display:flex; gap:10px; margin-top:22px; } input,select,button { color:var(--ink); border:1px solid var(--line); background:#071d19; font:14px "JetBrains Mono",monospace; } input,select { min-height:40px; padding:0 11px; } input { flex:1; min-width:0; } button { min-height:40px; padding:0 14px; cursor:pointer; background:#16493f; } button:hover { color:#071816; background:var(--aqua); } .error { min-height:22px; color:var(--danger); }
-      #dashboard { display:grid; gap:18px; margin-top:22px; } .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; } .metric { padding:17px; } .metric b { display:block; margin-top:7px; color:var(--aqua); font:26px "Silkscreen",sans-serif; } .metric span { color:var(--dim); font:12px "JetBrains Mono",monospace; }
+      #dashboard { display:grid; gap:18px; margin-top:22px; } .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; } .metric { position:relative; min-height:112px; padding:17px; } .metric b { display:block; margin-top:7px; color:var(--aqua); font:26px "Silkscreen",sans-serif; } .metric span { color:var(--dim); font:12px "JetBrains Mono",monospace; } .metric .metric-icon { position:absolute; top:15px; right:15px; color:var(--aqua); opacity:.72; }
+      .trend { padding:18px; } .trend-head { display:flex; align-items:flex-end; justify-content:space-between; gap:18px; } .trend-head h2 { margin-top:4px; color:var(--amber); } .trend-head p { margin:6px 0 0; color:var(--dim); font-size:12px; } .trend-controls { display:flex; gap:6px; flex:0 0 auto; } .trend-controls button { min-height:32px; padding:0 11px; color:var(--dim); border-color:rgba(122,168,151,.44); background:#071d19; font-size:11px; } .trend-controls button:hover, .trend-controls button.active { color:#061512; border-color:var(--aqua); background:var(--aqua); }
+      .trend-summary { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin-top:17px; } .trend-stat { display:flex; align-items:center; gap:11px; min-height:68px; padding:11px 13px; border:1px solid rgba(122,168,151,.34); background:#0b2924; } .trend-stat-icon { display:grid; width:35px; height:35px; flex:0 0 35px; place-items:center; color:#061512; background:var(--aqua); } .trend-stat.exports .trend-stat-icon { color:#241a05; background:var(--amber); } .trend-stat small { display:block; color:var(--dim); font:10px "JetBrains Mono",monospace; } .trend-stat strong { display:block; margin-top:3px; color:var(--ink); font:700 21px "Silkscreen",sans-serif; } .trend-stat em { margin-left:auto; color:var(--dim); font:10px "JetBrains Mono",monospace; font-style:normal; }
+      .trend-plot-shell { margin-top:16px; padding:12px 12px 10px; border:1px solid rgba(122,168,151,.28); background:#071d19; } .plot-legend { display:flex; align-items:center; gap:15px; color:var(--dim); font:10px "JetBrains Mono",monospace; } .plot-legend span { display:inline-flex; align-items:center; gap:5px; } .plot-legend i { width:8px; height:8px; display:inline-block; background:var(--aqua); } .plot-legend .legend-exports i { background:var(--amber); } .plot-note { margin-left:auto; color:var(--dim); opacity:.85; } .trend-plot { display:grid; grid-template-columns:repeat(24,minmax(16px,1fr)); align-items:end; gap:5px; height:182px; margin-top:11px; padding:12px 4px 0; overflow-x:auto; background-image:linear-gradient(to bottom,rgba(122,168,151,.18) 1px,transparent 1px); background-size:100% 25%; } .trend-column { display:flex; min-width:0; height:100%; flex-direction:column; justify-content:flex-end; gap:5px; } .trend-bars { display:flex; align-items:flex-end; justify-content:center; gap:3px; height:calc(100% - 19px); } .trend-bar { display:block; width:calc(50% - 2px); min-height:2px; border:1px solid rgba(214,246,232,.38); background:var(--aqua); } .trend-bar.exports { border-color:rgba(255,202,95,.48); background:var(--amber); } .trend-label { overflow:hidden; color:var(--dim); font:9px "JetBrains Mono",monospace; text-align:center; text-overflow:ellipsis; white-space:nowrap; } .trend-foot { min-height:18px; margin-top:8px; color:var(--dim); font:10px "JetBrains Mono",monospace; }
       .grid { display:grid; grid-template-columns:1.05fr .95fr; gap:18px; } .section { padding:18px; } .section h2 { color:var(--amber); } table { width:100%; border-collapse:collapse; margin-top:13px; } th,td { padding:9px 6px; border-bottom:1px solid rgba(122,168,151,.24); text-align:left; } th { color:var(--dim); font:11px "JetBrains Mono",monospace; } td:last-child,th:last-child { text-align:right; } .bar { height:9px; margin-top:4px; overflow:hidden; background:#071d19; } .bar i { display:block; height:100%; background:var(--aqua); } .path { font-family:"JetBrains Mono",monospace; color:#c5eadb; font-size:12px; } .path small { display:block; margin-top:3px; color:var(--dim); font:10px/1.2 "JetBrains Mono",monospace; } .empty { color:var(--dim); padding:22px 0; }
-      @media (max-width:760px) { main { width:min(100% - 20px,1180px); margin-top:10px; } .summary,.grid { grid-template-columns:1fr 1fr; } .grid .section { grid-column:span 2; } form { flex-wrap:wrap; } form input { flex-basis:100%; } h1 { font-size:21px; } } @media (max-width:430px) { .summary { grid-template-columns:1fr; } }
+      @media (max-width:760px) { main { width:min(100% - 20px,1180px); margin-top:10px; } .summary,.grid { grid-template-columns:1fr 1fr; } .grid .section { grid-column:span 2; } form { flex-wrap:wrap; } form input { flex-basis:100%; } h1 { font-size:21px; } .trend-head { align-items:flex-start; flex-direction:column; gap:12px; } .trend-controls { width:100%; } .trend-controls button { flex:1; } .plot-note { margin-left:0; } }
+      @media (max-width:430px) { .summary,.trend-summary { grid-template-columns:1fr; } .trend { padding:14px; } .trend-stat em { font-size:9px; } }
     </style>
   </head>
   <body>
@@ -42,8 +46,14 @@
       </section>
       <section id="dashboard" hidden>
         <div class="summary" id="summary"></div>
+        <section class="window trend" aria-labelledby="trendTitle">
+          <div class="trend-head"><div><span class="eyebrow">TRAFFIC / SCORE EXPORTS</span><h2 id="trendTitle">人流量与谱子导出</h2><p>按时间观察匿名访客会话与成功导出动作，导出量会合并同一次操作产生的重复事件。</p></div><div class="trend-controls" role="group" aria-label="趋势时间单位"><button class="active" type="button" data-granularity="day">按天</button><button type="button" data-granularity="hour">按小时</button></div></div>
+          <div class="trend-summary" id="trendSummary"></div>
+          <div class="trend-plot-shell"><div class="plot-legend"><span><i></i>人流量</span><span class="legend-exports"><i></i>谱子导出量</span><span class="plot-note">柱高按各自峰值归一化</span></div><div class="trend-plot" id="trendPlot" role="img" aria-label="人流量和谱子导出量趋势图"></div></div>
+          <div class="trend-foot" id="trendFoot"></div>
+        </section>
         <div class="grid">
-          <section class="window section"><span class="eyebrow">DAILY TRAFFIC</span><h2>访问走势</h2><table><thead><tr><th>日期</th><th>会话</th><th>访问</th></tr></thead><tbody id="timeline"></tbody></table></section>
+          <section class="window section"><span class="eyebrow">DAILY TRAFFIC</span><h2>访问走势</h2><table><thead><tr><th>日期</th><th>会话</th><th>访问</th><th>导出</th></tr></thead><tbody id="timeline"></tbody></table></section>
           <section class="window section"><span class="eyebrow">CONVERSION FUNNEL</span><h2>使用漏斗</h2><table><thead><tr><th>步骤</th><th>匿名会话</th></tr></thead><tbody id="funnel"></tbody></table></section>
           <section class="window section"><span class="eyebrow">ENTRY SOURCES / ACTIONS</span><h2>来源与操作</h2><table><thead><tr><th>项目</th><th>次数</th></tr></thead><tbody id="events"></tbody></table></section>
           <section class="window section"><span class="eyebrow">SCORE OPERATIONS</span><h2>谱子操作量</h2><table><thead><tr><th>曲谱</th><th>载入</th><th>编辑</th><th>导出</th><th>总计</th><th>会话</th></tr></thead><tbody id="scores"></tbody></table></section>
@@ -54,13 +64,42 @@
     <script>
       const $ = (selector) => document.querySelector(selector);
       const labels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", export_mode_selected:"切换导出板块", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", macro_exported:"完成宏导出", lua_copied:"复制 Lua", score_edit_opened:"打开编辑", score_edit_saved:"保存编辑", tour_started:"打开教程" };
+      const icons = {
+        users: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.6-3.1 2.4-4.7 5.5-4.7s4.9 1.6 5.5 4.7"/><path d="M16 5.7a3 3 0 0 1 0 5.8M17 14.4c1.9.5 3.1 2 3.5 4.6"/></svg>',
+        export: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 3.5h9l5 5V20.5H5z"/><path d="M14 3.5v5h5M12 11v6M9.5 14.5 12 17l2.5-2.5"/></svg>',
+        sessions: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><circle cx="12" cy="8" r="3"/><path d="M5 20c.7-4 3-6 7-6s6.3 2 7 6"/></svg>',
+        page: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 18V9M10 18V5M16 18v-7M22 18H2"/></svg>',
+        events: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M3 12h3l2-6 4 12 2-6h5"/></svg>',
+        macro: '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M5 4h14v16H5zM8 8h8M8 12h5M8 16h7"/></svg>'
+      };
       const number = new Intl.NumberFormat("zh-CN");
+      let activeGranularity = "day";
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, character => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[character]));
       function rows(target, items, render, empty = "尚无数据", colspan = 3) { const node = $(target); node.innerHTML = items.length ? items.map(render).join("") : `<tr><td class="empty" colspan="${colspan}">${empty}</td></tr>`; }
+      function renderTrend(report) {
+        const hourly = activeGranularity === "hour";
+        const items = hourly ? (report.hourlyTimeline || []) : (report.timeline || []);
+        const trafficPeak = Math.max(1, ...items.map(item => item.sessions || 0));
+        const exportPeak = Math.max(1, ...items.map(item => item.scoreExports || 0));
+        const visitors = items.reduce((total, item) => total + (item.sessions || 0), 0);
+        const exports = items.reduce((total, item) => total + (item.scoreExports || 0), 0);
+        $("#trendSummary").innerHTML = `<div class="trend-stat"><span class="trend-stat-icon">${icons.users}</span><div><small>匿名访客会话</small><strong>${number.format(visitors)}</strong></div><em>峰值 ${number.format(trafficPeak)} / ${hourly ? "小时" : "天"}</em></div><div class="trend-stat exports"><span class="trend-stat-icon">${icons.export}</span><div><small>谱子导出量</small><strong>${number.format(exports)}</strong></div><em>峰值 ${number.format(exportPeak)} / ${hourly ? "小时" : "天"}</em></div>`;
+        $("#trendPlot").style.gridTemplateColumns = `repeat(${Math.max(24, items.length)}, minmax(16px, 1fr))`;
+        $("#trendPlot").innerHTML = items.map((item, index) => {
+          const label = hourly ? item.hour.slice(11, 13) + ":00" : item.day.slice(5);
+          const showLabel = hourly || items.length <= 14 || index % Math.ceil(items.length / 14) === 0 || index === items.length - 1;
+          const visitorHeight = Math.max(2, (item.sessions || 0) / trafficPeak * 100);
+          const exportHeight = Math.max(2, (item.scoreExports || 0) / exportPeak * 100);
+          return `<div class="trend-column" title="${label} · ${number.format(item.sessions || 0)} 个访客会话 · ${number.format(item.scoreExports || 0)} 次谱子导出"><div class="trend-bars"><i class="trend-bar" style="height:${visitorHeight}%"></i><i class="trend-bar exports" style="height:${exportHeight}%"></i></div><span class="trend-label">${showLabel ? label : ""}</span></div>`;
+        }).join("");
+        $("#trendPlot").setAttribute("aria-label", `${hourly ? "最近 24 小时" : "统计区间内每天"}的人流量和谱子导出量趋势图`);
+        $("#trendFoot").textContent = hourly ? "小时视图显示最近 24 个完整小时；每个柱组左侧为人流量，右侧为谱子导出量。" : `天视图显示当前选择的最近 ${report.rangeDays} 天；访客会话按天去重。`;
+      }
       function render(report) {
-        const cards = [["匿名会话",report.summary.sessions],["页面访问",report.summary.pageViews],["记录事件",report.summary.events],["宏文件下载",report.summary.macroDownloads]];
-        $("#summary").innerHTML = cards.map(([name,value]) => `<section class="window metric"><span>${name}</span><b>${number.format(value)}</b></section>`).join("");
-        rows("#timeline", report.timeline.slice().reverse(), item => `<tr><td>${item.day.slice(5)}</td><td>${number.format(item.sessions)}</td><td>${number.format(item.pageViews)}</td></tr>`);
+        const cards = [["匿名会话",report.summary.sessions,icons.sessions],["页面访问",report.summary.pageViews,icons.page],["记录事件",report.summary.events,icons.events],["宏文件下载",report.summary.macroDownloads,icons.macro]];
+        $("#summary").innerHTML = cards.map(([name,value,icon]) => `<section class="window metric"><span>${name}</span><span class="metric-icon">${icon}</span><b>${number.format(value)}</b></section>`).join("");
+        renderTrend(report);
+        rows("#timeline", report.timeline.slice().reverse(), item => `<tr><td>${item.day.slice(5)}</td><td>${number.format(item.sessions)}</td><td>${number.format(item.pageViews)}</td><td>${number.format(item.scoreExports || 0)}</td></tr>`);
         const maxFunnel = Math.max(1,...report.funnel.map(item=>item.sessions));
         rows("#funnel", report.funnel, item => `<tr><td>${item.name}<div class="bar"><i style="width:${item.sessions / maxFunnel * 100}%"></i></div></td><td>${number.format(item.sessions)}</td></tr>`);
         const sourceRows = report.sources.map(item => ({name:`来源：${item.name}`,count:item.count}));
@@ -72,6 +111,7 @@
         }, "还没有谱子级操作数据", 6);
         rows("#paths", report.paths, item => `<tr><td class="path">${item.path}</td><td>${number.format(item.sessions)}</td></tr>`, "还没有形成两步以上的路径");
       }
+      document.querySelectorAll("[data-granularity]").forEach(button => button.addEventListener("click", () => { activeGranularity = button.dataset.granularity; document.querySelectorAll("[data-granularity]").forEach(item => item.classList.toggle("active", item === button)); if (window.latestAnalyticsReport) renderTrend(window.latestAnalyticsReport); }));
       $("#accessForm").addEventListener("submit", async event => {
         event.preventDefault(); $("#error").textContent = "";
         const token = $("#token").value; const days = $("#days").value;
@@ -79,7 +119,7 @@
           const response = await fetch(`../api/admin/analytics?days=${encodeURIComponent(days)}`, { headers:{Authorization:`Bearer ${token}`,Accept:"application/json"}, cache:"no-store" });
           const body = await response.json().catch(()=>({}));
           if (!response.ok) throw new Error(body.error || "无法读取数据。");
-          render(body); $("#dashboard").hidden = false;
+          window.latestAnalyticsReport = body; render(body); $("#dashboard").hidden = false;
         } catch (error) { $("#dashboard").hidden = true; $("#error").textContent = error.message || "无法读取数据。"; }
       });
     </script>

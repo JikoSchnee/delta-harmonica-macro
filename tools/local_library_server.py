@@ -215,8 +215,28 @@ def analytics_label(event: dict[str, Any]) -> str:
     return labels.get(event["event"], event["event"])
 
 
+def analytics_record_time(item: dict[str, Any]) -> datetime | None:
+    """Parse an event timestamp without letting malformed records break reports."""
+    try:
+        value = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def analytics_export_key(item: dict[str, Any]) -> tuple[str, str, str]:
+    """Collapse the paired client events emitted by one successful export."""
+    properties = item.get("properties") if isinstance(item.get("properties"), dict) else {}
+    actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session", "")
+    score_id = properties.get("score_id") if isinstance(properties.get("score_id"), str) else item.get("event", "")
+    return str(actor), str(score_id), str(item.get("time", ""))
+
+
 def build_analytics_report(days: int) -> dict[str, Any]:
     today = datetime.now(timezone.utc).date()
+    now = datetime.now(timezone.utc)
     start = today - timedelta(days=days - 1)
     records: list[dict[str, Any]] = []
     for offset in range(days):
@@ -237,6 +257,13 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     event_sessions: dict[str, set[str]] = defaultdict(set)
     daily_sessions: dict[str, set[str]] = defaultdict(set)
     daily_views: Counter[str] = Counter()
+    daily_exports: Counter[str] = Counter()
+    daily_export_keys: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
+    hourly_sessions: dict[str, set[str]] = defaultdict(set)
+    hourly_views: Counter[str] = Counter()
+    hourly_exports: Counter[str] = Counter()
+    hourly_export_keys: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
+    hourly_start = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=23)
     source_counts: Counter[str] = Counter()
     journeys: dict[str, list[dict[str, Any]]] = defaultdict(list)
     score_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
@@ -253,11 +280,27 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     score_export_events = SCORE_EXPORT_EVENTS
     for item in records:
         event_sessions[item["event"]].add(item["session"])
-        day = str(item.get("time", ""))[:10]
+        recorded_at = analytics_record_time(item)
+        day = recorded_at.date().isoformat() if recorded_at else ""
         if day:
             daily_sessions[day].add(item["session"])
             if item["event"] == "page_view":
                 daily_views[day] += 1
+            if item["event"] in SCORE_EXPORT_EVENTS:
+                export_key = analytics_export_key(item)
+                if export_key not in daily_export_keys[day]:
+                    daily_export_keys[day].add(export_key)
+                    daily_exports[day] += 1
+        if recorded_at and recorded_at >= hourly_start:
+            hour = recorded_at.replace(minute=0, second=0, microsecond=0).isoformat().replace("+00:00", "Z")
+            hourly_sessions[hour].add(item["session"])
+            if item["event"] == "page_view":
+                hourly_views[hour] += 1
+            if item["event"] in SCORE_EXPORT_EVENTS:
+                export_key = analytics_export_key(item)
+                if export_key not in hourly_export_keys[hour]:
+                    hourly_export_keys[hour].add(export_key)
+                    hourly_exports[hour] += 1
         if item["event"] == "page_view":
             source_counts[(item.get("properties") or {}).get("entry", "direct")] += 1
         journeys[item["session"]].append(item)
@@ -302,7 +345,11 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     timeline = []
     for offset in range(days):
         day = (start + timedelta(days=offset)).isoformat()
-        timeline.append({"day": day, "sessions": len(daily_sessions[day]), "pageViews": daily_views[day]})
+        timeline.append({"day": day, "sessions": len(daily_sessions[day]), "pageViews": daily_views[day], "scoreExports": daily_exports[day]})
+    hourly_timeline = []
+    for offset in range(24):
+        hour = (hourly_start + timedelta(hours=offset)).isoformat().replace("+00:00", "Z")
+        hourly_timeline.append({"hour": hour, "sessions": len(hourly_sessions[hour]), "pageViews": hourly_views[hour], "scoreExports": hourly_exports[hour]})
     score_operations = []
     for score_id, stats in score_stats.items():
         edit_count = stats["editOpened"] + stats["editSaved"]
@@ -329,6 +376,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "summary": {"sessions": len(sessions), "pageViews": page_views, "events": len(records), "macroDownloads": event_counts["macro_downloaded"]},
         "timeline": timeline,
+        "hourlyTimeline": hourly_timeline,
         "sources": [{"name": name, "count": count} for name, count in source_counts.most_common(8)],
         "events": [{"name": name, "count": count, "sessions": len(event_sessions[name])} for name, count in event_counts.most_common()],
         "scoreOperations": score_operations[:100],
