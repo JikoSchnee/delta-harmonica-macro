@@ -44,7 +44,17 @@ MAINTENANCE_PAGE = REPOSITORY_ROOT / "maintenance.html"
 TOOLS_DIRECTORY = Path(__file__).resolve().parent
 sys.path.insert(0, str(TOOLS_DIRECTORY))
 
-from import_community_scores import FORMAT, VERSION, dedupe_key, validate_package, write_library  # noqa: E402
+from import_community_scores import (  # noqa: E402
+    FORMAT,
+    REMIX_CODE_PATTERN,
+    VERSION,
+    canonical_package,
+    dedupe_key,
+    legacy_admin_id_for_score,
+    legacy_analytics_score_id,
+    validate_package,
+    write_library,
+)
 
 
 SOURCE_DIRECTORY = REPOSITORY_ROOT / "data" / "community-scores"
@@ -69,7 +79,9 @@ LEGACY_OWNER_EMAIL = "274492469@qq.com"
 LEGACY_OWNER_USER_ID = "jiko"
 AUTH_DATABASE = REPOSITORY_ROOT / "data" / "auth.sqlite3"
 HOT_RANKING_DATABASE = REPOSITORY_ROOT / "data" / "hot-rankings.sqlite3"
-USER_ID_PATTERN = re.compile(r"^[A-Za-z0-9_]{3,24}$")
+# User IDs may contain Unicode letters/numbers (including Chinese characters)
+# while retaining the existing underscore support.
+USER_ID_PATTERN = re.compile(r"^[\w]{3,24}$", re.UNICODE)
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 LIBRARY_LOCK = threading.Lock()
 ANALYTICS_LOCK = threading.Lock()
@@ -95,8 +107,9 @@ ANALYTICS_ENUMERATIONS = {
     "directory": {"library", "midi", "manual"},
 }
 ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$")
+LEGACY_ADMIN_ID_PATTERN = re.compile(r"^[0-9a-f]{12}$", re.IGNORECASE)
 SCORE_EXPORT_EVENTS = {"macro_exported", "macro_downloaded", "lua_copied"}
-HOT_RANKING_METRIC_VERSION = 2
+HOT_RANKING_METRIC_VERSION = 3
 OAUTH_PROVIDER_LABELS = {"qq": "QQ", "wechat": "微信"}
 
 
@@ -122,8 +135,8 @@ def clean_analytics_properties(event: str, value: Any) -> dict[str, Any]:
         if candidate in allowed:
             properties[field] = candidate
     score_id = value.get("score_id")
-    if isinstance(score_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id):
-        properties["score_id"] = score_id
+    if isinstance(score_id, str) and (ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id) or REMIX_CODE_PATTERN.fullmatch(score_id)):
+        properties["score_id"] = score_id.upper() if REMIX_CODE_PATTERN.fullmatch(score_id) else score_id.lower()
         for field, limit in (("score_title", 120), ("score_artist", 120), ("score_shared_by", 64)):
             candidate = value.get(field)
             if isinstance(candidate, str):
@@ -251,6 +264,8 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
 
+    score_aliases = analytics_score_aliases()
+
     sessions = {item["session"] for item in records}
     page_views = sum(item["event"] == "page_view" for item in records)
     event_counts = Counter(item["event"] for item in records)
@@ -305,7 +320,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
             source_counts[(item.get("properties") or {}).get("entry", "direct")] += 1
         journeys[item["session"]].append(item)
         properties = item.get("properties") or {}
-        score_id = properties.get("score_id")
+        score_id = canonical_analytics_score_id(properties.get("score_id"), score_aliases)
         if score_id:
             stats = score_stats[score_id]
             stats["scoreTitle"] = str(properties.get("score_title") or stats["scoreTitle"])
@@ -416,7 +431,10 @@ def build_public_analytics_summary() -> dict[str, int]:
 
 
 def analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
-    """Match the browser's privacy-safe score ID for a public library score."""
+    """Use the immutable remix code for community scores."""
+    remix_code = score.get("remixCode")
+    if origin == "community" and isinstance(remix_code, str) and REMIX_CODE_PATTERN.fullmatch(remix_code.strip()):
+        return remix_code.strip().upper()
     identity = "\u241f".join(
         str(score.get(field, "")).strip().lower()
         for field in ("title", "artist", "sharedBy")
@@ -429,6 +447,33 @@ def analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
     return f"s{value:08x}"
 
 
+def analytics_score_aliases() -> dict[str, str]:
+    """Map pre-remix-code analytics IDs onto the current immutable score IDs."""
+    aliases: dict[str, str] = {}
+    for _, score in read_scores():
+        current_id = analytics_score_id(score)
+        aliases[legacy_analytics_score_id(score)] = current_id
+        persisted_legacy = score.get("analyticsId")
+        if isinstance(persisted_legacy, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(persisted_legacy.strip().lower()):
+            aliases[persisted_legacy.strip().lower()] = current_id
+        for legacy_id in score.get("legacyAnalyticsIds", []):
+            if isinstance(legacy_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(legacy_id.strip().lower()):
+                aliases[legacy_id.strip().lower()] = current_id
+    return aliases
+
+
+def canonical_analytics_score_id(value: Any, aliases: dict[str, str]) -> str | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if REMIX_CODE_PATTERN.fullmatch(normalized):
+        return normalized.upper()
+    legacy = normalized.lower()
+    if ANALYTICS_SCORE_ID_PATTERN.fullmatch(legacy):
+        return aliases.get(legacy, legacy)
+    return None
+
+
 def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     """Read export totals once for the daily hot-ranking job."""
     safe_days = max(1, retention_days)
@@ -436,6 +481,7 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     start = today - timedelta(days=safe_days - 1)
     exports: Counter[str] = Counter()
     seen: set[tuple[str, str]] = set()
+    aliases = analytics_score_aliases()
     for offset in range(safe_days):
         path = analytics_event_path(start + timedelta(days=offset))
         if not path.exists():
@@ -447,14 +493,15 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
                     continue
                 properties = item.get("properties")
                 score_id = properties.get("score_id") if isinstance(properties, dict) else None
-                if isinstance(score_id, str) and ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id):
+                canonical_id = canonical_analytics_score_id(score_id, aliases)
+                if canonical_id:
                     actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session")
                     if not isinstance(actor, str):
                         continue
-                    export_key = (score_id, actor)
+                    export_key = (canonical_id, actor)
                     if export_key not in seen:
                         seen.add(export_key)
-                        exports[score_id] += 1
+                        exports[canonical_id] += 1
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
     return exports
@@ -465,6 +512,7 @@ def yesterday_export_ranking() -> list[dict[str, Any]]:
     target_date = datetime.now().astimezone().date() - timedelta(days=1)
     exports: Counter[str] = Counter()
     seen: set[tuple[str, str]] = set()
+    aliases = analytics_score_aliases()
     if not ANALYTICS_DIRECTORY.exists():
         return []
     for path in ANALYTICS_DIRECTORY.glob("events-*.ndjson"):
@@ -483,36 +531,33 @@ def yesterday_export_ranking() -> list[dict[str, Any]]:
             properties = item.get("properties")
             score_id = properties.get("score_id") if isinstance(properties, dict) else None
             actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session")
-            if not isinstance(score_id, str) or not ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id) or not isinstance(actor, str):
+            canonical_id = canonical_analytics_score_id(score_id, aliases)
+            if not canonical_id or not isinstance(actor, str):
                 continue
-            export_key = (score_id, actor)
+            export_key = (canonical_id, actor)
             if export_key not in seen:
                 seen.add(export_key)
-                exports[score_id] += 1
+                exports[canonical_id] += 1
     ordered = sorted(exports.items(), key=lambda item: (-item[1], item[0]))[:10]
     return [{"rank": rank, "scoreId": score_id, "exports": count} for rank, (score_id, count) in enumerate(ordered, start=1)]
 
 
 def public_owned_scores(auth_enabled: bool) -> list[tuple[str, str]]:
-    """Return public score IDs paired with their account user IDs."""
+    """Return immutable remix codes paired with their account user IDs."""
     if not auth_enabled:
         return []
-    public_scores = {
-        str(path.relative_to(REPOSITORY_ROOT)): score
-        for path, score in read_scores()
-        if is_canonical_source(path)
-    }
+    public_scores = {score["remixCode"]: score for path, score in read_scores() if is_canonical_source(path)}
     if not public_scores:
         return []
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
-            "SELECT accounts.user_id AS user_id, score_owners.score_path AS score_path "
+            "SELECT accounts.user_id AS user_id, score_owners.remix_code AS remix_code "
             "FROM score_owners JOIN accounts ON accounts.id = score_owners.account_id"
         ).fetchall()
     return [
-        (str(row["user_id"]), analytics_score_id(public_scores[str(row["score_path"])]))
+        (str(row["user_id"]), public_scores[str(row["remix_code"])]["remixCode"])
         for row in rows
-        if str(row["score_path"]) in public_scores
+        if str(row["remix_code"]) in public_scores
     ]
 
 
@@ -666,10 +711,10 @@ def read_scores() -> list[tuple[Path, dict[str, Any]]]:
             score = validate_package(json.loads(path.read_text(encoding="utf-8")))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
             raise ValueError(f"无法读取曲库源文件 {path.relative_to(REPOSITORY_ROOT)}：{error}") from error
-        key = dedupe_key(score)
+        key = score["remixCode"]
         if key in seen:
             raise ValueError(
-                "曲库源文件存在重复的歌名、歌手/作者和共享人："
+                f"曲库源文件存在重复的改曲码 {key}："
                 f"{seen[key].relative_to(REPOSITORY_ROOT)}、{path.relative_to(REPOSITORY_ROOT)}"
             )
         seen[key] = path
@@ -680,8 +725,7 @@ def read_scores() -> list[tuple[Path, dict[str, Any]]]:
 def filename_for(score: dict[str, Any]) -> str:
     readable = "-".join(score[field] for field in ("title", "artist", "sharedBy"))
     slug = re.sub(r"[^0-9A-Za-z\u4e00-\u9fff]+", "-", readable).strip("-")[:72] or "community-score"
-    digest = hashlib.sha256(dedupe_key(score).encode("utf-8")).hexdigest()[:10]
-    return f"{slug}-{digest}.deltamusic"
+    return f"{slug}-{score['remixCode'].lower()}.deltamusic"
 
 
 def write_json_atomically(path: Path, value: dict[str, Any]) -> None:
@@ -699,20 +743,89 @@ def is_canonical_source(path: Path) -> bool:
         return False
 
 
-def score_owner_account_id(path: Path) -> str | None:
+def legacy_admin_id(score: dict[str, Any]) -> str:
+    aliases = score.get("legacyAdminIds")
+    if isinstance(aliases, list):
+        for value in aliases:
+            if isinstance(value, str) and LEGACY_ADMIN_ID_PATTERN.fullmatch(value.strip().lower()):
+                return value.strip().lower()
+    return legacy_admin_id_for_score(score)
+
+
+def normalize_remix_code(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip().upper()
+    return candidate if REMIX_CODE_PATTERN.fullmatch(candidate) else None
+
+
+def resolve_score_reference(payload: Any, *, allow_metadata: bool = True) -> tuple[Path, dict[str, Any]]:
+    """Resolve the immutable remix code, with legacy request compatibility."""
+    if not isinstance(payload, dict):
+        raise ValueError("曲目标识无效。")
+    scores = [(path, score) for path, score in read_scores() if is_canonical_source(path)]
+    remix_code = normalize_remix_code(payload.get("remixCode")) or normalize_remix_code(payload.get("id"))
+    if remix_code:
+        matches = [(path, score) for path, score in scores if score["remixCode"] == remix_code]
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise FileNotFoundError("未找到该改曲码对应的曲目。")
+        raise ValueError("改曲码对应多个源文件，请先整理曲库。")
+
+    legacy_id = payload.get("legacyId") or payload.get("id")
+    if isinstance(legacy_id, str) and LEGACY_ADMIN_ID_PATTERN.fullmatch(legacy_id.strip()):
+        target_legacy_id = legacy_id.strip().lower()
+        matches = [
+            (path, score) for path, score in scores
+            if target_legacy_id in {
+                legacy_admin_id(score),
+                *[value.strip().lower() for value in score.get("legacyAdminIds", []) if isinstance(value, str)],
+            }
+        ]
+        if len(matches) == 1:
+            return matches[0]
+        if not matches:
+            raise FileNotFoundError("未找到该曲目。")
+        raise ValueError("旧曲目标识对应多个源文件，请先整理曲库。")
+
+    requested_path = payload.get("file")
+    if isinstance(requested_path, str) and requested_path.strip():
+        candidate = (REPOSITORY_ROOT / requested_path.strip()).resolve()
+        matches = [(path, score) for path, score in scores if path.resolve() == candidate]
+        if len(matches) == 1:
+            return matches[0]
+
+    if allow_metadata:
+        fields = ("title", "artist", "sharedBy")
+        if all(isinstance(payload.get(field), str) and payload[field].strip() for field in fields):
+            identity = {field: payload[field].strip() for field in fields}
+            matches = [(path, score) for path, score in scores if dedupe_key(score) == dedupe_key(identity)]
+            if len(matches) == 1:
+                return matches[0]
+            if len(matches) > 1:
+                raise ValueError("歌名、作者和共享人无法唯一定位曲目，请改用改曲码。")
+    raise FileNotFoundError("未找到该曲目。")
+
+
+def score_owner_account_id(path: Path, score: dict[str, Any] | None = None) -> str | None:
     relative = str(path.relative_to(REPOSITORY_ROOT))
     with AUTH_LOCK, auth_database() as connection:
-        row = connection.execute("SELECT account_id FROM score_owners WHERE score_path = ?", (relative,)).fetchone()
+        if score and score.get("remixCode"):
+            row = connection.execute("SELECT account_id FROM score_owners WHERE remix_code = ?", (score["remixCode"],)).fetchone()
+        else:
+            row = connection.execute("SELECT account_id FROM score_owners WHERE score_path = ?", (relative,)).fetchone()
     return row["account_id"] if row else None
 
 
 def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: str | None = None) -> tuple[str, list[dict[str, Any]], Path]:
     """Validate, store, and expose one score while serialising concurrent uploads."""
+    incoming_code = normalize_remix_code(payload.get("remixCode")) if isinstance(payload, dict) else None
     score = validate_package(payload)
     with LIBRARY_LOCK:
         existing_scores = read_scores()
-        matches = [(path, item) for path, item in existing_scores if dedupe_key(item) == dedupe_key(score)]
-        if not matches and owner_account_id:
+        matches = [(path, item) for path, item in existing_scores if item["remixCode"] == score["remixCode"]]
+        if not matches and owner_account_id and not incoming_code:
             owned_title_artist_matches = [
                 (path, item)
                 for path, item in existing_scores
@@ -724,12 +837,12 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
                 raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
             matches = owned_title_artist_matches
         if len(matches) > 1:
-            raise ValueError("曲库中存在多个相同身份的曲目，请先手动整理源文件。")
+            raise ValueError("曲库中存在重复改曲码，请先手动整理源文件。")
         if matches and not allow_replace:
             owned_by_requester = owner_account_id and len(matches) == 1 and score_owner_account_id(matches[0][0]) == owner_account_id
             if owned_by_requester:
                 raise DuplicateScoreError("同一账号已有同名曲目，是否确认覆盖？", owned_by_requester=True)
-            raise DuplicateScoreError("该歌名、歌手/作者和共享人组合已存在，不能覆盖已上传曲目。")
+            raise DuplicateScoreError("该改曲码已存在，不能覆盖已上传曲目。")
         if matches and allow_replace and owner_account_id:
             owned_by_requester = len(matches) == 1 and score_owner_account_id(matches[0][0]) == owner_account_id
             if not owned_by_requester:
@@ -738,16 +851,13 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
         existing_path = matches[0][0] if matches else None
         existing_score = matches[0][1] if matches else None
         if existing_score:
-            score["remixCode"] = existing_score.get("remixCode") or score["remixCode"]
+            score["remixCode"] = existing_score["remixCode"]
+            score["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
+            score["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
+            score["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
         score["createdAt"] = existing_score.get("createdAt") if existing_score else now_iso_timestamp()
         destination = existing_path if existing_path and is_canonical_source(existing_path) else SOURCE_DIRECTORY / filename_for(score)
-        package = {
-            "format": "delta-music",
-            "version": 1,
-            **{field: score[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
-            "createdAt": score["createdAt"],
-            **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
-        }
+        package = canonical_package(score)
         write_json_atomically(destination, package)
         if existing_path and existing_path != destination:
             existing_path.unlink()
@@ -762,11 +872,12 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
     if not isinstance(payload, dict) or not isinstance(payload.get("original"), dict):
         raise ValueError("曲目编辑请求格式无效。")
     original = payload["original"]
+    original_code = normalize_remix_code(original.get("remixCode"))
     original_title = original.get("title")
     original_artist = original.get("artist")
-    if not isinstance(original_title, str) or not original_title.strip() or len(original_title.strip()) > 48:
+    if not original_code and (not isinstance(original_title, str) or not original_title.strip() or len(original_title.strip()) > 48):
         raise ValueError("原曲歌名无效。")
-    if not isinstance(original_artist, str) or not original_artist.strip() or len(original_artist.strip()) > 64:
+    if not original_code and (not isinstance(original_artist, str) or not original_artist.strip() or len(original_artist.strip()) > 64):
         raise ValueError("原曲歌手/作者无效。")
     candidate = validate_package({
         "format": FORMAT,
@@ -782,45 +893,27 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
     })
     with LIBRARY_LOCK:
         existing_scores = read_scores()
-        matches = [
-            (path, score)
-            for path, score in existing_scores
-            if is_canonical_source(path)
-            and score["title"].casefold() == original_title.strip().casefold()
-            and score["artist"].casefold() == original_artist.strip().casefold()
-            and score_owner_account_id(path) == account_id
-        ]
+        matches = []
+        for path, score in existing_scores:
+            if not is_canonical_source(path) or score_owner_account_id(path, score) != account_id:
+                continue
+            if original_code and score["remixCode"] == original_code:
+                matches.append((path, score))
+            elif not original_code and score["title"].casefold() == original_title.strip().casefold() and score["artist"].casefold() == original_artist.strip().casefold():
+                matches.append((path, score))
         if not matches:
             raise FileNotFoundError("未找到属于当前账号的曲目。")
         if len(matches) > 1:
             raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
         existing_path, existing_score = matches[0]
-        candidate["remixCode"] = existing_score.get("remixCode") or candidate["remixCode"]
-        conflicts = [
-            path for path, score in existing_scores
-            if path != existing_path and dedupe_key(score) == dedupe_key(candidate)
-        ]
-        if conflicts:
-            raise DuplicateScoreError("新的歌名、歌手/作者和共享人组合已存在，不能覆盖其他曲目。")
-        destination = existing_path if dedupe_key(existing_score) == dedupe_key(candidate) else SOURCE_DIRECTORY / filename_for(candidate)
+        candidate["remixCode"] = existing_score["remixCode"]
+        candidate["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
+        candidate["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
+        candidate["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
+        destination = existing_path
         candidate["createdAt"] = existing_score.get("createdAt") or now_iso_timestamp()
-        package = {
-            "format": FORMAT,
-            "version": VERSION,
-            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
-            "createdAt": candidate["createdAt"],
-            **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
-        }
+        package = canonical_package(candidate)
         write_json_atomically(destination, package)
-        if destination != existing_path:
-            existing_path.unlink()
-            old_relative = str(existing_path.relative_to(REPOSITORY_ROOT))
-            new_relative = str(destination.relative_to(REPOSITORY_ROOT))
-            with AUTH_LOCK, auth_database() as connection:
-                connection.execute(
-                    "UPDATE score_owners SET score_path = ? WHERE score_path = ? AND account_id = ?",
-                    (new_relative, old_relative, account_id),
-                )
         rebuilt_scores = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, rebuilt_scores)
         return "updated", rebuilt_scores, destination
@@ -871,19 +964,59 @@ def initialize_auth_database() -> None:
                 UNIQUE(account_id, provider)
             );
             CREATE TABLE IF NOT EXISTS score_owners (
-                score_path TEXT PRIMARY KEY,
+                remix_code TEXT PRIMARY KEY,
+                score_path TEXT NOT NULL UNIQUE,
                 account_id TEXT NOT NULL REFERENCES accounts(id)
             );
             CREATE TABLE IF NOT EXISTS recommended_scores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                remix_code TEXT PRIMARY KEY,
                 title TEXT NOT NULL COLLATE NOCASE,
                 artist TEXT NOT NULL COLLATE NOCASE,
                 shared_by TEXT NOT NULL COLLATE NOCASE,
-                created_at INTEGER NOT NULL,
-                UNIQUE(title, artist, shared_by)
+                created_at INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
         """)
+
+
+def migrate_identity_tables() -> None:
+    """Migrate path/metadata keyed rows to immutable remix-code keys."""
+    with AUTH_LOCK, auth_database() as connection:
+        owner_columns = {row[1] for row in connection.execute("PRAGMA table_info(score_owners)").fetchall()}
+        if "remix_code" not in owner_columns:
+            connection.execute(
+                "CREATE TABLE score_owners_v2 (remix_code TEXT PRIMARY KEY, score_path TEXT NOT NULL UNIQUE, account_id TEXT NOT NULL REFERENCES accounts(id))"
+            )
+            rows = connection.execute("SELECT score_path, account_id FROM score_owners").fetchall()
+            for row in rows:
+                path = (REPOSITORY_ROOT / row["score_path"]).resolve()
+                if not path.exists():
+                    continue
+                score = validate_package(json.loads(path.read_text(encoding="utf-8")))
+                connection.execute(
+                    "INSERT INTO score_owners_v2(remix_code, score_path, account_id) VALUES (?, ?, ?)",
+                    (score["remixCode"], row["score_path"], row["account_id"]),
+                )
+            connection.execute("DROP TABLE score_owners")
+            connection.execute("ALTER TABLE score_owners_v2 RENAME TO score_owners")
+
+        recommendation_columns = {row[1] for row in connection.execute("PRAGMA table_info(recommended_scores)").fetchall()}
+        if "remix_code" not in recommendation_columns:
+            connection.execute(
+                "CREATE TABLE recommended_scores_v2 (remix_code TEXT PRIMARY KEY, title TEXT NOT NULL COLLATE NOCASE, artist TEXT NOT NULL COLLATE NOCASE, shared_by TEXT NOT NULL COLLATE NOCASE, created_at INTEGER NOT NULL)"
+            )
+            rows = connection.execute("SELECT title, artist, shared_by, created_at FROM recommended_scores").fetchall()
+            current_scores = [score for path, score in read_scores() if is_canonical_source(path)]
+            for row in rows:
+                matches = [score for score in current_scores if dedupe_key(score) == dedupe_key({"title": row["title"], "artist": row["artist"], "sharedBy": row["shared_by"]})]
+                if len(matches) == 1:
+                    score = matches[0]
+                    connection.execute(
+                        "INSERT INTO recommended_scores_v2(remix_code, title, artist, shared_by, created_at) VALUES (?, ?, ?, ?, ?)",
+                        (score["remixCode"], score["title"], score["artist"], score["sharedBy"], row["created_at"]),
+                    )
+            connection.execute("DROP TABLE recommended_scores")
+            connection.execute("ALTER TABLE recommended_scores_v2 RENAME TO recommended_scores")
 
 
 def now_timestamp() -> int:
@@ -904,7 +1037,7 @@ def normalize_email(value: Any) -> str:
 def validate_user_id(value: Any) -> str:
     user_id = str(value or "").strip()
     if not USER_ID_PATTERN.fullmatch(user_id):
-        raise ValueError("用户 ID 应为 3–24 个字母、数字或下划线。")
+        raise ValueError("用户 ID 应为 3–24 个字母、数字、中文字符或下划线。")
     return user_id
 
 
@@ -934,44 +1067,46 @@ def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
 def recommendation_identity(payload: Any) -> dict[str, str]:
     if not isinstance(payload, dict):
         raise ValueError("推荐曲目请求格式无效。")
+    remix_code = normalize_remix_code(payload.get("remixCode"))
+    if remix_code:
+        _, score = resolve_score_reference({"remixCode": remix_code}, allow_metadata=False)
+        return {"remixCode": remix_code, "title": score["title"], "artist": score["artist"], "sharedBy": score["sharedBy"]}
     identity: dict[str, str] = {}
     for field, limit, label in (("title", 48, "歌名"), ("artist", 64, "歌手/作者"), ("sharedBy", 48, "共享人")):
         value = payload.get(field)
         if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
             raise ValueError(f"推荐曲目中的{label}无效。")
         identity[field] = value.strip()
-    return identity
+    _, score = resolve_score_reference(identity)
+    return {"remixCode": score["remixCode"], **identity}
 
 
 def list_recommendations() -> list[dict[str, str]]:
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
-            "SELECT title, artist, shared_by AS sharedBy FROM recommended_scores ORDER BY id"
+            "SELECT remix_code AS remixCode, title, artist, shared_by AS sharedBy FROM recommended_scores ORDER BY created_at, remix_code"
         ).fetchall()
-    return [{"title": row["title"], "artist": row["artist"], "sharedBy": row["sharedBy"]} for row in rows]
+    return [{"remixCode": row["remixCode"], "title": row["title"], "artist": row["artist"], "sharedBy": row["sharedBy"]} for row in rows]
 
 
 def admin_library_catalog() -> list[dict[str, Any]]:
     """Return the editable community catalogue for the private admin console."""
     with AUTH_LOCK, auth_database() as connection:
         owner_rows = connection.execute(
-            "SELECT score_path, accounts.user_id FROM score_owners "
+            "SELECT remix_code, accounts.user_id FROM score_owners "
             "JOIN accounts ON accounts.id = score_owners.account_id"
         ).fetchall()
         recommendation_rows = connection.execute(
-            "SELECT title, artist, shared_by FROM recommended_scores"
+            "SELECT remix_code FROM recommended_scores"
         ).fetchall()
-    owners = {row["score_path"]: row["user_id"] for row in owner_rows}
-    recommendations = {
-        "|".join(str(row[field]).casefold().strip() for field in ("title", "artist", "shared_by"))
-        for row in recommendation_rows
-    }
+    owners = {row["remix_code"]: row["user_id"] for row in owner_rows}
+    recommendations = {row["remix_code"] for row in recommendation_rows}
     items: list[dict[str, Any]] = []
     for path, score in read_scores():
-        relative_path = str(path.relative_to(REPOSITORY_ROOT))
-        identity = dedupe_key(score)
         items.append({
-            "id": hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12],
+            "id": score["remixCode"],
+            "remixCode": score["remixCode"],
+            "legacyId": legacy_admin_id(score),
             "title": score["title"],
             "artist": score["artist"],
             "sharedBy": score["sharedBy"],
@@ -980,29 +1115,17 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "bpm": score["bpm"],
             "displayUrl": score.get("displayUrl", ""),
             "source": score.get("source", "社区投稿"),
-            "owner": owners.get(relative_path, "—"),
-            "recommended": identity in recommendations,
-            "file": relative_path,
+            "owner": owners.get(score["remixCode"], "—"),
+            "recommended": score["remixCode"] in recommendations,
+            "file": str(path.relative_to(REPOSITORY_ROOT)),
             "updatedAt": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         })
     return items
 
 
 def admin_score_by_id(score_id: Any) -> tuple[Path, dict[str, Any]]:
-    """Resolve an admin catalogue id without trusting a mutable title field."""
-    if not isinstance(score_id, str) or not re.fullmatch(r"[0-9a-f]{12}", score_id):
-        raise ValueError("曲目标识无效。")
-    matches = [
-        (path, score)
-        for path, score in read_scores()
-        if is_canonical_source(path)
-        and hashlib.sha256(dedupe_key(score).encode("utf-8")).hexdigest()[:12] == score_id
-    ]
-    if not matches:
-        raise FileNotFoundError("未找到该曲目。")
-    if len(matches) > 1:
-        raise ValueError("曲目标识对应多个源文件，请先整理曲库。")
-    return matches[0]
+    """Resolve a remix-code ID, retaining legacy 12-character compatibility."""
+    return resolve_score_reference({"id": score_id})
 
 
 def admin_update_score(payload: Any) -> list[dict[str, Any]]:
@@ -1014,7 +1137,7 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
     """
     if not isinstance(payload, dict):
         raise ValueError("曲目编辑请求格式无效。")
-    existing_path, existing_score = admin_score_by_id(payload.get("id"))
+    existing_path, existing_score = admin_score_by_id(payload.get("remixCode") or payload.get("id"))
     replacement_bytes = payload.get("_fileBytes")
     replacement_name = str(payload.get("_fileName") or "").strip()
     replacement_score: dict[str, Any] | None = None
@@ -1047,62 +1170,21 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         "displayUrl": payload.get("displayUrl", source_score.get("displayUrl")),
         "createdAt": existing_score.get("createdAt"),
         "remixCode": existing_score.get("remixCode"),
+        "analyticsId": existing_score.get("analyticsId") or analytics_score_id(existing_score),
+        "legacyAnalyticsIds": existing_score.get("legacyAnalyticsIds") or [],
+        "legacyAdminIds": existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)],
     }
     candidate = validate_package(candidate_payload)
     with LIBRARY_LOCK:
-        existing_scores = read_scores()
-        conflicts = [
-            (path, score)
-            for path, score in existing_scores
-            if path != existing_path and is_canonical_source(path) and dedupe_key(score) == dedupe_key(candidate)
-        ]
-        if conflicts:
-            raise DuplicateScoreError("修改后的歌名、歌手/作者和共享人组合已存在，不能覆盖其他曲目。")
-        old_identity = dedupe_key(existing_score)
-        new_identity = dedupe_key(candidate)
-        destination = existing_path if old_identity == new_identity else SOURCE_DIRECTORY / filename_for(candidate)
-        package = {
-            "format": FORMAT,
-            "version": VERSION,
-            **{field: candidate[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
-            "createdAt": candidate["createdAt"] or now_iso_timestamp(),
-            **({"displayUrl": candidate["displayUrl"]} if candidate.get("displayUrl") else {}),
-        }
+        destination = existing_path
+        package = canonical_package({
+            **candidate,
+            # Legacy community scores may not have a createdAt field. Keep
+            # their original timestamp when present, otherwise backfill it
+            # while saving so admin edits never fail with KeyError.
+            "createdAt": candidate.get("createdAt") or now_iso_timestamp(),
+        })
         write_json_atomically(destination, package)
-        if destination != existing_path:
-            existing_path.unlink()
-            old_relative = str(existing_path.relative_to(REPOSITORY_ROOT))
-            new_relative = str(destination.relative_to(REPOSITORY_ROOT))
-            with AUTH_LOCK, auth_database() as connection:
-                connection.execute(
-                    "UPDATE score_owners SET score_path = ? WHERE score_path = ?",
-                    (new_relative, old_relative),
-                )
-                old_recommended = connection.execute(
-                    "SELECT 1 FROM recommended_scores "
-                    "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
-                    (existing_score["title"], existing_score["artist"], existing_score["sharedBy"]),
-                ).fetchone()
-                new_recommended = connection.execute(
-                    "SELECT 1 FROM recommended_scores "
-                    "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
-                    (candidate["title"], candidate["artist"], candidate["sharedBy"]),
-                ).fetchone()
-                if old_recommended and new_recommended:
-                    connection.execute(
-                        "DELETE FROM recommended_scores "
-                        "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
-                        (existing_score["title"], existing_score["artist"], existing_score["sharedBy"]),
-                    )
-                elif old_recommended:
-                    connection.execute(
-                        "UPDATE recommended_scores SET title = ?, artist = ?, shared_by = ? "
-                        "WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
-                        (
-                            candidate["title"], candidate["artist"], candidate["sharedBy"],
-                            existing_score["title"], existing_score["artist"], existing_score["sharedBy"],
-                        ),
-                    )
         rebuilt_scores = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, rebuilt_scores)
         return rebuilt_scores
@@ -1114,7 +1196,7 @@ def admin_user_catalog() -> list[dict[str, Any]]:
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
             "SELECT accounts.id, accounts.email, accounts.user_id, accounts.created_at, accounts.updated_at, "
-            "COUNT(DISTINCT score_owners.score_path) AS uploads, "
+            "COUNT(DISTINCT score_owners.remix_code) AS uploads, "
             "COUNT(DISTINCT CASE WHEN sessions.expires_at > ? THEN sessions.token_hash END) AS active_sessions "
             "FROM accounts "
             "LEFT JOIN score_owners ON score_owners.account_id = accounts.id "
@@ -1136,30 +1218,12 @@ def admin_user_catalog() -> list[dict[str, Any]]:
 
 def admin_delete_score(payload: Any) -> list[dict[str, Any]]:
     """Delete one canonical community score and its admin metadata."""
-    if not isinstance(payload, dict):
-        raise ValueError("删除请求格式无效。")
-    identity: dict[str, str] = {}
-    for field, limit in (("title", 48), ("artist", 64), ("sharedBy", 48)):
-        value = payload.get(field)
-        if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
-            raise ValueError("删除请求中的曲目信息无效。")
-        identity[field] = value.strip()
+    existing_path, existing_score = resolve_score_reference(payload)
     with LIBRARY_LOCK:
-        matches = [
-            (path, score) for path, score in read_scores()
-            if is_canonical_source(path) and dedupe_key(score) == dedupe_key(identity)
-        ]
-        if not matches:
-            raise FileNotFoundError("未找到该曲目。")
-        relative_paths = [str(path.relative_to(REPOSITORY_ROOT)) for path, _ in matches]
-        for path, _ in matches:
-            path.unlink()
+        existing_path.unlink()
         with AUTH_LOCK, auth_database() as connection:
-            connection.executemany("DELETE FROM score_owners WHERE score_path = ?", [(path,) for path in relative_paths])
-            connection.execute(
-                "DELETE FROM recommended_scores WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
-                (identity["title"], identity["artist"], identity["sharedBy"]),
-            )
+            connection.execute("DELETE FROM score_owners WHERE remix_code = ?", (existing_score["remixCode"],))
+            connection.execute("DELETE FROM recommended_scores WHERE remix_code = ?", (existing_score["remixCode"],))
         songs = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, songs)
         return songs
@@ -1169,8 +1233,8 @@ def add_recommendation(payload: Any) -> list[dict[str, str]]:
     identity = recommendation_identity(payload)
     with AUTH_LOCK, auth_database() as connection:
         connection.execute(
-            "INSERT OR IGNORE INTO recommended_scores(title, artist, shared_by, created_at) VALUES (?, ?, ?, ?)",
-            (identity["title"], identity["artist"], identity["sharedBy"], now_timestamp()),
+            "INSERT OR IGNORE INTO recommended_scores(remix_code, title, artist, shared_by, created_at) VALUES (?, ?, ?, ?, ?)",
+            (identity["remixCode"], identity["title"], identity["artist"], identity["sharedBy"], now_timestamp()),
         )
     return list_recommendations()
 
@@ -1179,8 +1243,8 @@ def remove_recommendation(payload: Any) -> list[dict[str, str]]:
     identity = recommendation_identity(payload)
     with AUTH_LOCK, auth_database() as connection:
         result = connection.execute(
-            "DELETE FROM recommended_scores WHERE title = ? COLLATE NOCASE AND artist = ? COLLATE NOCASE AND shared_by = ? COLLATE NOCASE",
-            (identity["title"], identity["artist"], identity["sharedBy"]),
+            "DELETE FROM recommended_scores WHERE remix_code = ?",
+            (identity["remixCode"],),
         )
         if result.rowcount < 1:
             raise FileNotFoundError("推荐曲目不存在。")
@@ -1480,11 +1544,14 @@ def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any
 
 def bind_score_owner(account_id: str, path: Path) -> None:
     relative = str(path.relative_to(REPOSITORY_ROOT))
+    score = next((score for score_path, score in read_scores() if score_path == path), None)
+    if not score:
+        raise FileNotFoundError("未找到待绑定的曲目。")
     with AUTH_LOCK, auth_database() as connection:
         connection.execute(
-            "INSERT INTO score_owners(score_path, account_id) VALUES (?, ?) "
-            "ON CONFLICT(score_path) DO UPDATE SET account_id = excluded.account_id",
-            (relative, account_id),
+            "INSERT INTO score_owners(remix_code, score_path, account_id) VALUES (?, ?, ?) "
+            "ON CONFLICT(remix_code) DO UPDATE SET score_path = excluded.score_path, account_id = excluded.account_id",
+            (score["remixCode"], relative, account_id),
         )
 
 
@@ -1492,19 +1559,19 @@ def backfill_legacy_score_owners(account: sqlite3.Row | None) -> None:
     """Attach legacy Jiko community submissions to the verified owner account."""
     if not account or str(account["email"]).casefold() != LEGACY_OWNER_EMAIL:
         return
-    legacy_paths = []
+    legacy_scores = []
     for path, score in read_scores():
         if not is_canonical_source(path):
             continue
         if str(score.get("sharedBy", "")).strip().casefold() == LEGACY_OWNER_USER_ID:
-            legacy_paths.append(str(path.relative_to(REPOSITORY_ROOT)))
-    if not legacy_paths:
+            legacy_scores.append((score["remixCode"], str(path.relative_to(REPOSITORY_ROOT))))
+    if not legacy_scores:
         return
     with AUTH_LOCK, auth_database() as connection:
         connection.executemany(
-            "INSERT INTO score_owners(score_path, account_id) VALUES (?, ?) "
-            "ON CONFLICT(score_path) DO UPDATE SET account_id = excluded.account_id",
-            [(path, account["id"]) for path in legacy_paths],
+            "INSERT INTO score_owners(remix_code, score_path, account_id) VALUES (?, ?, ?) "
+            "ON CONFLICT(remix_code) DO UPDATE SET score_path = excluded.score_path, account_id = excluded.account_id",
+            [(code, path, account["id"]) for code, path in legacy_scores],
         )
 
 
@@ -1525,39 +1592,21 @@ def scores_owned_by(account_id: str) -> list[dict[str, Any]]:
         ).fetchone()
     backfill_legacy_score_owners(account)
     with AUTH_LOCK, auth_database() as connection:
-        owned_paths = {row["score_path"] for row in connection.execute("SELECT score_path FROM score_owners WHERE account_id = ?", (account_id,)).fetchall()}
-    if not owned_paths:
+        owned_codes = {row["remix_code"] for row in connection.execute("SELECT remix_code FROM score_owners WHERE account_id = ?", (account_id,)).fetchall()}
+    if not owned_codes:
         return []
-    return [score for path, score in read_scores() if str(path.relative_to(REPOSITORY_ROOT)) in owned_paths]
+    return [score for path, score in read_scores() if score["remixCode"] in owned_codes]
 
 
 def delete_owned_score(account_id: str, payload: Any) -> list[dict[str, Any]]:
-    if not isinstance(payload, dict):
-        raise ValueError("删除请求格式无效。")
-    identity = {}
-    for field, limit in (("title", 48), ("artist", 64), ("sharedBy", 48)):
-        value = payload.get(field)
-        if not isinstance(value, str) or not value.strip() or len(value.strip()) > limit:
-            raise ValueError("删除请求中的曲目信息无效。")
-        identity[field] = value.strip()
-
     with LIBRARY_LOCK:
-        matches = [
-            (path, score)
-            for path, score in read_scores()
-            if is_canonical_source(path)
-            and all(score.get(field) == value for field, value in identity.items())
-        ]
-        if not matches:
-            raise FileNotFoundError("未找到该曲目。")
-        for path, _ in matches:
-            if score_owner_account_id(path) != account_id:
-                raise PermissionError("只能删除自己上传的曲目。")
-        relative_paths = [str(path.relative_to(REPOSITORY_ROOT)) for path, _ in matches]
-        for path, _ in matches:
-            path.unlink()
+        path, score = resolve_score_reference(payload)
+        if score_owner_account_id(path, score) != account_id:
+            raise PermissionError("只能删除自己上传的曲目。")
+        path.unlink()
         with AUTH_LOCK, auth_database() as connection:
-            connection.executemany("DELETE FROM score_owners WHERE score_path = ?", [(path,) for path in relative_paths])
+            connection.execute("DELETE FROM score_owners WHERE remix_code = ?", (score["remixCode"],))
+            connection.execute("DELETE FROM recommended_scores WHERE remix_code = ?", (score["remixCode"],))
         songs = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, songs)
         return songs
@@ -1571,13 +1620,14 @@ def rename_account_user_id(account: sqlite3.Row, user_id: Any) -> list[dict[str,
         reserved = connection.execute("SELECT account_id FROM user_id_history WHERE user_id = ?", (new_user_id,)).fetchone()
         if reserved:
             raise ValueError("该用户 ID 已被使用或保留。")
-        rows = connection.execute("SELECT score_path FROM score_owners WHERE account_id = ?", (account["id"],)).fetchall()
+        rows = connection.execute("SELECT remix_code, score_path FROM score_owners WHERE account_id = ?", (account["id"],)).fetchall()
         for row in rows:
             path = (REPOSITORY_ROOT / row["score_path"]).resolve()
             if not is_canonical_source(path) or not path.exists():
                 continue
             package = json.loads(path.read_text(encoding="utf-8"))
             package["sharedBy"] = new_user_id
+            package["remixCode"] = row["remix_code"]
             write_json_atomically(path, package)
         now = now_timestamp()
         connection.execute("UPDATE accounts SET user_id = ?, updated_at = ? WHERE id = ?", (new_user_id, now, account["id"]))
@@ -1752,7 +1802,17 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 payload["_fileName"] = part.get_filename() or ""
                 payload["_fileBytes"] = part.get_payload(decode=True) or b""
                 continue
-            value = part.get_content()
+            raw_value = part.get_payload(decode=True)
+            if isinstance(raw_value, bytes):
+                charset = part.get_content_charset() or "utf-8"
+                try:
+                    value = raw_value.decode(charset)
+                except (LookupError, UnicodeDecodeError):
+                    # Browser FormData text fields are UTF-8 even when the
+                    # multipart part omits a charset or declares us-ascii.
+                    value = raw_value.decode("utf-8")
+            else:
+                value = part.get_content()
             payload[field] = (value if isinstance(value, str) else str(value)).strip()
         if "bpm" in payload:
             try:
@@ -1932,7 +1992,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             items = admin_library_catalog()
             if needle:
                 items = [item for item in items if needle in " ".join(
-                    str(item[field]).casefold() for field in ("title", "artist", "sharedBy", "owner")
+                    str(item[field]).casefold() for field in ("remixCode", "legacyId", "title", "artist", "sharedBy", "owner")
                 )]
             self.send_json(HTTPStatus.OK, {"songs": items, "total": len(items)})
             return
@@ -2409,6 +2469,7 @@ def main() -> int:
     server.hot_ranking_thread: threading.Thread | None = None
     if server.auth_enabled or server.analytics_enabled:
         initialize_auth_database()
+        migrate_identity_tables()
     if server.auth_enabled:
         backfill_legacy_score_owners_for_known_account()
     if server.analytics_enabled:

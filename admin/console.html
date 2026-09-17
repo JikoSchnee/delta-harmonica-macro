@@ -270,6 +270,7 @@
         }
         const payload = new FormData();
         payload.append("id", pendingAdminSong.id);
+        payload.append("remixCode", pendingAdminSong.remixCode || pendingAdminSong.id || "");
         payload.append("title", $("#adminSongName").value);
         payload.append("artist", $("#adminSongArtist").value);
         payload.append("key", $("#adminSongKey").value);

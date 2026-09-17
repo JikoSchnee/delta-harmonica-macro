@@ -32,6 +32,26 @@ TOKEN_PATTERN = re.compile(r"^(?:[#b♯♭]?[,]?(?:1''|(?:0|[1-7])'?)_{0,2}\.*-*
 MAX_DISPLAY_URL_LENGTH = 2048
 REMIX_CODE_LENGTH = 21
 REMIX_CODE_PATTERN = re.compile(rf"^[0-9a-f]{{{REMIX_CODE_LENGTH}}}$", re.IGNORECASE)
+ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$", re.IGNORECASE)
+LEGACY_ADMIN_ID_PATTERN = re.compile(r"^[0-9a-f]{12}$", re.IGNORECASE)
+
+
+def legacy_analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
+    """Keep the original score ID as the fallback for legacy packages."""
+    identity = "\u241f".join(
+        str(score.get(field, "")).strip().lower()
+        for field in ("title", "artist", "sharedBy")
+    )
+    value = 2166136261
+    for character in f"{origin}\u241f{identity}":
+        value ^= ord(character)
+        value = (value * 16777619) & 0xFFFFFFFF
+    return f"s{value:08x}"
+
+
+def legacy_admin_id_for_score(score: dict[str, Any]) -> str:
+    identity = "|".join(str(score.get(field, "")).casefold().strip() for field in ("title", "artist", "sharedBy"))
+    return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:12]
 
 
 def compact_text(value: Any, field: str, limit: int) -> str:
@@ -159,6 +179,34 @@ def validate_package(payload: Any) -> dict[str, Any]:
     created_at = validate_created_at(payload.get("createdAt"))
     if created_at:
         score["createdAt"] = created_at
+    analytics_id = payload.get("analyticsId")
+    if analytics_id is None:
+        analytics_id = legacy_analytics_score_id(score)
+    elif not isinstance(analytics_id, str) or not ANALYTICS_SCORE_ID_PATTERN.fullmatch(analytics_id.strip()):
+        raise ValueError("统计标识无效")
+    score["analyticsId"] = analytics_id.strip().lower()
+    legacy_analytics_ids = payload.get("legacyAnalyticsIds")
+    if legacy_analytics_ids is None:
+        legacy_analytics_ids = []
+    elif not isinstance(legacy_analytics_ids, list) or any(
+        not isinstance(value, str) or not ANALYTICS_SCORE_ID_PATTERN.fullmatch(value.strip())
+        for value in legacy_analytics_ids
+    ):
+        raise ValueError("历史统计标识无效")
+    score["legacyAnalyticsIds"] = list(dict.fromkeys(
+        value.strip().lower()
+        for value in legacy_analytics_ids
+        if value.strip().lower() != score["analyticsId"]
+    ))
+    legacy_ids = payload.get("legacyAdminIds")
+    if legacy_ids is None:
+        legacy_ids = [legacy_admin_id_for_score(score)]
+    elif not isinstance(legacy_ids, list) or any(
+        not isinstance(value, str) or not LEGACY_ADMIN_ID_PATTERN.fullmatch(value.strip())
+        for value in legacy_ids
+    ):
+        raise ValueError("旧管理标识无效")
+    score["legacyAdminIds"] = list(dict.fromkeys([value.strip().lower() for value in legacy_ids]))
     return score
 
 
@@ -186,6 +234,20 @@ def write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def canonical_package(score: dict[str, Any]) -> dict[str, Any]:
+    """Return the persisted package shape with its immutable identity."""
+    return {
+        "format": FORMAT,
+        "version": VERSION,
+        **{field: score[field] for field in ("title", "artist", "sharedBy", "key", "meter", "bpm", "jianpu", "remixCode")},
+        **({"analyticsId": score["analyticsId"]} if score.get("analyticsId") else {}),
+        **({"legacyAnalyticsIds": score["legacyAnalyticsIds"]} if score.get("legacyAnalyticsIds") else {}),
+        **({"legacyAdminIds": score["legacyAdminIds"]} if score.get("legacyAdminIds") else {}),
+        **({"createdAt": score["createdAt"]} if score.get("createdAt") else {}),
+        **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
+    }
+
+
 def write_library(path: Path, songs: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(songs, ensure_ascii=False, separators=(",", ":"))
@@ -201,19 +263,22 @@ def main() -> int:
     parser.add_argument("inputs", nargs="+", type=Path, help="投稿文件或包含投稿文件的目录")
     parser.add_argument("--report", type=Path, required=True, help="写入审核报告 JSON")
     parser.add_argument("--output", type=Path, help="确认合格后写入浏览器曲库 JS；省略时只生成报告")
+    parser.add_argument("--persist", action="store_true", help="将规范化后的改曲码和谱包字段写回输入文件")
     args = parser.parse_args()
 
     accepted: list[tuple[Path, dict[str, Any]]] = []
     rejected: list[dict[str, str]] = []
-    seen: set[str] = set()
+    seen_codes: dict[str, Path] = {}
     for path in paths_from_inputs(args.inputs):
         try:
             payload = json.loads(path.read_text(encoding="utf-8"))
             song = validate_package(payload)
-            key = dedupe_key(song)
-            if key in seen:
-                raise ValueError("与本批次另一首曲目的歌名、歌手/作者和共享人均相同，请人工审核后保留一个版本")
-            seen.add(key)
+            code = song["remixCode"]
+            if code in seen_codes:
+                raise ValueError(f"改曲码 {code} 已与 {seen_codes[code].name} 重复，不能自动改写")
+            seen_codes[code] = path
+            if args.persist:
+                write_json(path, canonical_package(song))
             accepted.append((path, song))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
             rejected.append({"file": str(path), "reason": str(error)})

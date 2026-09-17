@@ -232,6 +232,7 @@ docker run --rm \
     cp -n /seed/community-scores/. /app/data/community-scores/
     python3 tools/import_community_scores.py /app/data/community-scores \
       --report /tmp/community-score-review.json \
+      --persist \
       --output /app/data/community-songs.js
   '
 
