@@ -23,6 +23,7 @@ import os
 import queue
 import re
 import secrets
+import shutil
 import smtplib
 import sqlite3
 import ssl
@@ -1771,6 +1772,36 @@ class AuthMailDispatcher:
                 position = 1 + sum(1 for item in pending if item["sequence"] < record["sequence"])
             return {"state": record["state"], "position": position, "queueDepth": len(pending)}
 
+    def snapshot(self) -> dict[str, Any]:
+        """Summarise queue, worker and ticket state for the admin runtime panel."""
+        now = time.monotonic()
+        with self.ticket_lock:
+            self._purge_tickets_locked(now)
+            states: Counter[str] = Counter(record["state"] for record in self.tickets.values())
+            oldest_pending: float | None = None
+            for record in self.tickets.values():
+                if record["state"] != "pending":
+                    continue
+                age = now - record["updated_at"]
+                oldest_pending = age if oldest_pending is None else max(oldest_pending, age)
+        alive_workers = sum(1 for worker in self.workers if worker.is_alive())
+        return {
+            "enabled": True,
+            "queueDepth": self.jobs.qsize(),
+            "queueCapacity": AUTH_MAIL_QUEUE_MAXSIZE,
+            "workers": {"total": len(self.workers), "alive": alive_workers, "expected": AUTH_MAIL_WORKERS},
+            "tickets": {
+                "pending": states["pending"],
+                "sending": states["sending"],
+                "sent": states["sent"],
+                "failed": states["failed"],
+                "tracked": len(self.tickets),
+                "limit": AUTH_MAIL_TICKET_LIMIT,
+            },
+            "oldestPendingSeconds": round(oldest_pending, 1) if oldest_pending is not None else None,
+            "stopping": self.stop_event.is_set(),
+        }
+
     def _discard_code_if_current(self, email: str, code_hash: str) -> None:
         try:
             with AUTH_LOCK, auth_database() as connection:
@@ -2027,20 +2058,152 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.request_slots = threading.BoundedSemaphore(MAX_REQUEST_THREADS)
+        self.started_at = time.time()
+        self.request_stats_lock = threading.Lock()
+        self.active_requests = 0
+        self.total_requests = 0
 
     def process_request(self, request: Any, client_address: Any) -> None:
         if not self.request_slots.acquire(timeout=1):
             self.shutdown_request(request)
             return
+        with self.request_stats_lock:
+            self.active_requests += 1
+            self.total_requests += 1
 
         def run_request() -> None:
             try:
                 self.process_request_thread(request, client_address)
             finally:
+                with self.request_stats_lock:
+                    self.active_requests -= 1
                 self.request_slots.release()
 
         thread = threading.Thread(target=run_request, daemon=True)
         thread.start()
+
+
+def read_system_memory() -> dict[str, float] | None:
+    """Read system memory from /proc/meminfo; returns None when unavailable."""
+    try:
+        with open("/proc/meminfo", encoding="utf-8") as handle:
+            entries: dict[str, float] = {}
+            for line in handle:
+                key, separator, rest = line.partition(":")
+                if not separator:
+                    continue
+                fields = rest.strip().split()
+                if fields:
+                    entries[key.strip()] = float(fields[0]) / 1024  # kB → MB
+    except (OSError, ValueError):
+        return None
+    total = entries.get("MemTotal")
+    if not total:
+        return None
+    available = entries.get("MemAvailable")
+    if available is None:
+        available = entries.get("MemFree", 0.0) + entries.get("Cached", 0.0)
+    used = max(0.0, total - available)
+    return {
+        "totalMb": round(total, 1),
+        "availableMb": round(available, 1),
+        "usedMb": round(used, 1),
+        "usedPercent": round(used / total * 100, 1) if total else 0.0,
+    }
+
+
+def read_process_memory() -> float | None:
+    """Read this process' resident set size in MB from /proc/self/status."""
+    try:
+        with open("/proc/self/status", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("VmRSS:"):
+                    return round(float(line.split()[1]) / 1024, 1)
+    except (OSError, ValueError, IndexError):
+        return None
+    return None
+
+
+def thread_group_name(name: str) -> str:
+    """Collapse numbered worker threads such as auth-mail-2 into one group."""
+    return re.sub(r"[- ]\d+$", "", name) or name
+
+
+def build_runtime_report(server: ThreadingHTTPServer) -> dict[str, Any]:
+    """Collect process, request, mail queue and thread state for the admin panel."""
+    now = time.time()
+    started_at = getattr(server, "started_at", now)
+    load_average: list[float] | None = None
+    if hasattr(os, "getloadavg"):
+        try:
+            load_average = [round(value, 2) for value in os.getloadavg()]
+        except OSError:
+            load_average = None
+
+    try:
+        usage = shutil.disk_usage(str(REPOSITORY_ROOT))
+        disk: dict[str, float] | None = {
+            "totalGb": round(usage.total / 1024**3, 1),
+            "usedGb": round(usage.used / 1024**3, 1),
+            "freeGb": round(usage.free / 1024**3, 1),
+            "usedPercent": round(usage.used / usage.total * 100, 1) if usage.total else 0.0,
+        }
+    except OSError:
+        disk = None
+
+    uname = os.uname() if hasattr(os, "uname") else None
+    threads = threading.enumerate()
+    groups = Counter(thread_group_name(thread.name) for thread in threads)
+
+    with server.request_stats_lock:
+        active_requests = server.active_requests
+        total_requests = server.total_requests
+
+    dispatcher = getattr(server, "auth_mail_dispatcher", None)
+    if dispatcher is not None:
+        mail = dispatcher.snapshot()
+    else:
+        mail = {
+            "enabled": False,
+            "queueDepth": 0,
+            "queueCapacity": AUTH_MAIL_QUEUE_MAXSIZE,
+            "workers": {"total": 0, "alive": 0, "expected": AUTH_MAIL_WORKERS},
+            "tickets": {"pending": 0, "sending": 0, "sent": 0, "failed": 0, "tracked": 0, "limit": AUTH_MAIL_TICKET_LIMIT},
+            "oldestPendingSeconds": None,
+            "stopping": False,
+        }
+
+    return {
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "server": {
+            "pid": os.getpid(),
+            "python": sys.version.split()[0],
+            "platform": f"{uname.sysname} {uname.release}" if uname else sys.platform,
+            "startedAt": datetime.fromtimestamp(started_at, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "uptimeSeconds": int(max(0.0, now - started_at)),
+            "loadAverage": load_average,
+            "cpuCount": os.cpu_count() or 0,
+            "memory": read_system_memory(),
+            "processMemoryMb": read_process_memory(),
+            "disk": disk,
+        },
+        "requests": {
+            "active": active_requests,
+            "total": total_requests,
+            "limit": MAX_REQUEST_THREADS,
+            "queueSize": server.request_queue_size,
+        },
+        "mail": mail,
+        "threads": {
+            "total": len(threads),
+            "daemon": sum(1 for thread in threads if thread.daemon),
+            "groups": [{"name": name, "count": count} for name, count in groups.most_common()],
+            "list": [
+                {"name": thread.name, "daemon": thread.daemon, "alive": thread.is_alive()}
+                for thread in threads[:40]
+            ],
+        },
+    }
 
 
 COMPRESSED_ASSET_LOCK = threading.Lock()
@@ -2546,6 +2709,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 requested_days = 30
             days = min(self.server.analytics_retention_days, max(1, requested_days))
             self.send_json(HTTPStatus.OK, build_analytics_report(days))
+            return
+        if path == "/api/admin/runtime":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, build_runtime_report(self.server))
             return
         if path == "/api/admin/overview":
             if not self.is_admin_console_request():

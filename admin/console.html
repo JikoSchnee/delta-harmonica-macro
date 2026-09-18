@@ -118,6 +118,22 @@
       .export-config-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 18px; }
       .export-config-status { min-height: 22px; margin: 0; color: var(--dim); font-size: 12px; }
       .export-config-status.success { color: var(--aqua); }
+      .runtime-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+      .runtime-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+      .runtime-card { padding: 15px 16px; }
+      .runtime-card h4 { margin: 0 0 10px; color: var(--aqua); font: 700 12px "JetBrains Mono", monospace; letter-spacing: .06em; }
+      .runtime-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px dashed rgba(122,168,151,.22); }
+      .runtime-row:last-child { border-bottom: 0; }
+      .runtime-row span { color: var(--dim); font-size: 12px; }
+      .runtime-row b { color: var(--ink); font: 600 12px "JetBrains Mono", monospace; text-align: right; }
+      .runtime-row b.warn { color: var(--amber); }
+      .runtime-row b.bad { color: var(--pink); }
+      .runtime-bar { position: relative; height: 7px; margin: 2px 0 6px; border: 1px solid var(--line); background: #071d19; }
+      .runtime-bar i { position: absolute; top: 0; bottom: 0; left: 0; background: var(--aqua); }
+      .runtime-bar.warn i { background: var(--amber); }
+      .runtime-bar.bad i { background: var(--pink); }
+      .runtime-threads { max-height: 220px; overflow: auto; }
+      .runtime-note { margin: 14px 0 0; color: var(--dim); font-size: 11px; }
       .login-screen { display: grid; place-items: center; min-height: 100vh; padding: 20px; }
       .login { width: min(520px, 100%); padding: 28px; }
       .login h1 { margin: 8px 0 0; color: var(--aqua); font: 700 27px "Silkscreen", sans-serif; }
@@ -153,6 +169,7 @@
           <button data-page="library"><b>02</b><span>曲库管理</span></button>
           <button data-page="users"><b>03</b><span>用户管理</span></button>
           <button data-page="export-methods"><b>04</b><span>导出方式</span></button>
+          <button data-page="runtime"><b>05</b><span>运行时状态</span></button>
         </nav>
         <div class="rail-foot"><span></span>TOKEN LINKED<br /><small>private / no-store</small></div>
       </aside>
@@ -160,7 +177,7 @@
       <main class="content">
         <header class="topline">
           <div><div class="eyebrow" id="pageEyebrow">CONTROL ROOM · OVERVIEW</div><h2 id="pageTitle">后台总览</h2><p id="pageDescription">曲库、账号与站内信号都在这里。最后同步：<span id="generatedAt">—</span></p></div>
-          <div class="top-actions"><a class="button ghost" href="./">管理首页 ↗</a><a class="button ghost" href="./analytics.html">打开数据分析 ↗</a><button id="refreshButton" class="button" type="button">刷新数据 ⟳</button><button id="logoutButton" class="button danger" type="button">断开</button></div>
+          <div class="top-actions"><a class="button ghost" href="./">管理首页 ↗</a><a class="button ghost" href="./analytics.html">打开数据分析 ↗</a><button id="runtimeButton" class="button ghost" type="button">运行时状态 ⚡</button><button id="refreshButton" class="button" type="button">刷新数据 ⟳</button><button id="logoutButton" class="button danger" type="button">断开</button></div>
         </header>
 
         <section id="overviewPage" data-view>
@@ -184,6 +201,16 @@
             <p class="admin-song-description">为每个导出方法选择适用品牌。首页会按这里的配置显示品牌徽标；方法顺序固定，不会被修改。</p>
             <div id="exportMethodsConfig" class="export-config-grid"></div>
             <div class="export-config-actions"><p id="exportMethodsStatus" class="export-config-status" role="status" aria-live="polite"></p><button id="saveExportMethodsButton" class="button" type="button">保存全部配置 →</button></div>
+          </section>
+        </section>
+        <section id="runtimePage" data-view hidden>
+          <section class="window panel">
+            <div class="section-heading">
+              <div><div class="eyebrow">RUNTIME MONITOR / LIVE</div><h3>服务器 · 邮件队列 · 线程</h3></div>
+              <div class="runtime-actions"><span id="runtimeStamp" class="tag">—</span><button id="runtimePollButton" class="button" type="button">开启 5 秒自动刷新</button><button id="runtimeRefreshButton" class="button ghost" type="button">立即刷新 ⟳</button></div>
+            </div>
+            <div id="runtimePanels" class="runtime-grid"><div class="empty">正在读取运行时状态…</div></div>
+            <p class="runtime-note">数据来自 <code>GET /api/admin/runtime</code>，只读取进程内存计数与系统信息，不写入任何数据。开启自动刷新后每 5 秒更新一次，离开本页会自动停止。</p>
           </section>
         </section>
         <div id="pageNotice" class="notice" role="status"></div>
@@ -260,11 +287,11 @@
         return body;
       }
       function showPage(page) {
-        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "维护公开社区曲谱，设置推荐或移除不再展示的内容。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用的品牌标签。"] }[page];
+        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "维护公开社区曲谱，设置推荐或移除不再展示的内容。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用的品牌标签。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"] }[page];
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
-        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "export-methods") loadExportMethods();
+        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "export-methods") loadExportMethods(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
       }
       function renderOverview() {
         const item = state.overview; if (!item) return;
@@ -353,11 +380,96 @@
       }
       async function loadLibrary() { try { const result = await api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`); state.songs = result.songs || []; renderLibrary(); } catch (error) { setNotice(error.message); } }
       async function loadUsers() { try { const result = await api(`admin/users?q=${encodeURIComponent($("#userSearch").value)}`); state.users = result.users || []; renderUsers(); } catch (error) { setNotice(error.message); } }
+      const runtimeState = { timer: 0, busy: false, data: null };
+      const runtimeTone = percent => { const value = Number(percent) || 0; return value >= 90 ? "bad" : value >= 75 ? "warn" : ""; };
+      const runtimePercent = value => (value === null || value === undefined ? "—" : `${Number(value).toFixed(1)}%`);
+      const runtimeBar = percent => { const value = Math.max(0, Math.min(100, Number(percent) || 0)); return `<div class="runtime-bar ${runtimeTone(value)}"><i style="width:${value}%"></i></div>`; };
+      const runtimeDuration = seconds => { if (seconds === null || seconds === undefined) return "—"; const total = Math.max(0, Math.floor(Number(seconds))); const days = Math.floor(total / 86400), hours = Math.floor((total % 86400) / 3600), minutes = Math.floor((total % 3600) / 60); if (days) return `${days} 天 ${hours} 小时`; if (hours) return `${hours} 小时 ${minutes} 分`; if (minutes) return `${minutes} 分 ${total % 60} 秒`; return `${total} 秒`; };
+      const runtimeRow = (label, value, tone = "") => `<div class="runtime-row"><span>${escapeHtml(label)}</span><b class="${tone}">${escapeHtml(value)}</b></div>`;
+      function renderRuntime() {
+        const target = $("#runtimePanels");
+        const data = runtimeState.data;
+        if (!data) { target.innerHTML = '<div class="empty">暂无运行时数据。</div>'; return; }
+        const server = data.server || {}, requests = data.requests || {}, mail = data.mail || {}, threads = data.threads || {};
+        const memory = server.memory, disk = server.disk;
+        const tickets = mail.tickets || {}, workers = mail.workers || {};
+        const load = Array.isArray(server.loadAverage) ? server.loadAverage.map(value => Number(value).toFixed(2)).join(" / ") : "不可用";
+        const loadRatio = Array.isArray(server.loadAverage) && server.cpuCount ? server.loadAverage[0] / server.cpuCount : 0;
+        const activePercent = requests.limit ? (requests.active / requests.limit) * 100 : 0;
+        const queuePercent = mail.queueCapacity ? (mail.queueDepth / mail.queueCapacity) * 100 : 0;
+        const mb = value => `${number.format(Math.round(value))} MB`;
+        target.innerHTML = `
+          <section class="window runtime-card">
+            <h4>SERVER / 服务器</h4>
+            ${runtimeRow("运行时长", runtimeDuration(server.uptimeSeconds))}
+            ${runtimeRow("进程", `PID ${server.pid ?? "—"} · ${server.platform || "—"}`)}
+            ${runtimeRow("Python", server.python || "—")}
+            ${runtimeRow(`负载（${server.cpuCount || "?"} 核）`, load, loadRatio >= 0.9 ? "bad" : loadRatio >= 0.6 ? "warn" : "")}
+            ${memory ? runtimeRow("内存", `${mb(memory.usedMb)} / ${mb(memory.totalMb)} · ${runtimePercent(memory.usedPercent)}`, runtimeTone(memory.usedPercent)) + runtimeBar(memory.usedPercent) : runtimeRow("内存", "不可用（非 Linux）")}
+            ${disk ? runtimeRow("磁盘", `${disk.usedGb} / ${disk.totalGb} GB · ${runtimePercent(disk.usedPercent)}`, runtimeTone(disk.usedPercent)) + runtimeBar(disk.usedPercent) : runtimeRow("磁盘", "不可用")}
+            ${runtimeRow("进程占用", server.processMemoryMb === null || server.processMemoryMb === undefined ? "不可用" : mb(server.processMemoryMb))}
+          </section>
+          <section class="window runtime-card">
+            <h4>REQUESTS / 请求与线程</h4>
+            ${runtimeRow("活动请求", `${requests.active ?? 0} / ${requests.limit ?? "—"}`, runtimeTone(activePercent))}
+            ${runtimeBar(activePercent)}
+            ${runtimeRow("累计请求", number.format(requests.total ?? 0))}
+            ${runtimeRow("连接队列上限", requests.queueSize ?? "—")}
+            ${runtimeRow("线程总数", `${threads.total ?? 0}（守护 ${threads.daemon ?? 0}）`)}
+            ${(threads.groups || []).map(group => runtimeRow(group.name, `${group.count} 个`)).join("")}
+          </section>
+          <section class="window runtime-card">
+            <h4>MAIL QUEUE / 邮件队列</h4>
+            ${runtimeRow("发信服务", mail.enabled ? "已启用" : "未启用（未配置登录）", mail.enabled ? "" : "warn")}
+            ${runtimeRow("队列深度", `${mail.queueDepth ?? 0} / ${mail.queueCapacity ?? 0}`, runtimeTone(queuePercent))}
+            ${runtimeBar(queuePercent)}
+            ${runtimeRow("排队中", tickets.pending ?? 0)}
+            ${runtimeRow("发送中", tickets.sending ?? 0)}
+            ${runtimeRow("已发送", tickets.sent ?? 0)}
+            ${runtimeRow("失败", tickets.failed ?? 0, tickets.failed ? "bad" : "")}
+            ${runtimeRow("最久排队", mail.oldestPendingSeconds === null || mail.oldestPendingSeconds === undefined ? "—" : `${mail.oldestPendingSeconds} 秒`)}
+            ${runtimeRow("发信线程", `${workers.alive ?? 0} / ${workers.total ?? 0} 存活`, workers.total && workers.alive < workers.total ? "bad" : "")}
+            ${runtimeRow("票据记录", `${tickets.tracked ?? 0} / ${tickets.limit ?? 0}`)}
+          </section>
+          <section class="window runtime-card">
+            <h4>THREAD LIST / 线程列表</h4>
+            <div class="runtime-threads">${(threads.list || []).map(thread => `<div class="runtime-row"><span>${escapeHtml(thread.name)}</span><b class="${thread.alive ? "" : "bad"}">${thread.daemon ? "守护" : "普通"}</b></div>`).join("") || '<div class="empty">没有线程。</div>'}</div>
+          </section>`;
+      }
+      async function loadRuntime() {
+        if (runtimeState.busy) return;
+        runtimeState.busy = true;
+        try {
+          runtimeState.data = await api("admin/runtime");
+          renderRuntime();
+          $("#runtimeStamp").textContent = "更新于 " + new Date().toLocaleTimeString("zh-CN", { hour12: false });
+          setNotice("");
+        } catch (error) {
+          setNotice(error.message);
+          stopRuntimePolling();
+        } finally {
+          runtimeState.busy = false;
+        }
+      }
+      function startRuntimePolling() {
+        stopRuntimePolling();
+        runtimeState.timer = window.setInterval(loadRuntime, 5000);
+        $("#runtimePollButton").textContent = "停止自动刷新 ■";
+      }
+      function stopRuntimePolling() {
+        if (runtimeState.timer) { window.clearInterval(runtimeState.timer); runtimeState.timer = 0; }
+        const button = $("#runtimePollButton");
+        if (button) button.textContent = "开启 5 秒自动刷新";
+      }
+      function toggleRuntimePolling() { if (runtimeState.timer) { stopRuntimePolling(); } else { loadRuntime(); startRuntimePolling(); } }
       async function connect(token) { state.token = token.trim(); if (!state.token) return; sessionStorage.setItem("delta-admin-token", state.token); await loadAll(); if (state.overview) { $("#loginScreen").hidden = true; $("#app").hidden = false; } }
       $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginNotice").textContent = "正在验证…"; try { await connect($("#token").value); if (!state.overview) $("#loginNotice").textContent = "无法连接控制台。"; } catch (error) { $("#loginNotice").textContent = error.message; } });
       document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => showPage(button.dataset.page)));
       document.querySelectorAll("[data-jump]").forEach(link => link.addEventListener("click", event => { event.preventDefault(); showPage(link.dataset.jump); }));
-      $("#refreshButton").addEventListener("click", loadAll); $("#logoutButton").addEventListener("click", () => { state.token = ""; sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
+      $("#refreshButton").addEventListener("click", () => { loadAll(); if (!$("#runtimePage").hidden) loadRuntime(); }); $("#logoutButton").addEventListener("click", () => { stopRuntimePolling(); state.token = ""; sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
+      $("#runtimeButton").addEventListener("click", () => showPage("runtime"));
+      $("#runtimeRefreshButton").addEventListener("click", loadRuntime);
+      $("#runtimePollButton").addEventListener("click", toggleRuntimePolling);
       $("#librarySearchButton").addEventListener("click", loadLibrary); $("#userSearchButton").addEventListener("click", loadUsers);
       $("#saveExportMethodsButton").addEventListener("click", saveExportMethods);
       $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
