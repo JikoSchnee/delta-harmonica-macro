@@ -974,6 +974,9 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         candidate["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
         candidate["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
         candidate["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
+        # The quick editor has no declaration field; keep the stored value.
+        if existing_score.get("declaration"):
+            candidate["declaration"] = existing_score["declaration"]
         destination = existing_path
         candidate["createdAt"] = existing_score.get("createdAt") or now_iso_timestamp()
         package = canonical_package(candidate)
@@ -1261,6 +1264,7 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "meter": score["meter"],
             "bpm": score["bpm"],
             "displayUrl": score.get("displayUrl", ""),
+            "declaration": score.get("declaration", ""),
             "source": score.get("source", "社区投稿"),
             "owner": owners.get(score["remixCode"], "—"),
             "recommended": score["remixCode"] in recommendations,
@@ -1315,6 +1319,7 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         "bpm": payload.get("bpm", source_score["bpm"]),
         "jianpu": source_score["jianpu"],
         "displayUrl": payload.get("displayUrl", source_score.get("displayUrl")),
+        "declaration": payload.get("declaration", source_score.get("declaration")),
         "createdAt": existing_score.get("createdAt"),
         "remixCode": existing_score.get("remixCode"),
         "analyticsId": existing_score.get("analyticsId") or analytics_score_id(existing_score),

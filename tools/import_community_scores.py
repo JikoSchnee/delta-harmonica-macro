@@ -30,6 +30,7 @@ METER_PATTERN = re.compile(r"^(\d{1,2})/(\d{1,2})$")
 # explicitly supported end-to-end.
 TOKEN_PATTERN = re.compile(r"^(?:[#b♯♭]?[,]?(?:1''|(?:0|[1-7])'?)_{0,2}\.*-*(?::\d+(?:\.\d+)?)?~?|[-~]+)$")
 MAX_DISPLAY_URL_LENGTH = 2048
+MAX_DECLARATION_LENGTH = 200
 REMIX_CODE_LENGTH = 21
 REMIX_CODE_PATTERN = re.compile(rf"^[0-9a-f]{{{REMIX_CODE_LENGTH}}}$", re.IGNORECASE)
 ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$", re.IGNORECASE)
@@ -176,6 +177,9 @@ def validate_package(payload: Any) -> dict[str, Any]:
     display_url = validate_display_url(payload.get("displayUrl"))
     if display_url:
         score["displayUrl"] = display_url
+    declaration = payload.get("declaration")
+    if declaration is not None and str(declaration).strip():
+        score["declaration"] = compact_text(declaration, "声明", MAX_DECLARATION_LENGTH)
     created_at = validate_created_at(payload.get("createdAt"))
     if created_at:
         score["createdAt"] = created_at
@@ -245,6 +249,7 @@ def canonical_package(score: dict[str, Any]) -> dict[str, Any]:
         **({"legacyAdminIds": score["legacyAdminIds"]} if score.get("legacyAdminIds") else {}),
         **({"createdAt": score["createdAt"]} if score.get("createdAt") else {}),
         **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
+        **({"declaration": score["declaration"]} if score.get("declaration") else {}),
     }
 
 

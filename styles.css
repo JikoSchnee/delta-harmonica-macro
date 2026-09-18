@@ -1003,6 +1003,7 @@ main {
 .song-card .song-meta-primary span + span::before { margin-right: 7px; color: var(--teal); content: "·"; }
 .song-card .song-action-count { color: var(--teal-dark); font-weight: 700; }
 .song-card .song-export-count { color: #8a5600; font-weight: 700; }
+.song-card .song-declaration { margin: 6px 0 0; min-width: 0; max-width: 100%; padding: 4px 5px; color: #8a5600; background: rgba(223, 223, 223, .9); border: 1px solid #b9a06a; font: 700 9px/1.2 var(--mono); white-space: normal; word-break: break-word; }
 .song-card-footer { position: static; z-index: 1; display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 7px; margin: 0 12px 12px; min-width: 0; }
 .song-card .song-share { min-width: 0; max-width: 100%; padding: 4px 5px; color: var(--teal-dark); background: rgba(223, 223, 223, .9); border: 1px solid #99aaaa; font: 700 9px/1.2 var(--mono); white-space: normal; word-break: break-word; }
 .song-showcase-link { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; min-width: 0; max-width: 100%; padding: 0; color: var(--teal-dark); background: transparent; border: 0; font: 700 9px/1.2 var(--mono); text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
@@ -1331,10 +1332,11 @@ dialog:not(.midi-note-picker-dialog) .dialog-actions,
 .export-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
 .export-form-grid label:first-child { grid-column: 1 / -1; }
 .export-form-grid .auth-locked-field input { color: var(--teal-dark); background: #d6ecea; cursor: not-allowed; }
-.export-form-grid .export-display-url { grid-column: 1 / -1; }
+.export-form-grid .export-display-url, .export-form-grid .export-declaration-field { grid-column: 1 / -1; }
 .export-form-grid label { color: #333; font-size: 11px; }
-.export-form-grid input { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; color: var(--screen-text); background: var(--screen); border: 2px inset var(--surface); outline: 0; font: 500 13px var(--mono); }
-.export-form-grid input:focus { border-color: var(--teal); box-shadow: inset 0 0 0 1px #69b5b5; }
+.export-form-grid input, .export-form-grid textarea { display: block; width: 100%; margin-top: 6px; padding: 9px 10px; color: var(--screen-text); background: var(--screen); border: 2px inset var(--surface); outline: 0; font: 500 13px var(--mono); }
+.export-form-grid input:focus, .export-form-grid textarea:focus { border-color: var(--teal); box-shadow: inset 0 0 0 1px #69b5b5; }
+.export-form-grid textarea { resize: vertical; }
 .export-meta-preview { margin-top: 14px !important; padding: 8px 10px; color: var(--teal-dark) !important; background: var(--surface-light); border: 1px solid var(--surface-dark); font: 700 10px/1.5 var(--mono) !important; }
 .dialog-actions { display: flex; align-items: center; justify-content: flex-end; gap: 15px; margin-top: 18px; }
 

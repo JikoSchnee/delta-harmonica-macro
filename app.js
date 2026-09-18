@@ -964,7 +964,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), remixCodeSection: document.querySelector("#remix-code"), remixCodeInput: document.querySelector("#remixCodeInput"), remixCodeStatus: document.querySelector("#remixCodeStatus"), remixCodeResult: document.querySelector("#remixCodeResult"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), localLibraryButton: document.querySelector("#localLibraryButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]")], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperQqButton: document.querySelector("#recordingHelperQqButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  qqGroupButton: document.querySelector("#qqGroupButton"), versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), activeVisitorCount: document.querySelector("#activeVisitorCount"), todayVisitorCount: document.querySelector("#todayVisitorCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]")], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperQqButton: document.querySelector("#recordingHelperQqButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportDeclaration: document.querySelector("#exportDeclaration"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -1397,7 +1397,7 @@ function scheduleWorkbenchHeightSync() {
 let recording = null;
 let selectedRecordModifier = "";
 let liveRecordingVoice = null;
-let currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", remixCode: "" };
+let currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
 let scoreExportMode = "download";
 
 function tokenPosition(source, offset) {
@@ -2462,6 +2462,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <div class="song-title-row"><h3>${escapeHtml(song.title)}</h3>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <p class="song-artist">${escapeHtml(song.artist)}</p>
       <div class="song-meta"><div class="song-meta-primary"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-action-count" title="脚本执行的键盘/鼠标动作总数">动作 ${song.actionCount ?? songActionCount(song)} 次</span></div><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
+      ${song.declaration ? `<p class="song-declaration" title="上传者声明">声明：${escapeHtml(song.declaration)}</p>` : ""}
       </div>
       <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
@@ -2785,7 +2786,7 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   elements.keySignature.value = song.key || "1=C";
   elements.timeSignature.value = song.meter || "4/4";
   elements.bpm.value = song.bpm;
-  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "", remixCode: normalizeStoredRemixCode(song.remixCode) };
+  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "", declaration: song.declaration || "", remixCode: normalizeStoredRemixCode(song.remixCode) };
   activeAnalyticsScoreOrigin = songAnalyticsOrigin(song);
   activeAnalyticsScoreId = analyticsScoreIdForSong(song, activeAnalyticsScoreOrigin);
   const sourceMode = song.jianpu ? "jianpu" : song.score ? "precise" : null;
@@ -2817,7 +2818,7 @@ function initializeBlankEditor() {
   lastMidiFile = null;
   resetMidiTrackPicker();
   currentSequence = null;
-  currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", remixCode: "" };
+  currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
   activeAnalyticsScoreOrigin = "editor";
   activeAnalyticsScoreId = "";
   suppressUploadCompatibilityWarning = false;
@@ -4864,12 +4865,20 @@ function validateDisplayUrl(value) {
   }
 }
 
+function validateDeclaration(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return { value: "" };
+  if (text.length > 200) return { error: "声明不能超过 200 个字符。" };
+  return { value: text };
+}
+
 function validateScoreMetadata(metadata) {
   const title = compactText(metadata.title, "歌名", 48);
   const artist = compactText(metadata.artist, "歌手/作者", 64);
   const sharedBy = compactText(metadata.sharedBy, "共享人", 48);
   const displayUrl = validateDisplayUrl(metadata.displayUrl);
-  if (title.error || artist.error || sharedBy.error || displayUrl.error) return { error: title.error || artist.error || sharedBy.error || displayUrl.error };
+  const declaration = validateDeclaration(metadata.declaration);
+  if (title.error || artist.error || sharedBy.error || displayUrl.error || declaration.error) return { error: title.error || artist.error || sharedBy.error || displayUrl.error || declaration.error };
   const key = String(metadata.key ?? "").trim();
   if (!/^(?:1=)?[A-G](?:[#b♯♭])?$/i.test(key)) return { error: "调号格式应为 1=C、C、F♯ 或 A♭。" };
   const meter = String(metadata.meter ?? "").trim();
@@ -4877,7 +4886,7 @@ function validateScoreMetadata(metadata) {
   if (!meterParts || Number(meterParts[1]) < 1 || ![1, 2, 4, 8, 16].includes(Number(meterParts[2]))) return { error: "拍号格式应为例如 4/4 或 6/8。" };
   const bpm = Number(metadata.bpm);
   if (!Number.isInteger(bpm) || bpm < 30 || bpm > 300) return { error: "BPM 必须是 30 到 300 之间的整数。" };
-  return { value: { title: title.value, artist: artist.value, sharedBy: sharedBy.value, key, meter, bpm, displayUrl: displayUrl.value } };
+  return { value: { title: title.value, artist: artist.value, sharedBy: sharedBy.value, key, meter, bpm, displayUrl: displayUrl.value, declaration: declaration.value } };
 }
 
 function validateScorePackage(payload) {
@@ -4890,9 +4899,9 @@ function validateScorePackage(payload) {
   if (!jianpu) return { error: "导入文件缺少简谱内容。" };
   const sequence = parseJianpu(jianpu, metadata.value.bpm);
   if (sequence.error) return { error: `简谱无法载入：${sequence.error.message}` };
-  const { displayUrl, ...scoreMetadata } = metadata.value;
+  const { displayUrl, declaration, ...scoreMetadata } = metadata.value;
   const remixCode = normalizeStoredRemixCode(payload.remixCode);
-  return { value: { ...scoreMetadata, ...(displayUrl ? { displayUrl } : {}), ...(remixCode ? { remixCode } : {}), jianpu: sequenceToJianpu(sequence), sourceJianpu: jianpu, source: "社区投稿" } };
+  return { value: { ...scoreMetadata, ...(displayUrl ? { displayUrl } : {}), ...(declaration ? { declaration } : {}), ...(remixCode ? { remixCode } : {}), jianpu: sequenceToJianpu(sequence), sourceJianpu: jianpu, source: "社区投稿" } };
 }
 
 function currentEditorMetadata(sharedBy = currentScoreCredit.sharedBy, displayUrl = currentScoreCredit.displayUrl) {
@@ -4928,6 +4937,7 @@ function openScoreExportDialog(mode = "download") {
   elements.exportSharedBy.readOnly = communityUpload;
   elements.exportSharedBy.closest("label").classList.toggle("auth-locked-field", communityUpload);
   elements.exportDisplayUrl.value = currentScoreCredit.displayUrl;
+  elements.exportDeclaration.value = currentScoreCredit.declaration || "";
   elements.exportMetaPreview.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · 简谱将自动标准化保存`;
   scoreExportMode = mode;
   const localLibrary = mode === "local-library";
@@ -4958,18 +4968,20 @@ async function scorePackageFromDialog() {
     key: elements.keySignature.value,
     meter: elements.timeSignature.value,
     bpm: elements.bpm.value,
-    displayUrl: elements.exportDisplayUrl.value
+    displayUrl: elements.exportDisplayUrl.value,
+    declaration: elements.exportDeclaration.value
   });
   if (metadata.error) return metadata;
   const jianpu = sequenceToJianpu(sequence);
   const normalizedValidation = parseJianpu(jianpu, metadata.value.bpm);
   if (normalizedValidation.error) return { error: `曲谱包含暂不支持的简谱写法：${normalizedValidation.error.message}` };
-  const { displayUrl, ...scoreMetadata } = metadata.value;
+  const { displayUrl, declaration, ...scoreMetadata } = metadata.value;
   const value = {
     format: SONG_FILE_FORMAT,
     version: SONG_FILE_VERSION,
     ...scoreMetadata,
     ...(displayUrl ? { displayUrl } : {}),
+    ...(declaration ? { declaration } : {}),
     ...(normalizeStoredRemixCode(currentScoreCredit.remixCode) ? { remixCode: normalizeStoredRemixCode(currentScoreCredit.remixCode) } : {}),
     jianpu
   };
@@ -4980,7 +4992,7 @@ async function scorePackageFromDialog() {
 function applyScorePackageMetadata(score) {
   elements.macroName.value = score.title;
   elements.artistName.value = score.artist;
-  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy, displayUrl: score.displayUrl || "", remixCode: normalizeStoredRemixCode(score.remixCode) };
+  currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy, displayUrl: score.displayUrl || "", declaration: score.declaration || "", remixCode: normalizeStoredRemixCode(score.remixCode) };
 }
 
 async function exportScorePackage() {
@@ -5232,7 +5244,7 @@ function applyMidiSelection() {
     elements.keySignature.value = converted.key;
     elements.timeSignature.value = converted.meter;
     elements.bpm.value = converted.bpm;
-    currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", remixCode: "" };
+    currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
     activeAnalyticsScoreOrigin = "midi";
     activeAnalyticsScoreId = analyticsScoreId({ origin: "midi", title: selection.title });
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
