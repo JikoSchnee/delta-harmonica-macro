@@ -407,8 +407,8 @@ let hotScoreRanks = new Map();
 const ANALYTICS_SCORE_ID_PATTERN = /^(?:s[0-9a-f]{8}|[0-9a-f]{21})$/i;
 let recommendedSongIdentities = [];
 let recommendedSongKeys = new Set();
-let publicRankings = { rankingDate: "", uploads: [], contributions: [], yesterdayExports: [] };
-let activeRankingView = "uploads";
+let publicRankings = { rankingDate: "", uploads: [], contributions: [], yesterdayExports: [], usage: [], usageWindowDays: 0, userEffects: {} };
+let publicDonors = { donors: [] };
 const LIBRARY_TITLE_COLLATOR = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
 // The built-in service records only allow-listed product events.
 // Score operations include the current score title/artist for the private analytics console;
@@ -605,7 +605,8 @@ function publicRankingDateLabel(value) {
 function renderPublicRankingList(view) {
   const list = view === "uploads"
     ? elements.uploadRankingList
-    : view === "contributions" ? elements.contributionRankingList : elements.exportRankingList;
+    : view === "contributions" ? elements.contributionRankingList
+      : view === "usage" ? elements.usageRankingList : elements.exportRankingList;
   if (!list) return;
   if (!publicRankings.rankingDate) {
     list.innerHTML = '<p class="public-ranking-empty">榜单数据服务暂未启用或暂时无法连接。</p>';
@@ -619,43 +620,116 @@ function renderPublicRankingList(view) {
     return;
   }
   if (view === "contributions") {
-    const rows = publicRankings.contributions
-      .filter((item) => item && typeof item.userId === "string" && Number.isInteger(item.exports) && item.exports >= 1)
-      .map((item) => `<div class="public-ranking-row"><span class="public-ranking-rank">${String(item.rank || 0).padStart(2, "0")}</span><span class="public-ranking-main"><strong>${escapeHtml(item.userId)}</strong><small>上传曲目累计导出量</small></span><b class="public-ranking-value">${item.exports} 次</b></div>`);
+    const rows = publicRankingUserRows(publicRankings.contributions, "上传曲目累计导出量");
     list.innerHTML = rows.length ? rows.join("") : '<p class="public-ranking-empty">暂无产生导出的贡献者。</p>';
     return;
   }
-  const rows = publicRankings.yesterdayExports
+  if (view === "usage") {
+    const rows = publicRankingUserRows(publicRankings.usage, "使用宏导出功能");
+    list.innerHTML = rows.length ? rows.join("") : '<p class="public-ranking-empty">统计周期内暂无使用记录。</p>';
+    return;
+  }
+  const rows = publicRankingScoreRows(publicRankings.yesterdayExports);
+  list.innerHTML = rows.length ? rows.join("") : '<p class="public-ranking-empty">昨日暂无导出记录。</p>';
+}
+
+function publicRankingUserRows(items, subline) {
+  return items
+    .filter((item) => item && typeof item.userId === "string" && Number.isInteger(item.exports) && item.exports >= 1)
+    .map((item) => `<button class="public-ranking-row public-ranking-row--user" data-ranking-user-id="${escapeHtml(item.userId)}" type="button" aria-label="在曲库中查看 ${escapeHtml(item.userId)} 的作品"><span class="public-ranking-rank">${String(item.rank || 0).padStart(2, "0")}</span><span class="public-ranking-main"><strong>${userIdMarkup(item.userId)}</strong><small>${escapeHtml(subline)}</small></span><b class="public-ranking-value">${item.exports} 次</b></button>`);
+}
+
+function publicRankingScoreRows(items) {
+  return items
     .filter((item) => item && typeof item.scoreId === "string" && Number.isInteger(item.exports) && item.exports >= 1)
     .map((item) => {
       const song = SONG_LIBRARY.find((candidate) => analyticsScoreIdForSong(candidate) === item.scoreId);
       if (!song) return "";
-      return `<button class="public-ranking-row public-ranking-row--song" data-ranking-score-id="${escapeHtml(item.scoreId)}" type="button"><span class="public-ranking-rank">${String(item.rank || 0).padStart(2, "0")}</span><span class="public-ranking-main"><strong>${escapeHtml(song.title)}</strong><small>${escapeHtml(song.artist)}</small></span><b class="public-ranking-value">${item.exports} 次</b><i aria-hidden="true">↗</i></button>`;
+      return `<button class="public-ranking-row public-ranking-row--song" data-ranking-score-id="${escapeHtml(item.scoreId)}" type="button"><span class="public-ranking-rank">${String(item.rank || 0).padStart(2, "0")}</span><span class="public-ranking-main"><strong>${escapeHtml(song.title)}</strong><small>${escapeHtml(song.artist)}</small></span><b class="public-ranking-value">${item.exports} 次</b></button>`;
     }).filter(Boolean);
-  list.innerHTML = rows.length ? rows.join("") : '<p class="public-ranking-empty">昨日暂无导出记录。</p>';
+}
+
+function renderUsageRankingNote() {
+  if (!elements.usageRankingNote) return;
+  const days = Number.isInteger(publicRankings.usageWindowDays) && publicRankings.usageWindowDays > 0 ? publicRankings.usageWindowDays : 0;
+  elements.usageRankingNote.textContent = days
+    ? `近 ${days} 天累计`
+    : "统计周期内累计";
 }
 
 function renderPublicRankings() {
   if (!elements.publicRankingsDate) return;
   elements.publicRankingsDate.textContent = publicRankingDateLabel(publicRankings.rankingDate);
-  renderPublicRankingList("uploads");
   renderPublicRankingList("contributions");
   renderPublicRankingList("yesterdayExports");
+  renderPublicRankingList("usage");
+  renderUsageRankingNote();
 }
 
-function setRankingView(view = "uploads") {
-  activeRankingView = ["uploads", "contributions", "yesterdayExports"].includes(view) ? view : "uploads";
-  elements.publicRankingTabs.forEach((tab) => {
-    const selected = tab.dataset.rankingView === activeRankingView;
-    tab.classList.toggle("active", selected);
-    tab.setAttribute("aria-selected", String(selected));
-    tab.tabIndex = selected ? 0 : -1;
-  });
-  elements.publicRankingPanels.forEach((panel) => {
-    const selected = panel.dataset.rankingPanel === activeRankingView;
-    panel.classList.toggle("active", selected);
-    panel.hidden = !selected;
-  });
+// 名单放得下就静止显示；超出一屏时复制一份并向上滚动播放，鼠标悬停会暂停。
+function syncDonationMarquee() {
+  const list = elements.donationThanksList;
+  const stack = elements.donationStack;
+  const track = elements.donationTrack;
+  if (!list || !stack || !track) return;
+  stack.querySelectorAll("[data-donation-clone]").forEach((node) => node.remove());
+  stack.classList.remove("is-scrolling");
+  stack.style.removeProperty("--donation-scroll-distance");
+  stack.style.removeProperty("--donation-scroll-duration");
+  if (!track.children.length || track.querySelector(".donation-thanks-empty")) return;
+  const singleHeight = track.scrollHeight;
+  if (singleHeight <= list.clientHeight + 4) return;
+  const clone = track.cloneNode(true);
+  clone.removeAttribute("id");
+  clone.setAttribute("aria-hidden", "true");
+  clone.dataset.donationClone = "true";
+  stack.append(clone);
+  const gap = Number.parseFloat(window.getComputedStyle(stack).rowGap) || 0;
+  const distance = singleHeight + gap;
+  stack.style.setProperty("--donation-scroll-distance", `-${distance}px`);
+  stack.style.setProperty("--donation-scroll-duration", `${Math.max(14, Math.round(distance / 22))}s`);
+  stack.classList.add("is-scrolling");
+}
+
+function renderDonationThanks() {
+  const track = elements.donationTrack;
+  if (!track) return;
+  const donors = publicDonors.donors;
+  track.innerHTML = donors.length
+    ? donors.map((donor) => `<div class="donation-thanks-row" role="listitem">@${userIdMarkup(donor.userId)}</div>`).join("")
+    : '<p class="donation-thanks-empty">还没有打赏记录。感谢每一位支持这个工具的朋友。</p>';
+  if (elements.donationThanksTotal) {
+    elements.donationThanksTotal.textContent = donors.length ? `${donors.length} 位支持者` : "暂无记录";
+  }
+  window.requestAnimationFrame(syncDonationMarquee);
+}
+
+let donationSyncTimer = null;
+let donationRenderSignature = "";
+
+function scheduleDonationMarqueeSync() {
+  window.clearTimeout(donationSyncTimer);
+  donationSyncTimer = window.setTimeout(() => {
+    donationSyncTimer = null;
+    renderDonationThanks();
+  }, 160);
+}
+
+async function refreshPublicDonors() {
+  if (!elements.donationTrack) return;
+  let donors = [];
+  try {
+    const response = await fetch("./api/public-donors", { headers: { Accept: "application/json" }, cache: "no-store" });
+    const payload = await response.json();
+    if (!response.ok || !payload || !Array.isArray(payload.donors)) throw new Error("Public donors request failed");
+    donors = payload.donors.filter((donor) => donor && typeof donor.userId === "string" && donor.userId.trim());
+  } catch { donors = []; }
+  publicDonors = { donors };
+  // 定时刷新时只有名单真的变了才重绘，避免每分钟把滚动动画打断一次。
+  const signature = donors.map((donor) => donor.userId).join("|");
+  if (signature === donationRenderSignature) return;
+  donationRenderSignature = signature;
+  renderDonationThanks();
 }
 
 async function refreshPublicRankings() {
@@ -663,16 +737,25 @@ async function refreshPublicRankings() {
   try {
     const response = await fetch("./api/public-rankings", { headers: { Accept: "application/json" }, cache: "no-store" });
     const payload = await response.json();
-    if (!response.ok || !payload || !Array.isArray(payload.uploads) || !Array.isArray(payload.contributions) || !Array.isArray(payload.yesterdayExports)) throw new Error("Public rankings request failed");
+    if (!response.ok || !payload || !Array.isArray(payload.uploads) || !Array.isArray(payload.contributions) || !Array.isArray(payload.yesterdayExports) || !Array.isArray(payload.usage)) throw new Error("Public rankings request failed");
     publicRankings = {
       rankingDate: typeof payload.rankingDate === "string" ? payload.rankingDate : "",
       uploads: payload.uploads,
       contributions: payload.contributions,
-      yesterdayExports: payload.yesterdayExports
+      yesterdayExports: payload.yesterdayExports,
+      usage: payload.usage,
+      usageWindowDays: Number.isInteger(payload.usageWindowDays) ? payload.usageWindowDays : 0,
+      userEffects: payload.userEffects && typeof payload.userEffects === "object" ? payload.userEffects : {}
     };
     renderPublicRankings();
+    // 其他人选择的 ID 特效要同步到曲库卡片、推荐位和打赏名单上的用户 ID。
+    renderSongLibrary(elements.songSearch.value);
+    renderRecommendationBoard();
+    renderDonationThanks();
+    // 导出卡片上的信息提供人也可能要上色。
+    applyExportProviderLabels();
   } catch {
-    publicRankings = { rankingDate: "", uploads: [], contributions: [], yesterdayExports: [] };
+    publicRankings = { rankingDate: "", uploads: [], contributions: [], yesterdayExports: [], usage: [], usageWindowDays: 0, userEffects: {} };
     renderPublicRankings();
   }
 }
@@ -720,6 +803,7 @@ function refreshPublicData({ force = false } = {}) {
     refreshScoreExportCounts(),
     refreshRecommendations(),
     refreshPublicRankings(),
+    refreshPublicDonors(),
     refreshExportMethodConfig(),
     refreshExportProviders(),
     checkForWebsiteUpdate()
@@ -775,6 +859,7 @@ function openChangelogDialog() {
 }
 
 let pendingWebsiteUpdate = null;
+let deferredWebsiteUpdateDialog = false;
 let updateCheckInFlight = null;
 let lastWebsiteUpdateCheckAt = 0;
 
@@ -873,6 +958,8 @@ async function checkForWebsiteUpdate({ force = false } = {}) {
       metadata.changes = await loadWebsiteUpdateChanges(metadata);
       pendingWebsiteUpdate = metadata;
       renderWebsiteUpdate(metadata);
+      // 使用须知是首次访问的强制门禁，更新提示等它确认后再弹，避免两个模态弹窗叠在一起。
+      if (elements.usageNoticeDialog?.open) { deferredWebsiteUpdateDialog = true; return; }
       if (!elements.updateDialog.open) elements.updateDialog.showModal();
     } catch {}
     finally { updateCheckInFlight = null; }
@@ -883,7 +970,7 @@ async function checkForWebsiteUpdate({ force = false } = {}) {
 const SECTION_GUIDES = {
   directory: {
     windowTitle: "HELP.EXE — QUICK START",
-    index: "04 · QUICK START",
+    index: "03 · QUICK START",
     title: "目录 · 从这里开始",
     intro: "目录只负责把你带到正确的起点；曲谱和导出内容始终在当前浏览器中处理。",
     steps: [
@@ -894,15 +981,16 @@ const SECTION_GUIDES = {
   },
   library: {
     windowTitle: "HELP.EXE — SONG LIBRARY",
-    index: "07 · SCORE ARCHIVE",
-    title: "曲库 · 选曲与载入",
-    intro: "曲库用于快速载入现成曲谱。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
+    index: "07 · SCORE ARCHIVE & REMIX",
+    title: "曲库 & 改曲码 · 选曲与载入",
+    intro: "曲库用于快速载入现成曲谱，改曲码可直接定位到某一首。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
     steps: [
-      ["01", "查找曲目", "在搜索框输入曲名、拍号、调号、速度或共享人，可即时筛选曲库。"],
+      ["01", "查找曲目", "在搜索框输入曲名、作者、贡献人、改曲码、拍号、调号或速度，可即时筛选曲库。"],
       ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；登录后可在「我的」查看当前账号的上传记录。"],
       ["03", "查看与编辑", "点击「查看」会载入该曲并定位到编辑器；点击卡片主体会直接导出并复制改曲码链接；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
-      ["05", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
+      ["05", "按改曲码定位", "左侧「改曲码」输入 21 位改曲码或包含 <code>?code=</code> 的分享链接，匹配的曲目会显示在列表上方。"],
+      ["06", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
   },
   editor: {
@@ -945,7 +1033,21 @@ const SECTION_GUIDES = {
       ["03", "导出 Razer XML", "Synapse 3 与 4 分别生成 XML；导入后仍需在相应版本内手动绑定鼠标键与触发模式。"],
       ["04", "导出 MCHOSE JSON", "打开分段导出后可将每个文件的操作数设置为 1–2000；关闭后会把整首曲谱导出为一个文件。下载 ZIP 后按文件序号依次导入。"],
       ["05", "导出 ROG GMAC", "打开分段导出后可将每个文件的操作数设置为 1–1000；关闭后会把整首曲谱导出为一个文件。下载 ZIP 后解压，在 Armoury Crate 的 Macro 页面按文件序号逐个选择 Import。"],
-      ["06", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"]
+      ["06", "手动输入宏", "点击「查看键盘谱」打开当前曲目的三角洲键盘模式；每一行都是按键或等待事件，可按此在其他工具逐项录入。"],
+      ["07", "导出后自查", "页面下方的「宏文件安全自查」列出本工具导出的文件内容和检查方法；导入任何第三方宏之前，也可以按同样步骤核对。"]
+    ]
+  },
+  safety: {
+    windowTitle: "HELP.EXE — MACRO SAFETY",
+    index: "11 · FILE SAFETY",
+    title: "宏文件安全自查 · 看什么、拒什么",
+    intro: "本节说明本工具导出的文件里有什么，以及拿到第三方宏时怎么判断风险。检查对象是文件内容，与曲谱本身无关。",
+    steps: [
+      ["01", "确认导出内容", "G HUB 的 <code>.lua</code> 是唯一包含代码的格式，只调用按键 API；Razer XML、迈从 JSON、ROG GMAC 是纯数据，本身不能执行代码。全部格式都不联网、不读写文件。"],
+      ["02", "搜索危险关键字", "用记事本打开文件并按 Ctrl+F 搜索 <code>os.execute</code>、<code>io.open</code>、<code>io.popen</code>、<code>require</code>、<code>loadstring</code>、<code>dofile</code>、<code>socket</code>、<code>http</code>、<code>WinHttp</code>、<code>DownloadFile</code>、<code>while true</code>，出现任意一项都需要自行判断。"],
+      ["03", "拒绝可疑要求", "要求安装激活器或卡密工具、开启远程协助、提供账号或验证码、关闭杀毒软件、用压缩包密码交换文件，都属于超出宏文件本身的要求。"],
+      ["04", "核对下载来源", "录制助手只从本页下载入口或 GitHub Release 获取，可用 Release 附带的 SHA-256 比对安装包；宏文件用记事本就能查看，不需要任何专用查看器。"],
+      ["05", "确认使用环境", "文件干净不等于使用合规。自动演奏仍可能违反目标游戏规则，请先阅读免责声明并自行确认服务器政策。"]
     ]
   }
 };
@@ -970,6 +1072,43 @@ Object.assign(elements, {
   aiScoreDialog: document.querySelector("#aiScoreDialog"),
   aiScorePrompt: document.querySelector("#aiScorePrompt"),
   copyAiScorePrompt: document.querySelector("#copyAiScorePrompt")
+});
+
+Object.assign(elements, {
+  usageRankingList: document.querySelector("#usageRankingList"),
+  usageRankingNote: document.querySelector("#usageRankingNote")
+});
+
+Object.assign(elements, {
+  usageNoticeDialog: document.querySelector("#usageNoticeDialog"),
+  usageNoticeForm: document.querySelector(".usage-notice-form"),
+  usageNoticeBody: document.querySelector("#usageNoticeBody"),
+  usageNoticeContent: document.querySelector("#usageNoticeContent"),
+  usageNoticeProgress: document.querySelector("#usageNoticeProgress"),
+  usageNoticeConfirm: document.querySelector("#usageNoticeConfirm")
+});
+
+Object.assign(elements, {
+  supportCopyButton: document.querySelector("#supportCopyButton"),
+  supportNotePreview: document.querySelector("#supportNotePreview")
+});
+
+Object.assign(elements, {
+  idEffectOptions: document.querySelector("#idEffectOptions")
+});
+
+Object.assign(elements, {
+  effectUnlockDialog: document.querySelector("#effectUnlockDialog"),
+  effectUnlockTitle: document.querySelector("#effectUnlockTitle"),
+  effectUnlockList: document.querySelector("#effectUnlockList"),
+  effectUnlockChoose: document.querySelector("#effectUnlockChoose")
+});
+
+Object.assign(elements, {
+  donationThanksTotal: document.querySelector("#donationThanksTotal"),
+  donationThanksList: document.querySelector("#donationThanksList"),
+  donationStack: document.querySelector("#donationStack"),
+  donationTrack: document.querySelector("#donationTrack")
 });
 
 Object.assign(elements, {
@@ -2292,7 +2431,6 @@ function normalizeSong(song) {
 }
 
 const REMIX_CODE_LENGTH = 21;
-const DEFAULT_REMIX_CODE = "6482EAC47D78E75EC5C3C";
 const REMIX_CODE_PATTERN = new RegExp(`^[0-9a-f]{${REMIX_CODE_LENGTH}}$`, "i");
 const remixCodeCache = new Map();
 const remixCodePending = new Map();
@@ -2457,6 +2595,8 @@ function songLibraryIndex(song) {
 
 function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const index = songLibraryIndex(song);
+  // 共享人挂了 ID 特效时，卡片底部那个"共享：xxx"的框也一起换风格。
+  const sharedByEffect = String(song.sharedBy || "").trim() ? userIdEffectValue(song.sharedBy) : "default";
   const isRecommended = recommendedSongKeys.has(recommendationKey(song));
   const canManageRecommendations = Boolean(authState.account?.isAdmin);
   const recommendationAction = isRecommended ? "unrecommend" : "recommend";
@@ -2466,11 +2606,11 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <div class="song-card-main" data-song-action="card-export-copy-remix" role="button" tabindex="0" aria-label="导出《${escapeHtml(song.title)}》并复制改曲码链接">
       <span class="song-number">TRACK ${String(index + 1).padStart(2, "0")}</span>
       <div class="song-title-row"><h3>${escapeHtml(song.title)}</h3>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
-      <p class="song-artist">${escapeHtml(song.artist)}</p>
+      <p class="song-artist"><span class="song-artist-link" data-song-action="search-artist" data-artist="${escapeHtml(song.artist)}" title="在曲库中查看这位作者的作品">${escapeHtml(song.artist)}</span></p>
       <div class="song-meta"><div class="song-meta-primary"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-action-count" title="脚本执行的键盘/鼠标动作总数">动作 ${song.actionCount ?? songActionCount(song)} 次</span></div><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
       ${song.declaration ? `<p class="song-declaration" title="上传者声明">声明：${escapeHtml(song.declaration)}</p>` : ""}
       </div>
-      <div class="song-card-footer"><span class="song-share">共享：${escapeHtml(song.sharedBy)}</span>${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
+      <div class="song-card-footer"><button class="song-share${sharedByEffect === "default" ? "" : ` song-share--${sharedByEffect}`}" data-song-action="search-sharer" type="button" title="在曲库中查看这位共享人的作品" aria-label="在曲库中查看共享人 ${escapeHtml(song.sharedBy)} 的作品">共享：${userIdMarkup(song.sharedBy)}</button>${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
         <div class="song-card-actions-main">
           <button class="song-card-action" data-song-action="view" type="button">查看</button>
@@ -2582,9 +2722,11 @@ function renderRemixCodeResult(value = elements.remixCodeInput.value) {
   const parsed = remixCodeFromInput(value);
   if (parsed.state === "empty") {
     elements.remixCodeStatus.textContent = "等待输入";
-    elements.remixCodeResult.innerHTML = '<p class="library-empty">输入改曲码后，这里会显示对应的曲目卡片。</p>';
+    elements.remixCodeResult.innerHTML = "";
+    elements.remixCodeResult.hidden = true;
     return;
   }
+  elements.remixCodeResult.hidden = false;
   if (parsed.state === "invalid") {
     elements.remixCodeStatus.textContent = "格式错误 · 需要 21 位十六进制改曲码";
     elements.remixCodeResult.innerHTML = '<p class="library-empty remix-code-empty">改曲码应为 21 位数字或 a–f 字母，请检查输入。</p>';
@@ -2610,7 +2752,7 @@ async function refreshRemixCodeViews() {
 function applyRemixCodeFromUrl() {
   const url = new URL(window.location.href);
   const code = url.searchParams.get("code");
-  elements.remixCodeInput.value = code || DEFAULT_REMIX_CODE;
+  elements.remixCodeInput.value = code || "";
   renderRemixCodeResult(elements.remixCodeInput.value);
   if (!code) return;
   window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
@@ -4753,17 +4895,110 @@ async function confirmLibraryDelete() {
   }
 }
 
+const USER_ID_EFFECT_META = [
+  { id: "default", name: "默认效果", tier: "基础", detail: "所有用户可用" },
+  { id: "ice", name: "冰蓝流光", tier: "一级成就", threshold: 50, detail: "贡献达到 50 次解锁" },
+  { id: "violet", name: "紫电流光", tier: "二级成就", threshold: 100, detail: "贡献达到 100 次解锁" },
+  { id: "ember", name: "红橙流光", tier: "三级成就", threshold: 500, detail: "贡献达到 500 次解锁" },
+  { id: "aurora", name: "青碧流光", tier: "打赏成就", detail: "进入打赏名单（收到打赏）后解锁" }
+];
+
+function userIdEffectClass(effect) {
+  const value = typeof effect === "string" ? effect.trim() : "";
+  if (!value || value === "default" || !/^[a-z][a-z0-9-]{1,23}$/.test(value)) return "";
+  return `user-id--${value}`;
+}
+
+// 自己的特效以账号状态为准，其他人的特效来自公开榜单里的 userEffects。
+function userIdEffectValue(name) {
+  const trimmed = String(name ?? "").trim();
+  if (!trimmed) return "default";
+  if (authState.account && authState.account.userId === trimmed) return authState.account.effectState?.effect || "default";
+  const remote = publicRankings.userEffects?.[trimmed];
+  return typeof remote === "string" ? remote : "default";
+}
+
+function userIdMarkup(name) {
+  const text = String(name ?? "");
+  const className = userIdEffectClass(userIdEffectValue(text));
+  return className ? `<span class="user-id ${className}">${escapeHtml(text)}</span>` : escapeHtml(text);
+}
+
+function renderIdEffectPicker() {
+  const box = elements.idEffectOptions;
+  if (!box) return;
+  if (!authState.account) {
+    box.innerHTML = '<p class="id-effect-empty">登录后可以选择用户 ID 特效。</p>';
+    return;
+  }
+  const state = authState.account.effectState || {};
+  const unlocked = new Set(Array.isArray(state.unlockedEffects) ? state.unlockedEffects : ["default"]);
+  const userId = String(authState.account.userId || "");
+  box.innerHTML = USER_ID_EFFECT_META.map((meta) => {
+    const isUnlocked = unlocked.has(meta.id);
+    const active = state.effect === meta.id;
+    let detail = meta.detail;
+    if (Number.isFinite(meta.threshold) && Number.isFinite(state.contributionExports)) {
+      detail = `${meta.detail}（你当前 ${state.contributionExports} 次）`;
+    }
+    return `<button class="id-effect-option${active ? " active" : ""}${isUnlocked ? "" : " locked"}" data-id-effect="${meta.id}" type="button" aria-pressed="${active}" aria-label="${escapeHtml(`${meta.tier || "特效"}：${detail}`)}"${isUnlocked ? "" : " disabled"}>
+      <span class="id-effect-sample ${userIdEffectClass(meta.id)}">@${escapeHtml(userId)}</span>
+      <span class="id-effect-copy"><em class="id-effect-tier">${escapeHtml(meta.tier || "特效")}</em><small>${escapeHtml(detail)}</small></span>
+      <b class="id-effect-state">${active ? "使用中" : isUnlocked ? "可使用" : "未解锁"}</b>
+    </button>`;
+  }).join("");
+}
+
+let effectUnlockTimer = null;
+
+function renderEffectUnlockDialog(effects) {
+  const list = elements.effectUnlockList;
+  if (!list) return;
+  const userId = String(authState.account?.userId || "");
+  list.innerHTML = effects
+    .map((id) => USER_ID_EFFECT_META.find((meta) => meta.id === id))
+    .filter(Boolean)
+    .map((meta) => `<div class="effect-unlock-row"><span class="id-effect-sample ${userIdEffectClass(meta.id)}">@${escapeHtml(userId)}</span><span class="effect-unlock-copy"><small>${escapeHtml(meta.detail)}</small></span><b class="effect-unlock-tier">${escapeHtml(meta.tier || "解锁")}</b></div>`)
+    .join("");
+}
+
+// 首次解锁弹一次；展示过就回执给服务端记档，之后不再提示。
+function scheduleEffectUnlockNotice() {
+  window.clearTimeout(effectUnlockTimer);
+  const dialog = elements.effectUnlockDialog;
+  if (!dialog) return;
+  const pending = Array.isArray(authState.account?.effectState?.pendingUnlocks) ? authState.account.effectState.pendingUnlocks : [];
+  if (!pending.length || dialog.open) return;
+  const blockers = [...document.querySelectorAll("dialog[open]")].filter((node) => node !== dialog && !node.classList.contains("toast"));
+  if (blockers.length) {
+    effectUnlockTimer = window.setTimeout(scheduleEffectUnlockNotice, 400);
+    return;
+  }
+  renderEffectUnlockDialog(pending);
+  if (elements.effectUnlockTitle) {
+    elements.effectUnlockTitle.textContent = pending.length > 1
+      ? `解锁了 ${pending.length} 个新 ID 特效`
+      : "解锁了新的 ID 特效";
+  }
+  dialog.showModal();
+  if (authState.account?.effectState) authState.account.effectState.pendingUnlocks = [];
+  authRequest("./api/auth/effect-notice", { method: "POST", body: { effects: pending } }).catch(() => {});
+}
+
 function setSignedInAccount(account) {
   authState.account = account || null;
   elements.accountButton.hidden = !authState.available;
   elements.accountButton.classList.toggle("is-signed-in", Boolean(account));
-  elements.accountButtonLabel.textContent = account ? `@${account.userId}` : "登录 / 注册";
+  elements.accountButtonLabel.innerHTML = account ? `@${userIdMarkup(account.userId)}` : "登录 / 注册";
   if (!account) mySongLibrary = [];
   if (account) {
     elements.accountEmail.textContent = account.email;
     elements.accountUserId.value = account.userId;
   }
   renderSongLibrary(elements.songSearch.value);
+  renderSupportNotePreview();
+  renderIdEffectPicker();
+  scheduleEffectUnlockNotice();
 }
 
 function authFieldsForMode(mode = authState.mode) {
@@ -4940,6 +5175,7 @@ async function openAccountDialog() {
   elements.accountEmail.textContent = authState.account.email;
   elements.accountUserId.value = authState.account.userId;
   setAuthStatus(elements.accountStatus);
+  renderIdEffectPicker();
   elements.accountDialog.showModal();
   elements.accountUserId.focus();
 }
@@ -5215,6 +5451,8 @@ async function uploadScoreToCommunityLibrary({ confirmReplace = false, packagedO
   }
 }
 
+let exportProviderIds = {};
+
 async function refreshExportProviders() {
   try {
     const response = await fetch("./api/public-library/export-providers", {
@@ -5223,18 +5461,25 @@ async function refreshExportProviders() {
     });
     const providers = await response.json();
     if (!response.ok || !providers || typeof providers !== "object") throw new Error("export providers unavailable");
-    const updateLabel = (element, userId) => {
-      if (!element) return;
-      const normalized = typeof userId === "string" ? userId.trim() : "";
-      element.textContent = `信息提供人：${normalized || "未登记"}`;
-    };
-    updateLabel(elements.mchoseProvider, providers.mchose);
-    updateLabel(elements.rogProvider, providers.rog);
+    exportProviderIds = { mchose: providers.mchose, rog: providers.rog };
+    applyExportProviderLabels();
   } catch {
+    exportProviderIds = {};
     [elements.mchoseProvider, elements.rogProvider].forEach((element) => {
       if (element) element.textContent = "信息提供人：暂不可用";
     });
   }
+}
+
+// 信息提供人也是站点用户，跟着全站的 ID 特效走（昵称可能带流光配色）。
+function applyExportProviderLabels() {
+  const updateLabel = (element, userId) => {
+    if (!element) return;
+    const normalized = typeof userId === "string" ? userId.trim() : "";
+    element.innerHTML = normalized ? `信息提供人：${userIdMarkup(normalized)}` : "信息提供人：未登记";
+  };
+  updateLabel(elements.mchoseProvider, exportProviderIds.mchose);
+  updateLabel(elements.rogProvider, exportProviderIds.rog);
 }
 
 function softwareLogoMarkup(brandId) {
@@ -5650,6 +5895,26 @@ elements.authVerifyRegister.addEventListener("click", verifyLoginCode);
 elements.oauthLoginButtons.forEach((button) => button.addEventListener("click", () => startOAuthLogin(button.dataset.oauthProvider)));
 elements.saveAccountButton.addEventListener("click", saveAccountUserId);
 elements.logoutButton.addEventListener("click", logoutAccount);
+elements.idEffectOptions?.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-id-effect]");
+  if (!button || button.disabled) return;
+  const effect = button.dataset.idEffect;
+  if (!authState.account || authState.account.effectState?.effect === effect) return;
+  button.disabled = true;
+  try {
+    const result = await authRequest("./api/auth/effect", { method: "POST", body: { effect } });
+    setSignedInAccount(result.account);
+    const label = USER_ID_EFFECT_META.find((meta) => meta.id === effect)?.tier || effect;
+    toast(`用户 ID 特效已切换为「${label}」。`);
+  } catch (error) {
+    toast(error.message || "无法切换 ID 特效。");
+    button.disabled = false;
+  }
+});
+elements.effectUnlockChoose?.addEventListener("click", () => {
+  elements.effectUnlockDialog?.close();
+  openAccountDialog();
+});
 elements.libraryOverwriteConfirm.addEventListener("click", async () => {
   if (!pendingCommunityOverwrite) return;
   const packaged = pendingCommunityOverwrite;
@@ -5747,6 +6012,7 @@ elements.macroDownloadDialog.addEventListener("close", () => {
   elements.macroDownloadProgressLabel.textContent = "等待确认";
 });
 elements.exportButtons.forEach((button) => button.addEventListener("click", async () => {
+  if (usageNoticeGateBlocks(button)) return;
   const sequence = convert();
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const action = button.dataset.action;
@@ -5813,6 +6079,14 @@ function handleSongCardClick(event) {
     void copyRemixCodeLink(actionButton.dataset.remixCode);
     return;
   }
+  if (actionButton?.dataset.songAction === "search-artist") {
+    openLibrarySearch(actionButton.dataset.artist);
+    return;
+  }
+  if (actionButton?.dataset.songAction === "search-sharer") {
+    openLibrarySearch(song.sharedBy);
+    return;
+  }
   if (!actionButton || actionButton.dataset.songAction === "card-export-copy-remix") {
     loadSong(song, { destination: "export" });
     void copyRemixCodeLink(song.remixCode);
@@ -5872,7 +6146,10 @@ elements.songEditDialog.addEventListener("click", (event) => {
   const modifier = event.target.closest("[data-edit-jianpu-modifier]");
   if (modifier) setEditJianpuModifier(modifier);
 });
-elements.manualMacroButton.addEventListener("click", openKeyboardMacroDialog);
+elements.manualMacroButton.addEventListener("click", () => {
+  if (usageNoticeGateBlocks(elements.manualMacroButton)) return;
+  openKeyboardMacroDialog();
+});
 elements.recordingHelperHelpButton.addEventListener("click", openRecordingHelperDialog);
 function setUploadMethod(method = "qq") {
   const selectedMethod = method === "github" ? "github" : "qq";
@@ -5896,6 +6173,110 @@ function openUploadHelpDialog(status = "", method = "qq") {
   toast(status || "请选择 QQ 群或 GitHub Fork 投稿。 ");
 }
 
+const USAGE_NOTICE_STORAGE_PREFIX = "delta-usage-notice-v1";
+const USAGE_NOTICE_SESSION_KEY = `${USAGE_NOTICE_STORAGE_PREFIX}:session`;
+let usageNoticeAcknowledged = false;
+let pendingUsageNoticeTrigger = null;
+
+function readUsageNoticeStorage(store, key) {
+  try { return store.getItem(key); } catch { return null; }
+}
+
+function writeUsageNoticeStorage(store, key, value) {
+  try { store.setItem(key, value); return true; } catch { return false; }
+}
+
+// 匿名态按浏览器记录，登录态按账号记录：同一浏览器换账号会重新提示一次，
+// 但同一次会话里刚确认过（例如匿名确认后马上登录）不会再次打断。
+function usageNoticeStorageKey() {
+  const userId = String(authState.account?.userId || "").trim();
+  return userId ? `${USAGE_NOTICE_STORAGE_PREFIX}:user:${userId}` : `${USAGE_NOTICE_STORAGE_PREFIX}:guest`;
+}
+
+function shouldShowUsageNotice() {
+  if (usageNoticeAcknowledged) return false;
+  if (readUsageNoticeStorage(window.sessionStorage, USAGE_NOTICE_SESSION_KEY)) return false;
+  return !readUsageNoticeStorage(window.localStorage, usageNoticeStorageKey());
+}
+
+function rememberUsageNoticeAcknowledged() {
+  usageNoticeAcknowledged = true;
+  const stamp = new Date().toISOString();
+  writeUsageNoticeStorage(window.localStorage, usageNoticeStorageKey(), stamp);
+  writeUsageNoticeStorage(window.sessionStorage, USAGE_NOTICE_SESSION_KEY, stamp);
+}
+
+// 弹窗正文直接复制免责声明与安全自查两个板块，避免同一份说明维护两遍。
+function buildUsageNoticeContent() {
+  const container = elements.usageNoticeContent;
+  if (!container || container.dataset.built === "true") return;
+  container.dataset.built = "true";
+  [document.querySelector("#disclaimer"), document.querySelector("#safety")].forEach((source) => {
+    if (!source) return;
+    const clone = source.cloneNode(true);
+    clone.removeAttribute("id");
+    clone.querySelectorAll("[id]").forEach((node) => node.removeAttribute("id"));
+    clone.querySelectorAll(".window-titlebar, [data-guide]").forEach((node) => node.remove());
+    clone.classList.add("usage-notice-clone");
+    container.append(clone);
+  });
+}
+
+function syncUsageNoticeGate() {
+  const body = elements.usageNoticeBody;
+  if (!body || !elements.usageNoticeConfirm) return;
+  const remaining = body.scrollHeight - body.scrollTop - body.clientHeight;
+  const reachedEnd = body.scrollHeight <= body.clientHeight + 8 || remaining <= 24;
+  elements.usageNoticeConfirm.disabled = !reachedEnd;
+  elements.usageNoticeProgress.textContent = reachedEnd
+    ? "已读到正文最底部，确认后即可继续导出。"
+    : "请向下滚动阅读全部内容";
+}
+
+function openUsageNotice() {
+  const dialog = elements.usageNoticeDialog;
+  if (!dialog || dialog.open) return;
+  buildUsageNoticeContent();
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+  elements.usageNoticeBody.scrollTop = 0;
+  syncUsageNoticeGate();
+  window.requestAnimationFrame(() => {
+    syncUsageNoticeGate();
+    elements.usageNoticeBody.focus({ preventScroll: true });
+  });
+}
+
+// 导出前的门禁：该身份还没确认过使用须知时，先弹出并暂停本次导出；
+// 确认后由确认按钮重新触发同一个按钮，用户不需要再点一次。
+function usageNoticeGateBlocks(trigger) {
+  if (usageNoticeAcknowledged) return false;
+  if (!shouldShowUsageNotice()) return false;
+  if (elements.usageNoticeDialog?.open) return true;
+  pendingUsageNoticeTrigger = trigger || null;
+  openUsageNotice();
+  return true;
+}
+
+elements.usageNoticeBody?.addEventListener("scroll", syncUsageNoticeGate, { passive: true });
+elements.usageNoticeDialog?.addEventListener("cancel", (event) => event.preventDefault());
+elements.usageNoticeForm?.addEventListener("submit", (event) => event.preventDefault());
+elements.usageNoticeConfirm?.addEventListener("click", () => {
+  if (elements.usageNoticeConfirm.disabled) return;
+  rememberUsageNoticeAcknowledged();
+  elements.usageNoticeDialog.close();
+  const trigger = pendingUsageNoticeTrigger;
+  pendingUsageNoticeTrigger = null;
+  if (trigger) {
+    trigger.click();
+    return;
+  }
+  if (deferredWebsiteUpdateDialog && pendingWebsiteUpdate && !elements.updateDialog.open) {
+    deferredWebsiteUpdateDialog = false;
+    elements.updateDialog.showModal();
+  }
+});
+
 function openUploadHelpDialogOnFirstVisit() {
   const storageKey = "delta-upload-help-seen-v1";
   let canPersistVisitState = true;
@@ -5914,6 +6295,27 @@ function copyQqGroupNumber() {
   copyPromise?.then(() => toast("QQ群号 1102489399 已复制")).catch(() => {});
 }
 
+// 赞赏备注里带上站点 ID，才能把打赏对应到账号、发放赞助者标签。
+function supportNoteText() {
+  const userId = String(authState.account?.userId || "").trim();
+  return userId ? `站点ID：@${userId}` : "站点ID：@你的ID";
+}
+
+function renderSupportNotePreview() {
+  if (elements.supportNotePreview) elements.supportNotePreview.textContent = supportNoteText();
+}
+
+function copySupportNote() {
+  const userId = String(authState.account?.userId || "").trim();
+  if (!userId) {
+    toast("请先登录或注册，再把站点用户 ID 或邮箱写进赞赏留言。");
+    return;
+  }
+  const note = `站点ID：@${userId}`;
+  const copyPromise = navigator.clipboard?.writeText(note);
+  copyPromise?.then(() => toast(`已复制「${note}」，粘贴到赞赏留言即可。`)).catch(() => {});
+}
+
 function focusQqGroupContact() {
   if (elements.recordingHelperDialog?.open) elements.recordingHelperDialog.close();
   elements.communityContact?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -5928,21 +6330,41 @@ elements.updateRefreshButton.addEventListener("click", () => {
 elements.updateDialog.addEventListener("close", () => {
   if (pendingWebsiteUpdate) rememberWebsiteUpdate(pendingWebsiteUpdate.version);
   pendingWebsiteUpdate = null;
+  deferredWebsiteUpdateDialog = false;
 });
 elements.qqGroupCopyButton.addEventListener("click", copyQqGroupNumber);
+elements.supportCopyButton.addEventListener("click", copySupportNote);
 elements.uploadScoreButton.addEventListener("click", () => {
   elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   toast("请先在编辑器中使用 MIDI 导入或手动打谱，再点击「上传到曲库」。");
 });
 elements.uploadMethodTabs.forEach((tab) => tab.addEventListener("click", () => setUploadMethod(tab.dataset.uploadMethod)));
-elements.publicRankingTabs.forEach((tab) => tab.addEventListener("click", () => setRankingView(tab.dataset.rankingView)));
-elements.exportRankingList.addEventListener("click", (event) => {
+function openRankingScore(event) {
   const row = event.target.closest("[data-ranking-score-id]");
   if (!row) return;
   const song = SONG_LIBRARY.find((candidate) => analyticsScoreIdForSong(candidate) === row.dataset.rankingScoreId);
   if (!song) return;
   loadSong(song, { destination: "export" });
-});
+}
+
+// 榜单里的人名卡片：跳到曲库、切到「全部」，并把这个人的作品筛出来。
+function openRankingUser(event) {
+  const row = event.target.closest("[data-ranking-user-id]");
+  if (!row) return;
+  openLibrarySearch(row.dataset.rankingUserId);
+}
+
+// 跳到曲库、切到「全部」，并按关键词筛选（榜单人名 = 贡献人 ID，卡片上 = 作者名）。
+function openLibrarySearch(query) {
+  const value = String(query || "").trim();
+  if (!value) return;
+  elements.songSearch.value = value;
+  setLibraryView("all");
+  document.querySelector("#library")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+elements.exportRankingList.addEventListener("click", openRankingScore);
+elements.contributionRankingList.addEventListener("click", openRankingUser);
+elements.usageRankingList.addEventListener("click", openRankingUser);
 if (navigator.mediaDevices?.addEventListener) navigator.mediaDevices.addEventListener("devicechange", handleAudioOutputChange);
 
 setupSectionSidebar();
@@ -5952,6 +6374,7 @@ initializeMchoseOperationsPerFileSetting();
 initializeRogOperationsPerFileSetting();
 loadRecordingHelperManifest();
 setLibraryView("recommended");
+renderSupportNotePreview();
 authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
@@ -5982,6 +6405,7 @@ window.addEventListener("resize", () => {
   scheduleWorkbenchHeightSync();
   updateTourPosition();
   scheduleRecommendationBoardReflow();
+  scheduleDonationMarqueeSync();
 });
 window.addEventListener("scroll", updateTourPosition, { passive: true });
 document.addEventListener("scroll", updateTourPosition, { capture: true, passive: true });

@@ -96,16 +96,17 @@
             <a href="#home" data-section-nav-target="home"><b>00</b><span>首页</span></a>
             <a href="#disclaimer" data-section-nav-target="disclaimer"><b>01</b><span>免责声明</span></a>
             <a href="#tutorial" data-section-nav-target="tutorial"><b>02</b><span>视频教程 / 使用说明</span></a>
-            <a href="#rankings" data-section-nav-target="rankings"><b>03</b><span>公开榜单</span></a>
-            <a href="#directory" data-section-nav-target="directory"><b>04</b><span>目录</span></a>
-            <a href="#remix-code" data-section-nav-target="remix-code"><b>05</b><span>改曲码</span></a>
+            <a href="#directory" data-section-nav-target="directory"><b>03</b><span>目录</span></a>
+            <a href="#donations" data-section-nav-target="donations"><b>04</b><span>感谢打赏</span></a>
+            <a href="#rankings" data-section-nav-target="rankings"><b>05</b><span>公开榜单</span></a>
             <a href="#recommendations" data-section-nav-target="recommendations"><b>06</b><span>推荐</span></a>
-            <a href="#library" data-section-nav-target="library"><b>07</b><span>曲库</span></a>
+            <a href="#library" data-section-nav-target="library"><b>07</b><span>曲库 / 改曲码</span></a>
             <a href="#score-input" data-section-nav-target="score-input"><b>08</b><span>编辑器</span></a>
             <a href="#playback" data-section-nav-target="playback"><b>09</b><span>播放器</span></a>
             <a href="#macro-export" data-section-nav-target="macro-export"><b>10</b><span>导出为宏</span></a>
-            <a href="#compatibility" data-section-nav-target="compatibility"><b>11</b><span>兼容信息</span></a>
-            <a href="#about" data-section-nav-target="about"><b>12</b><span>关于工具</span></a>
+            <a href="#safety" data-section-nav-target="safety"><b>11</b><span>宏文件安全自查</span></a>
+            <a href="#compatibility" data-section-nav-target="compatibility"><b>12</b><span>兼容信息</span></a>
+            <a href="#about" data-section-nav-target="about"><b>13</b><span>关于工具</span></a>
           </nav>
         </div>
       </aside>
@@ -297,6 +298,20 @@
             <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
           </figure>
         </section>
+        <section class="hero-block hero-support" id="supportAuthor" aria-labelledby="supportTitle" aria-describedby="supportDescription">
+          <div class="hero-block-main">
+            <span class="index">SUPPORT THE AUTHOR</span>
+            <h2 id="supportTitle">请作者喝杯水</h2>
+            <p id="supportDescription">本工具完全免费，如果觉得好用可以给作者打赏，用于网站维护和域名、服务器的租赁。赞赏完全自愿，不解锁任何功能；想在站内获得「赞助者」标签，请在赞赏留言里写上你的站点用户 ID或邮箱。</p>
+            <button class="support-note-button" id="supportCopyButton" type="button" aria-label="复制赞赏备注格式">
+              <span>复制赞赏备注</span><strong id="supportNotePreview">站点ID：@你的ID</strong>
+            </button>
+          </div>
+          <figure class="upload-qr hero-contact-qr hero-support-qr">
+            <img src="./assets/赞赏码.JPG" alt="微信赞赏码，扫码请作者喝杯水" />
+            <figcaption>使用微信扫一扫赞赏</figcaption>
+          </figure>
+        </section>
       </section>
 
       <section class="hero-disclaimer" id="disclaimer" aria-labelledby="disclaimerTitle">
@@ -324,65 +339,65 @@
           </div>
         </section>
 
-        <section class="public-rankings panel" id="rankings" aria-labelledby="rankingsTitle">
-          <div class="window-titlebar"><span>RANKING.EXE — COMMUNITY SIGNALS</span></div>
-          <div class="public-rankings-body">
-            <div class="public-rankings-heading">
-              <div><span class="index">03 · COMMUNITY RANKINGS</span><h2 id="rankingsTitle">榜单</h2></div>
-              <span class="public-rankings-date" id="publicRankingsDate">等待数据</span>
+        <section class="directory-deck panel" id="directory" aria-labelledby="directoryTitle">
+          <div class="window-titlebar"><span>DIRECTORY.EXE — START HERE</span><button class="panel-guide-button" data-guide="directory" type="button" aria-label="查看目录帮助" aria-haspopup="dialog">?</button></div>
+          <div class="directory-heading"><div><span class="index">03 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
+          <div class="directory-actions" role="navigation" aria-label="快速开始">
+            <div class="directory-action-card library">
+              <button class="directory-button" data-directory-action="library" type="button"><b>01</b><span><strong>曲库-使用制作好的谱子（推荐）</strong><small>打开内置与社区曲库</small></span></button>
+              <button class="directory-tutorial-link" data-tour-start="library" type="button">教程</button><i aria-hidden="true">→</i>
             </div>
-            <div class="public-rankings-tabs" role="tablist" aria-label="选择榜单">
-              <button class="public-rankings-tab active" id="uploadRankingTab" data-ranking-view="uploads" type="button" role="tab" aria-selected="true" aria-controls="uploadRankingPanel">上传榜</button>
-              <button class="public-rankings-tab" id="contributionRankingTab" data-ranking-view="contributions" type="button" role="tab" aria-selected="false" aria-controls="contributionRankingPanel" tabindex="-1">贡献榜</button>
-              <button class="public-rankings-tab" id="exportRankingTab" data-ranking-view="yesterdayExports" type="button" role="tab" aria-selected="false" aria-controls="exportRankingPanel" tabindex="-1">昨日导出榜</button>
+            <div class="directory-action-card midi">
+              <button class="directory-button" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>自动提取单旋律</small></span></button>
+              <button class="directory-tutorial-link" data-tour-start="midi" type="button">教程</button><i aria-hidden="true">→</i>
             </div>
-            <section class="public-ranking-panel active" id="uploadRankingPanel" data-ranking-panel="uploads" role="tabpanel" aria-labelledby="uploadRankingTab">
-              <div class="public-ranking-list" id="uploadRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取上传数据……</p></div>
-            </section>
-            <section class="public-ranking-panel" id="contributionRankingPanel" data-ranking-panel="contributions" role="tabpanel" aria-labelledby="contributionRankingTab" hidden>
-              <div class="public-ranking-list" id="contributionRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取贡献数据……</p></div>
-            </section>
-            <section class="public-ranking-panel" id="exportRankingPanel" data-ranking-panel="yesterdayExports" role="tabpanel" aria-labelledby="exportRankingTab" hidden>
-              <div class="public-ranking-list" id="exportRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取导出数据……</p></div>
-            </section>
+            <div class="directory-action-card manual">
+              <button class="directory-button" data-directory-action="manual" type="button"><b>03</b><span><strong>打谱器-我是打谱人</strong><small>从数字简谱开始</small></span></button>
+              <button class="directory-tutorial-link" data-tour-start="manual" type="button">教程</button><i aria-hidden="true">→</i>
+            </div>
           </div>
         </section>
       </div>
 
-      <div class="directory-remix-row">
-      <section class="directory-deck panel" id="directory" aria-labelledby="directoryTitle">
-        <div class="window-titlebar"><span>DIRECTORY.EXE — START HERE</span><button class="panel-guide-button" data-guide="directory" type="button" aria-label="查看目录帮助" aria-haspopup="dialog">?</button></div>
-        <div class="directory-heading"><div><span class="index">04 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
-        <div class="directory-actions" role="navigation" aria-label="快速开始">
-          <div class="directory-action-card library">
-            <button class="directory-button" data-directory-action="library" type="button"><b>01</b><span><strong>曲库-使用制作好的谱子（推荐）</strong><small>打开内置与社区曲库</small></span></button>
-            <button class="directory-tutorial-link" data-tour-start="library" type="button">教程</button><i aria-hidden="true">→</i>
+      <div class="rankings-thanks-row">
+        <section class="donation-thanks panel" id="donations" aria-labelledby="donationThanksTitle">
+          <div class="window-titlebar"><span>THANKS.EXE — SUPPORTERS</span></div>
+          <div class="donation-thanks-body">
+            <div class="donation-thanks-heading">
+              <div><span class="index">04 · SUPPORTERS</span><h2 id="donationThanksTitle">感谢打赏</h2></div>
+              <span class="donation-thanks-total" id="donationThanksTotal">等待数据</span>
+            </div>
+            <div class="donation-thanks-list" id="donationThanksList">
+              <div class="donation-stack" id="donationStack">
+                <div class="donation-track" id="donationTrack" role="list" aria-live="polite"></div>
+              </div>
+            </div>
           </div>
-          <div class="directory-action-card midi">
-            <button class="directory-button" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>自动提取单旋律</small></span></button>
-            <button class="directory-tutorial-link" data-tour-start="midi" type="button">教程</button><i aria-hidden="true">→</i>
-          </div>
-          <div class="directory-action-card manual">
-            <button class="directory-button" data-directory-action="manual" type="button"><b>03</b><span><strong>打谱器-我是打谱人</strong><small>从数字简谱开始</small></span></button>
-            <button class="directory-tutorial-link" data-tour-start="manual" type="button">教程</button><i aria-hidden="true">→</i>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="remix-code-deck panel" id="remix-code" aria-labelledby="remixCodeTitle">
-        <div class="window-titlebar"><span>REMIX_CODE.EXE — TRACK LOOKUP</span></div>
-        <div class="remix-code-heading">
-          <div><span class="index">05 · REMIX CODE</span><h2 id="remixCodeTitle">改曲码</h2></div>
-          <p>输入 21 位改曲码，或粘贴包含 <code>?code=</code> 的完整链接，直接找到对应曲目。</p>
-        </div>
-        <div class="remix-code-browser">
-          <label class="remix-code-search"><span>⌁</span><input id="remixCodeInput" type="text" maxlength="2048" autocomplete="off" spellcheck="false" value="6482EAC47D78E75EC5C3C" placeholder="输入改曲码或完整分享链接" aria-label="输入改曲码或完整分享链接" /></label>
-          <div class="remix-code-status" id="remixCodeStatus" role="status" aria-live="polite">等待输入</div>
-        </div>
-        <div class="song-grid remix-code-result" id="remixCodeResult" aria-live="polite" aria-label="改曲码匹配结果">
-          <p class="library-empty">输入改曲码后，这里会显示对应的曲目卡片。</p>
-        </div>
-      </section>
+        <section class="public-rankings panel" id="rankings" aria-labelledby="rankingsTitle">
+          <div class="window-titlebar"><span>RANKING.EXE — COMMUNITY SIGNALS</span></div>
+          <div class="public-rankings-body">
+            <div class="public-rankings-heading">
+              <div><span class="index">05 · COMMUNITY RANKINGS</span><h2 id="rankingsTitle">榜单</h2></div>
+              <span class="public-rankings-date" id="publicRankingsDate">等待数据</span>
+            </div>
+            <div class="public-rankings-board">
+              <section class="public-ranking-block" aria-labelledby="contributionRankingHeading">
+                <h3 class="public-ranking-heading" id="contributionRankingHeading">贡献榜</h3>
+                <div class="public-ranking-list" id="contributionRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取贡献数据……</p></div>
+              </section>
+              <section class="public-ranking-block" aria-labelledby="exportRankingHeading">
+                <h3 class="public-ranking-heading" id="exportRankingHeading">昨日导出榜</h3>
+                <div class="public-ranking-list" id="exportRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取导出数据……</p></div>
+              </section>
+              <section class="public-ranking-block" aria-labelledby="usageRankingHeading">
+                <h3 class="public-ranking-heading" id="usageRankingHeading">使用榜<span class="public-ranking-heading-note" id="usageRankingNote">统计周期内累计</span></h3>
+                <div class="public-ranking-list" id="usageRankingList" aria-live="polite"><p class="public-ranking-empty">正在读取使用数据……</p></div>
+              </section>
+            </div>
+          </div>
+        </section>
       </div>
 
       <section class="recommendation-deck panel" id="recommendations" aria-labelledby="recommendationTitle">
@@ -403,10 +418,10 @@
       </section>
 
       <section class="library-deck panel" id="library" aria-labelledby="libraryTitle">
-        <div class="window-titlebar"><span>SCORE_ARCHIVE.EXE — SONG LIBRARY</span><button class="panel-guide-button" data-guide="library" type="button" aria-label="查看曲库帮助" aria-haspopup="dialog">?</button></div>
+        <div class="window-titlebar"><span>SCORE_ARCHIVE.EXE — LIBRARY &amp; REMIX CODE</span><button class="panel-guide-button" data-guide="library" type="button" aria-label="查看曲库帮助" aria-haspopup="dialog">?</button></div>
         <div class="library-deck-copy">
-          <span class="index">07 · SCORE ARCHIVE</span>
-          <h2 id="libraryTitle">曲库</h2>
+          <span class="index">07 · SCORE ARCHIVE &amp; REMIX</span>
+          <h2 id="libraryTitle">曲库 &amp; 改曲码</h2>
           <div class="library-tabs" role="tablist" aria-label="曲库分类">
             <button class="library-tab" data-library-view="all" type="button" role="tab" aria-selected="false">全部</button>
             <button class="library-tab recommendation active" data-library-view="recommended" type="button" role="tab" aria-selected="true">推荐</button>
@@ -414,10 +429,16 @@
             <button class="library-tab" data-library-view="mine" type="button" role="tab" aria-selected="false">我的</button>
           </div>
           <p class="library-actions"><button class="upload-link" id="uploadScoreButton" type="button">去编辑器上传</button></p>
+          <div class="library-remix" id="remix-code">
+            <span class="library-remix-label">改曲码 · REMIX CODE</span>
+            <label class="remix-code-search"><span>⌁</span><input id="remixCodeInput" type="text" maxlength="2048" autocomplete="off" spellcheck="false" placeholder="输入改曲码或完整分享链接" aria-label="输入改曲码或完整分享链接" /></label>
+            <div class="remix-code-status" id="remixCodeStatus" role="status" aria-live="polite">等待输入</div>
+          </div>
         </div>
         <div class="library-deck-browser">
-          <label class="song-search"><span>⌕</span><input id="songSearch" type="search" placeholder="查找曲名、拍号或版本" aria-label="搜索曲库" /></label>
+          <label class="song-search"><span>⌕</span><input id="songSearch" type="search" placeholder="查找曲名、作者、贡献人、改曲码" aria-label="搜索曲库" /></label>
           <div class="library-count" id="libraryCount">0 TRACKS</div>
+          <div class="song-grid remix-code-result" id="remixCodeResult" aria-live="polite" aria-label="改曲码匹配结果" hidden></div>
           <div class="song-grid library-grid" id="songGrid" aria-label="曲库列表"></div>
         </div>
       </section>
@@ -739,6 +760,68 @@
         </div>
       </section>
 
+      <section class="safety-deck panel" id="safety" aria-labelledby="safetyTitle">
+        <div class="window-titlebar"><span>FILE_CHECK.EXE — MACRO SAFETY</span><button class="panel-guide-button" data-guide="safety" type="button" aria-label="查看宏文件安全自查帮助" aria-haspopup="dialog">?</button></div>
+        <div class="safety-heading">
+          <div><span class="index">11 · FILE SAFETY</span><h2 id="safetyTitle">宏文件安全自查</h2></div>
+          <p>本工具导出的文件只包含按键、等待与触发事件。网上流传的第三方宏，尤其是付费宏，不一定是同一回事；拿到任何宏文件后，都可以按下面四步核对。</p>
+        </div>
+        <div class="safety-grid">
+          <article class="safety-card">
+            <span class="index">01 · EXPORT CONTENTS</span>
+            <h3>本工具导出的文件里有什么</h3>
+            <ul>
+              <li>Logitech G HUB 的 <code>.lua</code> 是唯一的代码格式，只调用 <code>PressKey</code>、<code>ReleaseKey</code>、<code>ReleaseMouseButton</code>、<code>Sleep</code>、<code>AbortMacro</code> 这类按键 API。</li>
+              <li>Razer <code>.xml</code>、迈从 <code>.json</code>、ROG <code>.gmac</code> 是数据格式，只记录按键与毫秒延时，本身无法执行代码。</li>
+              <li>全部格式都不联网、不读写文件、不读取剪贴板、不调用其它进程，也不需要任何“激活”步骤。</li>
+              <li>导出前可先点「复制 Lua」，粘贴到文本编辑器里逐行看完，再导入鼠标软件。</li>
+            </ul>
+          </article>
+          <article class="safety-card">
+            <span class="index">02 · DANGER TOKENS</span>
+            <h3>拿到第三方脚本先搜关键字</h3>
+            <p>用系统自带记事本打开文件，按 Ctrl+F 搜索下面的字样。出现任意一项，说明该脚本可以执行命令、读写文件或联网，是否继续使用需要你自行判断。</p>
+            <div class="safety-tokens" role="list" aria-label="需要留意的关键字">
+              <span role="listitem">os.execute</span>
+              <span role="listitem">io.open</span>
+              <span role="listitem">io.popen</span>
+              <span role="listitem">require</span>
+              <span role="listitem">loadstring</span>
+              <span role="listitem">dofile</span>
+              <span role="listitem">socket</span>
+              <span role="listitem">http</span>
+              <span role="listitem">WinHttp</span>
+              <span role="listitem">DownloadFile</span>
+              <span role="listitem">while true</span>
+            </div>
+            <p class="safety-note">口琴宏只应该有按键、延时和触发判断。看不懂的脚本不要导入，也不要为了“先试试”关闭杀毒软件。</p>
+          </article>
+          <article class="safety-card safety-card--warning">
+            <span class="index">03 · REFUSE THESE</span>
+            <h3>遇到这些要求直接拒绝</h3>
+            <ul>
+              <li>要求先安装「激活器」「卡密工具」「专用驱动」等程序才能使用宏。</li>
+              <li>要求开启远程协助，或让你把电脑交给对方操作。</li>
+              <li>索要游戏账号、邮箱、短信验证码、登录令牌，或让你登录对方提供的页面。</li>
+              <li>要求关闭杀毒软件与 Windows Defender，或索取与宏无关的系统权限。</li>
+              <li>用压缩包密码、群内解压、二次付费来交换文件。</li>
+            </ul>
+            <p class="safety-note">任何一条都说明对方要索取的东西已经超出了宏文件本身。</p>
+          </article>
+          <article class="safety-card">
+            <span class="index">04 · DOWNLOAD SOURCES</span>
+            <h3>只从可信来源下载</h3>
+            <ul>
+              <li>录制助手请只从本页下载入口或 GitHub Release 获取；网盘转存和群文件的安装包无法核对来源。</li>
+              <li>GitHub Release 会附带该版本安装包的 SHA-256，可用 <code>certutil -hashfile 文件名 SHA256</code> 比对后再运行。</li>
+              <li>宏文件是纯文本，记事本就能查看，不需要任何“专用查看器”。拒绝让你查看内容、只给加密包的做法。</li>
+              <li>录制助手按说明需要以管理员身份运行，这是为了让目标宏软件捕获输入；除此之外，官方组件不会再要求额外权限或安装其它程序。</li>
+            </ul>
+          </article>
+        </div>
+        <div class="notice warning safety-footer"><span>!</span><p><strong>文件安全不等于使用合规</strong> 即使脚本本身干净，在游戏中自动演奏仍可能违反目标游戏、平台或服务器的规则。请先阅读上方免责声明，并自行确认使用环境。</p></div>
+      </section>
+
       <section class="notice-grid" aria-label="兼容与使用提示">
         <div class="notice warning"><span>!</span><p><strong>雷蛇兼容说明</strong> 没有本机导出样本时，Synapse 3/4 XML 仅按公开社区结构生成。若导入失败，请先在你的版本中录制一个单键宏并导出，再用其作为格式校准样本。</p></div>
         <div class="notice warning"><span>!</span><p><strong>迈从兼容说明</strong> MCHOSE JSON 按提供的迈从导出样例生成。不同驱动版本或外设的宏能力可能不同；若导入失败，请用该版本录制并导出一个单键宏后与生成文件比对。</p></div>
@@ -749,7 +832,7 @@
       <section class="seo-intro panel" id="about" aria-labelledby="seoIntroTitle">
         <div class="window-titlebar"><span>ABOUT.EXE — DELTA HARMONICA MACRO</span></div>
         <div class="seo-intro-content">
-          <span class="index">12 · ABOUT THE TOOL</span>
+          <span class="index">13 · ABOUT THE TOOL</span>
           <h2 id="seoIntroTitle">三角洲口琴宏：从 MIDI 转宏到自动演奏</h2>
           <p>三角洲口琴演奏家是一款在浏览器中运行的口琴宏生成器，适合把《三角洲行动》的口琴数字简谱转换成可导入鼠标软件的宏文件。你可以直接输入简谱、导入 MIDI，或从曲库载入现成曲目，再试听旋律、调整 BPM 和导出宏。</p>
           <div class="seo-intro-grid">
@@ -771,6 +854,35 @@
     </main>
     </div>
     <footer><span>HARMONICA DECK · WEB v3.0.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <dialog class="usage-notice-dialog" id="usageNoticeDialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeIntro">
+      <form class="usage-notice-form" method="dialog">
+        <div class="window-titlebar"><span>USAGE_NOTICE.EXE — READ BEFORE USE</span></div>
+        <div class="usage-notice-body" id="usageNoticeBody" role="region" tabindex="0" aria-label="使用须知正文，可滚动阅读">
+          <div class="usage-notice-head">
+            <span class="index">BEFORE EXPORT · READ TO THE END</span>
+            <h2 id="usageNoticeTitle">使用须知</h2>
+            <p id="usageNoticeIntro">首次导出前请读完全文。这里集中了页面上的「免责声明」与「宏文件安全自查」，滚动到正文最底部后即可继续本次导出；页面原有位置的相同内容会继续保留。</p>
+          </div>
+          <div class="usage-notice-content" id="usageNoticeContent"></div>
+        </div>
+        <div class="usage-notice-foot">
+          <p class="usage-notice-progress" id="usageNoticeProgress" role="status" aria-live="polite">请向下滚动阅读全部内容</p>
+          <button class="primary-button usage-notice-confirm" id="usageNoticeConfirm" type="button" disabled><span>我已阅读，继续导出</span><b aria-hidden="true">✓</b></button>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="effect-unlock-dialog" id="effectUnlockDialog" aria-labelledby="effectUnlockTitle">
+      <form method="dialog" class="effect-unlock-form">
+        <div class="window-titlebar"><span>EFFECT_UNLOCKED.EXE — NEW</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭解锁提示">×</button></div>
+        <div class="effect-unlock-body">
+          <span class="index">USER ID EFFECT · UNLOCKED</span>
+          <h2 id="effectUnlockTitle">解锁了新的 ID 特效</h2>
+          <div class="effect-unlock-list" id="effectUnlockList"></div>
+          <p class="effect-unlock-note">可以随时在「账户资料 → 用户 ID 特效」里切换，也可以继续使用默认效果。</p>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">知道了</button><button class="primary-button" id="effectUnlockChoose" type="button"><span>去更换</span><b aria-hidden="true">✓</b></button></div>
+        </div>
+      </form>
+    </dialog>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
@@ -988,6 +1100,10 @@
           <p>登录凭据：<b id="accountEmail">--</b></p>
           <label>用户 ID（用户名）<input id="accountUserId" type="text" autocomplete="username" maxlength="24" pattern="[\p{L}\p{N}_]{3,24}" aria-describedby="accountUserIdHint" /><small id="accountUserIdHint">支持中文、字母、数字和下划线，长度为 3–24 个字符；上传曲目时会作为共享人显示。</small></label>
           <p class="auth-account-note">修改后，所有通过本站直传发布的曲谱会同步显示新 ID；旧 ID 会永久保留，无法被其他账户使用。</p>
+          <section class="id-effect-picker" aria-labelledby="idEffectTitle">
+            <div class="id-effect-heading"><span class="index">USER ID EFFECT</span><h3 id="idEffectTitle">用户 ID 特效</h3></div>
+            <div class="id-effect-options" id="idEffectOptions" role="group" aria-label="选择用户 ID 特效"></div>
+          </section>
           <p class="auth-status" id="accountStatus" role="status" aria-live="polite" hidden></p>
           <div class="dialog-actions"><button class="text-button" id="logoutButton" type="button">退出登录</button><button class="primary-button" id="saveAccountButton" type="button"><span>保存用户 ID</span><b>✓</b></button></div>
         </div>
