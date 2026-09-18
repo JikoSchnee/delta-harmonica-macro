@@ -33,10 +33,10 @@ let recorderHelperCompatibility = Object.freeze({ label: "加载中", prefixes: 
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
 const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
-const GITHUB_COMMITS_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/commits?per_page=10`;
 const GITHUB_COMPARE_API = (base, head) => `https://api.github.com/repos/${GITHUB_REPOSITORY}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}?per_page=100`;
 const WEBSITE_UPDATE_METADATA_URL = "./version.json";
 const WEBSITE_UPDATE_DISMISSED_KEY = "delta-harmonica-dismissed-update";
+const CHANGELOG_DESCRIPTION_FALLBACK = "以下内容来自当前版本 version.json 的发布说明。";
 const AI_SCORE_PROMPT = `你是一名严谨的数字简谱转写助手。请将我随后提供的数字简谱、五线谱图片或可辨识的旋律材料，转换为可直接粘贴到“三角洲口琴演奏家”网站「简谱模式」的纯文本。\n\n输出规则：\n1. 只输出简谱正文，不要标题、作者、调号、拍号、BPM、解释、Markdown 围栏或其他文字。\n2. 音符之间用空格分隔；换行、小节线和反复线可保留。\n3. 如果材料无法确认音高或节奏（例如只有歌名、歌词或模糊描述），先向我索取旋律/曲谱材料，不要编造一份看似准确的谱子。\n4. 默认使用标准数字简谱；只有我明确要求按键映射时，才使用 L/M/R 物理键位前缀。\n\n本站简谱语法与示例：\n- 基础音符：1 2 3 4 5 6 7；休止：0。\n- 时值：裸音 5 为 1 拍；5_ 为半拍，5__ 为四分之一拍，5___ 为八分之一拍；5. 为附点一拍，5.. 为双附点；5- 为两拍，5-- 为三拍；5:1.25 为精确 1.25 拍。精确拍数不能和 _、.、- 混用。\n- 升降音：#4 或 ♯4 为升四，b7 或 ♭7 为降七。\n- 高低八度：1'、1'' 为高八/高两八度；,1、,,1 为低八/低两八度。单个音不能同时有高低八度，且上下最多两层。\n- 连音：5~ 5 表示连接两个相同音高；小节线：|；反复线：||: 和 :||。\n- 高级物理键位（仅明确要求时使用）：L1（左键降调）、M2（中键半音）、R3（右键升调）、LM4、RM5。不能给 0 加前缀，不能重复前缀，也不能同时用 L 和 R。\n\n请严格遵守：减时线最多三条；不要输出无法播放的超高/超低音；最终回复只能是可直接粘贴的简谱文本。`;
 // G HUB accepts named punctuation keys in Lua. Keep NOTE_KEYS as physical keys
 // for recording and Razer scancodes, then translate only for Lua export.
@@ -728,42 +728,38 @@ function refreshPublicData({ force = false } = {}) {
   });
 }
 
-function formatCommitDate(date) {
-  try {
-    return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(date));
-  } catch {
-    return "未知日期";
-  }
-}
-
-function renderChangelog(commits) {
-  if (!commits.length) {
-    elements.changelogList.innerHTML = '<li class="changelog-empty">GitHub 暂无可展示的提交记录。</li>';
+// 版本弹窗展示的是 version.json 里的发布说明，而不是仓库的最新提交。
+function renderVersionChangelog(metadata) {
+  const version = String(metadata.version || WEBSITE_VERSION).trim();
+  const title = typeof metadata.title === "string" ? metadata.title.trim() : "";
+  const summary = typeof metadata.summary === "string" ? metadata.summary.trim() : "";
+  const changes = Array.isArray(metadata.changes)
+    ? metadata.changes.filter((change) => typeof change === "string" && change.trim()).map((change) => change.trim())
+    : [];
+  elements.changelogDescription.textContent = [title, summary].filter(Boolean).join("｜") || CHANGELOG_DESCRIPTION_FALLBACK;
+  if (!changes.length) {
+    elements.changelogList.innerHTML = '<li class="changelog-empty">这个版本没有填写变更说明。</li>';
+    elements.changelogStatus.textContent = `v${version} · 无变更记录`;
     return;
   }
-  elements.changelogList.innerHTML = commits.map((commit, index) => {
-    const title = String(commit.commit?.message || "未命名修改").split("\n")[0].trim();
-    const author = commit.author?.login || commit.commit?.author?.name || "GitHub contributor";
-    const date = commit.commit?.author?.date || commit.commit?.committer?.date;
-    const sha = String(commit.sha || "").slice(0, 7);
-    return `<li class="changelog-item"><b>${String(index + 1).padStart(2, "0")}</b><span class="changelog-item-main"><a class="changelog-item-title" href="${escapeHtml(commit.html_url || "#")}" target="_blank" rel="noopener noreferrer">${escapeHtml(title)}</a><small class="changelog-item-meta">${escapeHtml(author)} · ${escapeHtml(formatCommitDate(date))}</small></span><a class="changelog-item-sha" href="${escapeHtml(commit.html_url || "#")}" target="_blank" rel="noopener noreferrer" aria-label="查看提交 ${escapeHtml(sha)}">${escapeHtml(sha)}</a></li>`;
-  }).join("");
+  elements.changelogList.innerHTML = changes.map((change, index) => `<li class="changelog-item"><b>${String(index + 1).padStart(2, "0")}</b><span class="changelog-item-main"><span class="changelog-item-note">${escapeHtml(change)}</span></span></li>`).join("");
+  elements.changelogStatus.textContent = `v${version} · ${changes.length} 项变更`;
 }
 
-async function loadRecentCommits() {
+async function loadVersionChangelog() {
   if (!elements.changelogList) return;
   elements.changelogList.setAttribute("aria-busy", "true");
-  elements.changelogStatus.textContent = "正在连接 GitHub";
-  elements.changelogList.innerHTML = '<li class="changelog-empty">正在读取最近 10 条提交……</li>';
+  elements.changelogStatus.textContent = "正在读取版本信息";
+  elements.changelogList.innerHTML = '<li class="changelog-empty">正在读取当前版本的变更说明……</li>';
   try {
-    const response = await fetch(GITHUB_COMMITS_API, { headers: { Accept: "application/vnd.github+json" }, cache: "no-store" });
-    const commits = await response.json();
-    if (!response.ok || !Array.isArray(commits)) throw new Error("GitHub commits request failed");
-    renderChangelog(commits.slice(0, 10));
-    elements.changelogStatus.textContent = `已同步 ${commits.length} 条`;
+    const response = await fetch(`${WEBSITE_UPDATE_METADATA_URL}?t=${Date.now()}`, { headers: { Accept: "application/json" }, cache: "no-store" });
+    const metadata = await response.json();
+    if (!response.ok || !metadata || typeof metadata !== "object") throw new Error("version metadata request failed");
+    renderVersionChangelog(metadata);
   } catch {
-    elements.changelogList.innerHTML = '<li class="changelog-empty">暂时无法读取 GitHub 提交记录，请点击下方按钮直接查看。</li>';
-    elements.changelogStatus.textContent = "GitHub 连接失败";
+    elements.changelogDescription.textContent = CHANGELOG_DESCRIPTION_FALLBACK;
+    elements.changelogList.innerHTML = '<li class="changelog-empty">暂时无法读取版本信息，可点击下方按钮查看仓库提交记录。</li>';
+    elements.changelogStatus.textContent = "版本信息读取失败";
   } finally {
     elements.changelogList.setAttribute("aria-busy", "false");
   }
@@ -775,7 +771,7 @@ function openChangelogDialog() {
     return;
   }
   elements.changelogDialog.showModal();
-  loadRecentCommits();
+  loadVersionChangelog();
 }
 
 let pendingWebsiteUpdate = null;
@@ -992,6 +988,7 @@ Object.assign(elements, {
 });
 
 Object.assign(elements, {
+  changelogDescription: document.querySelector("#changelogDescription"),
   libraryDeleteDialog: document.querySelector("#libraryDeleteDialog"),
   libraryDeleteTitle: document.querySelector("#libraryDeleteTitle"),
   libraryDeleteDescription: document.querySelector("#libraryDeleteDescription"),
