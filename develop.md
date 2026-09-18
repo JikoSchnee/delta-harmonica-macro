@@ -121,7 +121,7 @@ GitHub Pages 只能承载静态页面，无法发送验证码、保存会话或�
 
 ### 前端缓存策略
 
-`tools/local_library_server.py` 会对 HTML 和静态资源返回重新验证缓存头，对所有 `/api/` 响应使用 `no-store`，因此正式站点普通刷新即可获取新版本。GitHub Pages 无法由本项目控制响应头；修改 `index.html`、`app.js`、`styles.css` 或曲库数据后，请同步递增 `index.html` 底部脚本和样式链接中的 `?v=YYYYMMDD` 版本号。管理员账号按邮箱识别，当前管理员为 `274492469@qq.com`；管理员登录后可在曲库中维护「推荐」曲库。
+`tools/local_library_server.py` 会把文本类资源（HTML、JS、CSS、JSON、SVG）在客户端支持时用 gzip 发送，压缩结果按 `(mtime, size)` 缓存在内存里，只有文件变化时才会重新压缩。缓存策略分三档：带 `?v=` 发布标记的资源（`app.js`、`styles.css`）和 `.zip` 安装包返回 `public, max-age=31536000, immutable`；`data/` 下的曲库数据和其余静态文件仍返回 `no-cache, must-revalidate` 做重新验证；`index.html` 与所有 `/api/` 响应保持 `no-store`，因此正式站点普通刷新即可获取新版本。`?v=` 标记由 `./deploy.sh --bump-version <新版本>` 自动改写，不需要手工维护。GitHub Pages 无法由本项目控制响应头，走 Pages 发布时仍需自行确认缓存行为。管理员账号按邮箱识别，当前管理员为 `274492469@qq.com`；管理员登录后可在曲库中维护「推荐」曲库。
 
 发布新网页版本时，请同步更新 `app.js`、`index.html`、`README.md` 和根目录 `version.json` 中的网站版本号；根目录 `version.json` 还应填写更新标题、摘要和变更列表，供在线页面自动提示用户刷新。录制助手只维护 `recording-helper/version.json`，发布时执行 `./release-helper.sh <助手版本>`，脚本会构建并生成 `<助手版本>-HarmonicaRecorder-win-x64.zip`、下载链接和 SHA-256。助手版本必须使用三段式数字版本号，例如 `2.0.0`。
 
@@ -160,7 +160,29 @@ QQ 需要在 QQ 互联应用中登记 QQ 回调地址；微信需要在微信开
 
 `--public` 监听所有网卡并启用公共直传；只有端口不直接暴露、且 `X-Forwarded-For` 由自有反向代理覆盖时，才可使用 `--trust-proxy`。
 
+反向代理建议加一层按 IP 的限流兜底，替代"排队等待"类方案。放在代理的 `http {}` 与 `/delta/` 的 `server {}` 中（正式站点与其它项目共用同一个代理容器，改动前先确认 `limit_req_zone` 名称不冲突，改完先 `nginx -t` 再 `nginx -s reload`）：
+
+```nginx
+limit_req_zone  $binary_remote_addr zone=delta_api:10m rate=10r/s;
+limit_conn_zone $binary_remote_addr zone=delta_conn:10m;
+
+location /delta/api/ {
+    limit_req        zone=delta_api burst=40 nodelay;
+    limit_conn       delta_conn 32;
+    limit_req_status 429;
+    limit_conn_status 429;
+    proxy_pass http://delta-harmonica-macro:8765/api/;
+    proxy_set_header Host              $host;
+    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+`burst=40` 是给"一次打开多个标签页"留的余量：首页加载会在两秒内打完 7 个数据接口，正常用户不会触发 429，而脚本式刷接口会被限制在每秒 10 次以内。服务端本身还有 128 个请求线程的硬上限，超出会直接断开连接，所以限流应当放在代理层。
+
 验证码为 6 位、有效期 10 分钟、最多尝试 5 次，并按邮箱与 IP 限流。首次注册要求唯一用户 ID（3–24 个中文、字母、数字或下划线字符）；改名会同步已直传曲谱的署名，旧 ID 永久保留。465 端口设 `DELTA_SMTP_SSL=true`；默认 587 使用 STARTTLS。
+
+验证码邮件由内置发信队列异步投递（2 个 worker、队列上限 64、单次 SMTP 超时 15 秒）。`POST /api/auth/request-code` 返回邮件票据与初始状态，网页据此轮询 `GET /api/auth/mail-status?ticket=...` 展示「排队中／正在发送／已发送／发送失败」。票据状态只保存在内存中，不读写 SQLite，15 分钟后自动清理，因此轮询开销可以忽略。
 
 本地开发可加 `--auth-code-log-only --insecure-auth-cookies`，验证码仅写入终端。此模式禁止用于公网。
 
@@ -194,6 +216,8 @@ python3 tools/local_library_server.py --public --trust-proxy --port 8765
 Docker 方式增加 `-e DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌'`。后台地址为 `/admin/analytics.html`，可查看最近 7、30 或 90 天数据。令牌只由浏览器提交给本站接口，不会写入前端代码或 Git。
 
 分析仅记录临时匿名会话 ID、匿名谱子标识、来源类别、入口选择、曲库来源类别、输入模式、试听、编辑打开/保存、导出格式和投稿成功等事件；不记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。已登录账号只在服务端生成不可读的稳定匿名标识，用于同一账号对同一曲谱的导出量去重，不会写入邮箱或用户 ID。后台会按匿名谱子标识聚合载入、编辑和去重后的宏导出量；导出量只来自导出区成功产出宏的操作，包括复制 Lua，不包含 `.deltamusic` 分享下载、打开导出区、切换板块或查看键盘谱。未登录用户每个匿名 session 最多成功导出 3 次宏（所有曲谱和格式合计）；达到上限后网页会引导注册或登录。认证未启用或认证状态不可用时不限制匿名导出；该配额是体验限制，不是防刷机制。曲目卡片的导出量从原始分析事件统计，服务端缓存 10 分钟后刷新；公开接口不会读取每日热榜快照。热门曲库每天按服务器本地时间凌晨 0 点计算一次，结果保存在 `data/hot-rankings.sqlite3`，统计口径变化时会自动刷新当天缓存，页面不会实时重排。分析数据按天存于 `data/analytics/`，默认保留 90 天，可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客。
+
+首页的三个公开统计接口（`/api/analytics/summary`、`/api/public-rankings`、`/api/analytics/score-exports`）都通过 `SingleFlightCache` 做 single-flight：缓存到期时只允许一个请求去重算，其余请求等待并复用同一份结果，避免多个标签页同时刷新把一次重算放大成多次。三个接口只读的日志范围也已收窄：`/api/public-rankings` 的"昨日导出榜"只读覆盖目标本地日的那一到两个日志文件（此前会遍历整个保留期目录），导出总量按保留期扫描一次后在三个接口间共享，且所有扫描都会先用子串预筛掉占绝大多数的 heartbeat 行，再交给 JSON 解析器。
 
 ## 社区曲谱维护
 

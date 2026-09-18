@@ -14,6 +14,8 @@ from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta, timezone
 from email import policy
 from email.parser import BytesParser
+from email.utils import parsedate_to_datetime
+import gzip
 import hashlib
 import hmac
 import json
@@ -33,7 +35,7 @@ from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qs, quote, urlencode, urlparse, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
@@ -77,10 +79,23 @@ AUTH_DATABASE_TIMEOUT_SECONDS = 3
 AUTH_MAIL_QUEUE_MAXSIZE = 64
 AUTH_MAIL_WORKERS = 2
 AUTH_SMTP_TIMEOUT_SECONDS = 15
+AUTH_MAIL_TICKET_TTL_SECONDS = 15 * 60
+AUTH_MAIL_TICKET_LIMIT = 256
 REQUEST_SOCKET_TIMEOUT_SECONDS = 30
 MAX_REQUEST_THREADS = 128
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 OAUTH_HTTP_TIMEOUT_SECONDS = 15
+GZIP_MIN_BYTES = 1024
+GZIP_LEVEL = 6
+COMPRESSED_ASSET_CACHE_MAX_BYTES = 48 * 1024 * 1024
+COMPRESSIBLE_CONTENT_TYPES = (
+    "text/",
+    "application/javascript",
+    "application/json",
+    "application/manifest+json",
+    "application/xml",
+    "image/svg+xml",
+)
 AUTH_COOKIE_NAME = "delta_auth_session"
 OAUTH_STATE_COOKIE_NAME = "delta_oauth_state"
 ADMIN_EMAIL = "274492469@qq.com"
@@ -129,12 +144,6 @@ LIBRARY_LOCK = threading.Lock()
 ANALYTICS_LOCK = threading.Lock()
 AUTH_LOCK = threading.Lock()
 HOT_RANKING_LOCK = threading.Lock()
-PUBLIC_EXPORT_COUNT_CACHE_LOCK = threading.Lock()
-PUBLIC_EXPORT_COUNT_CACHE: dict[int, tuple[float, dict[str, Any]]] = {}
-PUBLIC_ANALYTICS_SUMMARY_CACHE_LOCK = threading.Lock()
-PUBLIC_ANALYTICS_SUMMARY_CACHE: tuple[float, dict[str, int]] | None = None
-PUBLIC_RANKINGS_CACHE_LOCK = threading.Lock()
-PUBLIC_RANKINGS_CACHE: tuple[float, dict[str, Any]] | None = None
 ANALYTICS_DIRECTORY = REPOSITORY_ROOT / "data" / "analytics"
 DEFAULT_ANALYTICS_RETENTION_DAYS = 90
 ACTIVE_VISITOR_WINDOW_SECONDS = 300
@@ -157,6 +166,7 @@ LEGACY_ADMIN_ID_PATTERN = re.compile(r"^[0-9a-f]{12}$", re.IGNORECASE)
 SCORE_EXPORT_EVENTS = {"macro_exported", "macro_downloaded", "lua_copied"}
 HOT_RANKING_METRIC_VERSION = 3
 OAUTH_PROVIDER_LABELS = {"qq": "QQ", "wechat": "微信"}
+SINGLE_FLIGHT_WAIT_SECONDS = 30
 
 
 class DuplicateScoreError(ValueError):
@@ -165,6 +175,66 @@ class DuplicateScoreError(ValueError):
     def __init__(self, message: str, *, owned_by_requester: bool = False) -> None:
         super().__init__(message)
         self.owned_by_requester = owned_by_requester
+
+
+class SingleFlightCache:
+    """Cache computed values by key with a TTL, computing each key only once at a time.
+
+    Without this, every open tab that refreshes at the same moment notices the
+    expired cache and starts the same expensive scan, so the cost of one rebuild
+    gets multiplied by the number of waiting clients.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._values: dict[str, tuple[float, Any]] = {}
+        self._flights: dict[str, threading.Event] = {}
+
+    def value(self, key: str, ttl: float, compute: Callable[[], Any]) -> Any:
+        with self._lock:
+            cached = self._values.get(key)
+            if cached is not None and time.monotonic() - cached[0] < ttl:
+                return cached[1]
+            flight = self._flights.get(key)
+            if flight is None:
+                flight = threading.Event()
+                self._flights[key] = flight
+                leads = True
+            else:
+                leads = False
+        if not leads:
+            # 等领先者算完并复用结果；等超时或领先者失败时自己算一次，避免请求挂住。
+            flight.wait(SINGLE_FLIGHT_WAIT_SECONDS)
+            with self._lock:
+                cached = self._values.get(key)
+            if cached is not None:
+                # 超时仍可退回上一份数据，好过让请求线程再叠加一次重算。
+                return cached[1]
+            return compute()
+        try:
+            value = compute()
+        except BaseException:
+            with self._lock:
+                self._flights.pop(key, None)
+            flight.set()
+            raise
+        with self._lock:
+            self._values[key] = (time.monotonic(), value)
+            self._flights.pop(key, None)
+        flight.set()
+        return value
+
+    def invalidate(self, key: str | None = None) -> None:
+        with self._lock:
+            if key is None:
+                self._values.clear()
+            else:
+                self._values.pop(key, None)
+
+
+PUBLIC_ANALYTICS_SUMMARY_CACHE = SingleFlightCache()
+PUBLIC_RANKINGS_CACHE = SingleFlightCache()
+SCORE_EXPORT_COUNT_CACHE = SingleFlightCache()
 
 
 def analytics_event_path(day: date) -> Path:
@@ -446,43 +516,43 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     }
 
 
+def compute_public_analytics_summary() -> dict[str, int]:
+    """Count today's sessions and the currently active ones from today's log."""
+    now = datetime.now(timezone.utc)
+    today_sessions: set[str] = set()
+    latest_seen: dict[str, datetime] = {}
+    path = analytics_event_path(now.date())
+    if path.exists():
+        try:
+            for line in path.read_text(encoding="utf-8").splitlines():
+                item = json.loads(line)
+                if not isinstance(item, dict) or not isinstance(item.get("session"), str):
+                    continue
+                try:
+                    recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
+                except ValueError:
+                    continue
+                if item.get("event") == "page_view":
+                    today_sessions.add(item["session"])
+                if recorded_at <= now and recorded_at > latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
+                    latest_seen[item["session"]] = recorded_at
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            pass
+    cutoff = now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS)
+    return {
+        "activeVisitors": sum(recorded_at >= cutoff for recorded_at in latest_seen.values()),
+        "todayVisitors": len(today_sessions),
+        "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
+    }
+
+
 def build_public_analytics_summary() -> dict[str, int]:
     """Return only aggregate counts suitable for the public site header."""
-    global PUBLIC_ANALYTICS_SUMMARY_CACHE
-    now_monotonic = time.monotonic()
-    with PUBLIC_ANALYTICS_SUMMARY_CACHE_LOCK:
-        cached = PUBLIC_ANALYTICS_SUMMARY_CACHE
-        if cached and now_monotonic - cached[0] < PUBLIC_ANALYTICS_SUMMARY_CACHE_SECONDS:
-            return cached[1]
-
-        now = datetime.now(timezone.utc)
-        today_sessions: set[str] = set()
-        latest_seen: dict[str, datetime] = {}
-        path = analytics_event_path(now.date())
-        if path.exists():
-            try:
-                for line in path.read_text(encoding="utf-8").splitlines():
-                    item = json.loads(line)
-                    if not isinstance(item, dict) or not isinstance(item.get("session"), str):
-                        continue
-                    try:
-                        recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
-                    except ValueError:
-                        continue
-                    if item.get("event") == "page_view":
-                        today_sessions.add(item["session"])
-                    if recorded_at <= now and recorded_at > latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
-                        latest_seen[item["session"]] = recorded_at
-            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-                pass
-        cutoff = now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS)
-        summary = {
-            "activeVisitors": sum(recorded_at >= cutoff for recorded_at in latest_seen.values()),
-            "todayVisitors": len(today_sessions),
-            "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
-        }
-        PUBLIC_ANALYTICS_SUMMARY_CACHE = (time.monotonic(), summary)
-        return summary
+    return PUBLIC_ANALYTICS_SUMMARY_CACHE.value(
+        "public-analytics-summary",
+        PUBLIC_ANALYTICS_SUMMARY_CACHE_SECONDS,
+        compute_public_analytics_summary,
+    )
 
 
 def analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
@@ -529,6 +599,16 @@ def canonical_analytics_score_id(value: Any, aliases: dict[str, str]) -> str | N
     return None
 
 
+def line_has_score_export_event(line: str) -> bool:
+    """Cheap pre-filter so ordinary heartbeat lines never reach the JSON parser.
+
+    Export events are rare compared with heartbeats and page views, and the
+    writers always emit the event name as a quoted JSON string, so a substring
+    test cannot drop a real export record.
+    """
+    return any(f'"{name}"' in line for name in SCORE_EXPORT_EVENTS)
+
+
 def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     """Read export totals once for the daily hot-ranking job."""
     safe_days = max(1, retention_days)
@@ -543,6 +623,8 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
             continue
         try:
             for line in path.read_text(encoding="utf-8").splitlines():
+                if not line_has_score_export_event(line):
+                    continue
                 item = json.loads(line)
                 if not isinstance(item, dict) or item.get("event") not in SCORE_EXPORT_EVENTS:
                     continue
@@ -562,6 +644,17 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
     return exports
 
 
+def candidate_analytics_days(target_date: date) -> list[date]:
+    """Days whose UTC-named log file can contain records of one local calendar day."""
+    local_zone = datetime.now().astimezone().tzinfo
+    day_start = datetime.combine(target_date, datetime.min.time(), tzinfo=local_zone)
+    day_end = day_start + timedelta(days=1)
+    return sorted({
+        day_start.astimezone(timezone.utc).date(),
+        (day_end - timedelta(microseconds=1)).astimezone(timezone.utc).date(),
+    })
+
+
 def yesterday_export_ranking() -> list[dict[str, Any]]:
     """Return unique-actor score exports for the previous local calendar day."""
     target_date = datetime.now().astimezone().date() - timedelta(days=1)
@@ -570,12 +663,18 @@ def yesterday_export_ranking() -> list[dict[str, Any]]:
     aliases = analytics_score_aliases()
     if not ANALYTICS_DIRECTORY.exists():
         return []
-    for path in ANALYTICS_DIRECTORY.glob("events-*.ndjson"):
+    # 只读覆盖目标本地日的那一到两个日志文件，不再遍历整个保留期目录。
+    for day in candidate_analytics_days(target_date):
+        path = analytics_event_path(day)
+        if not path.exists():
+            continue
         try:
             lines = path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             continue
         for line in lines:
+            if not line_has_score_export_event(line):
+                continue
             try:
                 item = json.loads(line)
                 recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
@@ -627,7 +726,7 @@ def contribution_ranking(auth_enabled: bool, retention_days: int) -> list[dict[s
     """Sum deduplicated exports for each account's currently published scores."""
     if not auth_enabled:
         return []
-    exports_by_score = score_export_counts_for_period(retention_days)
+    exports_by_score = cached_score_export_counts(retention_days)
     counts: Counter[str] = Counter()
     for user_id, score_id in public_owned_scores(auth_enabled):
         counts[user_id] += exports_by_score.get(score_id, 0)
@@ -638,25 +737,25 @@ def contribution_ranking(auth_enabled: bool, retention_days: int) -> list[dict[s
     return [{"rank": rank, "userId": user_id, "exports": count} for rank, (user_id, count) in enumerate(ordered, start=1)]
 
 
+def compute_public_rankings(auth_enabled: bool, retention_days: int) -> dict[str, Any]:
+    """Assemble the three public leaderboards for the homepage."""
+    yesterday = datetime.now().astimezone().date() - timedelta(days=1)
+    return {
+        "rankingDate": yesterday.isoformat(),
+        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "uploads": upload_ranking(auth_enabled),
+        "contributions": contribution_ranking(auth_enabled, retention_days),
+        "yesterdayExports": yesterday_export_ranking(),
+    }
+
+
 def build_public_rankings(auth_enabled: bool, retention_days: int) -> dict[str, Any]:
     """Build the privacy-safe rankings consumed by the public homepage."""
-    global PUBLIC_RANKINGS_CACHE
-    now_monotonic = time.monotonic()
-    with PUBLIC_RANKINGS_CACHE_LOCK:
-        cached = PUBLIC_RANKINGS_CACHE
-        if cached and now_monotonic - cached[0] < PUBLIC_RANKINGS_CACHE_SECONDS:
-            return cached[1]
-
-        yesterday = datetime.now().astimezone().date() - timedelta(days=1)
-        rankings = {
-            "rankingDate": yesterday.isoformat(),
-            "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-            "uploads": upload_ranking(auth_enabled),
-            "contributions": contribution_ranking(auth_enabled, retention_days),
-            "yesterdayExports": yesterday_export_ranking(),
-        }
-        PUBLIC_RANKINGS_CACHE = (time.monotonic(), rankings)
-        return rankings
+    return PUBLIC_RANKINGS_CACHE.value(
+        f"public-rankings:{int(bool(auth_enabled))}:{max(1, retention_days)}",
+        PUBLIC_RANKINGS_CACHE_SECONDS,
+        lambda: compute_public_rankings(auth_enabled, retention_days),
+    )
 
 
 def hot_ranking_database() -> sqlite3.Connection:
@@ -721,17 +820,20 @@ def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
         return ranking
 
 
-def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
-    """Return export totals from a short-lived cache, independent of the daily hot ranking."""
+def cached_score_export_counts(retention_days: int) -> Counter[str]:
+    """Share one scan of the retention window between the rankings and export totals."""
     safe_days = max(1, retention_days)
-    now = time.monotonic()
-    with PUBLIC_EXPORT_COUNT_CACHE_LOCK:
-        cached = PUBLIC_EXPORT_COUNT_CACHE.get(safe_days)
-        if cached and now - cached[0] < PUBLIC_EXPORT_COUNT_REFRESH_SECONDS:
-            return cached[1]
+    return SCORE_EXPORT_COUNT_CACHE.value(
+        f"score-export-counts:{safe_days}",
+        PUBLIC_EXPORT_COUNT_REFRESH_SECONDS,
+        lambda: score_export_counts_for_period(safe_days),
+    )
 
-    counts = score_export_counts_for_period(safe_days)
-    summary = {
+
+def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
+    """Return export totals from the shared cached scan, independent of the daily hot ranking."""
+    counts = cached_score_export_counts(retention_days)
+    return {
         "rankingDate": datetime.now().astimezone().date().isoformat(),
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "scores": [
@@ -739,9 +841,6 @@ def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
             for rank, (score_id, count) in enumerate(sorted(counts.items(), key=lambda item: (-item[1], item[0])), start=1)
         ],
     }
-    with PUBLIC_EXPORT_COUNT_CACHE_LOCK:
-        PUBLIC_EXPORT_COUNT_CACHE[safe_days] = (time.monotonic(), summary)
-    return summary
 
 
 def hot_ranking_scheduler(retention_days: int, stop_event: threading.Event) -> None:
@@ -1610,8 +1709,11 @@ class AuthMailDispatcher:
 
     def __init__(self, server: ThreadingHTTPServer) -> None:
         self.server = server
-        self.jobs: queue.Queue[tuple[str, str, EmailMessage]] = queue.Queue(maxsize=AUTH_MAIL_QUEUE_MAXSIZE)
+        self.jobs: queue.Queue[tuple[str, str, str, EmailMessage]] = queue.Queue(maxsize=AUTH_MAIL_QUEUE_MAXSIZE)
         self.stop_event = threading.Event()
+        self.ticket_lock = threading.Lock()
+        self.tickets: dict[str, dict[str, Any]] = {}
+        self.sequence = 0
         self.workers = [
             threading.Thread(target=self._run, name=f"auth-mail-{index}", daemon=True)
             for index in range(1, AUTH_MAIL_WORKERS + 1)
@@ -1619,11 +1721,55 @@ class AuthMailDispatcher:
         for worker in self.workers:
             worker.start()
 
-    def submit(self, email: str, code_hash: str, message: EmailMessage) -> None:
+    def submit(self, email: str, code_hash: str, message: EmailMessage) -> str:
+        """Queue one verification email and return the ticket used to track it."""
+        ticket = secrets.token_urlsafe(18)
+        now = time.monotonic()
+        with self.ticket_lock:
+            self._purge_tickets_locked(now)
+            self.sequence += 1
+            self.tickets[ticket] = {"sequence": self.sequence, "state": "pending", "updated_at": now}
         try:
-            self.jobs.put_nowait((email, code_hash, message))
+            self.jobs.put_nowait((ticket, email, code_hash, message))
         except queue.Full as error:
+            with self.ticket_lock:
+                self.tickets.pop(ticket, None)
             raise ValueError("验证码邮件服务繁忙，请稍后重试。") from error
+        return ticket
+
+    def _purge_tickets_locked(self, now: float) -> None:
+        expired = [
+            ticket for ticket, record in self.tickets.items()
+            if now - record["updated_at"] > AUTH_MAIL_TICKET_TTL_SECONDS
+        ]
+        for ticket in expired:
+            self.tickets.pop(ticket, None)
+        overflow = len(self.tickets) - AUTH_MAIL_TICKET_LIMIT
+        if overflow > 0:
+            oldest = sorted(self.tickets, key=lambda item: self.tickets[item]["sequence"])[:overflow]
+            for ticket in oldest:
+                self.tickets.pop(ticket, None)
+
+    def _set_state(self, ticket: str, state: str) -> None:
+        with self.ticket_lock:
+            record = self.tickets.get(ticket)
+            if record is not None:
+                record["state"] = state
+                record["updated_at"] = time.monotonic()
+
+    def status(self, ticket: str) -> dict[str, Any] | None:
+        """Report one ticket's delivery state from memory only; never touches SQLite."""
+        now = time.monotonic()
+        with self.ticket_lock:
+            self._purge_tickets_locked(now)
+            record = self.tickets.get(ticket)
+            if record is None:
+                return None
+            pending = [item for item in self.tickets.values() if item["state"] == "pending"]
+            position = 0
+            if record["state"] == "pending":
+                position = 1 + sum(1 for item in pending if item["sequence"] < record["sequence"])
+            return {"state": record["state"], "position": position, "queueDepth": len(pending)}
 
     def _discard_code_if_current(self, email: str, code_hash: str) -> None:
         try:
@@ -1638,14 +1784,18 @@ class AuthMailDispatcher:
     def _run(self) -> None:
         while not self.stop_event.is_set() or not self.jobs.empty():
             try:
-                email, code_hash, message = self.jobs.get(timeout=0.5)
+                ticket, email, code_hash, message = self.jobs.get(timeout=0.5)
             except queue.Empty:
                 continue
+            self._set_state(ticket, "sending")
             try:
                 send_auth_email(self.server, message)
             except (OSError, smtplib.SMTPException) as error:
                 self._discard_code_if_current(email, code_hash)
+                self._set_state(ticket, "failed")
                 print(f"验证码邮件发送失败（{email}）：{error}", file=sys.stderr, flush=True)
+            else:
+                self._set_state(ticket, "sent")
             finally:
                 self.jobs.task_done()
 
@@ -1655,7 +1805,8 @@ class AuthMailDispatcher:
             worker.join(timeout=timeout)
 
 
-def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> None:
+def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> str | None:
+    """Store a fresh verification code and queue its email; returns the mail ticket."""
     now = now_timestamp()
     code = f"{secrets.randbelow(1_000_000):06d}"
     code_hash = auth_digest(server, code)
@@ -1668,14 +1819,14 @@ def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> N
         )
     if server.auth_code_log_only:
         print(f"[AUTH TEST ONLY] Verification code for {email}: {code}", flush=True)
-        return
+        return None
     message = EmailMessage()
     message["Subject"] = "三角洲口琴演奏家登录验证码"
     message["From"] = server.smtp_from
     message["To"] = email
     message.set_content(f"你的登录验证码是：{code}\n\n验证码将在 10 分钟后失效。若不是你本人操作，请忽略此邮件。")
     try:
-        server.auth_mail_dispatcher.submit(email, code_hash, message)
+        return server.auth_mail_dispatcher.submit(email, code_hash, message)
     except ValueError:
         with AUTH_LOCK, auth_database() as connection:
             connection.execute(
@@ -1683,6 +1834,18 @@ def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> N
                 (email, code_hash),
             )
         raise
+
+
+def auth_mail_status_payload(server: ThreadingHTTPServer, ticket: str | None) -> dict[str, Any]:
+    """Describe one mail ticket for the frontend; reads memory only, never SQLite."""
+    dispatcher = server.auth_mail_dispatcher
+    if dispatcher is None:
+        # --auth-code-log-only 测试模式不投递邮件，直接按已送达展示。
+        return {"ticket": None, "state": "sent", "position": 0, "queueDepth": 0}
+    status = dispatcher.status(ticket) if ticket else None
+    if status is None:
+        return {"ticket": None, "state": "expired", "position": 0, "queueDepth": 0}
+    return {"ticket": ticket, **status}
 
 
 def auth_rate_allowed(server: ThreadingHTTPServer, key: str, limit: int) -> bool:
@@ -1880,19 +2043,97 @@ class BoundedThreadingHTTPServer(ThreadingHTTPServer):
         thread.start()
 
 
+COMPRESSED_ASSET_LOCK = threading.Lock()
+COMPRESSED_ASSET_CACHE: dict[str, tuple[tuple[int, int], bytes]] = {}
+COMPRESSED_ASSET_BYTES = 0
+
+
+def compressed_static_body(path: str) -> bytes | None:
+    """Return a gzip copy of a static file, recompressing only when the file changes.
+
+    Compressing per request would trade bandwidth for CPU on a server that is
+    already CPU-bound, so results are cached by (mtime, size) and evicted once
+    the cache exceeds its byte budget.
+    """
+    global COMPRESSED_ASSET_BYTES
+    try:
+        stat = os.stat(path)
+    except OSError:
+        return None
+    stamp = (stat.st_mtime_ns, stat.st_size)
+    with COMPRESSED_ASSET_LOCK:
+        cached = COMPRESSED_ASSET_CACHE.get(path)
+        if cached is not None and cached[0] == stamp:
+            return cached[1]
+    try:
+        with open(path, "rb") as handle:
+            raw = handle.read()
+    except OSError:
+        return None
+    if len(raw) < GZIP_MIN_BYTES:
+        return None
+    body = gzip.compress(raw, GZIP_LEVEL)
+    with COMPRESSED_ASSET_LOCK:
+        previous = COMPRESSED_ASSET_CACHE.get(path)
+        if previous is not None:
+            COMPRESSED_ASSET_BYTES -= len(previous[1])
+        COMPRESSED_ASSET_CACHE[path] = (stamp, body)
+        COMPRESSED_ASSET_BYTES += len(body)
+        while COMPRESSED_ASSET_BYTES > COMPRESSED_ASSET_CACHE_MAX_BYTES:
+            oldest = next((key for key in COMPRESSED_ASSET_CACHE if key != path), None)
+            if oldest is None:
+                break
+            COMPRESSED_ASSET_BYTES -= len(COMPRESSED_ASSET_CACHE.pop(oldest)[1])
+    return body
+
+
 class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+    response_status = 200
 
     def setup(self) -> None:  # noqa: D401
         super().setup()
         self.connection.settimeout(REQUEST_SOCKET_TIMEOUT_SECONDS)
 
+    def send_response(self, code: int, message: str | None = None) -> None:  # noqa: N802
+        self.response_status = code
+        super().send_response(code, message)
+
+    def accepts_gzip(self) -> bool:
+        """Honor Accept-Encoding, including an explicit ``gzip;q=0`` refusal."""
+        header = self.headers.get("Accept-Encoding", "")
+        for entry in header.split(","):
+            encoding, _, parameters = entry.strip().partition(";")
+            if encoding.strip().lower() not in {"gzip", "x-gzip"}:
+                continue
+            quality = parameters.strip().lower()
+            if quality.startswith("q="):
+                try:
+                    if float(quality[2:]) <= 0:
+                        continue
+                except ValueError:
+                    pass
+            return True
+        return False
+
+    def static_cache_control(self, path: str) -> str:
+        """Versioned asset URLs can be cached for a year; data files keep revalidating."""
+        lowered = path.lower()
+        if lowered.endswith(".zip"):
+            return "public, max-age=31536000, immutable"
+        if parse_qs(urlparse(self.path).query).get("v") and not lowered.startswith("/data/"):
+            return "public, max-age=31536000, immutable"
+        if path == "/" or lowered.endswith(".html"):
+            return "no-cache, no-store, must-revalidate"
+        return "no-cache, must-revalidate"
+
     def end_headers(self) -> None:  # noqa: N802
         """Make ordinary reloads see newly deployed static files.
 
         The app is deliberately served without content-hashed filenames, so
-        static responses must be revalidated. API responses already set their
-        own ``Cache-Control`` header and are left unchanged here.
+        static responses must be revalidated unless the URL carries a ``?v=``
+        release token. API responses already set their own ``Cache-Control``
+        header and are left unchanged here.
         """
         has_cache_control = any(
             header.lower().startswith(b"cache-control:")
@@ -1902,10 +2143,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             path = urlparse(self.path).path
             if path.startswith("/api/"):
                 cache_control = "no-store"
-            elif path == "/" or path.endswith(".html"):
+            elif self.response_status not in (200, 304):
                 cache_control = "no-cache, no-store, must-revalidate"
             else:
-                cache_control = "no-cache, must-revalidate"
+                cache_control = self.static_cache_control(path)
             self.send_header("Cache-Control", cache_control)
         has_connection_header = any(
             header.lower().startswith(b"connection:")
@@ -1916,25 +2157,101 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         self.close_connection = True
         super().end_headers()
 
+    def not_modified_since(self, header: str, mtime: float) -> bool:
+        """Mirror the stdlib If-Modified-Since check for responses we build ourselves."""
+        try:
+            modified_since = parsedate_to_datetime(header)
+        except (TypeError, IndexError, OverflowError, ValueError):
+            return False
+        if modified_since.tzinfo is None:
+            modified_since = modified_since.replace(tzinfo=timezone.utc)
+        if modified_since.tzinfo is not timezone.utc:
+            return False
+        last_modified = datetime.fromtimestamp(mtime, timezone.utc).replace(microsecond=0)
+        return last_modified <= modified_since
+
+    def send_compressed_static(self, path: str, content_type: str) -> bool:
+        """Write a gzipped static file; returns False so the caller can fall back."""
+        try:
+            stat = os.stat(path)
+        except OSError:
+            return False
+        if stat.st_size < GZIP_MIN_BYTES:
+            return False
+        conditional = self.headers.get("If-Modified-Since")
+        if conditional and "If-None-Match" not in self.headers and self.not_modified_since(conditional, stat.st_mtime):
+            self.send_response(HTTPStatus.NOT_MODIFIED)
+            self.end_headers()
+            return True
+        body = compressed_static_body(path)
+        if body is None:
+            return False
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Content-Encoding", "gzip")
+        self.send_header("Vary", "Accept-Encoding")
+        self.send_header("Last-Modified", self.date_time_string(stat.st_mtime))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+        return True
+
+    def send_head(self) -> Any:  # noqa: N802
+        """Compress text assets for clients that accept gzip; otherwise use the stdlib path."""
+        if not self.accepts_gzip():
+            return super().send_head()
+        path = self.translate_path(self.path)
+        if os.path.isdir(path):
+            if not urlparse(self.path).path.endswith("/"):
+                return super().send_head()
+            for index in ("index.html", "index.htm"):
+                candidate = os.path.join(path, index)
+                if os.path.isfile(candidate):
+                    path = candidate
+                    break
+            else:
+                return super().send_head()
+        content_type = self.guess_type(path)
+        if not content_type.startswith(COMPRESSIBLE_CONTENT_TYPES):
+            return super().send_head()
+        if self.send_compressed_static(path, content_type):
+            return None
+        return super().send_head()
+
+    def encode_response_body(self, body: bytes) -> tuple[bytes, bool]:
+        """Gzip a response body when the client accepts it and the payload is worth it."""
+        if len(body) < GZIP_MIN_BYTES or not self.accepts_gzip():
+            return body, False
+        return gzip.compress(body, GZIP_LEVEL), True
+
     def send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        body, compressed = self.encode_response_body(encoded)
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Content-Length", str(len(body)))
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(encoded)
+        self.wfile.write(body)
 
     def send_json_with_cookie(self, status: HTTPStatus, payload: dict[str, Any], cookie: str | None = None) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+        body, compressed = self.encode_response_body(encoded)
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Content-Length", str(len(body)))
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         self.send_header("Cache-Control", "no-store")
         if cookie:
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
-        self.wfile.write(encoded)
+        self.wfile.write(body)
 
     def send_empty(self, status: HTTPStatus, cookie: str | None = None) -> None:
         self.send_response(status)
@@ -2184,6 +2501,19 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"account": account_payload(account)})
             return
+        if path == "/api/auth/mail-status":
+            if not self.server.email_auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "邮箱验证码登录尚未配置。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
+                return
+            ticket = parse_qs(urlparse(self.path).query).get("ticket", [""])[0]
+            if len(ticket) > 64:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": "邮件状态查询参数无效。"})
+                return
+            self.send_json(HTTPStatus.OK, auth_mail_status_payload(self.server, ticket))
+            return
         if path == "/api/analytics/summary":
             if not self.server.analytics_enabled:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
@@ -2361,6 +2691,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.request_is_same_origin():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
                 return
+            ticket: str | None = None
             try:
                 payload = self.read_payload()
                 if not isinstance(payload, dict):
@@ -2382,14 +2713,14 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 if not auth_rate_allowed(self.server, f"email:{email}", AUTH_CODE_EMAIL_LIMIT) or not auth_rate_allowed(self.server, f"ip:{client}", AUTH_CODE_IP_LIMIT):
                     self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "验证码发送过于频繁，请稍后再试。"})
                     return
-                request_auth_code(self.server, email, client)
+                ticket = request_auth_code(self.server, email, client)
             except sqlite3.Error:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
                 return
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法发送验证码。"})
                 return
-            self.send_empty(HTTPStatus.NO_CONTENT)
+            self.send_json(HTTPStatus.OK, auth_mail_status_payload(self.server, ticket))
             return
         if path == "/api/auth/verify":
             if not self.server.email_auth_enabled:

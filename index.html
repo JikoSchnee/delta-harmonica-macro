@@ -64,7 +64,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261011" />
+    <link rel="stylesheet" href="./styles.css?v=20261014" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -99,12 +99,13 @@
             <a href="#rankings" data-section-nav-target="rankings"><b>03</b><span>公开榜单</span></a>
             <a href="#directory" data-section-nav-target="directory"><b>04</b><span>目录</span></a>
             <a href="#remix-code" data-section-nav-target="remix-code"><b>05</b><span>改曲码</span></a>
-            <a href="#library" data-section-nav-target="library"><b>06</b><span>曲库</span></a>
-            <a href="#score-input" data-section-nav-target="score-input"><b>07</b><span>编辑器</span></a>
-            <a href="#playback" data-section-nav-target="playback"><b>08</b><span>播放器</span></a>
-            <a href="#macro-export" data-section-nav-target="macro-export"><b>09</b><span>导出为宏</span></a>
-            <a href="#compatibility" data-section-nav-target="compatibility"><b>10</b><span>兼容信息</span></a>
-            <a href="#about" data-section-nav-target="about"><b>11</b><span>关于工具</span></a>
+            <a href="#recommendations" data-section-nav-target="recommendations"><b>06</b><span>推荐</span></a>
+            <a href="#library" data-section-nav-target="library"><b>07</b><span>曲库</span></a>
+            <a href="#score-input" data-section-nav-target="score-input"><b>08</b><span>编辑器</span></a>
+            <a href="#playback" data-section-nav-target="playback"><b>09</b><span>播放器</span></a>
+            <a href="#macro-export" data-section-nav-target="macro-export"><b>10</b><span>导出为宏</span></a>
+            <a href="#compatibility" data-section-nav-target="compatibility"><b>11</b><span>兼容信息</span></a>
+            <a href="#about" data-section-nav-target="about"><b>12</b><span>关于工具</span></a>
           </nav>
         </div>
       </aside>
@@ -149,13 +150,153 @@
             </span>
           </div>
         </div>
-        <div class="hero-actions" aria-label="分享与项目链接">
-          <button class="qq-group-link" id="qqGroupButton" type="button" aria-label="复制群号 1102489399">分享曲目、反馈问题请加群：1102489399</button>
-          <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="觉得好用请到 GitHub 点亮小星星">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
-            <span>觉得好用请到 GitHub 点亮小星星</span>
-          </a>
-        </div>
+        <section class="hero-block hero-star" id="githubStar" aria-labelledby="githubStarTitle" aria-describedby="githubStarDescription">
+          <div class="hero-block-main">
+            <span class="index">OPEN SOURCE</span>
+            <h2 id="githubStarTitle">觉得好用请到 GitHub 点亮小星星</h2>
+            <p id="githubStarDescription">打开仓库页面，点一下标题右侧的 Star 按钮，就能让更多口琴玩家找到这个工具。</p>
+            <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库点亮 Star">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
+              <span>打开仓库点亮 Star</span>
+            </a>
+          </div>
+          <figure class="hero-star-demo">
+            <svg class="gh-demo" viewBox="0 0 170 132" role="img" aria-label="演示：从 GitHub 仓库整页放大到 Star 那一行，把鼠标移到 Star 上点击点亮小星星">
+              <defs>
+                <clipPath id="ghPageClip"><rect x="1" y="1" width="168" height="130" rx="3" /></clipPath>
+                <symbol id="oct-mark-github" viewBox="0 0 16 16"><path d="M6.766 11.328c-2.063-.25-3.516-1.734-3.516-3.656 0-.781.281-1.625.75-2.188-.203-.515-.172-1.609.063-2.062.625-.078 1.468.25 1.968.703.594-.187 1.219-.281 1.985-.281.765 0 1.39.094 1.953.265.484-.437 1.344-.765 1.969-.687.218.422.25 1.515.046 2.047.5.593.766 1.39.766 2.203 0 1.922-1.453 3.375-3.547 3.64.531.344.89 1.094.89 1.954v1.625c0 .468.391.734.86.547C13.781 14.359 16 11.53 16 8.03 16 3.61 12.406 0 7.984 0 3.563 0 0 3.61 0 8.031a7.88 7.88 0 0 0 5.172 7.422c.422.156.828-.125.828-.547v-1.25c-.219.094-.5.156-.75.156-1.031 0-1.64-.562-2.078-1.609-.172-.422-.36-.672-.719-.719-.187-.015-.25-.093-.25-.187 0-.188.313-.328.625-.328.453 0 .844.281 1.25.86.313.452.64.655 1.031.655s.641-.14 1-.5c.266-.265.47-.5.657-.656" /></symbol>
+                <symbol id="oct-search" viewBox="0 0 16 16"><path d="M10.68 11.74a6 6 0 0 1-7.922-8.982 6 6 0 0 1 8.982 7.922l3.04 3.04a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215ZM11.5 7a4.499 4.499 0 1 0-8.997 0A4.499 4.499 0 0 0 11.5 7Z" /></symbol>
+                <symbol id="oct-plus" viewBox="0 0 16 16"><path d="M7.75 2a.75.75 0 0 1 .75.75V7h4.25a.75.75 0 0 1 0 1.5H8.5v4.25a.75.75 0 0 1-1.5 0V8.5H2.75a.75.75 0 0 1 0-1.5H7V2.75A.75.75 0 0 1 7.75 2Z" /></symbol>
+                <symbol id="oct-triangle-down" viewBox="0 0 16 16"><path d="m4.427 7.427 3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" /></symbol>
+                <symbol id="oct-issue-opened" viewBox="0 0 16 16"><path d="M8 9.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" /><path d="M8 0a8 8 0 1 1 0 16A8 8 0 0 1 8 0ZM1.5 8a6.5 6.5 0 1 0 13 0 6.5 6.5 0 0 0-13 0Z" /></symbol>
+                <symbol id="oct-git-pull-request" viewBox="0 0 16 16"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" /></symbol>
+                <symbol id="oct-bell" viewBox="0 0 16 16"><path d="M8 16a2 2 0 0 0 1.985-1.75c.017-.137-.097-.25-.235-.25h-3.5c-.138 0-.252.113-.235.25A2 2 0 0 0 8 16ZM3 5a5 5 0 0 1 10 0v2.947c0 .05.015.098.042.139l1.703 2.555A1.519 1.519 0 0 1 13.482 13H2.518a1.516 1.516 0 0 1-1.263-2.36l1.703-2.554A.255.255 0 0 0 3 7.947Zm5-3.5A3.5 3.5 0 0 0 4.5 5v2.947c0 .346-.102.683-.294.97l-1.703 2.556a.017.017 0 0 0-.003.01l.001.006c0 .002.002.004.004.006l.006.004.007.001h10.964l.007-.001.006-.004.004-.006.001-.007a.017.017 0 0 0-.003-.01l-1.703-2.554a1.745 1.745 0 0 1-.294-.97V5A3.5 3.5 0 0 0 8 1.5Z" /></symbol>
+                <symbol id="oct-repo" viewBox="0 0 16 16"><path d="M2 2.5A2.5 2.5 0 0 1 4.5 0h8.75a.75.75 0 0 1 .75.75v12.5a.75.75 0 0 1-.75.75h-2.5a.75.75 0 0 1 0-1.5h1.75v-2h-8a1 1 0 0 0-.714 1.7.75.75 0 1 1-1.072 1.05A2.495 2.495 0 0 1 2 11.5Zm10.5-1h-8a1 1 0 0 0-1 1v6.708A2.486 2.486 0 0 1 4.5 9h8ZM5 12.25a.25.25 0 0 1 .25-.25h3.5a.25.25 0 0 1 .25.25v3.25a.25.25 0 0 1-.4.2l-1.45-1.087a.249.249 0 0 0-.3 0L5.4 15.7a.25.25 0 0 1-.4-.2Z" /></symbol>
+                <symbol id="oct-repo-forked" viewBox="0 0 16 16"><path d="M5 5.372v.878c0 .414.336.75.75.75h4.5a.75.75 0 0 0 .75-.75v-.878a2.25 2.25 0 1 1 1.5 0v.878a2.25 2.25 0 0 1-2.25 2.25h-1.5v2.128a2.251 2.251 0 1 1-1.5 0V8.5h-1.5A2.25 2.25 0 0 1 3.5 6.25v-.878a2.25 2.25 0 1 1 1.5 0ZM5 3.25a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Zm6.75.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm-3 8.75a.75.75 0 1 0-1.5 0 .75.75 0 0 0 1.5 0Z" /></symbol>
+                <symbol id="oct-star" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Zm0 2.445L6.615 5.5a.75.75 0 0 1-.564.41l-3.097.45 2.24 2.184a.75.75 0 0 1 .216.664l-.528 3.084 2.769-1.456a.75.75 0 0 1 .698 0l2.77 1.456-.53-3.084a.75.75 0 0 1 .216-.664l2.24-2.183-3.096-.45a.75.75 0 0 1-.564-.41L8 2.694Z" /></symbol>
+                <symbol id="oct-star-fill" viewBox="0 0 16 16"><path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" /></symbol>
+                <symbol id="oct-git-branch" viewBox="0 0 16 16"><path d="M9.5 3.25a2.25 2.25 0 1 1 3 2.122V6A2.5 2.5 0 0 1 10 8.5H6a1 1 0 0 0-1 1v1.128a2.251 2.251 0 1 1-1.5 0V5.372a2.25 2.25 0 1 1 1.5 0v1.836A2.493 2.493 0 0 1 6 7h4a1 1 0 0 0 1-1v-.628A2.25 2.25 0 0 1 9.5 3.25Zm-6 0a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Zm8.25-.75a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5ZM4.25 12a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Z" /></symbol>
+                <symbol id="oct-code" viewBox="0 0 16 16"><path d="m11.28 3.22 4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.749.749 0 0 1-1.275-.326.749.749 0 0 1 .215-.734L13.94 8l-3.72-3.72a.749.749 0 0 1 .326-1.275.749.749 0 0 1 .734.215Zm-6.56 0a.751.751 0 0 1 1.042.018.751.751 0 0 1 .018 1.042L2.06 8l3.72 3.72a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L.47 8.53a.75.75 0 0 1 0-1.06Z" /></symbol>
+                <symbol id="oct-file" viewBox="0 0 16 16"><path d="M2 1.75C2 .784 2.784 0 3.75 0h6.586c.464 0 .909.184 1.237.513l2.914 2.914c.329.328.513.773.513 1.237v9.586A1.75 1.75 0 0 1 13.25 16h-9.5A1.75 1.75 0 0 1 2 14.25Zm1.75-.25a.25.25 0 0 0-.25.25v12.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25V6h-2.75A1.75 1.75 0 0 1 9 4.25V1.5Zm6.75.062V4.25c0 .138.112.25.25.25h2.688l-.011-.013-2.914-2.914-.013-.011Z" /></symbol>
+                <symbol id="oct-file-directory-fill" viewBox="0 0 16 16"><path d="M1.75 1A1.75 1.75 0 0 0 0 2.75v10.5C0 14.216.784 15 1.75 15h12.5A1.75 1.75 0 0 0 16 13.25v-8.5A1.75 1.75 0 0 0 14.25 3H7.5a.25.25 0 0 1-.2-.1l-.9-1.2C6.07 1.26 5.55 1 5 1H1.75Z" /></symbol>
+              </defs>
+              <rect class="gh-window" x="1" y="1" width="168" height="130" rx="3" />
+              <g clip-path="url(#ghPageClip)">
+                <g class="gh-page">
+                  <rect class="gh-topbar" x="1" y="1" width="168" height="14" />
+                  <use class="gh-ic gh-ic--brand" href="#oct-mark-github" x="4.6" y="4.6" width="6.8" height="6.8" />
+                  <rect class="gh-search" x="16" y="4.2" width="84" height="7.6" rx="3.8" />
+                  <use class="gh-ic gh-ic--header" href="#oct-search" x="18.6" y="5.6" width="4.8" height="4.8" />
+                  <text class="gh-search-text" x="25" y="9.4">Search or jump to...</text>
+                  <use class="gh-ic gh-ic--header" href="#oct-plus" x="118" y="5.4" width="5.2" height="5.2" />
+                  <use class="gh-ic gh-ic--header" href="#oct-triangle-down" x="124.4" y="6.6" width="4.2" height="4.2" />
+                  <use class="gh-ic gh-ic--header" href="#oct-issue-opened" x="132.4" y="5.4" width="5.2" height="5.2" />
+                  <use class="gh-ic gh-ic--header" href="#oct-git-pull-request" x="140.4" y="5.4" width="5.2" height="5.2" />
+                  <use class="gh-ic gh-ic--header" href="#oct-bell" x="148.4" y="5.4" width="5.2" height="5.2" />
+                  <circle class="gh-avatar" cx="159.6" cy="8" r="3" />
+                  <circle class="gh-avatar-face" cx="159.6" cy="7.1" r="1.1" />
+                  <path class="gh-avatar-face" d="M157.3 10.7a2.6 2.6 0 0 1 4.6 0z" />
+                  <rect class="gh-repo-row" x="1" y="15" width="168" height="20" />
+                  <rect class="gh-repo-row-line" x="1" y="34.3" width="168" height="1" />
+                  <use class="gh-ic" href="#oct-repo" x="6" y="21.6" width="6.6" height="6.6" />
+                  <text class="gh-repo-name" x="15" y="27.8">delta-harmonica-macro</text>
+                  <g class="gh-btn">
+                    <rect class="gh-btn-box" x="71" y="20" width="41" height="11" rx="2.5" />
+                    <use class="gh-ic" href="#oct-bell" x="75.2" y="24.2" width="4.8" height="4.8" />
+                    <text class="gh-btn-label" x="82.6" y="27.4">Notifications</text>
+                  </g>
+                  <g class="gh-btn">
+                    <rect class="gh-btn-box" x="115" y="20" width="17" height="11" rx="2.5" />
+                    <use class="gh-ic" href="#oct-repo-forked" x="117.6" y="24.2" width="4.8" height="4.8" />
+                    <text class="gh-btn-label" x="125" y="27.4">0</text>
+                  </g>
+                  <g class="gh-star-btn">
+                    <rect class="gh-star-btn-box" x="136" y="20" width="30" height="11" rx="2.5" />
+                    <line class="gh-star-divider" x1="154.6" y1="20" x2="154.6" y2="31" />
+                    <g class="gh-star-glyph">
+                      <use class="gh-ic gh-star-icon gh-star-icon--outline" href="#oct-star" x="138.8" y="24.2" width="6" height="6" />
+                      <use class="gh-ic gh-star-icon gh-star-icon--fill" href="#oct-star-fill" x="138.8" y="24.2" width="6" height="6" />
+                    </g>
+                    <text class="gh-star-label" x="146.2" y="27.4">Star</text>
+                    <text class="gh-star-count" x="160.3" y="27.4">1.2k</text>
+                  </g>
+                  <rect class="gh-toolbar" x="1" y="35.3" width="168" height="9.7" />
+                  <rect class="gh-branch" x="6" y="37.2" width="27" height="5.8" rx="2.9" />
+                  <use class="gh-ic" href="#oct-git-branch" x="8.4" y="38.3" width="4.6" height="4.6" />
+                  <text class="gh-branch-text" x="14.6" y="41.7">main</text>
+                  <rect class="gh-code-btn" x="140" y="36.6" width="26" height="7" rx="2" />
+                  <use class="gh-ic gh-ic--code" href="#oct-code" x="142.8" y="38.2" width="4.4" height="4.4" />
+                  <text class="gh-code-text" x="156.4" y="41.4">Code</text>
+                  <g>
+                    <rect class="gh-file-row" x="1" y="45" width="168" height="5.4" />
+                    <use class="gh-ic" href="#oct-file" x="6.6" y="45.9" width="4" height="4" />
+                    <text class="gh-file-name" x="13" y="49.4">README.md</text>
+                    <text class="gh-file-msg" x="46" y="49.4">docs: update readme</text>
+                    <text class="gh-file-time" x="166" y="49.4">3 days ago</text>
+                  </g>
+                  <g>
+                    <rect class="gh-file-row" x="1" y="50.4" width="168" height="5.4" />
+                    <use class="gh-ic" href="#oct-file" x="6.6" y="51.3" width="4" height="4" />
+                    <text class="gh-file-name" x="13" y="54.8">index.html</text>
+                    <text class="gh-file-msg" x="46" y="54.8">feat: hero blocks</text>
+                    <text class="gh-file-time" x="166" y="54.8">yesterday</text>
+                  </g>
+                  <g>
+                    <rect class="gh-file-row" x="1" y="55.8" width="168" height="5.4" />
+                    <use class="gh-ic" href="#oct-file" x="6.6" y="56.7" width="4" height="4" />
+                    <text class="gh-file-name" x="13" y="60.2">app.js</text>
+                    <text class="gh-file-msg" x="46" y="60.2">fix: star alignment</text>
+                    <text class="gh-file-time" x="166" y="60.2">yesterday</text>
+                  </g>
+                  <g>
+                    <rect class="gh-file-row" x="1" y="61.2" width="168" height="5.4" />
+                    <use class="gh-ic" href="#oct-file" x="6.6" y="62.1" width="4" height="4" />
+                    <text class="gh-file-name" x="13" y="65.6">styles.css</text>
+                    <text class="gh-file-msg" x="46" y="65.6">style: layout tweak</text>
+                    <text class="gh-file-time" x="166" y="65.6">2 days ago</text>
+                  </g>
+                  <g>
+                    <rect class="gh-file-row" x="1" y="66.6" width="168" height="5.4" />
+                    <use class="gh-ic gh-ic--folder" href="#oct-file-directory-fill" x="6.6" y="67.5" width="4" height="4" />
+                    <text class="gh-file-name" x="13" y="71">tools/</text>
+                    <text class="gh-file-msg" x="46" y="71">chore: review scripts</text>
+                    <text class="gh-file-time" x="166" y="71">last week</text>
+                  </g>
+                  <g>
+                    <rect class="gh-file-row" x="1" y="72" width="168" height="5.4" />
+                    <use class="gh-ic gh-ic--folder" href="#oct-file-directory-fill" x="6.6" y="72.9" width="4" height="4" />
+                    <text class="gh-file-name" x="13" y="76.4">data/</text>
+                    <text class="gh-file-msg" x="46" y="76.4">chore: community scores</text>
+                    <text class="gh-file-time" x="166" y="76.4">last week</text>
+                  </g>
+                  <rect class="gh-readme" x="6" y="81" width="158" height="46" rx="2" />
+                  <rect class="gh-readme-line" x="14" y="88" width="46" height="3" rx="1.5" />
+                  <rect class="gh-readme-line" x="14" y="95" width="132" height="2.4" rx="1.2" />
+                  <rect class="gh-readme-line" x="14" y="100.4" width="120" height="2.4" rx="1.2" />
+                  <rect class="gh-readme-line" x="14" y="105.8" width="140" height="2.4" rx="1.2" />
+                  <rect class="gh-readme-line" x="14" y="111.2" width="96" height="2.4" rx="1.2" />
+                  <rect class="gh-readme-line" x="14" y="116.6" width="62" height="2.4" rx="1.2" />
+                </g>
+              </g>
+              <circle class="gh-ripple" cx="133.5" cy="64.5" r="11" />
+              <text class="gh-plus" x="134.5" y="54">+1</text>
+              <g class="gh-cursor"><path class="gh-cursor-shape" d="M0 0 L0 12.6 L3.4 9.4 L5.6 14.4 L8 13.3 L5.8 8.4 L9.9 8 Z" /></g>
+            </svg>
+            <figcaption>放大到 Star 这一行，点一下就点亮啦</figcaption>
+          </figure>
+        </section>
+        <section class="hero-block hero-contact" id="communityContact" aria-labelledby="qqGroupTitle" aria-describedby="qqGroupDescription">
+          <div class="hero-block-main">
+            <span class="index">COMMUNITY CONTACT</span>
+            <h2 id="qqGroupTitle">分享曲目、反馈问题</h2>
+            <p id="qqGroupDescription">欢迎加入 QQ 群交流口琴曲谱、宏文件和使用问题。</p>
+            <button class="qq-group-number" id="qqGroupCopyButton" type="button" aria-label="点击复制 QQ 群号 1102489399"><span>QQ群号</span><strong>1102489399</strong></button>
+          </div>
+          <figure class="upload-qr hero-contact-qr">
+            <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
+            <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
+          </figure>
+        </section>
       </section>
 
       <section class="hero-disclaimer" id="disclaimer" aria-labelledby="disclaimerTitle">
@@ -166,7 +307,7 @@
         <section class="tutorial-deck panel" id="tutorial" aria-labelledby="tutorialTitle">
           <div class="window-titlebar"><span>VIDEO_GUIDE.EXE — FEATURED TUTORIAL</span></div>
           <div class="tutorial-heading">
-            <div><span class="index">00 · VIDEO GUIDE</span><h2 id="tutorialTitle">视频教程</h2></div>
+            <div><span class="index">02 · VIDEO GUIDE</span><h2 id="tutorialTitle">视频教程</h2></div>
             <p>从选曲、打谱到宏导出，按步骤快速上手。</p>
           </div>
           <div class="tutorial-deck-content">
@@ -187,7 +328,7 @@
           <div class="window-titlebar"><span>RANKING.EXE — COMMUNITY SIGNALS</span></div>
           <div class="public-rankings-body">
             <div class="public-rankings-heading">
-              <div><span class="index">01 · COMMUNITY RANKINGS</span><h2 id="rankingsTitle">榜单</h2></div>
+              <div><span class="index">03 · COMMUNITY RANKINGS</span><h2 id="rankingsTitle">榜单</h2></div>
               <span class="public-rankings-date" id="publicRankingsDate">等待数据</span>
             </div>
             <div class="public-rankings-tabs" role="tablist" aria-label="选择榜单">
@@ -211,7 +352,7 @@
       <div class="directory-remix-row">
       <section class="directory-deck panel" id="directory" aria-labelledby="directoryTitle">
         <div class="window-titlebar"><span>DIRECTORY.EXE — START HERE</span><button class="panel-guide-button" data-guide="directory" type="button" aria-label="查看目录帮助" aria-haspopup="dialog">?</button></div>
-        <div class="directory-heading"><div><span class="index">00 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
+        <div class="directory-heading"><div><span class="index">04 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
         <div class="directory-actions" role="navigation" aria-label="快速开始">
           <div class="directory-action-card library">
             <button class="directory-button" data-directory-action="library" type="button"><b>01</b><span><strong>曲库-使用制作好的谱子（推荐）</strong><small>打开内置与社区曲库</small></span></button>
@@ -231,7 +372,7 @@
       <section class="remix-code-deck panel" id="remix-code" aria-labelledby="remixCodeTitle">
         <div class="window-titlebar"><span>REMIX_CODE.EXE — TRACK LOOKUP</span></div>
         <div class="remix-code-heading">
-          <div><span class="index">01 · REMIX CODE</span><h2 id="remixCodeTitle">改曲码</h2></div>
+          <div><span class="index">05 · REMIX CODE</span><h2 id="remixCodeTitle">改曲码</h2></div>
           <p>输入 21 位改曲码，或粘贴包含 <code>?code=</code> 的完整链接，直接找到对应曲目。</p>
         </div>
         <div class="remix-code-browser">
@@ -244,10 +385,27 @@
       </section>
       </div>
 
+      <section class="recommendation-deck panel" id="recommendations" aria-labelledby="recommendationTitle">
+        <div class="window-titlebar"><span>RECOMMEND.EXE — TODAY'S PICKS</span></div>
+        <div class="recommendation-heading">
+          <div>
+            <span class="index">06 · RECOMMENDED</span>
+            <h2 id="recommendationTitle">推荐</h2>
+            <p>每次打开页面都会重新随机：第一排来自推荐名单，第二排从全部曲库中抽取，两排不会出现同一首曲目。</p>
+          </div>
+          <div class="recommendation-actions">
+            <span class="recommendation-status" id="recommendationStatus" role="status" aria-live="polite"></span>
+            <button class="recommendation-shuffle" id="recommendationShuffleButton" type="button" aria-label="重新随机抽取推荐曲目">换一批 ⟳</button>
+          </div>
+        </div>
+        <div class="song-grid recommendation-row" id="recommendationPrimaryRow" aria-label="推荐名单随机曲目"></div>
+        <div class="song-grid recommendation-row" id="recommendationSecondaryRow" aria-label="全部曲库随机曲目"></div>
+      </section>
+
       <section class="library-deck panel" id="library" aria-labelledby="libraryTitle">
         <div class="window-titlebar"><span>SCORE_ARCHIVE.EXE — SONG LIBRARY</span><button class="panel-guide-button" data-guide="library" type="button" aria-label="查看曲库帮助" aria-haspopup="dialog">?</button></div>
         <div class="library-deck-copy">
-          <span class="index">02 · SCORE ARCHIVE</span>
+          <span class="index">07 · SCORE ARCHIVE</span>
           <h2 id="libraryTitle">曲库</h2>
           <div class="library-tabs" role="tablist" aria-label="曲库分类">
             <button class="library-tab" data-library-view="all" type="button" role="tab" aria-selected="false">全部</button>
@@ -255,7 +413,7 @@
             <button class="library-tab" data-library-view="hot" type="button" role="tab" aria-selected="false">热门</button>
             <button class="library-tab" data-library-view="mine" type="button" role="tab" aria-selected="false">我的</button>
           </div>
-          <p class="library-actions"><button class="upload-link" id="uploadScoreButton" type="button">去编辑器上传</button><button class="local-library-button" id="localLibraryButton" type="button" aria-haspopup="dialog" hidden>收录当前曲目</button></p>
+          <p class="library-actions"><button class="upload-link" id="uploadScoreButton" type="button">去编辑器上传</button></p>
         </div>
         <div class="library-deck-browser">
           <label class="song-search"><span>⌕</span><input id="songSearch" type="search" placeholder="查找曲名、拍号或版本" aria-label="搜索曲库" /></label>
@@ -268,7 +426,7 @@
         <div class="editor-panel panel" id="score-input">
           <div class="window-titlebar"><span>SCORE_EDITOR.EXE — INPUT WORKBENCH</span><button class="panel-guide-button" data-guide="editor" type="button" aria-label="查看编辑器帮助" aria-haspopup="dialog">?</button></div>
           <div class="panel-heading">
-            <div><span class="index">03</span><h2>编辑器</h2></div>
+            <div><span class="index">08 · INPUT WORKBENCH</span><h2>编辑器</h2></div>
             <span class="status-label" id="parseStatus">等待输入</span>
           </div>
           <section class="source-import-panel" aria-labelledby="sourceImportTitle">
@@ -455,7 +613,7 @@
         <aside class="monitor-panel panel" id="playback">
           <div class="window-titlebar"><span>MONITOR.EXE — PLAYBACK STATUS</span><button class="panel-guide-button" data-guide="player" type="button" aria-label="查看播放器帮助" aria-haspopup="dialog">?</button></div>
           <div class="panel-heading">
-            <div><span class="index">04</span><h2>播放器</h2></div>
+            <div><span class="index">09 · PLAYBACK STATUS</span><h2>播放器</h2></div>
           </div>
           <div class="meter-grid">
             <div class="meter"><span>总时长</span><strong id="totalTime">--:--.---</strong></div>
@@ -485,7 +643,7 @@
       <section class="exports" id="macro-export" aria-labelledby="exportTitle">
         <div class="window-titlebar"><span>EXPORT_MANAGER.EXE — DRIVER FILES</span><button class="panel-guide-button" data-guide="export" type="button" aria-label="查看导出帮助" aria-haspopup="dialog">?</button></div>
         <div class="section-heading">
-          <div><span class="index">05</span><h2 id="exportTitle">导出为宏</h2></div>
+          <div><span class="index">10 · DRIVER FILES</span><h2 id="exportTitle">导出为宏</h2></div>
         </div>
         <p class="export-intro">所有导出方式按使用顺序排列；每个方法下方会显示当前管理员配置的适用品牌。</p>
         <div class="export-brand-filter" aria-label="按支持品牌筛选导出方式">
@@ -591,7 +749,7 @@
       <section class="seo-intro panel" id="about" aria-labelledby="seoIntroTitle">
         <div class="window-titlebar"><span>ABOUT.EXE — DELTA HARMONICA MACRO</span></div>
         <div class="seo-intro-content">
-          <span class="index">ABOUT THE TOOL</span>
+          <span class="index">12 · ABOUT THE TOOL</span>
           <h2 id="seoIntroTitle">三角洲口琴宏：从 MIDI 转宏到自动演奏</h2>
           <p>三角洲口琴演奏家是一款在浏览器中运行的口琴宏生成器，适合把《三角洲行动》的口琴数字简谱转换成可导入鼠标软件的宏文件。你可以直接输入简谱、导入 MIDI，或从曲库载入现成曲目，再试听旋律、调整 BPM 和导出宏。</p>
           <div class="seo-intro-grid">
@@ -694,7 +852,7 @@
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
             <a class="helper-download-link" data-recording-helper-download="github" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
             <a class="helper-download-link" data-recording-helper-download="server" download><span>服务器下载（备用）</span><b>↓</b></a>
-            <button class="helper-download-link" id="recordingHelperQqButton" type="button" aria-haspopup="dialog" aria-controls="qqGroupDialog"><span>进 QQ 群下载</span><b>↗</b></button>
+            <button class="helper-download-link" id="recordingHelperQqButton" type="button" aria-controls="communityContact"><span>进 QQ 群下载</span><b>↗</b></button>
             <small>GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。解压后运行一次 <code>Install.cmd</code>，并将 EXE 设置为始终以管理员身份运行，随后即可从网页直接导入当前曲谱。</small>
           </section>
         </div>
@@ -780,21 +938,6 @@
           <p id="libraryOverwriteDescription">当前账号已经上传过这首歌，确认用现在的内容覆盖原曲吗？</p>
           <p class="library-delete-hint">覆盖后，社区曲库中的原版本将被替换；如果只是想继续保留原版本，请取消本次上传。</p>
           <div class="dialog-actions"><button class="text-button" id="libraryOverwriteCancel" value="cancel" type="submit">取消</button><button class="primary-button" id="libraryOverwriteConfirm" type="button"><span>确认覆盖</span><b>↻</b></button></div>
-        </div>
-      </form>
-    </dialog>
-    <dialog class="qq-group-dialog" id="qqGroupDialog" aria-labelledby="qqGroupTitle" aria-describedby="qqGroupDescription">
-      <form method="dialog" class="qq-group-form">
-        <div class="window-titlebar"><span>COMMUNITY_CONTACT.EXE — QQ GROUP</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭群聊信息">×</button></div>
-        <div class="qq-group-body">
-          <span class="index">COMMUNITY CONTACT</span>
-          <h2 id="qqGroupTitle">分享曲目、反馈问题</h2>
-          <p id="qqGroupDescription">欢迎加入 QQ 群交流口琴曲谱、宏文件和使用问题。</p>
-          <button class="qq-group-number" id="qqGroupCopyButton" type="button" aria-label="点击复制 QQ 群号 1102489399"><span>QQ群号</span><strong>1102489399</strong></button>
-          <figure class="upload-qr qq-group-qr">
-            <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
-            <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
-          </figure>
         </div>
       </form>
     </dialog>
@@ -979,6 +1122,6 @@
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
     <script src="./data/community-songs.js?v=20261006"></script>
-    <script src="./app.js?v=20261012"></script>
+    <script src="./app.js?v=20261014"></script>
   </body>
 </html>

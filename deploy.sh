@@ -132,6 +132,15 @@ with open(readme_path, "w", encoding="utf-8") as handle:
 
 with open(index_path, encoding="utf-8") as handle:
     index_source = handle.read()
+# 静态资源长期缓存（immutable）依赖 ?v= 标记变化来让浏览器重新下载，
+# 因此每次发版都必须把标记一起换掉，否则老用户会一直用本地缓存。
+index_source, cache_replacements = re.subn(
+    r"\?v=[0-9A-Za-z._-]+",
+    f"?v={new_version}",
+    index_source,
+)
+if cache_replacements < 1:
+    raise SystemExit("index.html 中没有找到静态资源 ?v= 缓存标记")
 index_source, replacements = re.subn(
     r"v\d+\.\d+\.\d+",
     f"v{new_version}",
@@ -198,7 +207,7 @@ echo "[2/4] 正在上传到服务器…"
 scp "$ARCHIVE_PATH" "$REMOTE_HOST:$REMOTE_ARCHIVE"
 
 echo "[3/4] 正在构建并重启服务…"
-ssh "$REMOTE_HOST" 'bash -s' <<'REMOTE_SCRIPT'
+ssh "$REMOTE_HOST" "REDEPLOY_MODE=$REDEPLOY bash -s" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
 remote_dir='/opt/delta-harmonica-macro'
@@ -207,6 +216,7 @@ container_name='delta-harmonica-macro'
 image_name='delta-harmonica-macro:latest'
 docker_network='study-desk-webdav_default'
 maintenance_marker='/app/data/.maintenance'
+redeploy_mode="${REDEPLOY_MODE:-0}"
 preserved_env=()
 
 # 先取回所有 DELTA_* 配置，但暂时不删除旧容器：这样新镜像构建期间旧版本仍然在线。
@@ -219,6 +229,19 @@ fi
 mkdir -p "$remote_dir"
 tar --warning=no-unknown-keyword -xzf "$remote_archive" -C "$remote_dir"
 cd "$remote_dir"
+
+# --redeploy 不改版本号，但带 ?v= 的静态资源在浏览器里是一年 immutable 缓存，
+# 标记不变的话老用户会一直用本地缓存的旧文件。构建镜像前换一个时间戳标记。
+if [[ "$redeploy_mode" == "1" ]]; then
+  cache_token="$(date -u +%Y%m%d%H%M%S)"
+  sed -i "s/?v=[0-9A-Za-z._-]*/?v=${cache_token}/g" index.html
+  if ! grep -q "?v=${cache_token}" index.html; then
+    echo 'index.html 中找不到可改写的 ?v= 静态资源缓存标记，已停止部署。' >&2
+    exit 1
+  fi
+  echo "已为本次同版本重部署刷新静态资源缓存标记：?v=${cache_token}"
+fi
+
 docker build -t "$image_name" .
 
 # 构建和数据导入都完成后再进入维护页，避免用户在准备阶段看到更新提示。
