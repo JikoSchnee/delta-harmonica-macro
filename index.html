@@ -64,7 +64,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=20261007" />
+    <link rel="stylesheet" href="./styles.css?v=20261011" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -73,7 +73,7 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.2.0</strong></button>
+      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v2.4.3</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
@@ -138,6 +138,14 @@
             <span class="software-logo software-logo--recorder" aria-label="通用宏录制软件">
               <svg class="software-logo-icon" viewBox="0 0 28 24" aria-hidden="true" focusable="false"><circle cx="14" cy="12" r="4.5" /><path d="M6.5 12a7.5 7.5 0 0 0 7.5 7.5M21.5 12a7.5 7.5 0 0 1-7.5 7.5M6.5 12A7.5 7.5 0 0 1 14 4.5M21.5 12A7.5 7.5 0 0 0 14 4.5" /></svg>
               <span><strong>REC</strong><small>通用录制宏软件</small></span>
+            </span>
+            <span class="software-logo software-logo--atk" aria-label="ATK Gaming Gear">
+              <span class="software-logo-image software-logo-image--atk"><img src="assets/brand-logos/atk.svg" alt="" /></span>
+              <span><strong>ATK</strong><small>GAMING GEAR</small></span>
+            </span>
+            <span class="software-logo software-logo--vgn" aria-label="VGN Gaming">
+              <span class="software-logo-image software-logo-image--vgn"><img src="assets/brand-logos/vgn.svg" alt="" /></span>
+              <span><strong>VGN</strong><small>GAMING GEAR</small></span>
             </span>
           </div>
         </div>
@@ -479,76 +487,54 @@
         <div class="section-heading">
           <div><span class="index">05</span><h2 id="exportTitle">导出为宏</h2></div>
         </div>
-        <div class="export-mode-tabs" role="tablist" aria-label="选择宏导出方式">
-          <button class="export-mode-tab active" id="exportModeGeneral" data-export-mode="general" type="button" role="tab" aria-selected="true" aria-controls="exportPanelGeneral"><span>01</span>通用板块 <b>推荐</b></button>
-          <button class="export-mode-tab" id="exportModeSpecial" data-export-mode="special" type="button" role="tab" aria-selected="false" aria-controls="exportPanelSpecial" tabindex="-1"><span>02</span>专用板块 <b>测试版</b></button>
+        <p class="export-intro">所有导出方式按使用顺序排列；每个方法下方会显示当前管理员配置的适用品牌。</p>
+        <div class="export-brand-filter" aria-label="按支持品牌筛选导出方式">
+          <div class="export-brand-filter-heading"><span>FILTER BY BRAND</span><small id="exportBrandFilterHint">显示全部导出方式</small></div>
+          <div class="export-brand-filter-list" id="exportBrandFilter" role="tablist" aria-label="导出品牌筛选"></div>
         </div>
-        <section class="export-mode-panel active" id="exportPanelGeneral" data-export-panel="general" role="tabpanel" aria-labelledby="exportModeGeneral">
-          <div class="export-mode-heading">
-            <div><span class="index">GENERAL METHODS · RECOMMENDED</span><h3>通用导入方式</h3></div>
-            <p>适用于没有专用文件导入方式的宏软件，建议优先使用。</p>
-          </div>
-          <div class="export-grid export-grid-general">
-            <article class="export-card recording-helper">
-              <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手（强烈推荐）</h3><p>Windows 64 位 · 一键录制</p></div></div>
-              <div class="recording-helper-version-board recording-helper-version-board--inline" id="compatibility" data-recording-helper-version-board aria-label="网页与录制助手版本信息">
-                <div><span>网页版本</span><strong data-recording-helper-field="web">WEB v—</strong></div>
-                <div><span>助手当前版本</span><strong data-recording-helper-field="helper">HELPER v—</strong></div>
-              </div>
-              <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。助手现已提供 8 种 Windows 模拟输入组合；目标软件无反应时，可在助手下拉框中逐项切换测试。</p>
-              <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button><a class="recording-helper-tutorial-link recording-helper-tutorial-link--compact" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span>教程</span><i aria-hidden="true">↗</i></a></div>
-            </article>
-            <article class="export-card manual-entry">
-              <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
-              <p class="export-copy">以「按键 / 毫秒」展示当前曲谱，便于在支持手动录入的宏工具中逐项填写。</p>
-              <div class="export-actions"><button id="manualMacroButton" type="button" aria-haspopup="dialog">查看键盘谱</button></div>
-            </article>
-          </div>
-        </section>
-        <section class="export-mode-panel" id="exportPanelSpecial" data-export-panel="special" role="tabpanel" aria-labelledby="exportModeSpecial" hidden>
-          <div class="export-mode-heading special">
-            <div><span class="index">SPECIAL EXPORTS · BETA</span><h3>专用导入方式 <b>测试版</b></h3></div>
-            <p>以下格式仍在测试中。请先用短谱验证，再导入正式曲目。</p>
-          </div>
-          <div class="macro-settings" id="macroSettings" aria-labelledby="macroSettingsTitle">
-            <div class="macro-settings-heading">
-              <span class="index">TRIGGER CONFIG</span>
-              <h3 id="macroSettingsTitle">G HUB 宏触发设置</h3>
-              <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
-            </div>
-            <div class="macro-settings-controls">
-              <label for="macroTriggerButton">开始键<input id="macroTriggerButton" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
-              <label for="macroStopButton">停止键 <span class="unit">只能选择 4 或 5</span><select id="macroStopButton" required aria-describedby="macroStopReason macroTriggerValidation"><option value="4">4</option><option value="5" selected>5</option></select></label>
-              <fieldset class="macro-pitch-map" aria-describedby="macroTriggerValidation">
-                <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
-                <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
-                <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="5" step="1" value="2" inputmode="numeric" /></label>
-                <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="5" step="1" value="3" inputmode="numeric" /></label>
-              </fieldset>
-            </div>
-            <p class="macro-settings-hint" id="macroStopReason"><strong>原因：</strong>G HUB Lua 的停止检测使用 <code>IsMouseButtonPressed</code> 状态轮询；这里固定使用 4/5 停止状态编号，避免与默认的 1–3 变调模拟编号混淆。</p>
-            <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
-          </div>
-          <div class="export-grid">
-          <article class="export-card logitech testing">
+        <div class="export-grid" aria-label="宏导出方式">
+          <article class="export-card logitech testing" data-export-method="logitech">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
             <div class="export-top"><span class="driver-mark">G</span><div><h3>Logitech G HUB</h3><p>Lua 脚本 · 手动粘贴</p></div></div>
             <span class="export-card-status">测试中</span>
+            <div class="macro-settings" id="macroSettings" aria-labelledby="macroSettingsTitle">
+              <div class="macro-settings-heading">
+                <span class="index">TRIGGER CONFIG</span>
+                <h3 id="macroSettingsTitle">G HUB 宏触发设置</h3>
+                <p>复制或下载 Lua 前必填；这些设置不会写入谱子分享文件。</p>
+              </div>
+              <div class="macro-settings-controls">
+                <label for="macroTriggerButton">开始键<input id="macroTriggerButton" type="number" min="1" step="1" required inputmode="numeric" aria-describedby="macroTriggerValidation" /></label>
+                <label for="macroStopButton">停止键 <span class="unit">只能选择 4 或 5</span><select id="macroStopButton" required aria-describedby="macroStopReason macroTriggerValidation"><option value="4">4</option><option value="5" selected>5</option></select></label>
+                <fieldset class="macro-pitch-map" aria-describedby="macroTriggerValidation">
+                  <legend>变调键映射 <span>Lua 模拟编号：左 1／中 2／右 3</span></legend>
+                  <label for="macroLowButton"><b>L</b><span>低音</span><input id="macroLowButton" type="number" min="1" max="5" step="1" value="1" inputmode="numeric" /></label>
+                  <label for="macroMiddleButton"><b>M</b><span>半音</span><input id="macroMiddleButton" type="number" min="1" max="5" step="1" value="2" inputmode="numeric" /></label>
+                  <label for="macroHighButton"><b>R</b><span>高音</span><input id="macroHighButton" type="number" min="1" max="5" step="1" value="3" inputmode="numeric" /></label>
+                </fieldset>
+              </div>
+              <p class="macro-settings-hint" id="macroStopReason"><strong>原因：</strong>G HUB Lua 的停止检测使用 <code>IsMouseButtonPressed</code> 状态轮询；这里固定使用 4/5 停止状态编号，避免与默认的 1–3 变调模拟编号混淆。</p>
+              <p class="macro-settings-validation" id="macroTriggerValidation" role="status" aria-live="polite" hidden></p>
+            </div>
             <p class="export-copy">开始键触发一次播放；停止键请选择 4 或 5。停止时会释放正在按住的琴键和变调键。</p>
             <div class="export-actions"><button data-action="copy-lua" type="button">复制 Lua</button><button data-action="download-lua" type="button">下载 .lua</button></div>
           </article>
-          <article class="export-card razer testing">
+          <article class="export-card razer testing" data-export-method="razer-synapse-3">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
             <div class="export-top"><span class="driver-mark">R</span><div><h3>Razer Synapse 3</h3><p>XML · 实验性兼容</p></div></div>
             <span class="export-card-status">测试中</span>
             <p class="export-copy">仅导出事件序列；导入后请在 Synapse 3 的 Macro 模块内手动绑定鼠标键和触发模式。Synapse 3 文件不能导入 Synapse 4。</p>
             <div class="export-actions"><button data-action="download-rz3" type="button">下载 Synapse 3 XML</button></div>
           </article>
-          <article class="export-card razer-four testing">
+          <article class="export-card razer-four testing" data-export-method="razer-synapse-4">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
             <div class="export-top"><span class="driver-mark">R4</span><div><h3>Razer Synapse 4</h3><p>XML · 实验性兼容</p></div></div>
             <span class="export-card-status">测试中</span>
             <p class="export-copy">仅导出事件序列；在 Macro 列表的更多菜单中选择 Import，导入后再手动绑定鼠标键和触发模式。</p>
             <div class="export-actions"><button data-action="download-rz4" type="button">下载 Synapse 4 XML</button></div>
           </article>
-          <article class="export-card mchose testing">
+          <article class="export-card mchose testing" data-export-method="mchose">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
             <div class="export-top"><span class="driver-mark">MC</span><div><h3>迈从 MCHOSE</h3><p>JSON · 宏文件</p></div></div>
             <span class="export-card-status">测试中</span>
             <p class="export-provider" id="mchoseProvider" aria-live="polite">信息提供人：读取中…</p>
@@ -558,9 +544,13 @@
               <label for="mchoseOperationsPerFile"><span>每个文件最多操作</span><span class="export-card-setting-control"><input id="mchoseOperationsPerFile" type="number" min="1" max="2000" step="1" value="1000" inputmode="numeric" aria-describedby="mchoseSplitStatus" /><b>次</b></span></label>
               <p id="mchoseSplitStatus" role="status" aria-live="polite">当前为分段导出；每个文件最多 1000 个键盘／鼠标操作，等待时间不计入，按完整音符分段。</p>
             </div>
-            <div class="export-actions"><button id="mchoseDownloadButton" data-action="download-mchose" type="button">下载 MCHOSE JSON ZIP（按设置分段）</button></div>
+            <div class="export-actions">
+              <button id="mchoseDownloadButton" data-action="download-mchose" type="button">下载 MCHOSE JSON ZIP（按设置分段）</button>
+              <a class="export-action-link export-tutorial-link" href="https://www.douyin.com/video/7686522120817345979" target="_blank" rel="noopener noreferrer" aria-label="打开迈从 MCHOSE 视频教程">观看视频教程 ↗</a>
+            </div>
           </article>
-          <article class="export-card rog testing">
+          <article class="export-card rog testing" data-export-method="rog">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
             <div class="export-top"><span class="driver-mark">ROG</span><div><h3>ROG Armoury Crate</h3><p>GMAC · 宏配置文件</p></div></div>
             <span class="export-card-status">测试中</span>
             <p class="export-provider" id="rogProvider" aria-live="polite">信息提供人：读取中…</p>
@@ -572,8 +562,23 @@
             </div>
             <div class="export-actions"><button id="rogDownloadButton" data-action="download-rog" type="button">下载 ROG GMAC ZIP（按设置分段）</button></div>
           </article>
-          </div>
-        </section>
+          <article class="export-card recording-helper" data-export-method="recording-helper">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
+            <div class="export-top"><span class="driver-mark">REC</span><div><h3>口琴鼠标宏录制助手（强烈推荐）</h3><p>Windows 64 位 · 一键录制</p></div></div>
+            <div class="recording-helper-version-board recording-helper-version-board--inline" id="compatibility" data-recording-helper-version-board aria-label="网页与录制助手版本信息">
+              <div><span>网页版本</span><strong data-recording-helper-field="web">WEB v—</strong></div>
+              <div><span>助手当前版本</span><strong data-recording-helper-field="helper">HELPER v—</strong></div>
+            </div>
+            <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。助手支持独立选择键盘方案与鼠标方案，并可直接发送内置测试输入验证当前搭配。</p>
+            <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button><a class="recording-helper-tutorial-link recording-helper-tutorial-link--compact" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span>教程</span><i aria-hidden="true">↗</i></a></div>
+          </article>
+          <article class="export-card manual-entry" data-export-method="manual-entry">
+            <div class="export-brand-tags" data-export-brands aria-label="适用品牌"></div>
+            <div class="export-top"><span class="driver-mark">KB</span><div><h3>手动输入宏</h3><p>三角洲键盘模式 · 谱子预览</p></div></div>
+            <p class="export-copy">以「按键 / 毫秒」展示当前曲谱，便于在支持手动录入的宏工具中逐项填写。</p>
+            <div class="export-actions"><button id="manualMacroButton" type="button" aria-haspopup="dialog">查看键盘谱</button></div>
+          </article>
+        </div>
       </section>
 
       <section class="notice-grid" aria-label="兼容与使用提示">
@@ -600,20 +605,20 @@
             </section>
             <section aria-labelledby="seoExportTitle">
               <h3 id="seoExportTitle">多种宏软件导出</h3>
-              <p>可导出通用录制助手、Logitech G HUB Lua、Razer Synapse XML、迈从 MCHOSE JSON 和 ROG Armoury Crate GMAC 等格式。</p>
+              <p>导出方式按顺序统一展示，可导出通用录制助手、Logitech G HUB Lua、Razer Synapse XML、迈从 MCHOSE JSON 和 ROG Armoury Crate GMAC 等格式，并显示每种方法适用的品牌。</p>
             </section>
           </div>
         </div>
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v2.2.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v2.4.3</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v2.2.0</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v2.4.3</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待 GitHub 数据</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自 GitHub 仓库提交记录，展示最近 10 次修改。</p>
@@ -632,7 +637,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v2.2.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v2.4.3</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -678,19 +683,19 @@
           </div>
           <p class="recording-helper-version-note">网页和小助手独立更新；小助手启动时会自动检查更新，请保持使用最新版。</p>
           <ol class="recording-helper-steps">
-            <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能。</span></li>
-            <li><b>02</b><span>回到本页，点击「导出到宏录制助手」，浏览器会把当前曲谱直接交给助手。</span></li>
-            <li><b>03</b><span>在目标宏软件中打开录制。</span></li>
-            <li><b>04</b><span>点击助手的开始按钮开始录制，并等待录制完毕。期间不要做任何操作，让鼠标焦点始终停留在助手上。</span></li>
+            <li><b>01</b><span>下载独立助手，解压后运行一次 <code>Install.cmd</code>，注册网页导入功能；建议右键 <code>HarmonicaRecorder.exe</code> → 属性 → 兼容性，勾选“以管理员身份运行此程序”。</span></li>
+            <li><b>02</b><span>回到本页，点击「导出到宏录制助手」，浏览器会把当前曲谱直接交给助手；已有后台助手时会优先复用它。</span></li>
+            <li><b>03</b><span>在助手中分别选择键盘方案和鼠标方案；可点击「测试输入」，无需导入歌曲即可让目标宏软件验证当前搭配。</span></li>
+            <li><b>04</b><span>在目标宏软件中打开录制，再点击助手的开始按钮。录制期间不要做任何操作，让鼠标焦点始终停留在助手上。</span></li>
           </ol>
-          <p class="recording-helper-warning"><b>注意：</b>建议先用短谱测试。助手的「输入兼容模式」已包含 8 种键盘／鼠标模拟组合：先试「默认兼容」，再试「标准 SendInput」和「迈从兼容」，仍无响应时按下拉列表顺序逐项测试。每次切换后都要重新点击开始录制。</p>
+          <p class="recording-helper-warning"><b>注意：</b>目标软件无响应时，先在助手中分别切换键盘方案和鼠标方案，再点击「测试输入」验证；测试输入只发送一组短按键与变调键事件，不会关闭助手。确认目标软件能捕获后，再导入正式曲谱并开始录制。</p>
           <a class="recording-helper-tutorial-link" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span><strong>通用宏录制导出教程</strong><small>从曲谱导出到目标宏软件的完整流程</small></span><i aria-hidden="true">↗</i></a>
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
             <a class="helper-download-link" data-recording-helper-download="github" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
             <a class="helper-download-link" data-recording-helper-download="server" download><span>服务器下载（备用）</span><b>↓</b></a>
             <button class="helper-download-link" id="recordingHelperQqButton" type="button" aria-haspopup="dialog" aria-controls="qqGroupDialog"><span>进 QQ 群下载</span><b>↗</b></button>
-            <small>GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。解压后运行一次 <code>Install.cmd</code>，随后即可从网页直接导入当前曲谱。</small>
+            <small>GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。解压后运行一次 <code>Install.cmd</code>，并将 EXE 设置为始终以管理员身份运行，随后即可从网页直接导入当前曲谱。</small>
           </section>
         </div>
       </form>
@@ -973,6 +978,6 @@
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
     <script src="./data/community-songs.js?v=20261006"></script>
-    <script src="./app.js?v=20261008"></script>
+    <script src="./app.js?v=20261012"></script>
   </body>
 </html>

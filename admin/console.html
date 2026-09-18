@@ -99,6 +99,25 @@
       .admin-song-status { min-height: 24px; margin: 14px 0 0; color: var(--pink); font-size: 12px; }
       .admin-song-status.success { color: var(--aqua); }
       .admin-song-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
+      .export-config-grid { display: grid; gap: 12px; }
+      .export-config-row { padding: 15px; border: 1px solid rgba(122,168,151,.32); background: rgba(7,29,25,.62); }
+      .export-config-row h4 { margin: 0; color: var(--ink); font-size: 15px; }
+      .export-config-row p { margin: 4px 0 13px; color: var(--dim); font-size: 11px; }
+      .export-brand-options { display: flex; flex-wrap: wrap; gap: 7px; }
+      .export-brand-option { position: relative; display: inline-flex; }
+      .export-brand-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+      .export-brand-option label { cursor: pointer; opacity: .55; transition: opacity .15s, transform .15s; }
+      .export-brand-option input:checked + label { opacity: 1; transform: translateY(-1px); }
+      .export-brand-option input:focus-visible + label { outline: 2px solid var(--aqua); outline-offset: 3px; }
+      .admin-export-logo { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 7px; color: var(--ink); border: 1px solid var(--line); background: #071d19; font: 700 10px "JetBrains Mono", monospace; }
+      .admin-export-logo span { display: grid; gap: 2px; line-height: 1; }
+      .admin-export-logo span small { color: var(--dim); font: 700 7px "JetBrains Mono", monospace; }
+      .admin-export-logo img { width: 32px; height: 18px; object-fit: contain; background: #f1f4f2; }
+      .admin-export-logo--atk { color: #fff; background: #24272a; }
+      .admin-export-logo--vgn { color: #241e18; background: #f2c879; }
+      .export-config-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 18px; }
+      .export-config-status { min-height: 22px; margin: 0; color: var(--dim); font-size: 12px; }
+      .export-config-status.success { color: var(--aqua); }
       .login-screen { display: grid; place-items: center; min-height: 100vh; padding: 20px; }
       .login { width: min(520px, 100%); padding: 28px; }
       .login h1 { margin: 8px 0 0; color: var(--aqua); font: 700 27px "Silkscreen", sans-serif; }
@@ -107,7 +126,7 @@
       .login .button { width: 100%; margin-top: 12px; }
       [hidden] { display: none !important; }
       @media (max-width: 900px) { .shell { grid-template-columns: 74px minmax(0, 1fr); } .rail { padding: 15px 10px; } .brand { padding: 4px 2px 16px; } .brand h1 { font-size: 10px; } .brand p, .brand small, .nav span, .rail-foot { display: none; } .nav button { justify-content: center; padding: 12px 0; } .nav b { text-align: center; } .split { grid-template-columns: 1fr; } }
-      @media (max-width: 650px) { .content { padding: 18px 12px 40px; } .topline { flex-direction: column; } .top-actions { justify-content: flex-start; } .metrics { grid-template-columns: repeat(2, 1fr); } .window { box-shadow: 4px 4px 0 var(--shadow); } .panel { padding: 14px 10px; } table { display: block; overflow-x: auto; white-space: nowrap; } .admin-song-grid, .admin-song-binding { grid-template-columns: 1fr; } .admin-song-binding-title, .admin-song-wide { grid-column: 1; } .admin-song-body { padding: 14px; } .admin-song-heading { align-items: flex-start; flex-direction: column; } }
+      @media (max-width: 650px) { .content { padding: 18px 12px 40px; } .topline { flex-direction: column; } .top-actions { justify-content: flex-start; } .metrics { grid-template-columns: repeat(2, 1fr); } .window { box-shadow: 4px 4px 0 var(--shadow); } .panel { padding: 14px 10px; } table { display: block; overflow-x: auto; white-space: nowrap; } .admin-song-grid, .admin-song-binding { grid-template-columns: 1fr; } .admin-song-binding-title, .admin-song-wide { grid-column: 1; } .admin-song-body { padding: 14px; } .admin-song-heading { align-items: flex-start; flex-direction: column; } .export-config-actions { align-items: flex-start; flex-direction: column; } }
       @media (max-width: 380px) { .metrics { grid-template-columns: 1fr; } }
     </style>
   </head>
@@ -133,6 +152,7 @@
           <button class="active" data-page="overview"><b>01</b><span>总览</span></button>
           <button data-page="library"><b>02</b><span>曲库管理</span></button>
           <button data-page="users"><b>03</b><span>用户管理</span></button>
+          <button data-page="export-methods"><b>04</b><span>导出方式</span></button>
         </nav>
         <div class="rail-foot"><span></span>TOKEN LINKED<br /><small>private / no-store</small></div>
       </aside>
@@ -157,6 +177,14 @@
 
         <section id="usersPage" data-view hidden>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><span id="userCount" class="tag">—</span></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID 或脱敏邮箱…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
+        </section>
+        <section id="export-methodsPage" data-view hidden>
+          <section class="window panel">
+            <div class="section-heading"><div><div class="eyebrow">EXPORT METHODS / BRAND BINDINGS</div><h3>导出方式</h3></div><span id="exportMethodsCount" class="tag">—</span></div>
+            <p class="admin-song-description">为每个导出方法选择适用品牌。首页会按这里的配置显示品牌徽标；方法顺序固定，不会被修改。</p>
+            <div id="exportMethodsConfig" class="export-config-grid"></div>
+            <div class="export-config-actions"><p id="exportMethodsStatus" class="export-config-status" role="status" aria-live="polite"></p><button id="saveExportMethodsButton" class="button" type="button">保存全部配置 →</button></div>
+          </section>
         </section>
         <div id="pageNotice" class="notice" role="status"></div>
       </main>
@@ -194,10 +222,36 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], users: [] };
+      const state = { token: "", overview: null, songs: [], users: [], exportMethods: { brands: [], methods: [] } };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
+      const brandPresentation = {
+        logitech: { label:"LOGITECH", small:"G HUB", className:"admin-export-logo--logitech", src:"../assets/brand-logos/logitech-g.svg" },
+        razer: { label:"RAZER", small:"SYNAPSE", className:"admin-export-logo--razer", src:"../assets/brand-logos/razer.svg" },
+        mchose: { label:"迈从", small:"MCHOSE", className:"admin-export-logo--mchose", src:"https://www.mchose.store/cdn/shop/files/Mchose_logo_6a0b71d4-d3a3-4605-9026-e7599f4a2e2d.png" },
+        rog: { label:"ROG", small:"ARMOURY CRATE", className:"admin-export-logo--rog", src:"https://press.asus.com/assets/w_1200,h_630/90767418-95b3-4934-b729-d5a6b1e97bd3/ROG-logo-white.png" },
+        recorder: { label:"REC", small:"通用录制", className:"admin-export-logo--recorder" },
+        atk: { label:"ATK", small:"GAMING GEAR", className:"admin-export-logo--atk", src:"../assets/brand-logos/atk.svg" },
+        vgn: { label:"VGN", small:"GAMING GEAR", className:"admin-export-logo--vgn", src:"../assets/brand-logos/vgn.svg" }
+      };
+      const adminBrandLogo = brandId => { const brand = brandPresentation[brandId]; if (!brand) return ""; return brand.src ? `<img src="${brand.src}" alt="" /><span>${brand.label}<small>${brand.small}</small></span>` : `<b>${brand.label}</b><span>${brand.small}</span>`; };
+      function renderExportMethods() {
+        const methods = state.exportMethods.methods || [];
+        const brands = state.exportMethods.brands || [];
+        $("#exportMethodsCount").textContent = `${methods.length} 个方法 · ${brands.length} 个品牌`;
+        $("#exportMethodsConfig").innerHTML = methods.length ? methods.map(method => `<article class="export-config-row"><h4>${escapeHtml(method.title)}</h4><p>${escapeHtml(method.description)}</p><div class="export-brand-options">${brands.map(brand => { const checked = method.brandIds.includes(brand.id); return `<span class="export-brand-option"><input id="export-${method.id}-${brand.id}" type="checkbox" data-export-method-id="${escapeHtml(method.id)}" data-export-brand-id="${escapeHtml(brand.id)}"${checked ? " checked" : ""} /><label for="export-${method.id}-${brand.id}" class="admin-export-logo ${brandPresentation[brand.id]?.className || ""}">${adminBrandLogo(brand.id)}</label></span>`; }).join("")}</div></article>`).join("") : '<div class="empty">暂无导出方式配置。</div>';
+      }
+      function setExportMethodsStatus(message = "", success = false) { const target = $("#exportMethodsStatus"); target.textContent = message; target.classList.toggle("success", Boolean(message && success)); }
+      async function loadExportMethods() { try { const result = await api("admin/export-methods"); state.exportMethods = result; renderExportMethods(); setExportMethodsStatus(); } catch (error) { setExportMethodsStatus(error.message || "无法读取导出方式配置。"); } }
+      async function saveExportMethods() {
+        const methods = (state.exportMethods.methods || []).map(method => ({ id: method.id, brandIds: [...document.querySelectorAll(`[data-export-method-id="${method.id}"]:checked`)].map(input => input.dataset.exportBrandId) }));
+        if (methods.some(method => !method.brandIds.length)) { setExportMethodsStatus("每个导出方式至少需要选择一个适用品牌。"); return; }
+        $("#saveExportMethodsButton").disabled = true; setExportMethodsStatus("正在保存…");
+        try { state.exportMethods = await api("admin/export-methods", { method:"PUT", body:JSON.stringify({ methods }) }); renderExportMethods(); setExportMethodsStatus("导出方式品牌配置已保存。", true); }
+        catch (error) { setExportMethodsStatus(error.message || "保存导出方式配置失败。"); }
+        finally { $("#saveExportMethodsButton").disabled = false; }
+      }
       async function api(path, options = {}) {
         const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
         const response = await fetch(`../api/${path}`, { ...options, headers: { Authorization: `Bearer ${state.token}`, Accept: "application/json", ...(!isFormData && options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) }, cache: "no-store" });
@@ -206,11 +260,11 @@
         return body;
       }
       function showPage(page) {
-        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "维护公开社区曲谱，设置推荐或移除不再展示的内容。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"] }[page];
+        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "维护公开社区曲谱，设置推荐或移除不再展示的内容。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用的品牌标签。"] }[page];
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
-        if (page === "library") loadLibrary(); if (page === "users") loadUsers();
+        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "export-methods") loadExportMethods();
       }
       function renderOverview() {
         const item = state.overview; if (!item) return;
@@ -295,7 +349,7 @@
       }
       async function loadAll() {
         setNotice("正在同步…");
-        try { const [overview, library, users] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api(`admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}`)]); state.overview = overview; state.songs = library.songs || []; state.users = users.users || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderUsers(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
+        try { const [overview, library, users, exportMethods] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api(`admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}`), api("admin/export-methods")]); state.overview = overview; state.songs = library.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderUsers(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
       }
       async function loadLibrary() { try { const result = await api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`); state.songs = result.songs || []; renderLibrary(); } catch (error) { setNotice(error.message); } }
       async function loadUsers() { try { const result = await api(`admin/users?q=${encodeURIComponent($("#userSearch").value)}`); state.users = result.users || []; renderUsers(); } catch (error) { setNotice(error.message); } }
@@ -305,6 +359,7 @@
       document.querySelectorAll("[data-jump]").forEach(link => link.addEventListener("click", event => { event.preventDefault(); showPage(link.dataset.jump); }));
       $("#refreshButton").addEventListener("click", loadAll); $("#logoutButton").addEventListener("click", () => { state.token = ""; sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
       $("#librarySearchButton").addEventListener("click", loadLibrary); $("#userSearchButton").addEventListener("click", loadUsers);
+      $("#saveExportMethodsButton").addEventListener("click", saveExportMethods);
       $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
       $("#libraryTable").addEventListener("click", async event => { const edit = event.target.closest("[data-edit-index]"), recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(edit?.dataset.editIndex ?? recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (edit) { openAdminSongDialog(song); return; } if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
       $("#adminSongSave").addEventListener("click", saveAdminSong);

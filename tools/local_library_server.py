@@ -18,6 +18,7 @@ import hashlib
 import hmac
 import json
 import os
+import queue
 import re
 import secrets
 import smtplib
@@ -64,12 +65,20 @@ MAX_ANALYTICS_REQUEST_BYTES = 25_000
 PUBLIC_UPLOAD_RATE_WINDOW_SECONDS = 30
 PUBLIC_UPLOAD_RATE_LIMIT = 5
 PUBLIC_EXPORT_COUNT_REFRESH_SECONDS = 10 * 60
+PUBLIC_ANALYTICS_SUMMARY_CACHE_SECONDS = 60
+PUBLIC_RANKINGS_CACHE_SECONDS = 5 * 60
 AUTH_CODE_TTL_SECONDS = 10 * 60
 AUTH_CODE_MAX_ATTEMPTS = 5
 AUTH_CODE_EMAIL_LIMIT = 5
 AUTH_CODE_IP_LIMIT = 12
 AUTH_CODE_RATE_WINDOW_SECONDS = 60 * 60
 AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
+AUTH_DATABASE_TIMEOUT_SECONDS = 3
+AUTH_MAIL_QUEUE_MAXSIZE = 64
+AUTH_MAIL_WORKERS = 2
+AUTH_SMTP_TIMEOUT_SECONDS = 15
+REQUEST_SOCKET_TIMEOUT_SECONDS = 30
+MAX_REQUEST_THREADS = 128
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 OAUTH_HTTP_TIMEOUT_SECONDS = 15
 AUTH_COOKIE_NAME = "delta_auth_session"
@@ -80,6 +89,35 @@ LEGACY_OWNER_USER_ID = "jiko"
 EXPORT_PROVIDER_EMAILS = {
     "mchose": "127709492@qq.com",
     "rog": "1960046012@qq.com",
+}
+EXPORT_BRAND_DEFINITIONS = (
+    {"id": "logitech", "label": "Logitech", "subLabel": "G HUB"},
+    {"id": "razer", "label": "Razer", "subLabel": "SYNAPSE"},
+    {"id": "mchose", "label": "迈从", "subLabel": "MCHOSE"},
+    {"id": "rog", "label": "ROG", "subLabel": "ARMOURY CRATE"},
+    {"id": "recorder", "label": "通用录制", "subLabel": "RECORDER"},
+    {"id": "atk", "label": "ATK", "subLabel": "GAMING GEAR"},
+    {"id": "vgn", "label": "VGN", "subLabel": "GAMING GEAR"},
+)
+EXPORT_METHOD_DEFINITIONS = (
+    {"id": "logitech", "title": "Logitech G HUB", "description": "Lua 脚本 · 手动粘贴"},
+    {"id": "razer-synapse-3", "title": "Razer Synapse 3", "description": "XML · 实验性兼容"},
+    {"id": "razer-synapse-4", "title": "Razer Synapse 4", "description": "XML · 实验性兼容"},
+    {"id": "mchose", "title": "迈从 MCHOSE", "description": "JSON · 宏文件"},
+    {"id": "rog", "title": "ROG Armoury Crate", "description": "GMAC · 宏配置文件"},
+    {"id": "recording-helper", "title": "口琴鼠标宏录制助手", "description": "Windows 64 位 · 一键录制"},
+    {"id": "manual-entry", "title": "手动输入宏", "description": "三角洲键盘模式 · 谱子预览"},
+)
+EXPORT_BRAND_IDS = {item["id"] for item in EXPORT_BRAND_DEFINITIONS}
+EXPORT_METHOD_IDS = {item["id"] for item in EXPORT_METHOD_DEFINITIONS}
+EXPORT_DEFAULT_BRANDS = {
+    "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn"],
+    "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn"],
+    "logitech": ["logitech"],
+    "razer-synapse-3": ["razer"],
+    "razer-synapse-4": ["razer"],
+    "mchose": ["mchose"],
+    "rog": ["rog"],
 }
 AUTH_DATABASE = REPOSITORY_ROOT / "data" / "auth.sqlite3"
 HOT_RANKING_DATABASE = REPOSITORY_ROOT / "data" / "hot-rankings.sqlite3"
@@ -93,6 +131,10 @@ AUTH_LOCK = threading.Lock()
 HOT_RANKING_LOCK = threading.Lock()
 PUBLIC_EXPORT_COUNT_CACHE_LOCK = threading.Lock()
 PUBLIC_EXPORT_COUNT_CACHE: dict[int, tuple[float, dict[str, Any]]] = {}
+PUBLIC_ANALYTICS_SUMMARY_CACHE_LOCK = threading.Lock()
+PUBLIC_ANALYTICS_SUMMARY_CACHE: tuple[float, dict[str, int]] | None = None
+PUBLIC_RANKINGS_CACHE_LOCK = threading.Lock()
+PUBLIC_RANKINGS_CACHE: tuple[float, dict[str, Any]] | None = None
 ANALYTICS_DIRECTORY = REPOSITORY_ROOT / "data" / "analytics"
 DEFAULT_ANALYTICS_RETENTION_DAYS = 90
 ACTIVE_VISITOR_WINDOW_SECONDS = 300
@@ -406,32 +448,41 @@ def build_analytics_report(days: int) -> dict[str, Any]:
 
 def build_public_analytics_summary() -> dict[str, int]:
     """Return only aggregate counts suitable for the public site header."""
-    now = datetime.now(timezone.utc)
-    today_sessions: set[str] = set()
-    latest_seen: dict[str, datetime] = {}
-    path = analytics_event_path(now.date())
-    if path.exists():
-        try:
-            for line in path.read_text(encoding="utf-8").splitlines():
-                item = json.loads(line)
-                if not isinstance(item, dict) or not isinstance(item.get("session"), str):
-                    continue
-                try:
-                    recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
-                except ValueError:
-                    continue
-                if item.get("event") == "page_view":
-                    today_sessions.add(item["session"])
-                if recorded_at <= now and recorded_at > latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
-                    latest_seen[item["session"]] = recorded_at
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
-            pass
-    cutoff = now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS)
-    return {
-        "activeVisitors": sum(recorded_at >= cutoff for recorded_at in latest_seen.values()),
-        "todayVisitors": len(today_sessions),
-        "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
-    }
+    global PUBLIC_ANALYTICS_SUMMARY_CACHE
+    now_monotonic = time.monotonic()
+    with PUBLIC_ANALYTICS_SUMMARY_CACHE_LOCK:
+        cached = PUBLIC_ANALYTICS_SUMMARY_CACHE
+        if cached and now_monotonic - cached[0] < PUBLIC_ANALYTICS_SUMMARY_CACHE_SECONDS:
+            return cached[1]
+
+        now = datetime.now(timezone.utc)
+        today_sessions: set[str] = set()
+        latest_seen: dict[str, datetime] = {}
+        path = analytics_event_path(now.date())
+        if path.exists():
+            try:
+                for line in path.read_text(encoding="utf-8").splitlines():
+                    item = json.loads(line)
+                    if not isinstance(item, dict) or not isinstance(item.get("session"), str):
+                        continue
+                    try:
+                        recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
+                    except ValueError:
+                        continue
+                    if item.get("event") == "page_view":
+                        today_sessions.add(item["session"])
+                    if recorded_at <= now and recorded_at > latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
+                        latest_seen[item["session"]] = recorded_at
+            except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+                pass
+        cutoff = now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS)
+        summary = {
+            "activeVisitors": sum(recorded_at >= cutoff for recorded_at in latest_seen.values()),
+            "todayVisitors": len(today_sessions),
+            "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
+        }
+        PUBLIC_ANALYTICS_SUMMARY_CACHE = (time.monotonic(), summary)
+        return summary
 
 
 def analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
@@ -589,14 +640,23 @@ def contribution_ranking(auth_enabled: bool, retention_days: int) -> list[dict[s
 
 def build_public_rankings(auth_enabled: bool, retention_days: int) -> dict[str, Any]:
     """Build the privacy-safe rankings consumed by the public homepage."""
-    yesterday = datetime.now().astimezone().date() - timedelta(days=1)
-    return {
-        "rankingDate": yesterday.isoformat(),
-        "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "uploads": upload_ranking(auth_enabled),
-        "contributions": contribution_ranking(auth_enabled, retention_days),
-        "yesterdayExports": yesterday_export_ranking(),
-    }
+    global PUBLIC_RANKINGS_CACHE
+    now_monotonic = time.monotonic()
+    with PUBLIC_RANKINGS_CACHE_LOCK:
+        cached = PUBLIC_RANKINGS_CACHE
+        if cached and now_monotonic - cached[0] < PUBLIC_RANKINGS_CACHE_SECONDS:
+            return cached[1]
+
+        yesterday = datetime.now().astimezone().date() - timedelta(days=1)
+        rankings = {
+            "rankingDate": yesterday.isoformat(),
+            "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+            "uploads": upload_ranking(auth_enabled),
+            "contributions": contribution_ranking(auth_enabled, retention_days),
+            "yesterdayExports": yesterday_export_ranking(),
+        }
+        PUBLIC_RANKINGS_CACHE = (time.monotonic(), rankings)
+        return rankings
 
 
 def hot_ranking_database() -> sqlite3.Connection:
@@ -926,9 +986,10 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
 def auth_database() -> sqlite3.Connection:
     """Open the small persistent account store with safe per-request settings."""
     AUTH_DATABASE.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(AUTH_DATABASE)
+    connection = sqlite3.connect(AUTH_DATABASE, timeout=AUTH_DATABASE_TIMEOUT_SECONDS)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
+    connection.execute(f"PRAGMA busy_timeout = {AUTH_DATABASE_TIMEOUT_SECONDS * 1000}")
     return connection
 
 
@@ -979,8 +1040,24 @@ def initialize_auth_database() -> None:
                 shared_by TEXT NOT NULL COLLATE NOCASE,
                 created_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS export_method_brands (
+                method_id TEXT NOT NULL,
+                brand_id TEXT NOT NULL,
+                PRIMARY KEY(method_id, brand_id)
+            );
             CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
         """)
+        for method_id, brand_ids in EXPORT_DEFAULT_BRANDS.items():
+            existing = connection.execute(
+                "SELECT 1 FROM export_method_brands WHERE method_id = ? LIMIT 1",
+                (method_id,),
+            ).fetchone()
+            if existing:
+                continue
+            connection.executemany(
+                "INSERT OR IGNORE INTO export_method_brands(method_id, brand_id) VALUES (?, ?)",
+                [(method_id, brand_id) for brand_id in brand_ids],
+            )
 
 
 def migrate_identity_tables() -> None:
@@ -1070,6 +1147,7 @@ def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
 
 def export_provider_payload() -> dict[str, str]:
     """Return only the current provider IDs used on the export cards."""
+    initialize_auth_database()
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
             "SELECT email, user_id FROM accounts WHERE lower(email) IN (?, ?)",
@@ -1080,6 +1158,57 @@ def export_provider_payload() -> dict[str, str]:
         provider: user_ids.get(email.casefold(), "")
         for provider, email in EXPORT_PROVIDER_EMAILS.items()
     }
+
+
+def export_methods_payload() -> dict[str, Any]:
+    """Return the fixed export method and brand catalogue for the public UI."""
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT method_id, brand_id FROM export_method_brands ORDER BY method_id, brand_id"
+        ).fetchall()
+    bindings: dict[str, set[str]] = {method_id: set() for method_id in EXPORT_METHOD_IDS}
+    for row in rows:
+        if row["method_id"] in bindings and row["brand_id"] in EXPORT_BRAND_IDS:
+            bindings[row["method_id"]].add(row["brand_id"])
+    return {
+        "brands": [dict(item) for item in EXPORT_BRAND_DEFINITIONS],
+        "methods": [
+            {**dict(method), "brandIds": [brand["id"] for brand in EXPORT_BRAND_DEFINITIONS if brand["id"] in bindings[method["id"]]] or list(EXPORT_DEFAULT_BRANDS[method["id"]])}
+            for method in EXPORT_METHOD_DEFINITIONS
+        ],
+    }
+
+
+def update_export_methods(payload: Any) -> dict[str, Any]:
+    """Validate and persist the complete export-method brand mapping."""
+    if not isinstance(payload, dict) or not isinstance(payload.get("methods"), list):
+        raise ValueError("导出方式配置格式无效。")
+    submitted: dict[str, list[str]] = {}
+    for item in payload["methods"]:
+        if not isinstance(item, dict):
+            raise ValueError("导出方式配置项无效。")
+        method_id = item.get("id")
+        brand_ids = item.get("brandIds")
+        if not isinstance(method_id, str) or method_id not in EXPORT_METHOD_IDS or method_id in submitted:
+            raise ValueError("导出方式 ID 无效或重复。")
+        if not isinstance(brand_ids, list) or not brand_ids:
+            raise ValueError("每个导出方式至少需要选择一个适用品牌。")
+        cleaned = [str(brand_id).strip() for brand_id in brand_ids]
+        if len(cleaned) != len(set(cleaned)) or any(brand_id not in EXPORT_BRAND_IDS for brand_id in cleaned):
+            raise ValueError("适用品牌 ID 无效或重复。")
+        submitted[method_id] = cleaned
+    if set(submitted) != EXPORT_METHOD_IDS:
+        raise ValueError("必须同时提交全部导出方式配置。")
+
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("DELETE FROM export_method_brands")
+        connection.executemany(
+            "INSERT INTO export_method_brands(method_id, brand_id) VALUES (?, ?)",
+            [(method_id, brand_id) for method_id, brand_ids in submitted.items() for brand_id in brand_ids],
+        )
+    return export_methods_payload()
 
 
 def recommendation_identity(payload: Any) -> dict[str, str]:
@@ -1448,15 +1577,89 @@ def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str,
         return connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
 
 
+def send_auth_email(server: ThreadingHTTPServer, message: EmailMessage) -> None:
+    """Send one verification email without holding an HTTP request thread."""
+    if server.smtp_ssl:
+        with smtplib.SMTP_SSL(
+            server.smtp_host,
+            server.smtp_port,
+            context=ssl.create_default_context(),
+            timeout=AUTH_SMTP_TIMEOUT_SECONDS,
+        ) as smtp:
+            if server.smtp_username:
+                smtp.login(server.smtp_username, server.smtp_password)
+            smtp.send_message(message)
+        return
+    with smtplib.SMTP(server.smtp_host, server.smtp_port, timeout=AUTH_SMTP_TIMEOUT_SECONDS) as smtp:
+        smtp.ehlo()
+        if server.smtp_starttls:
+            smtp.starttls(context=ssl.create_default_context())
+            smtp.ehlo()
+        if server.smtp_username:
+            smtp.login(server.smtp_username, server.smtp_password)
+        smtp.send_message(message)
+
+
+class AuthMailDispatcher:
+    """Bound SMTP worker pool so slow mail providers cannot exhaust HTTP threads."""
+
+    def __init__(self, server: ThreadingHTTPServer) -> None:
+        self.server = server
+        self.jobs: queue.Queue[tuple[str, str, EmailMessage]] = queue.Queue(maxsize=AUTH_MAIL_QUEUE_MAXSIZE)
+        self.stop_event = threading.Event()
+        self.workers = [
+            threading.Thread(target=self._run, name=f"auth-mail-{index}", daemon=True)
+            for index in range(1, AUTH_MAIL_WORKERS + 1)
+        ]
+        for worker in self.workers:
+            worker.start()
+
+    def submit(self, email: str, code_hash: str, message: EmailMessage) -> None:
+        try:
+            self.jobs.put_nowait((email, code_hash, message))
+        except queue.Full as error:
+            raise ValueError("验证码邮件服务繁忙，请稍后重试。") from error
+
+    def _discard_code_if_current(self, email: str, code_hash: str) -> None:
+        try:
+            with AUTH_LOCK, auth_database() as connection:
+                connection.execute(
+                    "DELETE FROM email_codes WHERE email = ? AND code_hash = ?",
+                    (email, code_hash),
+                )
+        except sqlite3.Error as error:
+            print(f"验证码邮件失败后清理验证码记录失败：{error}", file=sys.stderr, flush=True)
+
+    def _run(self) -> None:
+        while not self.stop_event.is_set() or not self.jobs.empty():
+            try:
+                email, code_hash, message = self.jobs.get(timeout=0.5)
+            except queue.Empty:
+                continue
+            try:
+                send_auth_email(self.server, message)
+            except (OSError, smtplib.SMTPException) as error:
+                self._discard_code_if_current(email, code_hash)
+                print(f"验证码邮件发送失败（{email}）：{error}", file=sys.stderr, flush=True)
+            finally:
+                self.jobs.task_done()
+
+    def close(self, timeout: float = 1.0) -> None:
+        self.stop_event.set()
+        for worker in self.workers:
+            worker.join(timeout=timeout)
+
+
 def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> None:
     now = now_timestamp()
+    code = f"{secrets.randbelow(1_000_000):06d}"
+    code_hash = auth_digest(server, code)
     with AUTH_LOCK, auth_database() as connection:
         connection.execute("DELETE FROM email_codes WHERE expires_at <= ?", (now,))
-        code = f"{secrets.randbelow(1_000_000):06d}"
         connection.execute(
             "INSERT INTO email_codes(email, code_hash, expires_at, attempts) VALUES (?, ?, ?, 0) "
             "ON CONFLICT(email) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, attempts=0",
-            (email, auth_digest(server, code), now + AUTH_CODE_TTL_SECONDS),
+            (email, code_hash, now + AUTH_CODE_TTL_SECONDS),
         )
     if server.auth_code_log_only:
         print(f"[AUTH TEST ONLY] Verification code for {email}: {code}", flush=True)
@@ -1467,24 +1670,14 @@ def request_auth_code(server: ThreadingHTTPServer, email: str, client: str) -> N
     message["To"] = email
     message.set_content(f"你的登录验证码是：{code}\n\n验证码将在 10 分钟后失效。若不是你本人操作，请忽略此邮件。")
     try:
-        if server.smtp_ssl:
-            with smtplib.SMTP_SSL(server.smtp_host, server.smtp_port, context=ssl.create_default_context(), timeout=15) as smtp:
-                if server.smtp_username:
-                    smtp.login(server.smtp_username, server.smtp_password)
-                smtp.send_message(message)
-        else:
-            with smtplib.SMTP(server.smtp_host, server.smtp_port, timeout=15) as smtp:
-                smtp.ehlo()
-                if server.smtp_starttls:
-                    smtp.starttls(context=ssl.create_default_context())
-                    smtp.ehlo()
-                if server.smtp_username:
-                    smtp.login(server.smtp_username, server.smtp_password)
-                smtp.send_message(message)
-    except (OSError, smtplib.SMTPException) as error:
+        server.auth_mail_dispatcher.submit(email, code_hash, message)
+    except ValueError:
         with AUTH_LOCK, auth_database() as connection:
-            connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
-        raise ValueError("验证码邮件发送失败，请稍后重试。") from error
+            connection.execute(
+                "DELETE FROM email_codes WHERE email = ? AND code_hash = ?",
+                (email, code_hash),
+            )
+        raise
 
 
 def auth_rate_allowed(server: ThreadingHTTPServer, key: str, limit: int) -> bool:
@@ -1655,8 +1848,39 @@ def rename_account_user_id(account: sqlite3.Row, user_id: Any) -> list[dict[str,
         return songs
 
 
+class BoundedThreadingHTTPServer(ThreadingHTTPServer):
+    """Keep slow or abandoned clients from creating unbounded request threads."""
+
+    allow_reuse_address = True
+    daemon_threads = True
+    block_on_close = False
+    request_queue_size = 128
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.request_slots = threading.BoundedSemaphore(MAX_REQUEST_THREADS)
+
+    def process_request(self, request: Any, client_address: Any) -> None:
+        if not self.request_slots.acquire(timeout=1):
+            self.shutdown_request(request)
+            return
+
+        def run_request() -> None:
+            try:
+                self.process_request_thread(request, client_address)
+            finally:
+                self.request_slots.release()
+
+        thread = threading.Thread(target=run_request, daemon=True)
+        thread.start()
+
+
 class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
+
+    def setup(self) -> None:  # noqa: D401
+        super().setup()
+        self.connection.settimeout(REQUEST_SOCKET_TIMEOUT_SECONDS)
 
     def end_headers(self) -> None:  # noqa: N802
         """Make ordinary reloads see newly deployed static files.
@@ -1678,6 +1902,13 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             else:
                 cache_control = "no-cache, must-revalidate"
             self.send_header("Cache-Control", cache_control)
+        has_connection_header = any(
+            header.lower().startswith(b"connection:")
+            for header in self._headers_buffer
+        )
+        if not has_connection_header:
+            self.send_header("Connection", "close")
+        self.close_connection = True
         super().end_headers()
 
     def send_json(self, status: HTTPStatus, payload: dict[str, Any]) -> None:
@@ -1938,7 +2169,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.server.auth_enabled:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "认证尚未启用。"})
                 return
-            account = authenticate_request(self)
+            try:
+                account = authenticate_request(self)
+            except sqlite3.Error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
+                return
             if not account:
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
                 return
@@ -2002,6 +2237,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 },
             })
             return
+        if path == "/api/admin/export-methods":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, export_methods_payload())
+            return
         if path == "/api/admin/library":
             if not self.is_admin_console_request():
                 return
@@ -2026,6 +2266,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return
         if path == "/api/public-library/export-providers":
             self.send_json(HTTPStatus.OK, export_provider_payload())
+            return
+        if path == "/api/export-methods":
+            self.send_json(HTTPStatus.OK, export_methods_payload())
             return
         if path == "/api/public-library/status":
             if not self.server.public_library:
@@ -2135,6 +2378,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                     self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "验证码发送过于频繁，请稍后再试。"})
                     return
                 request_auth_code(self.server, email, client)
+            except sqlite3.Error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
+                return
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法发送验证码。"})
                 return
@@ -2153,6 +2399,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                     raise ValueError("认证请求格式无效。")
                 account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"), payload.get("mode"))
                 token = issue_session(self.server, account["id"])
+            except sqlite3.Error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
+                return
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法完成登录。"})
                 return
@@ -2327,6 +2576,20 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return
         self.send_json(HTTPStatus.OK, {"action": "deleted", "songs": songs})
 
+    def do_PUT(self) -> None:  # noqa: N802
+        path = self.path.split("?", 1)[0]
+        if path != "/api/admin/export-methods":
+            self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到管理接口。"})
+            return
+        if not self.is_admin_console_request():
+            return
+        try:
+            updated = update_export_methods(self.read_payload())
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存导出方式配置。"})
+            return
+        self.send_json(HTTPStatus.OK, updated)
+
     def do_PATCH(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
         if path == "/api/admin/library/song":
@@ -2461,7 +2724,7 @@ def main() -> int:
 
     handler = lambda *args_, **kwargs: LocalLibraryRequestHandler(*args_, directory=str(REPOSITORY_ROOT), **kwargs)
     host = "0.0.0.0" if args.public else "127.0.0.1"
-    server = ThreadingHTTPServer((host, args.port), handler)
+    server = BoundedThreadingHTTPServer((host, args.port), handler)
     server.public_library = args.public
     server.trust_proxy = args.trust_proxy
     server.analytics_admin_token = args.analytics_admin_token
@@ -2486,6 +2749,7 @@ def main() -> int:
     server.oauth_state_lock = threading.Lock()
     server.auth_code_requests: dict[str, list[float]] = {}
     server.auth_rate_limit_lock = threading.Lock()
+    server.auth_mail_dispatcher: AuthMailDispatcher | None = None
     server.hot_ranking_stop_event = threading.Event()
     server.hot_ranking_thread: threading.Thread | None = None
     if server.auth_enabled or server.analytics_enabled:
@@ -2493,6 +2757,8 @@ def main() -> int:
         migrate_identity_tables()
     if server.auth_enabled:
         backfill_legacy_score_owners_for_known_account()
+    if server.email_auth_enabled and not server.auth_code_log_only:
+        server.auth_mail_dispatcher = AuthMailDispatcher(server)
     if server.analytics_enabled:
         initialize_hot_ranking_database()
         try:
@@ -2525,6 +2791,8 @@ def main() -> int:
     except KeyboardInterrupt:
         print("\n本地维护服务已停止。")
     finally:
+        if server.auth_mail_dispatcher:
+            server.auth_mail_dispatcher.close()
         server.hot_ranking_stop_event.set()
         if server.hot_ranking_thread:
             server.hot_ranking_thread.join(timeout=1)

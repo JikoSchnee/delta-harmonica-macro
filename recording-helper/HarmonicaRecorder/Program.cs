@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.IO.Compression;
+using System.IO.Pipes;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,13 +11,93 @@ namespace HarmonicaRecorder;
 
 internal static class Program
 {
+    private const string SingleInstanceMutexName = "Local\\HarmonicaRecorder.SingleInstance";
+
     [STAThread]
     private static void Main(string[] args)
     {
+        using var mutex = new Mutex(true, SingleInstanceMutexName, out var createdNew);
+        var protocolArgument = args.FirstOrDefault(argument => argument.StartsWith("harmonica-recorder:", StringComparison.OrdinalIgnoreCase));
+        if (!createdNew)
+        {
+            if (SingleInstanceBridge.TryForward(protocolArgument)) return;
+            // The first instance may still be creating its pipe after taking
+            // the mutex. Give it a short window before treating the launch as
+            // handled; never open a second independent helper window.
+            for (var attempt = 0; attempt < 3 && !SingleInstanceBridge.TryForward(protocolArgument); attempt++) Thread.Sleep(250);
+            return;
+        }
+
         ApplicationConfiguration.Initialize();
-        var request = PlaybackRequest.FromProtocolArgument(args.FirstOrDefault());
+        var request = PlaybackRequest.FromProtocolArgument(protocolArgument);
         var updateCompleted = args.Any(argument => string.Equals(argument, "--update-complete", StringComparison.OrdinalIgnoreCase));
-        Application.Run(new RecorderForm(request, updateCompleted));
+        using var form = new RecorderForm(request, updateCompleted);
+        using var bridge = new SingleInstanceBridge(form.ReceiveProtocolArgument);
+        bridge.Start();
+        Application.Run(form);
+    }
+}
+
+internal sealed class SingleInstanceBridge : IDisposable
+{
+    private const string PipeName = "HarmonicaRecorder.Protocol";
+    private readonly Action<string?> receive;
+    private readonly CancellationTokenSource cancellation = new();
+    private Task? listener;
+
+    internal SingleInstanceBridge(Action<string?> receive) => this.receive = receive;
+
+    internal void Start() => listener = ListenAsync();
+
+    internal static bool TryForward(string? protocolArgument)
+    {
+        try
+        {
+            using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out, PipeOptions.None);
+            client.Connect(350);
+            using var writer = new BinaryWriter(client, Encoding.UTF8, leaveOpen: false);
+            writer.Write(protocolArgument ?? string.Empty);
+            writer.Flush();
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private async Task ListenAsync()
+    {
+        while (!cancellation.IsCancellationRequested)
+        {
+            try
+            {
+                using var server = CreateServer();
+                await server.WaitForConnectionAsync(cancellation.Token);
+                using var reader = new BinaryReader(server, Encoding.UTF8, leaveOpen: false);
+                var argument = reader.ReadString();
+                receive(string.IsNullOrWhiteSpace(argument) ? null : argument);
+            }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+            catch (Exception) when (!cancellation.IsCancellationRequested) { }
+        }
+    }
+
+    private static NamedPipeServerStream CreateServer()
+    {
+        return new NamedPipeServerStream(
+            PipeName,
+            PipeDirection.In,
+            1,
+            PipeTransmissionMode.Byte,
+            PipeOptions.Asynchronous);
+    }
+
+    public void Dispose()
+    {
+        cancellation.Cancel();
+        try { listener?.Wait(500); } catch (Exception) { }
+        cancellation.Dispose();
     }
 }
 
@@ -143,26 +224,44 @@ internal sealed class RecorderForm : Form
     private const string UpdateManifestUrl = "https://jiko-official.top/delta/recording-helper/version.json";
     private const int HotKeyId = 1;
     private const int WmHotKey = 0x0312;
-    private readonly PlaybackRequest? request;
+    private static readonly PlaybackEvent[] BuiltInTestEvents =
+    [
+        new() { WaitMs = 250 },
+        new() { Key = "z", HoldMs = 100, WaitMs = 120 },
+        new() { Key = ",", HoldMs = 100, WaitMs = 120 },
+        new() { Key = "x", Modifiers = "L", HoldMs = 100, WaitMs = 120 },
+        new() { Key = "c", Modifiers = "M", HoldMs = 100, WaitMs = 120 },
+        new() { Key = "v", Modifiers = "R", HoldMs = 100, WaitMs = 120 },
+        new() { Key = "b", Modifiers = "LM", HoldMs = 100, WaitMs = 120 },
+        new() { Key = "n", Modifiers = "RM", HoldMs = 100, WaitMs = 120 }
+    ];
+    private PlaybackRequest? request;
     private readonly bool updateCompleted;
     private readonly Label titleLabel = new();
     private readonly Label detailsLabel = new();
     private readonly Label statusLabel = new();
     private readonly Label hotKeyLabel = new();
     private readonly TextBox hotKeyBox = new();
-    private readonly Label inputModeLabel = new();
-    private readonly ComboBox inputModeBox = new();
+    private readonly Label keyboardModeLabel = new();
+    private readonly ComboBox keyboardModeBox = new();
+    private readonly Label mouseModeLabel = new();
+    private readonly ComboBox mouseModeBox = new();
+    private readonly CheckBox closeAfterImportBox = new();
     private readonly Label progressLabel = new();
     private readonly ProgressBar progressBar = new();
     private readonly Label remainingLabel = new();
+    private readonly Button testButton = new();
     private readonly Button startButton = new();
     private readonly Button stopButton = new();
     private CancellationTokenSource? cancellation;
     private string? activeKey;
     private readonly List<char> activeModifiers = [];
     private HotKeyOption activeHotKey = null!;
-    private InputInjectionMode activeInputMode = null!;
-    private InputInjectionMode activePlaybackInputMode = null!;
+    private KeyboardInjectionOption activeKeyboardMode = null!;
+    private MouseInjectionOption activeMouseMode = null!;
+    private InputInjectionSelection activePlaybackInputMode = null!;
+    private PlaybackRunKind? activeRunKind;
+    private long activePlaybackTotalMs;
     private bool hotKeyRegistered;
     private long lastProgressReport = -1;
 
@@ -175,7 +274,7 @@ internal sealed class RecorderForm : Form
         MaximizeBox = false;
         MinimizeBox = true;
         StartPosition = FormStartPosition.CenterScreen;
-        ClientSize = new Size(510, 388);
+        ClientSize = new Size(510, 459);
         BackColor = Color.FromArgb(8, 39, 37);
         ForeColor = Color.FromArgb(216, 255, 255);
         Font = new Font("Microsoft YaHei UI", 10F);
@@ -186,59 +285,82 @@ internal sealed class RecorderForm : Form
         detailsLabel.SetBounds(22, 96, 466, 38);
         detailsLabel.ForeColor = Color.FromArgb(170, 205, 202);
         detailsLabel.Font = new Font("Consolas", 9F);
-        statusLabel.SetBounds(22, 147, 466, 55);
+        statusLabel.SetBounds(22, 147, 466, 70);
         statusLabel.BackColor = Color.FromArgb(12, 63, 60);
         statusLabel.BorderStyle = BorderStyle.FixedSingle;
         statusLabel.Padding = new Padding(10, 8, 10, 8);
         statusLabel.Font = new Font("Microsoft YaHei UI", 9F);
-        hotKeyLabel.SetBounds(22, 214, 184, 27);
+        hotKeyLabel.SetBounds(22, 229, 184, 27);
         hotKeyLabel.Text = "紧急停止快捷键（点击后按键）";
         hotKeyLabel.TextAlign = ContentAlignment.MiddleLeft;
-        hotKeyBox.SetBounds(208, 211, 280, 29);
+        hotKeyBox.SetBounds(208, 226, 280, 29);
         hotKeyBox.ReadOnly = true;
         hotKeyBox.TabStop = true;
         hotKeyBox.TextAlign = HorizontalAlignment.Center;
         hotKeyBox.Text = "正在读取快捷键…";
         activeHotKey = EmergencyStopHotKeySettings.Load() ?? HotKeyOption.Default;
         hotKeyBox.Text = activeHotKey.DisplayName;
-        inputModeLabel.SetBounds(22, 247, 184, 27);
-        inputModeLabel.Text = "输入兼容模式（可逐项测试）";
-        inputModeLabel.TextAlign = ContentAlignment.MiddleLeft;
-        inputModeBox.SetBounds(208, 244, 280, 29);
-        inputModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
-        inputModeBox.FlatStyle = FlatStyle.Flat;
-        inputModeBox.DropDownWidth = 420;
-        inputModeBox.Items.AddRange(InputInjectionMode.All);
-        activeInputMode = InputInjectionMode.Default;
-        inputModeBox.SelectedItem = activeInputMode;
-        progressLabel.SetBounds(22, 280, 184, 27);
+        keyboardModeLabel.SetBounds(22, 262, 184, 27);
+        keyboardModeLabel.Text = "键盘方案";
+        keyboardModeLabel.TextAlign = ContentAlignment.MiddleLeft;
+        keyboardModeBox.SetBounds(208, 259, 280, 29);
+        keyboardModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        keyboardModeBox.FlatStyle = FlatStyle.Flat;
+        keyboardModeBox.DropDownWidth = 420;
+        keyboardModeBox.Items.AddRange(KeyboardInjectionOption.All);
+        activeKeyboardMode = KeyboardInjectionOption.Default;
+        keyboardModeBox.SelectedItem = activeKeyboardMode;
+        mouseModeLabel.SetBounds(22, 295, 184, 27);
+        mouseModeLabel.Text = "鼠标方案";
+        mouseModeLabel.TextAlign = ContentAlignment.MiddleLeft;
+        mouseModeBox.SetBounds(208, 292, 280, 29);
+        mouseModeBox.DropDownStyle = ComboBoxStyle.DropDownList;
+        mouseModeBox.FlatStyle = FlatStyle.Flat;
+        mouseModeBox.DropDownWidth = 420;
+        mouseModeBox.Items.AddRange(MouseInjectionOption.All);
+        activeMouseMode = MouseInjectionOption.Default;
+        mouseModeBox.SelectedItem = activeMouseMode;
+        closeAfterImportBox.SetBounds(208, 326, 280, 27);
+        closeAfterImportBox.AutoSize = true;
+        closeAfterImportBox.Text = "导入完成后关闭小助手";
+        closeAfterImportBox.Checked = true;
+        closeAfterImportBox.ForeColor = Color.FromArgb(216, 255, 255);
+        progressLabel.SetBounds(22, 359, 184, 27);
         progressLabel.Text = "录制进度 / 剩余时间";
         progressLabel.TextAlign = ContentAlignment.MiddleLeft;
-        progressBar.SetBounds(208, 282, 180, 22);
+        progressBar.SetBounds(208, 361, 180, 22);
         progressBar.Minimum = 0;
         progressBar.Maximum = 1000;
         progressBar.Value = 0;
-        remainingLabel.SetBounds(394, 280, 94, 27);
+        remainingLabel.SetBounds(394, 359, 94, 27);
         remainingLabel.Text = "剩余 --:--";
         remainingLabel.TextAlign = ContentAlignment.MiddleRight;
-        startButton.SetBounds(278, 323, 138, 42);
+        testButton.SetBounds(208, 402, 110, 42);
+        testButton.Text = "测试输入";
+        testButton.BackColor = Color.FromArgb(106, 55, 119);
+        testButton.ForeColor = Color.White;
+        testButton.FlatStyle = FlatStyle.Flat;
+        testButton.FlatAppearance.BorderColor = Color.FromArgb(178, 129, 187);
+        startButton.SetBounds(326, 402, 100, 42);
         startButton.Text = "开始录制";
         startButton.BackColor = Color.FromArgb(0, 123, 120);
         startButton.ForeColor = Color.White;
         startButton.FlatStyle = FlatStyle.Flat;
         startButton.FlatAppearance.BorderColor = Color.FromArgb(91, 185, 178);
-        stopButton.SetBounds(426, 323, 62, 42);
+        stopButton.SetBounds(434, 402, 54, 42);
         stopButton.Text = "停止";
         stopButton.Enabled = false;
         stopButton.FlatStyle = FlatStyle.Flat;
         stopButton.FlatAppearance.BorderColor = Color.FromArgb(137, 92, 153);
 
-        Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, hotKeyLabel, hotKeyBox, inputModeLabel, inputModeBox, progressLabel, progressBar, remainingLabel, startButton, stopButton]);
+        Controls.AddRange([banner, titleLabel, detailsLabel, statusLabel, hotKeyLabel, hotKeyBox, keyboardModeLabel, keyboardModeBox, mouseModeLabel, mouseModeBox, closeAfterImportBox, progressLabel, progressBar, remainingLabel, testButton, startButton, stopButton]);
+        testButton.Click += async (_, _) => await StartInputTestAsync();
         startButton.Click += async (_, _) => await StartPlaybackAsync();
         stopButton.Click += (_, _) => StopPlayback("已停止，并已释放本助手按下的按键。");
         hotKeyBox.Enter += (_, _) => hotKeyBox.SelectAll();
         hotKeyBox.KeyDown += CaptureEmergencyStopHotKey;
-        inputModeBox.SelectedIndexChanged += (_, _) => UpdateInputMode();
+        keyboardModeBox.SelectedIndexChanged += (_, _) => UpdateInputSelection();
+        mouseModeBox.SelectedIndexChanged += (_, _) => UpdateInputSelection();
         FormClosing += (_, _) => StopPlayback("正在退出。");
         Shown += async (_, _) => await CheckForUpdatesAsync();
         if (updateCompleted) Shown += (_, _) => ShowUpdateCompletedNotice();
@@ -246,15 +368,15 @@ internal sealed class RecorderForm : Form
         if (request is null)
         {
             titleLabel.Text = "等待从网页导入曲谱";
-            detailsLabel.Text = "请在网站的「口琴鼠标宏录制助手」卡片中点击“导出到宏录制助手”。";
-            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n紧急停止：{activeHotKey.DisplayName} · 反馈 QQ 群：{QqGroup}";
+            detailsLabel.Text = "可直接点击“测试输入”；导入曲谱请在网站点击“导出到宏录制助手”。";
+            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n建议右键 EXE → 属性 → 兼容性，勾选“以管理员身份运行此程序”。\n紧急停止：{activeHotKey.DisplayName} · 反馈 QQ 群：{QqGroup}";
             startButton.Enabled = false;
         }
         else if (!request.IsVersionCompatible)
         {
             titleLabel.Text = "网页与助手版本不匹配";
             detailsLabel.Text = $"网页 v{request.WebVersion ?? "未知"} · 本助手 v{PlaybackRequest.HelperVersion}";
-            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；反馈 QQ 群：{QqGroup}";
+            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；建议将 EXE 设置为始终以管理员身份运行。\n反馈 QQ 群：{QqGroup}";
             startButton.Enabled = false;
             Shown += (_, _) => MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n网页兼容范围：{request.CompatibleHelperVersionLabel}\n\n请下载兼容范围内的助手版本，并运行 Install.cmd。\n反馈 QQ 群：{QqGroup}", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
@@ -262,8 +384,86 @@ internal sealed class RecorderForm : Form
         {
             titleLabel.Text = request.Title;
             detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 总时长 {FormatDuration(request.TotalDurationMs)} · v{PlaybackRequest.HelperVersion}";
-            statusLabel.Text = $"先在目标宏软件中打开录制，再回到本助手点击“开始录制”。\n录制期间请勿操作鼠标或键盘，并让鼠标焦点始终停留在本助手；紧急停止：{activeHotKey.DisplayName}";
+            statusLabel.Text = $"先在目标宏软件中打开录制，再回到本助手点击“开始录制”。\n录制期间请勿操作鼠标或键盘；建议将 EXE 设置为始终以管理员身份运行。\n紧急停止：{activeHotKey.DisplayName}";
         }
+    }
+
+    private enum PlaybackRunKind
+    {
+        Import,
+        BuiltInTest
+    }
+
+    internal void ReceiveProtocolArgument(string? argument)
+    {
+        if (InvokeRequired)
+        {
+            try { BeginInvoke(new Action(() => ReceiveProtocolArgument(argument))); } catch (InvalidOperationException) { }
+            return;
+        }
+        ActivateWindow();
+        if (cancellation is not null)
+        {
+            statusLabel.Text = "当前正在录制，已保留本次录制；请稍后再次从浏览器导入曲谱。";
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(argument)) return;
+        var incomingRequest = PlaybackRequest.FromProtocolArgument(argument);
+        if (incomingRequest is null)
+        {
+            statusLabel.Text = "无法读取网页传来的曲谱，请回到网页重新点击“导出到宏录制助手”。";
+            return;
+        }
+
+        request = incomingRequest;
+        ResetPlaybackView();
+        UpdateRequestView(showVersionMismatchNotice: true);
+    }
+
+    private void ActivateWindow()
+    {
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        Show();
+        Activate();
+        TopMost = true;
+        TopMost = false;
+        BringToFront();
+    }
+
+    private void ResetPlaybackView()
+    {
+        progressBar.Value = 0;
+        remainingLabel.Text = request is null ? "剩余 --:--" : $"剩余 {FormatDuration(request.TotalDurationMs)}";
+        progressLabel.Text = "录制进度 / 剩余时间";
+    }
+
+    private void UpdateRequestView(bool showVersionMismatchNotice = false)
+    {
+        if (request is null)
+        {
+            titleLabel.Text = "等待从网页导入曲谱";
+            detailsLabel.Text = "可直接点击“测试输入”；导入曲谱请在网站点击“导出到宏录制助手”。";
+            startButton.Enabled = false;
+            return;
+        }
+        if (!request.IsVersionCompatible)
+        {
+            titleLabel.Text = "网页与助手版本不匹配";
+            detailsLabel.Text = $"网页 v{request.WebVersion ?? "未知"} · 本助手 v{PlaybackRequest.HelperVersion}";
+            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；建议将 EXE 设置为始终以管理员身份运行。\n反馈 QQ 群：{QqGroup}";
+            startButton.Enabled = false;
+            if (showVersionMismatchNotice)
+            {
+                MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n网页兼容范围：{request.CompatibleHelperVersionLabel}\n\n请下载兼容范围内的助手版本，并运行 Install.cmd。", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            return;
+        }
+
+        titleLabel.Text = request.Title;
+        detailsLabel.Text = $"已导入 {request.Events.Count} 个事件 · 总时长 {FormatDuration(request.TotalDurationMs)} · v{PlaybackRequest.HelperVersion}";
+        statusLabel.Text = $"先在目标宏软件中打开录制，再回到本助手点击“开始录制”。\n录制期间请勿操作鼠标或键盘；建议将 EXE 设置为始终以管理员身份运行。\n紧急停止：{activeHotKey.DisplayName}";
+        startButton.Enabled = true;
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -602,7 +802,10 @@ try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction Silent
         statusLabel.Text = $"正在下载助手 v{version}… 请稍候。";
         startButton.Enabled = false;
         stopButton.Enabled = false;
-        inputModeBox.Enabled = false;
+        testButton.Enabled = false;
+        keyboardModeBox.Enabled = false;
+        mouseModeBox.Enabled = false;
+        closeAfterImportBox.Enabled = false;
         hotKeyBox.Enabled = false;
     }
 
@@ -613,8 +816,11 @@ try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction Silent
         progressBar.Value = 0;
         remainingLabel.Text = request is null ? "剩余 --:--" : $"剩余 {FormatDuration(request.TotalDurationMs)}";
         startButton.Enabled = request?.IsVersionCompatible == true;
+        testButton.Enabled = true;
         stopButton.Enabled = false;
-        inputModeBox.Enabled = true;
+        keyboardModeBox.Enabled = true;
+        mouseModeBox.Enabled = true;
+        closeAfterImportBox.Enabled = true;
         hotKeyBox.Enabled = true;
     }
 
@@ -668,51 +874,89 @@ try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction Silent
         return hotKeyRegistered;
     }
 
-    private void UpdateInputMode()
+    private void UpdateInputSelection()
     {
-        if (inputModeBox.SelectedItem is not InputInjectionMode selectedInputMode) return;
-        activeInputMode = selectedInputMode;
-        if (cancellation is null) statusLabel.Text = $"已选择：{activeInputMode.DisplayName}\n{activeInputMode.Description}";
+        if (keyboardModeBox.SelectedItem is not KeyboardInjectionOption selectedKeyboard
+            || mouseModeBox.SelectedItem is not MouseInjectionOption selectedMouse) return;
+        activeKeyboardMode = selectedKeyboard;
+        activeMouseMode = selectedMouse;
+        if (cancellation is null) statusLabel.Text = $"已选择：键盘 · {activeKeyboardMode.DisplayName}\n鼠标 · {activeMouseMode.DisplayName}";
     }
 
-    private async Task StartPlaybackAsync()
+    private Task StartPlaybackAsync()
     {
-        if (request is null || cancellation is not null) return;
+        if (request is null || !request.IsVersionCompatible || cancellation is not null) return Task.CompletedTask;
+        return RunPlaybackAsync(request.Events, PlaybackRunKind.Import);
+    }
+
+    private Task StartInputTestAsync()
+    {
+        if (cancellation is not null) return Task.CompletedTask;
+        return RunPlaybackAsync(BuiltInTestEvents, PlaybackRunKind.BuiltInTest);
+    }
+
+    private async Task RunPlaybackAsync(IReadOnlyList<PlaybackEvent> events, PlaybackRunKind runKind)
+    {
         cancellation = new CancellationTokenSource();
-        activePlaybackInputMode = activeInputMode;
+        activeRunKind = runKind;
+        activePlaybackInputMode = new InputInjectionSelection(activeKeyboardMode.Mode, activeMouseMode.Mode);
         lastProgressReport = -1;
         startButton.Enabled = false;
+        testButton.Enabled = false;
         stopButton.Enabled = true;
-        inputModeBox.Enabled = false;
+        keyboardModeBox.Enabled = false;
+        mouseModeBox.Enabled = false;
+        closeAfterImportBox.Enabled = false;
         hotKeyBox.Enabled = false;
         progressBar.Value = 0;
-        remainingLabel.Text = $"剩余 {FormatDuration(request.TotalDurationMs)}";
+        var totalDurationMs = Math.Max(1, events.Sum(item => item.IsRest ? (long)item.WaitMs : (long)item.HoldMs + item.WaitMs));
+        activePlaybackTotalMs = totalDurationMs;
+        remainingLabel.Text = $"剩余 {FormatDuration(totalDurationMs)}";
         try
         {
-            statusLabel.Text = $"正在录制… {activePlaybackInputMode.DisplayName}\n请勿操作鼠标或键盘，并保持鼠标焦点在本助手。紧急停止：{activeHotKey.DisplayName}";
-            await Task.Run(() => Play(request.Events, cancellation.Token, activePlaybackInputMode, ReportPlaybackProgress), cancellation.Token);
+            var actionLabel = runKind == PlaybackRunKind.BuiltInTest ? "正在发送内置测试输入" : "正在录制";
+            statusLabel.Text = $"{actionLabel}…\n键盘：{activeKeyboardMode.DisplayName} · 鼠标：{activeMouseMode.DisplayName}\n紧急停止：{activeHotKey.DisplayName}";
+            await Task.Run(() => Play(events, cancellation.Token, activePlaybackInputMode, ReportPlaybackProgress), cancellation.Token);
             if (!cancellation.IsCancellationRequested)
             {
-                ApplyPlaybackProgress(request.TotalDurationMs, completed: true);
-                statusLabel.Text = "录制完成。请回到宏软件停止录制并保存。";
-                var result = MessageBox.Show(this, "录制完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始录制”产生的一次鼠标按下/放开，请删除这两个事件。\n\n点击“确定”后关闭本助手。", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                if (result == DialogResult.OK) Close();
+                ApplyPlaybackProgress(totalDurationMs, completed: true);
+                if (runKind == PlaybackRunKind.BuiltInTest)
+                {
+                    statusLabel.Text = "内置测试输入已发送。请查看目标宏软件是否捕获了键盘与鼠标事件。";
+                }
+                else
+                {
+                    statusLabel.Text = "录制完成。请回到宏软件停止录制并保存。";
+                    var closeHint = closeAfterImportBox.Checked ? "点击“确定”后关闭本助手。" : "点击“确定”后保留本助手窗口，可继续导入下一首曲谱。";
+                    var result = MessageBox.Show(this, $"录制完成。\n\n请回到宏录制软件停止录制并保存宏。\n录制开头由你点击本助手“开始录制”产生的一次鼠标按下/放开，请删除这两个事件。\n\n{closeHint}", "录制完成", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    if (result == DialogResult.OK && closeAfterImportBox.Checked) Close();
+                }
             }
         }
         catch (OperationCanceledException) { }
+        catch (Exception error)
+        {
+            statusLabel.Text = $"输入发送失败：{error.Message}";
+            MessageBox.Show(this, error.Message, "输入发送失败", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
         finally
         {
             ReleaseActiveInputs();
             cancellation?.Dispose();
             cancellation = null;
-            startButton.Enabled = request is not null;
+            activeRunKind = null;
+            activePlaybackTotalMs = 0;
+            startButton.Enabled = request?.IsVersionCompatible == true;
+            testButton.Enabled = true;
             stopButton.Enabled = false;
-            inputModeBox.Enabled = true;
+            keyboardModeBox.Enabled = true;
+            mouseModeBox.Enabled = true;
+            closeAfterImportBox.Enabled = true;
             hotKeyBox.Enabled = true;
         }
     }
 
-    private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionMode inputMode, Action<long> reportProgress)
+    private void Play(IEnumerable<PlaybackEvent> events, CancellationToken token, InputInjectionSelection inputMode, Action<long> reportProgress)
     {
         var clock = Stopwatch.StartNew();
         var plannedElapsed = 0L;
@@ -729,16 +973,16 @@ try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction Silent
                 }
                 foreach (var modifier in item.Modifiers ?? string.Empty)
                 {
-                    NativeInput.Mouse(modifier, true, inputMode);
+                    NativeInput.Mouse(modifier, true, inputMode.MouseMode);
                     activeModifiers.Add(modifier);
                 }
                 plannedElapsed = Wait(item.LeadMs, token, clock, plannedElapsed, reportProgress);
                 activeKey = item.Key;
-                NativeInput.Key(item.Key!, true, inputMode);
+                NativeInput.Key(item.Key!, true, inputMode.KeyboardMode);
                 plannedElapsed = Wait(Math.Max(0, item.HoldMs - item.LeadMs), token, clock, plannedElapsed, reportProgress);
-                NativeInput.Key(item.Key!, false, inputMode);
+                NativeInput.Key(item.Key!, false, inputMode.KeyboardMode);
                 activeKey = null;
-                for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode);
+                for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, inputMode.MouseMode);
                 activeModifiers.Clear();
                 plannedElapsed = Wait(item.WaitMs, token, clock, plannedElapsed, reportProgress);
             }
@@ -759,8 +1003,8 @@ try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction Silent
 
     private void ApplyPlaybackProgress(long elapsedMilliseconds, bool completed = false)
     {
-        if (request is null || cancellation?.IsCancellationRequested == true) return;
-        var total = request.TotalDurationMs;
+        if (activePlaybackInputMode is null || activePlaybackTotalMs <= 0 || cancellation?.IsCancellationRequested == true) return;
+        var total = activePlaybackTotalMs;
         var elapsed = Math.Clamp(elapsedMilliseconds, 0, completed ? total : Math.Max(0, total - 1));
         progressBar.Value = (int)Math.Clamp(elapsed * progressBar.Maximum / total, 0, progressBar.Maximum);
         remainingLabel.Text = $"剩余 {FormatDuration(completed ? 0 : Math.Max(1, total - elapsed))}";
@@ -801,10 +1045,10 @@ try { Remove-Item -LiteralPath $PSScriptRoot -Recurse -Force -ErrorAction Silent
     {
         if (activeKey is not null)
         {
-            NativeInput.Key(activeKey, false, activePlaybackInputMode);
+            NativeInput.Key(activeKey, false, activePlaybackInputMode.KeyboardMode);
             activeKey = null;
         }
-        for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, activePlaybackInputMode);
+        for (var index = activeModifiers.Count - 1; index >= 0; index--) NativeInput.Mouse(activeModifiers[index], false, activePlaybackInputMode.MouseMode);
         activeModifiers.Clear();
     }
 }
@@ -856,74 +1100,65 @@ internal enum MouseInjectionMode
     SendInput
 }
 
-internal sealed record InputInjectionMode(
+internal sealed record KeyboardInjectionOption(
     string DisplayName,
     string Description,
-    KeyboardInjectionMode KeyboardMode,
-    MouseInjectionMode MouseMode)
+    KeyboardInjectionMode Mode)
 {
-    internal static readonly InputInjectionMode Default = new(
-        "默认兼容 · keybd_event 扫描码 + mouse_event",
-        "旧式扫描码键盘 + 旧式鼠标事件；建议先从这里开始。",
-        KeyboardInjectionMode.LegacyScanCode,
-        MouseInjectionMode.LegacyMouseEvent);
+    internal static readonly KeyboardInjectionOption Default = new(
+        "默认兼容 · keybd_event 扫描码",
+        "旧式扫描码键盘；建议先从这里开始。",
+        KeyboardInjectionMode.LegacyScanCode);
 
-    internal static readonly InputInjectionMode LegacyVirtualKey = new(
-        "兼容虚拟键 · keybd_event 虚拟键 + mouse_event",
-        "旧式虚拟键键盘 + 旧式鼠标事件；适合只识别虚拟键的录制器。",
-        KeyboardInjectionMode.LegacyVirtualKey,
-        MouseInjectionMode.LegacyMouseEvent);
+    internal static readonly KeyboardInjectionOption LegacyVirtualKey = new(
+        "兼容虚拟键 · keybd_event 虚拟键",
+        "旧式虚拟键键盘；适合只识别虚拟键的录制器。",
+        KeyboardInjectionMode.LegacyVirtualKey);
 
-    internal static readonly InputInjectionMode StandardSendInput = new(
-        "标准 SendInput · 虚拟键 + SendInput 鼠标",
-        "现代虚拟键键盘 + 现代鼠标事件；适合大多数通用宏软件。",
-        KeyboardInjectionMode.SendInputVirtualKey,
-        MouseInjectionMode.SendInput);
+    internal static readonly KeyboardInjectionOption SendInputVirtualKey = new(
+        "标准 SendInput · 虚拟键",
+        "现代虚拟键键盘；适合大多数通用宏软件。",
+        KeyboardInjectionMode.SendInputVirtualKey);
 
-    internal static readonly InputInjectionMode MchoseCompatible = new(
-        "迈从兼容 · SendInput 扫描码 + 鼠标",
-        "现代扫描码键盘 + 现代鼠标事件；迈从可优先尝试。",
-        KeyboardInjectionMode.SendInputScanCode,
-        MouseInjectionMode.SendInput);
+    internal static readonly KeyboardInjectionOption SendInputScanCode = new(
+        "迈从兼容 · SendInput 扫描码",
+        "现代扫描码键盘；迈从可优先尝试。",
+        KeyboardInjectionMode.SendInputScanCode);
 
-    internal static readonly InputInjectionMode LegacyKeyboardSendInputMouse = new(
-        "混合 A · keybd_event 扫描码 + SendInput 鼠标",
-        "旧式扫描码键盘 + 现代鼠标事件；用于拆开排查键盘或鼠标捕获。",
-        KeyboardInjectionMode.LegacyScanCode,
-        MouseInjectionMode.SendInput);
-
-    internal static readonly InputInjectionMode LegacyVirtualKeySendInputMouse = new(
-        "混合 B · keybd_event 虚拟键 + SendInput 鼠标",
-        "旧式虚拟键键盘 + 现代鼠标事件；用于拆开排查键盘或鼠标捕获。",
-        KeyboardInjectionMode.LegacyVirtualKey,
-        MouseInjectionMode.SendInput);
-
-    internal static readonly InputInjectionMode SendInputKeyboardLegacyMouse = new(
-        "混合 C · SendInput 虚拟键 + mouse_event",
-        "现代虚拟键键盘 + 旧式鼠标事件；兼容只抓取传统鼠标事件的录制器。",
-        KeyboardInjectionMode.SendInputVirtualKey,
-        MouseInjectionMode.LegacyMouseEvent);
-
-    internal static readonly InputInjectionMode SendInputScanCodeLegacyMouse = new(
-        "混合 D · SendInput 扫描码 + mouse_event",
-        "现代扫描码键盘 + 旧式鼠标事件；迈从仍无响应时可尝试。",
-        KeyboardInjectionMode.SendInputScanCode,
-        MouseInjectionMode.LegacyMouseEvent);
-
-    internal static readonly InputInjectionMode[] All =
+    internal static readonly KeyboardInjectionOption[] All =
     [
         Default,
         LegacyVirtualKey,
-        StandardSendInput,
-        MchoseCompatible,
-        LegacyKeyboardSendInputMouse,
-        LegacyVirtualKeySendInputMouse,
-        SendInputKeyboardLegacyMouse,
-        SendInputScanCodeLegacyMouse
+        SendInputVirtualKey,
+        SendInputScanCode
     ];
 
     public override string ToString() => DisplayName;
 }
+
+internal sealed record MouseInjectionOption(
+    string DisplayName,
+    string Description,
+    MouseInjectionMode Mode)
+{
+    internal static readonly MouseInjectionOption Default = new(
+        "默认兼容 · mouse_event",
+        "旧式鼠标事件；建议先从这里开始。",
+        MouseInjectionMode.LegacyMouseEvent);
+
+    internal static readonly MouseInjectionOption SendInput = new(
+        "标准 SendInput 鼠标",
+        "现代鼠标事件；适合大多数通用宏软件。",
+        MouseInjectionMode.SendInput);
+
+    internal static readonly MouseInjectionOption[] All = [Default, SendInput];
+
+    public override string ToString() => DisplayName;
+}
+
+internal sealed record InputInjectionSelection(
+    KeyboardInjectionMode KeyboardMode,
+    MouseInjectionMode MouseMode);
 
 internal static class EmergencyStopHotKeySettings
 {
@@ -1024,7 +1259,7 @@ internal static class NativeInput
 
     internal static void EndHighResolutionTimer() => timeEndPeriod(1);
 
-    internal static void Key(string key, bool down, InputInjectionMode inputMode)
+    internal static void Key(string key, bool down, KeyboardInjectionMode inputMode)
     {
         var (virtualKey, scanCode) = key switch
         {
@@ -1033,7 +1268,7 @@ internal static class NativeInput
             _ => throw new ArgumentOutOfRangeException(nameof(key))
         };
         var flags = down ? 0u : KeyUp;
-        switch (inputMode.KeyboardMode)
+        switch (inputMode)
         {
             case KeyboardInjectionMode.LegacyScanCode:
                 keybd_event(0, (byte)scanCode, KeyScanCode | flags, UIntPtr.Zero);
@@ -1048,14 +1283,14 @@ internal static class NativeInput
                 Send([new INPUT { Type = InputKeyboard, Union = new InputUnion { Keyboard = new KEYBDINPUT { VirtualKey = (ushort)virtualKey, Flags = flags } } }]);
                 return;
             default:
-                throw new ArgumentOutOfRangeException(nameof(inputMode.KeyboardMode));
+                throw new ArgumentOutOfRangeException(nameof(inputMode));
         }
     }
 
-    internal static void Mouse(char modifier, bool down, InputInjectionMode inputMode)
+    internal static void Mouse(char modifier, bool down, MouseInjectionMode inputMode)
     {
         var flag = modifier switch { 'L' => down ? LeftDown : LeftUp, 'M' => down ? MiddleDown : MiddleUp, 'R' => down ? RightDown : RightUp, _ => throw new ArgumentOutOfRangeException(nameof(modifier)) };
-        if (inputMode.MouseMode == MouseInjectionMode.LegacyMouseEvent)
+        if (inputMode == MouseInjectionMode.LegacyMouseEvent)
         {
             mouse_event(flag, 0, 0, 0, UIntPtr.Zero);
             return;
