@@ -199,6 +199,9 @@ COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" \
   --exclude='.idea' \
   --exclude='.pdmx-cache' \
   --exclude='data' \
+  --exclude='downloads' \
+  --exclude='recording-helper/downloads' \
+  --exclude='server-backups' \
   --exclude='__pycache__' \
   --exclude='._*' \
   .

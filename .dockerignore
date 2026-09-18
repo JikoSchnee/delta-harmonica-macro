@@ -3,3 +3,5 @@
 data
 **/__pycache__
 **/._*
+server-backups
+recording-helper/downloads

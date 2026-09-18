@@ -13,7 +13,9 @@
 
 ## 一键部署到正式站点
 
-`deploy.sh` 的目标为 `jiko-official.top`。脚本只打包并上传代码，不包含 `data/` 下的用户、曲库和统计数据；生产数据由 Docker 持久化卷独立保存。脚本会先构建新镜像，构建期间旧容器继续提供服务。切换容器前会启用维护标记，新容器就绪后自动清除标记，访客在切换窗口看到“正在更新”页面而不是 502。脚本最后请求 `https://jiko-official.top/delta/api/public-library/status` 验证服务。
+`deploy.sh` 的目标为 `jiko-official.top`。脚本只打包并上传代码，不包含 `data/` 下的用户、曲库和统计数据；生产数据由 Docker 持久化卷独立保存。打包同样排除 `downloads/`、`recording-helper/downloads/` 与 `server-backups/`：录制助手安装包每个约 60 MB 且由 `release-helper.sh` 单独发布到服务器，备份残留只会拖慢上传并被 `COPY . .` 打进镜像。为此首次在一台新服务器上部署时，需要先执行一次 `release-helper.sh`（或手工把 ZIP 放到服务器 `/opt/delta-harmonica-macro/downloads/` 并用 `docker cp` 同步进容器），否则「服务器下载」链接会 404。脚本会先构建新镜像，构建期间旧容器继续提供服务。切换容器前会启用维护标记，新容器就绪后自动清除标记，访客在切换窗口看到“正在更新”页面而不是 502。脚本最后请求 `https://jiko-official.top/delta/api/public-library/status` 验证服务。
+
+`.dockerignore` 另外排除 `server-backups/` 与 `recording-helper/downloads/`，避免备份残留和重复的安装包副本进入镜像；对外只使用 `downloads/` 这一份安装包。
 
 ```bash
 ./deploy.sh
