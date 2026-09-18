@@ -160,7 +160,30 @@ QQ 需要在 QQ 互联应用中登记 QQ 回调地址；微信需要在微信开
 
 `--public` 监听所有网卡并启用公共直传；只有端口不直接暴露、且 `X-Forwarded-For` 由自有反向代理覆盖时，才可使用 `--trust-proxy`。
 
-反向代理建议加一层按 IP 的限流兜底，替代"排队等待"类方案。放在代理的 `http {}` 与 `/delta/` 的 `server {}` 中（正式站点与其它项目共用同一个代理容器，改动前先确认 `limit_req_zone` 名称不冲突，改完先 `nginx -t` 再 `nginx -s reload`）：
+正式站点 `jiko-official.top` 由阿里云 ECS（`47.102.211.4`）上的 Caddy 反向代理，它和 WebDAV 项目共用同一个代理容器（`study-desk-webdav-caddy-1`，镜像 `caddy:2`）。Caddyfile 放在服务器宿主机的 `/opt/study-desk-webdav/Caddyfile`，以只读方式挂载为容器内的 `/etc/caddy/Caddyfile`。应用容器不发布宿主机端口，只挂在 `study-desk-webdav_default` 网络上，因此代理直接用容器名寻址：
+
+```caddyfile
+{$DOMAIN} {
+  route {
+    redir /delta /delta/ 308
+    handle_path /delta/* {
+      reverse_proxy delta-harmonica-macro:8765
+    }
+    reverse_proxy webdav:6065
+  }
+}
+```
+
+`handle_path` 会剥掉 `/delta` 前缀再转发，等价于 nginx 中带尾斜杠的 `proxy_pass`。Caddy 默认用真实客户端地址覆盖 `X-Forwarded-For`（除非请求来自 `trusted_proxies` 中声明的上游代理），所以配合 `--trust-proxy` 拿到的是真实客户端 IP，客户端伪造转发头无法绕过按 IP 的限流。
+
+改动 Caddyfile 后先校验再热重载，不要跳过校验直接重启容器：
+
+```bash
+docker exec study-desk-webdav-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec study-desk-webdav-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Caddy 官方镜像不自带 `rate_limit` 指令，要加代理层限流需自行编译插件，因此当前站点依靠服务端自身的 128 个请求线程上限和认证接口限流兜底。如果将来改用 nginx 承接，可参考下面的写法，注意 `X-Forwarded-For` 必须用 `$remote_addr` 覆盖：服务端取该头的第一段做限流，而 `$proxy_add_x_forwarded_for` 会把客户端自带的头排在前面，等于给出可伪造的空间。
 
 ```nginx
 limit_req_zone  $binary_remote_addr zone=delta_api:10m rate=10r/s;
@@ -173,12 +196,12 @@ location /delta/api/ {
     limit_conn_status 429;
     proxy_pass http://delta-harmonica-macro:8765/api/;
     proxy_set_header Host              $host;
-    proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-For   $remote_addr;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 ```
 
-`burst=40` 是给"一次打开多个标签页"留的余量：首页加载会在两秒内打完 7 个数据接口，正常用户不会触发 429，而脚本式刷接口会被限制在每秒 10 次以内。服务端本身还有 128 个请求线程的硬上限，超出会直接断开连接，所以限流应当放在代理层。
+`burst=40` 是给"一次打开多个标签页"留的余量：首页加载会在两秒内打完 7 个数据接口，正常用户不会触发 429，而脚本式刷接口会被限制在每秒 10 次以内。
 
 验证码为 6 位、有效期 10 分钟、最多尝试 5 次，并按邮箱与 IP 限流。首次注册要求唯一用户 ID（3–24 个中文、字母、数字或下划线字符）；改名会同步已直传曲谱的署名，旧 ID 永久保留。465 端口设 `DELTA_SMTP_SSL=true`；默认 587 使用 STARTTLS。
 
