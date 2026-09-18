@@ -70,6 +70,20 @@ PUBLIC_UPLOAD_RATE_LIMIT = 5
 PUBLIC_EXPORT_COUNT_REFRESH_SECONDS = 10 * 60
 PUBLIC_ANALYTICS_SUMMARY_CACHE_SECONDS = 60
 PUBLIC_RANKINGS_CACHE_SECONDS = 5 * 60
+PUBLIC_DONORS_CACHE_SECONDS = 60
+PUBLIC_RANKING_SONG_LIMIT = 10
+PUBLIC_RANKING_USER_LIMIT = 20
+USER_ID_EFFECTS = ("default", "ice", "violet", "ember", "aurora")
+# 配色分级：contribution 需要贡献达到 min 次，supporter 需要进入打赏名单。
+# 贡献梯度 50 / 100 / 500，配色走蓝→紫→橙的稀有度阶梯；调整档位只需要改这张表。
+# （styles.css 里还留了 gold / rose 两套备用配色，将来要用再加回这里和选择界面。）
+USER_ID_EFFECT_UNLOCKS: dict[str, dict[str, Any]] = {
+    "ice": {"kind": "contribution", "min": 50},
+    "violet": {"kind": "contribution", "min": 100},
+    "ember": {"kind": "contribution", "min": 500},
+    "aurora": {"kind": "supporter"},
+}
+USER_ID_EFFECT_CONTRIBUTION_THRESHOLDS = (50, 100, 500)
 AUTH_CODE_TTL_SECONDS = 10 * 60
 AUTH_CODE_MAX_ATTEMPTS = 5
 AUTH_CODE_EMAIL_LIMIT = 5
@@ -235,7 +249,8 @@ class SingleFlightCache:
 
 PUBLIC_ANALYTICS_SUMMARY_CACHE = SingleFlightCache()
 PUBLIC_RANKINGS_CACHE = SingleFlightCache()
-SCORE_EXPORT_COUNT_CACHE = SingleFlightCache()
+PUBLIC_DONORS_CACHE = SingleFlightCache()
+EXPORT_EVENT_COUNT_CACHE = SingleFlightCache()
 
 
 def analytics_event_path(day: date) -> Path:
@@ -610,12 +625,13 @@ def line_has_score_export_event(line: str) -> bool:
     return any(f'"{name}"' in line for name in SCORE_EXPORT_EVENTS)
 
 
-def score_export_counts_for_period(retention_days: int) -> Counter[str]:
-    """Read export totals once for the daily hot-ranking job."""
+def export_event_counts_for_period(retention_days: int) -> tuple[Counter[str], Counter[str]]:
+    """Scan the window once: deduplicated exports per score and per actor."""
     safe_days = max(1, retention_days)
     today = datetime.now(timezone.utc).date()
     start = today - timedelta(days=safe_days - 1)
     exports: Counter[str] = Counter()
+    actor_exports: Counter[str] = Counter()
     seen: set[tuple[str, str]] = set()
     aliases = analytics_score_aliases()
     for offset in range(safe_days):
@@ -632,17 +648,25 @@ def score_export_counts_for_period(retention_days: int) -> Counter[str]:
                 properties = item.get("properties")
                 score_id = properties.get("score_id") if isinstance(properties, dict) else None
                 canonical_id = canonical_analytics_score_id(score_id, aliases)
-                if canonical_id:
-                    actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session")
-                    if not isinstance(actor, str):
-                        continue
-                    export_key = (canonical_id, actor)
-                    if export_key not in seen:
-                        seen.add(export_key)
-                        exports[canonical_id] += 1
+                if not canonical_id:
+                    continue
+                actor = item.get("actor") if isinstance(item.get("actor"), str) and item.get("actor") else item.get("session")
+                if not isinstance(actor, str):
+                    continue
+                export_key = (canonical_id, actor)
+                if export_key in seen:
+                    continue
+                seen.add(export_key)
+                exports[canonical_id] += 1
+                actor_exports[actor] += 1
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-    return exports
+    return exports, actor_exports
+
+
+def score_export_counts_for_period(retention_days: int) -> Counter[str]:
+    """Read export totals once for the daily hot-ranking job."""
+    return export_event_counts_for_period(retention_days)[0]
 
 
 def candidate_analytics_days(target_date: date) -> list[date]:
@@ -693,8 +717,38 @@ def yesterday_export_ranking() -> list[dict[str, Any]]:
             if export_key not in seen:
                 seen.add(export_key)
                 exports[canonical_id] += 1
-    ordered = sorted(exports.items(), key=lambda item: (-item[1], item[0]))[:10]
+    ordered = sorted(exports.items(), key=lambda item: (-item[1], item[0]))[:PUBLIC_RANKING_SONG_LIMIT]
     return [{"rank": rank, "scoreId": score_id, "exports": count} for rank, (score_id, count) in enumerate(ordered, start=1)]
+
+
+def usage_ranking(server: ThreadingHTTPServer, auth_enabled: bool, retention_days: int) -> list[dict[str, Any]]:
+    """Rank accounts by how many distinct scores they exported in the window.
+
+    Export events carry an opaque actor key: an HMAC of the account id for
+    logged-in users, or the anonymous session otherwise. Only actors that map
+    back to a registered account can appear here.
+    """
+    if not auth_enabled:
+        return []
+    actor_counts = cached_actor_export_counts(retention_days)
+    if not actor_counts:
+        return []
+    try:
+        with AUTH_LOCK, auth_database() as connection:
+            rows = connection.execute("SELECT id, user_id FROM accounts").fetchall()
+    except sqlite3.OperationalError:
+        return []
+    users_by_actor = {analytics_actor_key(server, str(row["id"])): str(row["user_id"]) for row in rows}
+    totals: Counter[str] = Counter()
+    for actor, count in actor_counts.items():
+        user_id = users_by_actor.get(actor)
+        if user_id:
+            totals[user_id] += count
+    ordered = sorted(totals.items(), key=lambda item: (-item[1], item[0].casefold(), item[0]))
+    return [
+        {"rank": rank, "userId": user_id, "exports": count}
+        for rank, (user_id, count) in enumerate(ordered[:PUBLIC_RANKING_USER_LIMIT], start=1)
+    ]
 
 
 def public_owned_scores(auth_enabled: bool) -> list[tuple[str, str]]:
@@ -738,24 +792,28 @@ def contribution_ranking(auth_enabled: bool, retention_days: int) -> list[dict[s
     return [{"rank": rank, "userId": user_id, "exports": count} for rank, (user_id, count) in enumerate(ordered, start=1)]
 
 
-def compute_public_rankings(auth_enabled: bool, retention_days: int) -> dict[str, Any]:
-    """Assemble the three public leaderboards for the homepage."""
+def compute_public_rankings(server: ThreadingHTTPServer, auth_enabled: bool, retention_days: int) -> dict[str, Any]:
+    """Assemble the public leaderboards for the homepage."""
+    safe_days = max(1, retention_days)
     yesterday = datetime.now().astimezone().date() - timedelta(days=1)
     return {
         "rankingDate": yesterday.isoformat(),
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "uploads": upload_ranking(auth_enabled),
-        "contributions": contribution_ranking(auth_enabled, retention_days),
+        "contributions": contribution_ranking(auth_enabled, safe_days),
         "yesterdayExports": yesterday_export_ranking(),
+        "usage": usage_ranking(server, auth_enabled, safe_days),
+        "usageWindowDays": safe_days,
+        "userEffects": public_user_effects(server),
     }
 
 
-def build_public_rankings(auth_enabled: bool, retention_days: int) -> dict[str, Any]:
+def build_public_rankings(server: ThreadingHTTPServer, auth_enabled: bool, retention_days: int) -> dict[str, Any]:
     """Build the privacy-safe rankings consumed by the public homepage."""
     return PUBLIC_RANKINGS_CACHE.value(
         f"public-rankings:{int(bool(auth_enabled))}:{max(1, retention_days)}",
         PUBLIC_RANKINGS_CACHE_SECONDS,
-        lambda: compute_public_rankings(auth_enabled, retention_days),
+        lambda: compute_public_rankings(server, auth_enabled, retention_days),
     )
 
 
@@ -821,14 +879,24 @@ def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
         return ranking
 
 
-def cached_score_export_counts(retention_days: int) -> Counter[str]:
-    """Share one scan of the retention window between the rankings and export totals."""
+def cached_export_event_counts(retention_days: int) -> tuple[Counter[str], Counter[str]]:
+    """Share one scan of the retention window between every derived leaderboard."""
     safe_days = max(1, retention_days)
-    return SCORE_EXPORT_COUNT_CACHE.value(
-        f"score-export-counts:{safe_days}",
+    return EXPORT_EVENT_COUNT_CACHE.value(
+        f"export-event-counts:{safe_days}",
         PUBLIC_EXPORT_COUNT_REFRESH_SECONDS,
-        lambda: score_export_counts_for_period(safe_days),
+        lambda: export_event_counts_for_period(safe_days),
     )
+
+
+def cached_score_export_counts(retention_days: int) -> Counter[str]:
+    """Deduplicated export totals per score."""
+    return cached_export_event_counts(retention_days)[0]
+
+
+def cached_actor_export_counts(retention_days: int) -> Counter[str]:
+    """Deduplicated export totals per actor, from the same cached scan."""
+    return cached_export_event_counts(retention_days)[1]
 
 
 def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
@@ -1148,8 +1216,29 @@ def initialize_auth_database() -> None:
                 brand_id TEXT NOT NULL,
                 PRIMARY KEY(method_id, brand_id)
             );
+            CREATE TABLE IF NOT EXISTS donations (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                amount_cents INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS account_effects (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                effect TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS effect_unlock_notices (
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                effect TEXT NOT NULL,
+                notified_at INTEGER NOT NULL,
+                PRIMARY KEY(account_id, effect)
+            );
             CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
         """)
+        # 早期本地库可能已经建过没有 created_at 的 donations 表，这里补齐列。
+        donation_columns = {row[1] for row in connection.execute("PRAGMA table_info(donations)").fetchall()}
+        if "created_at" not in donation_columns:
+            connection.execute("ALTER TABLE donations ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0")
         for method_id, brand_ids in EXPORT_DEFAULT_BRANDS.items():
             existing = connection.execute(
                 "SELECT 1 FROM export_method_brands WHERE method_id = ? LIMIT 1",
@@ -1238,14 +1327,19 @@ def is_admin_account(account: sqlite3.Row | dict[str, Any] | None) -> bool:
     return bool(account and str(account["email"]).casefold() == ADMIN_EMAIL.casefold())
 
 
-def account_payload(account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+def account_payload(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
     email = str(account["email"])
     if email.endswith("@oauth.invalid"):
         provider = "QQ" if email.startswith("qq_") else "微信"
         credential = f"{provider} 登录账号"
     else:
         credential = mask_email(email)
-    return {"userId": account["user_id"], "email": credential, "isAdmin": is_admin_account(account)}
+    return {
+        "userId": account["user_id"],
+        "email": credential,
+        "isAdmin": is_admin_account(account),
+        "effectState": account_effect_state(server, account),
+    }
 
 
 def export_provider_payload() -> dict[str, str]:
@@ -1448,11 +1542,13 @@ def admin_user_catalog() -> list[dict[str, Any]]:
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
             "SELECT accounts.id, accounts.email, accounts.user_id, accounts.created_at, accounts.updated_at, "
+            "MAX(COALESCE(donations.amount_cents, 0)) AS donation_cents, "
             "COUNT(DISTINCT score_owners.remix_code) AS uploads, "
             "COUNT(DISTINCT CASE WHEN sessions.expires_at > ? THEN sessions.token_hash END) AS active_sessions "
             "FROM accounts "
             "LEFT JOIN score_owners ON score_owners.account_id = accounts.id "
             "LEFT JOIN sessions ON sessions.account_id = accounts.id "
+            "LEFT JOIN donations ON donations.account_id = accounts.id "
             "GROUP BY accounts.id ORDER BY accounts.created_at DESC",
             (now,),
         ).fetchall()
@@ -1461,11 +1557,190 @@ def admin_user_catalog() -> list[dict[str, Any]]:
         "userId": row["user_id"],
         "email": mask_email(str(row["email"])),
         "role": "管理员" if is_admin_account(row) else "用户",
+        "donationCents": int(row["donation_cents"] or 0),
         "uploads": row["uploads"],
         "active": bool(row["active_sessions"]),
         "registeredAt": datetime.fromtimestamp(row["created_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "updatedAt": datetime.fromtimestamp(row["updated_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
     } for row in rows]
+
+
+def public_donor_list() -> list[dict[str, Any]]:
+    """Return the supporter wall: user IDs only, never amounts or emails."""
+    if not AUTH_DATABASE.exists():
+        return []
+    try:
+        with AUTH_LOCK, auth_database() as connection:
+            rows = connection.execute(
+                "SELECT accounts.user_id AS user_id "
+                "FROM donations JOIN accounts ON accounts.id = donations.account_id "
+                "WHERE donations.amount_cents > 0 "
+                "ORDER BY donations.created_at ASC, donations.updated_at ASC, accounts.user_id COLLATE NOCASE ASC",
+            ).fetchall()
+    except sqlite3.OperationalError:
+        # 认证库存在但没有 donations 表（旧库尚未迁移）时，空名单好过整站报错。
+        return []
+    return [{"userId": str(row["user_id"])} for row in rows]
+
+
+def build_public_donors() -> dict[str, Any]:
+    """Serve the cached supporter wall so concurrent tabs share one query."""
+    donors = PUBLIC_DONORS_CACHE.value("public-donors", PUBLIC_DONORS_CACHE_SECONDS, public_donor_list)
+    return {"donors": donors, "total": len(donors)}
+
+
+MAX_DONATION_CENTS = 10_000_000
+
+
+def admin_set_donation(payload: Any) -> dict[str, Any]:
+    """Record (or clear) one supporter's donation total. Admin console only."""
+    if not isinstance(payload, dict):
+        raise ValueError("请求内容无效。")
+    account_id = str(payload.get("accountId") or "").strip()
+    if not account_id:
+        raise ValueError("缺少账号标识。")
+    raw_amount = payload.get("amountCents")
+    if isinstance(raw_amount, bool) or not isinstance(raw_amount, (int, float)):
+        raise ValueError("打赏金额无效。")
+    amount_cents = int(round(float(raw_amount)))
+    if amount_cents < 0 or amount_cents > MAX_DONATION_CENTS:
+        raise ValueError("打赏金额需要在 0 元到 10 万元之间。")
+    with AUTH_LOCK, auth_database() as connection:
+        if not connection.execute("SELECT 1 FROM accounts WHERE id = ?", (account_id,)).fetchone():
+            raise ValueError("账号不存在。")
+        if amount_cents == 0:
+            connection.execute("DELETE FROM donations WHERE account_id = ?", (account_id,))
+        else:
+            now = now_timestamp()
+            connection.execute(
+                "INSERT INTO donations(account_id, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?) "
+                "ON CONFLICT(account_id) DO UPDATE SET amount_cents=excluded.amount_cents, updated_at=excluded.updated_at",
+                (account_id, amount_cents, now, now),
+            )
+    PUBLIC_DONORS_CACHE.invalidate()
+    PUBLIC_RANKINGS_CACHE.invalidate()
+    return {"accountId": account_id, "amountCents": amount_cents}
+
+
+def account_effect_value(connection: sqlite3.Connection, account_id: str) -> str:
+    """Return the stored ID effect, falling back to the default when unset."""
+    row = connection.execute("SELECT effect FROM account_effects WHERE account_id = ?", (account_id,)).fetchone()
+    effect = str(row["effect"]) if row else ""
+    return effect if effect in USER_ID_EFFECTS else "default"
+
+
+def account_contribution_exports(server: ThreadingHTTPServer, user_id: str) -> int:
+    """Deduplicated exports of the songs this account published."""
+    if not user_id or not (server.auth_enabled and server.analytics_enabled):
+        return 0
+    counts = cached_score_export_counts(server.analytics_retention_days)
+    if not counts:
+        return 0
+    return sum(counts.get(score_id, 0) for owner, score_id in public_owned_scores(True) if owner == user_id)
+
+
+def account_effect_state(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
+    """Describe which ID effects an account may show and which one is active."""
+    account_id = str(account["id"])
+    with AUTH_LOCK, auth_database() as connection:
+        selected = account_effect_value(connection, account_id)
+        donation = connection.execute("SELECT amount_cents FROM donations WHERE account_id = ?", (account_id,)).fetchone()
+        announced = {str(row["effect"]) for row in connection.execute(
+            "SELECT effect FROM effect_unlock_notices WHERE account_id = ?", (account_id,)
+        ).fetchall()}
+    supporter = bool(donation and int(donation["amount_cents"]) > 0)
+    exports = account_contribution_exports(server, str(account["user_id"]))
+    unlocked = ["default"]
+    for effect, rule in USER_ID_EFFECT_UNLOCKS.items():
+        if rule["kind"] == "contribution" and exports >= int(rule.get("min", 0)):
+            unlocked.append(effect)
+        elif rule["kind"] == "supporter" and supporter:
+            unlocked.append(effect)
+    return {
+        # 解锁条件失效时（例如打赏被撤销）回落到默认，不回写数据库。
+        "effect": selected if selected in unlocked else "default",
+        "unlockedEffects": unlocked,
+        "contributionExports": exports,
+        "contributionThresholds": list(USER_ID_EFFECT_CONTRIBUTION_THRESHOLDS),
+        "effectUnlocks": {effect: dict(rule) for effect, rule in USER_ID_EFFECT_UNLOCKS.items()},
+        "supporter": supporter,
+        "retentionDays": server.analytics_retention_days if server.analytics_enabled else 0,
+        # 首次解锁的特效只会提醒一次；前端展示后回执给服务端记档。
+        "pendingUnlocks": [effect for effect in unlocked if effect != "default" and effect not in announced],
+    }
+
+
+def public_user_effects(server: ThreadingHTTPServer) -> dict[str, str]:
+    """Map user IDs to the flowing-light effect they currently show."""
+    if not (AUTH_DATABASE.exists() and server.auth_enabled):
+        return {}
+    try:
+        with AUTH_LOCK, auth_database() as connection:
+            rows = connection.execute(
+                "SELECT accounts.user_id AS user_id, account_effects.effect AS effect, "
+                "COALESCE(donations.amount_cents, 0) AS amount_cents "
+                "FROM account_effects JOIN accounts ON accounts.id = account_effects.account_id "
+                "LEFT JOIN donations ON donations.account_id = accounts.id "
+                "WHERE account_effects.effect != 'default'",
+            ).fetchall()
+    except sqlite3.OperationalError:
+        return {}
+    if not rows:
+        return {}
+    exports_by_score = cached_score_export_counts(server.analytics_retention_days) if server.analytics_enabled else {}
+    owned_by_user: dict[str, list[str]] = {}
+    for owner, score_id in public_owned_scores(True):
+        owned_by_user.setdefault(owner, []).append(score_id)
+    effects: dict[str, str] = {}
+    for row in rows:
+        effect = str(row["effect"])
+        user_id = str(row["user_id"])
+        rule = USER_ID_EFFECT_UNLOCKS.get(effect)
+        if not rule:
+            continue
+        if rule["kind"] == "contribution":
+            total = sum(exports_by_score.get(score_id, 0) for score_id in owned_by_user.get(user_id, []))
+            if total >= int(rule.get("min", 0)):
+                effects[user_id] = effect
+        elif rule["kind"] == "supporter" and int(row["amount_cents"] or 0) > 0:
+            effects[user_id] = effect
+    return effects
+
+
+def set_account_effect(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str, Any], requested: Any) -> None:
+    """Persist one account's ID effect after checking its unlock state."""
+    effect = str(requested or "").strip()
+    if effect not in USER_ID_EFFECTS:
+        raise ValueError("未知的 ID 特效。")
+    state = account_effect_state(server, account)
+    if effect not in state["unlockedEffects"]:
+        raise ValueError("该特效尚未解锁。")
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute(
+            "INSERT INTO account_effects(account_id, effect, updated_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(account_id) DO UPDATE SET effect=excluded.effect, updated_at=excluded.updated_at",
+            (str(account["id"]), effect, now_timestamp()),
+        )
+    PUBLIC_RANKINGS_CACHE.invalidate()
+
+
+def mark_effect_notices(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str, Any], requested: Any) -> None:
+    """Record that the unlock popup for these effects has been shown."""
+    if isinstance(requested, str):
+        requested = [requested]
+    if not isinstance(requested, list):
+        raise ValueError("请求格式无效。")
+    effects = {str(item) for item in requested if str(item) in USER_ID_EFFECTS}
+    unlocked = set(account_effect_state(server, account)["unlockedEffects"])
+    effects &= unlocked - {"default"}
+    if not effects:
+        return
+    now = now_timestamp()
+    with AUTH_LOCK, auth_database() as connection:
+        connection.executemany(
+            "INSERT OR REPLACE INTO effect_unlock_notices(account_id, effect, notified_at) VALUES (?, ?, ?)",
+            [(str(account["id"]), effect, now) for effect in sorted(effects)],
+        )
 
 
 def admin_delete_score(payload: Any) -> list[dict[str, Any]]:
@@ -2285,6 +2560,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if lowered.endswith(".zip"):
             return "public, max-age=31536000, immutable"
         if parse_qs(urlparse(self.path).query).get("v") and not lowered.startswith("/data/"):
+            # 本地预览（未开启 --public）即使带版本标记也重新验证，
+            # 否则改完 app.js / styles.css 普通刷新看不到效果。
+            if not self.server.public_library:
+                return "no-cache, must-revalidate"
             return "public, max-age=31536000, immutable"
         if path == "/" or lowered.endswith(".html"):
             return "no-cache, no-store, must-revalidate"
@@ -2662,7 +2941,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not account:
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
                 return
-            self.send_json(HTTPStatus.OK, {"account": account_payload(account)})
+            self.send_json(HTTPStatus.OK, {"account": account_payload(self.server, account)})
             return
         if path == "/api/auth/mail-status":
             if not self.server.email_auth_enabled:
@@ -2693,7 +2972,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.server.analytics_enabled:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": "站内数据分析尚未启用。"})
                 return
-            self.send_json(HTTPStatus.OK, build_public_rankings(self.server.auth_enabled, self.server.analytics_retention_days))
+            self.send_json(HTTPStatus.OK, build_public_rankings(self.server, self.server.auth_enabled, self.server.analytics_retention_days))
+            return
+        if path == "/api/public-donors":
+            self.send_json(HTTPStatus.OK, build_public_donors())
             return
         if path == "/api/admin/analytics":
             if not self.server.analytics_enabled:
@@ -2818,6 +3100,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if self.serve_maintenance_if_active(path):
             return
+        if path == "/api/admin/donations":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_set_donation(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存打赏金额。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
+            return
         if path == "/api/admin/library/recommendation":
             if not self.is_admin_console_request():
                 return
@@ -2909,7 +3201,49 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法完成登录。"})
                 return
-            self.send_json_with_cookie(HTTPStatus.OK, {"account": account_payload(account)}, self.session_cookie(token))
+            self.send_json_with_cookie(HTTPStatus.OK, {"account": account_payload(self.server, account)}, self.session_cookie(token))
+            return
+        if path == "/api/auth/effect":
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "认证尚未启用。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            try:
+                payload = self.read_payload()
+                if not isinstance(payload, dict):
+                    raise ValueError("请求格式无效。")
+                set_account_effect(self.server, account, payload.get("effect"))
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存 ID 特效。"})
+                return
+            self.send_json(HTTPStatus.OK, {"account": account_payload(self.server, account)})
+            return
+        if path == "/api/auth/effect-notice":
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "认证尚未启用。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            try:
+                payload = self.read_payload()
+                if not isinstance(payload, dict):
+                    raise ValueError("请求格式无效。")
+                mark_effect_notices(self.server, account, payload.get("effects"))
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法记录解锁提醒。"})
+                return
+            self.send_json(HTTPStatus.OK, {"account": account_payload(self.server, account)})
             return
         if path == "/api/auth/logout":
             if not self.request_is_same_origin():
@@ -3163,7 +3497,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             songs = rename_account_user_id(account, payload.get("userId"))
             with AUTH_LOCK, auth_database() as connection:
                 updated = connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account["id"],)).fetchone()
-            self.send_json(HTTPStatus.OK, {"account": account_payload(updated), "songs": songs})
+            self.send_json(HTTPStatus.OK, {"account": account_payload(self.server, updated), "songs": songs})
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法更新用户 ID。"})
 

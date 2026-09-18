@@ -75,6 +75,9 @@
       .tag.muted { color: var(--dim); border-color: rgba(122,168,151,.3); }
       .actions { display: flex; justify-content: flex-end; gap: 7px; }
       .actions .button { min-height: 30px; padding: 0 9px; font-size: 12px; }
+      .donation-cell { display: flex; align-items: center; gap: 8px; }
+      .donation-cell input { width: 88px; min-height: 30px; padding: 0 8px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; font: 12px "JetBrains Mono", monospace; }
+      .donation-cell .button { min-height: 30px; padding: 0 9px; font-size: 12px; }
       .empty { padding: 25px 8px; color: var(--dim); text-align: center; }
       .notice { min-height: 24px; margin-top: 11px; color: var(--pink); }
       .admin-song-dialog { width: min(760px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--ink); border: 2px solid var(--line); background: var(--paper); box-shadow: 7px 7px 0 var(--shadow); }
@@ -313,7 +316,7 @@
       }
       function renderUsers() {
         $("#userCount").textContent = `${number.format(state.users.length)} 位用户`;
-        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th><th>角色</th><th>上传</th><th>状态</th><th>加入时间</th><th>最近更新</th></tr></thead><tbody>${state.users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td><td class="mono">${formatDate(user.registeredAt)}</td><td class="mono">${formatDate(user.updatedAt)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th><th>角色</th><th>上传</th><th>打赏</th><th>状态</th><th>加入时间</th><th>最近更新</th></tr></thead><tbody>${state.users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td><td class="mono">${formatDate(user.registeredAt)}</td><td class="mono">${formatDate(user.updatedAt)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
       }
       let pendingAdminSong = null;
       function setAdminSongStatus(message = "", success = false) {
@@ -475,6 +478,24 @@
       $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
       $("#libraryTable").addEventListener("click", async event => { const edit = event.target.closest("[data-edit-index]"), recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(edit?.dataset.editIndex ?? recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (edit) { openAdminSongDialog(song); return; } if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
       $("#adminSongSave").addEventListener("click", saveAdminSong);
+      $("#userTable").addEventListener("click", async event => {
+        const button = event.target.closest("[data-save-donation]");
+        if (!button) return;
+        const accountId = button.dataset.saveDonation;
+        const input = button.closest("tr")?.querySelector("[data-donation-input]");
+        const raw = (input?.value || "").trim();
+        const yuan = raw === "" ? 0 : Number(raw);
+        if (!Number.isFinite(yuan) || yuan < 0) { setNotice("打赏金额需要是不小于 0 的数字。"); return; }
+        const amountCents = Math.round(yuan * 100);
+        button.disabled = true;
+        try {
+          await api("admin/donations", { method: "POST", body: JSON.stringify({ accountId, amountCents }) });
+          const user = state.users.find(item => item.id === accountId);
+          if (user) user.donationCents = amountCents;
+          renderUsers();
+          setNotice(amountCents > 0 ? `已记录打赏 ¥${(amountCents / 100).toFixed(2)}。` : "已清除这位用户的打赏记录。");
+        } catch (error) { setNotice(error.message); button.disabled = false; }
+      });
       $("#adminSongFile").addEventListener("change", () => { const file = $("#adminSongFile").files[0]; $("#adminSongFileHint").textContent = file ? "已选择：" + file.name + "（" + number.format(file.size) + " 字节）" : "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。"; });
       $("#adminSongDialog").addEventListener("close", () => { pendingAdminSong = null; $("#adminSongFile").value = ""; setAdminSongStatus(); $("#adminSongSave").disabled = false; });
       const savedToken = sessionStorage.getItem("delta-admin-token"); if (savedToken) { $("#token").value = savedToken; connect(savedToken).catch(error => { $("#loginNotice").textContent = error.message; }); }
