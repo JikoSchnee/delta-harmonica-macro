@@ -1169,9 +1169,10 @@ const harmonicaNoiseCache = new WeakMap();
 const harmonicaSampleBankCache = new WeakMap();
 const harmonicaSustainWaveCache = new WeakMap();
 const HARMONICA_SAMPLE_ROOT = "./assets/audio/harmonica";
-// Use the upstream low-register recordings whenever possible. This keeps the
-// project's G3-C6 range from being built by pitching a C4 reed down an octave.
-const HARMONICA_SAMPLE_ANCHORS = Object.freeze([48, 52, 60, 64, 72, 76, 79, 84]);
+// 48.wav/52.wav are source filenames whose actual pitches are C4/E4. Do not
+// treat their filenames as MIDI anchors: doing so puts the low-register
+// wavetable one octave above the requested note.
+const HARMONICA_SAMPLE_ANCHORS = Object.freeze([60, 64, 72, 76, 79, 84]);
 let activePreview = null;
 let workbenchHeightSyncFrame = 0;
 let pendingMacroDownload = null;
