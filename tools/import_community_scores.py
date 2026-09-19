@@ -167,6 +167,9 @@ def validate_package(payload: Any) -> dict[str, Any]:
         "jianpu": validate_jianpu(payload.get("jianpu")),
         "source": "社区投稿",
     }
+    sponsor = payload.get("sponsor")
+    if sponsor is not None and str(sponsor).strip():
+        score["sponsor"] = compact_text(sponsor, "赞助人", 48)
     remix_code = payload.get("remixCode")
     if remix_code is None:
         score["remixCode"] = remix_code_for_score(score)
@@ -250,6 +253,7 @@ def canonical_package(score: dict[str, Any]) -> dict[str, Any]:
         **({"createdAt": score["createdAt"]} if score.get("createdAt") else {}),
         **({"displayUrl": score["displayUrl"]} if score.get("displayUrl") else {}),
         **({"declaration": score["declaration"]} if score.get("declaration") else {}),
+        **({"sponsor": score["sponsor"]} if score.get("sponsor") else {}),
     }
 
 

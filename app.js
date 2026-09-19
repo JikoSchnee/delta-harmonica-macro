@@ -2429,6 +2429,7 @@ function normalizeSong(song) {
     title: String(song.title || "未命名曲目").trim() || "未命名曲目",
     artist: String(song.artist || builtin.artist || legacy.artist || "未署名").trim() || "未署名",
     sharedBy: String(song.sharedBy || "Jiko").trim() || "Jiko",
+    sponsor: String(song.sponsor || "").trim(),
     key: String(song.key || builtin.key || legacy.key || "调待补").trim() || "调待补",
     meter: String(song.meter || builtin.meter || legacy.meter || "拍号待补").trim() || "拍号待补",
     bpm: Number(song.bpm) || 120,
@@ -2605,6 +2606,8 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const index = songLibraryIndex(song);
   // 共享人挂了 ID 特效时，卡片底部那个"共享：xxx"的框也一起换风格。
   const sharedByEffect = String(song.sharedBy || "").trim() ? userIdEffectValue(song.sharedBy) : "default";
+  const sponsor = String(song.sponsor || "").trim();
+  const sponsorEffect = sponsor ? userIdEffectValue(sponsor) : "default";
   const isRecommended = recommendedSongKeys.has(recommendationKey(song));
   const canManageRecommendations = Boolean(authState.account?.isAdmin);
   const recommendationAction = isRecommended ? "unrecommend" : "recommend";
@@ -2618,7 +2621,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <div class="song-meta"><div class="song-meta-primary"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-action-count" title="脚本执行的键盘/鼠标动作总数">动作 ${song.actionCount ?? songActionCount(song)} 次</span></div><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
       ${song.declaration ? `<p class="song-declaration" title="上传者声明">声明：${escapeHtml(song.declaration)}</p>` : ""}
       </div>
-      <div class="song-card-footer"><button class="song-share${sharedByEffect === "default" ? "" : ` song-share--${sharedByEffect}`}" data-song-action="search-sharer" type="button" title="在曲库中查看这位共享人的作品" aria-label="在曲库中查看共享人 ${escapeHtml(song.sharedBy)} 的作品">共享：${userIdMarkup(song.sharedBy)}</button>${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
+      <div class="song-card-footer"><button class="song-share${sharedByEffect === "default" ? "" : ` song-share--${sharedByEffect}`}" data-song-action="search-sharer" type="button" title="在曲库中查看这位共享人的作品" aria-label="在曲库中查看共享人 ${escapeHtml(song.sharedBy)} 的作品">共享：${userIdMarkup(song.sharedBy)}</button>${sponsor ? `<button class="song-share song-sponsor${sponsorEffect === "default" ? "" : ` song-share--${sponsorEffect}`}" data-song-action="search-sponsor" type="button" title="在曲库中查看这位赞助人的作品" aria-label="在曲库中查看赞助人 ${escapeHtml(sponsor)} 的作品">赞助人：${userIdMarkup(sponsor)}</button>` : ""}${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
         <div class="song-card-actions-main">
           <button class="song-card-action" data-song-action="view" type="button">查看</button>
@@ -2636,7 +2639,7 @@ function renderSongLibrary(query = "") {
   const sourceSongs = songsForLibraryView();
   elements.libraryCount.textContent = `${sourceSongs.length} TRACK${sourceSongs.length === 1 ? "" : "S"}`;
   const normalizedQuery = query.trim().toLocaleLowerCase();
-  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song), exportCount: scoreExportCount(song), actionCount: songActionCount(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.key} ${song.meter} ${song.bpm} ${song.actionCount} ${song.remixCode || ""}`.toLocaleLowerCase().includes(normalizedQuery));
+  const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song), exportCount: scoreExportCount(song), actionCount: songActionCount(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.sponsor || ""} ${song.key} ${song.meter} ${song.bpm} ${song.actionCount} ${song.remixCode || ""}`.toLocaleLowerCase().includes(normalizedQuery));
   if (activeLibraryView === "mine" && !authState.account) {
     elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
     return;
@@ -6270,6 +6273,10 @@ function handleSongCardClick(event) {
   }
   if (actionButton?.dataset.songAction === "search-sharer") {
     openLibrarySearch(song.sharedBy);
+    return;
+  }
+  if (actionButton?.dataset.songAction === "search-sponsor") {
+    openLibrarySearch(song.sponsor);
     return;
   }
   if (!actionButton || actionButton.dataset.songAction === "card-export-copy-remix") {

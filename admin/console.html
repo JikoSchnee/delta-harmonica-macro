@@ -93,6 +93,8 @@
       .admin-song-grid input { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
       .admin-song-grid input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
       .admin-song-grid input[readonly] { color: var(--dim); border-style: dashed; background: #0a2621; }
+      .admin-song-grid select { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
+      .admin-song-grid select:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
       .admin-song-wide { grid-column: 1 / -1; }
       .admin-song-binding { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; grid-column: 1 / -1; padding: 12px; border: 1px solid rgba(122,168,151,.28); background: rgba(7,29,25,.65); }
       .admin-song-binding-title { grid-column: 1 / -1; color: var(--aqua); font: 11px "JetBrains Mono", monospace; letter-spacing: .06em; }
@@ -344,9 +346,10 @@
             <label>BPM<input id="adminSongBpm" type="number" min="30" max="300" step="1" required /></label>
             <label class="admin-song-wide">展示视频链接（可不填）<input id="adminSongDisplayUrl" type="url" maxlength="2048" placeholder="https://example.com/video" /></label>
             <div class="admin-song-binding">
-              <div class="admin-song-binding-title">OWNERSHIP BINDING / READ ONLY</div>
+              <div class="admin-song-binding-title">CREDIT BINDING / ADMIN EDITABLE SPONSOR</div>
               <label>共享人<input id="adminSongSharedBy" type="text" readonly /></label>
               <label>账号归属<input id="adminSongOwner" type="text" readonly /></label>
+              <label>赞助人<select id="adminSongSponsor" aria-describedby="adminSongSponsorHint"><option value="">无赞助人</option></select><small id="adminSongSponsorHint">选择后，公开卡片会同步该用户当前的 ID 特效。</small></label>
             </div>
             <div class="admin-song-file">
               <label for="adminSongFile">替换 .deltamusic 文件<input id="adminSongFile" type="file" accept=".deltamusic,application/json" /></label>
@@ -362,7 +365,7 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], users: [], exportMethods: { brands: [], methods: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false };
+      const state = { token: "", overview: null, songs: [], users: [], sponsorUsers: [], exportMethods: { brands: [], methods: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
@@ -426,6 +429,7 @@
         $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
       }
       function renderUsers() {
+        if (!$("#userSearch").value.trim()) state.sponsorUsers = state.users.slice();
         $("#userCount").textContent = `${number.format(state.users.length)} 位用户`;
         $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th><th>角色</th><th>上传</th><th>打赏</th><th>状态</th><th>加入时间</th><th>最近更新</th></tr></thead><tbody>${state.users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td><td class="mono">${formatDate(user.registeredAt)}</td><td class="mono">${formatDate(user.updatedAt)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
       }
@@ -553,6 +557,18 @@
         $("#adminSongDisplayUrl").value = song.displayUrl || "";
         $("#adminSongSharedBy").value = song.sharedBy || "—";
         $("#adminSongOwner").value = song.owner || "—";
+        const sponsorSelect = $("#adminSongSponsor");
+        sponsorSelect.replaceChildren(new Option("无赞助人", ""));
+        const sponsorUsers = state.sponsorUsers.length ? state.sponsorUsers : state.users;
+        sponsorUsers.forEach(user => {
+          const option = new Option(`@${user.userId}${user.role === "管理员" ? " · 管理员" : ""}`, user.id);
+          option.selected = user.userId === song.sponsor;
+          sponsorSelect.add(option);
+        });
+        if (song.sponsor && !sponsorUsers.some(user => user.userId === song.sponsor)) {
+          sponsorSelect.add(new Option(`@${song.sponsor} · 当前记录（账号未载入）`, ""));
+          sponsorSelect.lastElementChild.selected = true;
+        }
         $("#adminSongFile").value = "";
         $("#adminSongFileHint").textContent = "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。";
         setAdminSongStatus();
@@ -579,6 +595,7 @@
         payload.append("meter", $("#adminSongMeter").value);
         payload.append("bpm", $("#adminSongBpm").value);
         payload.append("displayUrl", $("#adminSongDisplayUrl").value);
+        payload.append("sponsorAccountId", $("#adminSongSponsor").value);
         if (file) payload.append("scoreFile", file, file.name);
         $("#adminSongSave").disabled = true;
         setAdminSongStatus(file ? "正在替换文件并更新曲目…" : "正在更新曲目信息…");

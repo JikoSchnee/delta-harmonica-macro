@@ -1193,6 +1193,8 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
             score["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
             score["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
             score["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
+            if existing_score.get("sponsor") and not score.get("sponsor"):
+                score["sponsor"] = existing_score["sponsor"]
         score["createdAt"] = existing_score.get("createdAt") if existing_score else now_iso_timestamp()
         destination = existing_path if existing_path and is_canonical_source(existing_path) else SOURCE_DIRECTORY / filename_for(score)
         package = canonical_package(score)
@@ -1249,6 +1251,8 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         candidate["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
         candidate["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
         candidate["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
+        if existing_score.get("sponsor"):
+            candidate["sponsor"] = existing_score["sponsor"]
         # Keep compatibility with older clients that do not send declaration;
         # an explicit empty declaration still clears the stored value.
         if "declaration" not in payload and existing_score.get("declaration"):
@@ -1562,6 +1566,7 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "title": score["title"],
             "artist": score["artist"],
             "sharedBy": score["sharedBy"],
+            "sponsor": score.get("sponsor", ""),
             "key": score["key"],
             "meter": score["meter"],
             "bpm": score["bpm"],
@@ -1579,6 +1584,20 @@ def admin_library_catalog() -> list[dict[str, Any]]:
 def admin_score_by_id(score_id: Any) -> tuple[Path, dict[str, Any]]:
     """Resolve a remix-code ID, retaining legacy 12-character compatibility."""
     return resolve_score_reference({"id": score_id})
+
+
+def admin_sponsor_user_id(value: Any, existing_score: dict[str, Any]) -> str:
+    """Resolve the selected sponsor account to its current public user ID."""
+    if value is None:
+        return str(existing_score.get("sponsor", "")).strip()
+    account_id = str(value).strip()
+    if not account_id:
+        return ""
+    with AUTH_LOCK, auth_database() as connection:
+        row = connection.execute("SELECT user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
+    if not row:
+        raise ValueError("所选赞助人账号不存在。")
+    return str(row["user_id"]).strip()
 
 
 def admin_update_score(payload: Any) -> list[dict[str, Any]]:
@@ -1616,6 +1635,7 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         "title": payload.get("title", source_score["title"]),
         "artist": payload.get("artist", source_score["artist"]),
         "sharedBy": existing_score["sharedBy"],
+        "sponsor": admin_sponsor_user_id(payload.get("sponsorAccountId"), existing_score),
         "key": payload.get("key", source_score["key"]),
         "meter": payload.get("meter", source_score["meter"]),
         "bpm": payload.get("bpm", source_score["bpm"]),
