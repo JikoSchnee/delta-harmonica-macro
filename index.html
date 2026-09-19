@@ -972,7 +972,7 @@
     </dialog>
     <dialog class="score-export-dialog" id="scoreExportDialog" aria-labelledby="scoreExportTitle">
       <form method="dialog" class="score-export-form">
-        <div class="window-titlebar"><span id="scoreExportTitle">DELTA_MUSIC.EXE — SHARE YOUR SCORE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭导出窗口">×</button></div>
+        <div class="window-titlebar"><span id="scoreExportTitle">DELTA_MUSIC.EXE — SHARE YOUR SCORE</span><button class="dialog-close" value="cancel" type="submit" formnovalidate aria-label="关闭导出窗口">×</button></div>
         <div class="score-export-body">
           <span class="index">COMMUNITY SCORE · JSON EXPORT</span>
           <h2 id="scoreExportHeading">填写共享信息</h2>
@@ -985,7 +985,7 @@
             <label class="export-declaration-field">声明（可不填）<textarea id="exportDeclaration" maxlength="200" rows="3" placeholder="例如：转载请注明出处，禁止二次上传"></textarea></label>
           </div>
           <p class="export-meta-preview" id="exportMetaPreview"></p>
-          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="primary-button" id="confirmScoreExport" type="button"><span id="confirmScoreExportLabel">下载 .deltamusic</span><b id="confirmScoreExportIcon">↓</b></button></div>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit" formnovalidate>取消</button><button class="primary-button" id="confirmScoreExport" type="button"><span id="confirmScoreExportLabel">下载 .deltamusic</span><b id="confirmScoreExportIcon">↓</b></button></div>
         </div>
       </form>
     </dialog>
