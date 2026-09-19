@@ -1165,6 +1165,12 @@ let audioContext = null;
 let masterGain = null;
 const harmonicaWaveCache = new WeakMap();
 const harmonicaNoiseCache = new WeakMap();
+const harmonicaSampleBankCache = new WeakMap();
+const harmonicaSustainWaveCache = new WeakMap();
+const HARMONICA_SAMPLE_ROOT = "./assets/audio/harmonica";
+// Use the upstream low-register recordings whenever possible. This keeps the
+// project's G3-C6 range from being built by pitching a C4 reed down an octave.
+const HARMONICA_SAMPLE_ANCHORS = Object.freeze([48, 52, 60, 64, 72, 76, 79, 84]);
 let activePreview = null;
 let workbenchHeightSyncFrame = 0;
 let pendingMacroDownload = null;
@@ -3467,6 +3473,161 @@ function previewFrequency(item) {
   return 440 * (2 ** ((midi - 69) / 12));
 }
 
+function closestHarmonicaSample(sampleBank, midi) {
+  return HARMONICA_SAMPLE_ANCHORS.reduce((closest, anchor) => {
+    if (!closest || Math.abs(anchor - midi) < Math.abs(closest.anchor - midi)) {
+      return { anchor, buffer: sampleBank.get(anchor) };
+    }
+    return closest;
+  }, null);
+}
+
+async function loadHarmonicaSampleBank(context) {
+  if (harmonicaSampleBankCache.has(context)) return harmonicaSampleBankCache.get(context);
+  const bankPromise = Promise.all(HARMONICA_SAMPLE_ANCHORS.map(async (midi) => {
+    const response = await fetch(`${HARMONICA_SAMPLE_ROOT}/${midi}.wav`);
+    if (!response.ok) throw new Error(`口琴采样 ${midi}.wav 加载失败（${response.status}）。`);
+    const audioData = await response.arrayBuffer();
+    const buffer = await context.decodeAudioData(audioData);
+    return [midi, buffer];
+  })).then((entries) => new Map(entries)).catch((error) => {
+    harmonicaSampleBankCache.delete(context);
+    throw error;
+  });
+  harmonicaSampleBankCache.set(context, bankPromise);
+  return bankPromise;
+}
+
+function getHarmonicaSustainWave(context, buffer, anchor) {
+  let contextCache = harmonicaSustainWaveCache.get(context);
+  if (!contextCache) {
+    contextCache = new WeakMap();
+    harmonicaSustainWaveCache.set(context, contextCache);
+  }
+  if (contextCache.has(buffer)) return contextCache.get(buffer);
+
+  const data = buffer.getChannelData(0);
+  const sampleRate = buffer.sampleRate;
+  const anchorFrequency = 440 * (2 ** ((anchor - 69) / 12));
+  const periodFrames = sampleRate / anchorFrequency;
+  const targetFrame = Math.floor(sampleRate * 0.34);
+  const radius = Math.floor(sampleRate * 0.06);
+  const firstFrame = Math.max(1, targetFrame - radius);
+  const lastFrame = Math.min(data.length - 2, targetFrame + radius);
+  let startFrame = targetFrame;
+  let closestDistance = Infinity;
+  for (let frame = firstFrame; frame <= lastFrame; frame += 1) {
+    if (data[frame - 1] <= 0 && data[frame] > 0) {
+      const distance = Math.abs(frame - targetFrame);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        startFrame = frame;
+      }
+    }
+  }
+
+  // Build one mathematically continuous wavetable from the stable part of the
+  // recording. Unlike looping a long recording, this has no recorded-noise or
+  // room-tone discontinuity at the sustain boundary.
+  const tableLength = 2048;
+  const averagedCycles = 12;
+  const samples = new Float32Array(tableLength);
+  let sampleTotal = 0;
+  for (let index = 0; index < tableLength; index += 1) {
+    const phase = index / tableLength;
+    let value = 0;
+    let count = 0;
+    for (let cycle = 0; cycle < averagedCycles; cycle += 1) {
+      const position = startFrame + (cycle + phase) * periodFrames;
+      const left = Math.floor(position);
+      if (left < 0 || left + 1 >= data.length) continue;
+      const fraction = position - left;
+      value += data[left] + (data[left + 1] - data[left]) * fraction;
+      count += 1;
+    }
+    samples[index] = count ? value / count : 0;
+    sampleTotal += samples[index];
+  }
+  const mean = sampleTotal / tableLength;
+  let peak = 0;
+  for (let index = 0; index < tableLength; index += 1) {
+    samples[index] -= mean;
+    peak = Math.max(peak, Math.abs(samples[index]));
+  }
+
+  const real = new Float32Array(65);
+  const imag = new Float32Array(65);
+  const maxHarmonics = Math.max(8, Math.min(64, Math.floor((sampleRate * 0.45) / anchorFrequency)));
+  for (let harmonic = 1; harmonic <= maxHarmonics; harmonic += 1) {
+    let realSum = 0;
+    let imagSum = 0;
+    for (let index = 0; index < tableLength; index += 1) {
+      const phase = (2 * Math.PI * harmonic * index) / tableLength;
+      realSum += samples[index] * Math.cos(phase);
+      imagSum -= samples[index] * Math.sin(phase);
+    }
+    real[harmonic] = (2 * realSum) / tableLength;
+    imag[harmonic] = (2 * imagSum) / tableLength;
+  }
+
+  const wave = context.createPeriodicWave(real, imag);
+  const result = { wave, peak: Math.max(0.04, Math.min(1, peak)) };
+  contextCache.set(buffer, result);
+  return result;
+}
+
+function createSampleHarmonicaVoice(context, startAt, duration, midi, sampleBank) {
+  const selected = closestHarmonicaSample(sampleBank, midi);
+  if (!selected?.buffer) return null;
+  const gain = context.createGain();
+  const source = context.createOscillator();
+  const hasScheduledEnd = Number.isFinite(duration) && duration > 0;
+  const endAt = hasScheduledEnd ? startAt + duration : null;
+  const sustainWave = getHarmonicaSustainWave(context, selected.buffer, selected.anchor);
+  const noteFrequency = 440 * (2 ** ((midi - 69) / 12));
+  const lowRegisterAmount = Math.max(0, Math.min(1, (60 - midi) / 12));
+  const mainsHumNotch = context.createBiquadFilter();
+  const mainsHumHarmonicNotch = context.createBiquadFilter();
+  const cleanupHighpass = context.createBiquadFilter();
+  const cleanupLowpass = context.createBiquadFilter();
+
+  // Pitching the C4 sample down makes its quiet 50Hz room hum and top-end
+  // resampling grit much more obvious in the low register. Keep the note's
+  // fundamental, notch the mains hum, and gently roll off the harshness.
+  mainsHumNotch.type = "notch";
+  mainsHumNotch.frequency.setValueAtTime(50, startAt);
+  mainsHumNotch.Q.setValueAtTime(8, startAt);
+  mainsHumHarmonicNotch.type = "notch";
+  mainsHumHarmonicNotch.frequency.setValueAtTime(100, startAt);
+  mainsHumHarmonicNotch.Q.setValueAtTime(8, startAt);
+  cleanupHighpass.type = "highpass";
+  cleanupHighpass.frequency.setValueAtTime(Math.max(38, Math.min(72, noteFrequency * 0.28)), startAt);
+  cleanupHighpass.Q.setValueAtTime(0.45, startAt);
+  cleanupLowpass.type = "lowpass";
+  cleanupLowpass.frequency.setValueAtTime(
+    Math.max(2400, Math.min(5600, noteFrequency * (10.5 + (1 - lowRegisterAmount) * 3))),
+    startAt
+  );
+  cleanupLowpass.Q.setValueAtTime(0.45, startAt);
+
+  source.setPeriodicWave(sustainWave.wave);
+  source.frequency.setValueAtTime(noteFrequency, startAt);
+  source.connect(mainsHumNotch).connect(mainsHumHarmonicNotch).connect(cleanupHighpass).connect(cleanupLowpass).connect(gain).connect(masterGain);
+
+  const attackAt = hasScheduledEnd ? Math.min(endAt - 0.01, startAt + 0.04) : startAt + 0.04;
+  const safeAttackAt = Math.max(startAt + 0.005, attackAt);
+  gain.gain.setValueAtTime(0.0001, startAt);
+  gain.gain.exponentialRampToValueAtTime(0.62, safeAttackAt);
+  if (hasScheduledEnd) {
+    const releaseAt = Math.max(safeAttackAt, endAt - 0.045);
+    gain.gain.setValueAtTime(0.62, releaseAt);
+    gain.gain.exponentialRampToValueAtTime(0.0001, endAt);
+  }
+  source.start(startAt);
+  if (hasScheduledEnd) source.stop(endAt + 0.06);
+  return { context, gain, nodes: [source] };
+}
+
 function getHarmonicaWave(context) {
   if (harmonicaWaveCache.has(context)) return harmonicaWaveCache.get(context);
   const real = new Float32Array(12);
@@ -3558,7 +3719,10 @@ function createHarmonicaVoice(context, startAt, duration, frequency) {
   return { context, gain, nodes: [reed, reedColor, breath] };
 }
 
-function scheduleHarmonicaTone(context, startAt, duration, frequency) {
+function scheduleHarmonicaTone(context, startAt, duration, midi, sampleBank = null) {
+  const sampleVoice = sampleBank && createSampleHarmonicaVoice(context, startAt, duration, midi, sampleBank);
+  if (sampleVoice) return sampleVoice.nodes;
+  const frequency = 440 * (2 ** ((midi - 69) / 12));
   return createHarmonicaVoice(context, startAt, duration, frequency).nodes;
 }
 
@@ -3566,19 +3730,28 @@ function releaseLiveRecordingVoice() {
   if (!liveRecordingVoice) return;
   const { context, gain, nodes } = liveRecordingVoice;
   const now = context.currentTime;
+  const releaseLevel = Math.max(0.0001, gain.gain.value);
   gain.gain.cancelScheduledValues(now);
-  gain.gain.setValueAtTime(0.1, now);
+  gain.gain.setValueAtTime(releaseLevel, now);
   gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.025);
   nodes.forEach((node) => { try { node.stop(now + 0.045); } catch {} });
   liveRecordingVoice = null;
 }
 
-function playLiveRecordingNote(note) {
+async function playLiveRecordingNote(note) {
   try {
-    const context = getAudioEngine();
-    context.resume();
+    const context = await wakeAudioEngine();
     masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
-    const voice = createHarmonicaVoice(context, context.currentTime, null, previewFrequency({ note, modifier: selectedRecordModifier || null }));
+    const midi = macroMidi({ note, modifier: selectedRecordModifier || null });
+    let sampleBank = null;
+    try {
+      sampleBank = await loadHarmonicaSampleBank(context);
+    } catch (error) {
+      console.warn("口琴采样加载失败，录制试听回退到电子音：", error);
+    }
+    const voice = sampleBank
+      ? createSampleHarmonicaVoice(context, context.currentTime, null, midi, sampleBank)
+      : createHarmonicaVoice(context, context.currentTime, null, previewFrequency({ note, modifier: selectedRecordModifier || null }));
     releaseLiveRecordingVoice();
     liveRecordingVoice = voice;
   } catch (error) {
@@ -3700,7 +3873,8 @@ function schedulePreviewWindow(preview) {
     const skippedMs = Math.max(0, preview.positionMs - noteStart);
     const noteLength = Math.max(0.035, (item.pressMs - (item.inputLeadMs || 0) - skippedMs) / 1000);
     const startAt = preview.startAt + Math.max(0, noteStart - preview.positionMs) / 1000;
-    registerPreviewNodes(preview, scheduleHarmonicaTone(preview.context, startAt, noteLength, previewFrequency(item)));
+    const midi = macroMidi(item);
+    registerPreviewNodes(preview, scheduleHarmonicaTone(preview.context, startAt, noteLength, midi, preview.sampleBank));
   }
   if (positionMs >= preview.sequence.totalMs) stopPreview();
 }
@@ -3771,9 +3945,16 @@ async function playPreview(positionMs = 0) {
   try {
     const context = await wakeAudioEngine();
     masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
+    let sampleBank = null;
+    try {
+      sampleBank = await loadHarmonicaSampleBank(context);
+    } catch (error) {
+      console.warn("口琴采样加载失败，播放器试听回退到电子音：", error);
+      toast("口琴采样加载失败，已暂时使用电子音试听。 ");
+    }
     const startAt = context.currentTime + 0.045;
     activePreview = {
-      context, nodes: new Set(), timers: [], schedulerTimer: null, sequence, startAt, positionMs: startPosition,
+      context, sampleBank, nodes: new Set(), timers: [], schedulerTimer: null, sequence, startAt, positionMs: startPosition,
       state: "playing", nextNoteIndex: nextPreviewNoteIndex(sequence, startPosition), timelineIndex: -1
     };
     setPreviewProgress(startPosition, sequence);
