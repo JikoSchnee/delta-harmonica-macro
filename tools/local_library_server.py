@@ -583,12 +583,22 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     }
 
 
+def compute_registered_account_count() -> int:
+    """Return the aggregate account count without exposing account details."""
+    if not AUTH_DATABASE.exists():
+        return 0
+    try:
+        with AUTH_LOCK, auth_database() as connection:
+            row = connection.execute("SELECT COUNT(*) AS total FROM accounts").fetchone()
+    except sqlite3.OperationalError:
+        return 0
+    return int(row["total"] or 0) if row else 0
+
+
 def compute_public_analytics_summary() -> dict[str, int]:
-    """Count today's sessions and the currently active ones from today's log."""
+    """Count today's raw page views and registered accounts for the public header."""
     now = datetime.now(timezone.utc)
-    today_sessions: set[str] = set()
     today_page_views = 0
-    latest_seen: dict[str, datetime] = {}
     path = analytics_event_path(now.date())
     if path.exists():
         try:
@@ -600,19 +610,13 @@ def compute_public_analytics_summary() -> dict[str, int]:
                     recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
                 except ValueError:
                     continue
-                if item.get("event") == "page_view":
-                    today_sessions.add(item["session"])
+                if item.get("event") == "page_view" and recorded_at <= now:
                     today_page_views += 1
-                if recorded_at <= now and recorded_at > latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
-                    latest_seen[item["session"]] = recorded_at
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             pass
-    cutoff = now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS)
     return {
-        "activeVisitors": sum(recorded_at >= cutoff for recorded_at in latest_seen.values()),
-        "todayVisitors": len(today_sessions),
         "todayPageViews": today_page_views,
-        "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
+        "registeredUsers": compute_registered_account_count(),
     }
 
 
