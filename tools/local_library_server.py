@@ -18,6 +18,7 @@ from email.utils import parsedate_to_datetime
 import gzip
 import hashlib
 import hmac
+import io
 import json
 import os
 import queue
@@ -31,6 +32,7 @@ import sys
 import threading
 import time
 import uuid
+import zipfile
 from email.message import EmailMessage
 from http import HTTPStatus
 from http.cookies import SimpleCookie
@@ -61,7 +63,8 @@ from import_community_scores import (  # noqa: E402
 )
 
 
-SOURCE_DIRECTORY = REPOSITORY_ROOT / "data" / "community-scores"
+DATA_DIRECTORY = REPOSITORY_ROOT / "data"
+SOURCE_DIRECTORY = DATA_DIRECTORY / "community-scores"
 LIBRARY_OUTPUT = REPOSITORY_ROOT / "data" / "community-songs.js"
 MAX_REQUEST_BYTES = 1_000_000
 MAX_ANALYTICS_REQUEST_BYTES = 25_000
@@ -149,8 +152,8 @@ EXPORT_DEFAULT_BRANDS = {
     "mchose": ["mchose"],
     "rog": ["rog"],
 }
-AUTH_DATABASE = REPOSITORY_ROOT / "data" / "auth.sqlite3"
-HOT_RANKING_DATABASE = REPOSITORY_ROOT / "data" / "hot-rankings.sqlite3"
+AUTH_DATABASE = DATA_DIRECTORY / "auth.sqlite3"
+HOT_RANKING_DATABASE = DATA_DIRECTORY / "hot-rankings.sqlite3"
 # User IDs may contain Unicode letters/numbers (including Chinese characters)
 # while retaining the existing underscore support.
 USER_ID_PATTERN = re.compile(r"^[\w]{3,24}$", re.UNICODE)
@@ -159,7 +162,7 @@ LIBRARY_LOCK = threading.Lock()
 ANALYTICS_LOCK = threading.Lock()
 AUTH_LOCK = threading.Lock()
 HOT_RANKING_LOCK = threading.Lock()
-ANALYTICS_DIRECTORY = REPOSITORY_ROOT / "data" / "analytics"
+ANALYTICS_DIRECTORY = DATA_DIRECTORY / "analytics"
 DEFAULT_ANALYTICS_RETENTION_DAYS = 90
 ACTIVE_VISITOR_WINDOW_SECONDS = 300
 ANALYTICS_EVENTS = {
@@ -400,12 +403,18 @@ def build_analytics_report(days: int) -> dict[str, Any]:
 
     sessions = {item["session"] for item in records}
     page_views = sum(item["event"] == "page_view" for item in records)
+    today_sessions: set[str] = set()
+    today_page_views = 0
+    today_events = 0
+    today_latest_seen: dict[str, datetime] = {}
     event_counts = Counter(item["event"] for item in records)
     event_sessions: dict[str, set[str]] = defaultdict(set)
     daily_sessions: dict[str, set[str]] = defaultdict(set)
     daily_views: Counter[str] = Counter()
     daily_exports: Counter[str] = Counter()
     daily_export_keys: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
+    daily_hourly_sessions: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
+    daily_hourly_views: dict[str, Counter[str]] = defaultdict(Counter)
     hourly_sessions: dict[str, set[str]] = defaultdict(set)
     hourly_views: Counter[str] = Counter()
     hourly_exports: Counter[str] = Counter()
@@ -429,8 +438,20 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         event_sessions[item["event"]].add(item["session"])
         recorded_at = analytics_record_time(item)
         day = recorded_at.date().isoformat() if recorded_at else ""
+        if recorded_at and recorded_at.date() == today:
+            today_events += 1
+            if item["event"] == "page_view":
+                today_sessions.add(item["session"])
+                today_page_views += 1
+            if recorded_at > today_latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
+                today_latest_seen[item["session"]] = recorded_at
         if day:
             daily_sessions[day].add(item["session"])
+            hour = recorded_at.replace(minute=0, second=0, microsecond=0).isoformat().replace("+00:00", "Z") if recorded_at else ""
+            if hour:
+                daily_hourly_sessions[day][hour].add(item["session"])
+                if item["event"] == "page_view":
+                    daily_hourly_views[day][hour] += 1
             if item["event"] == "page_view":
                 daily_views[day] += 1
             if item["event"] in SCORE_EXPORT_EVENTS:
@@ -497,6 +518,15 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     for offset in range(24):
         hour = (hourly_start + timedelta(hours=offset)).isoformat().replace("+00:00", "Z")
         hourly_timeline.append({"hour": hour, "sessions": len(hourly_sessions[hour]), "pageViews": hourly_views[hour], "scoreExports": hourly_exports[hour]})
+    daily_hourly_timeline = []
+    for offset in range(days):
+        day = (start + timedelta(days=offset)).isoformat()
+        hours = []
+        for hour_index in range(24):
+            hour = datetime(start.year, start.month, start.day, tzinfo=timezone.utc) + timedelta(days=offset, hours=hour_index)
+            hour_key = hour.isoformat().replace("+00:00", "Z")
+            hours.append({"hour": hour_key, "sessions": len(daily_hourly_sessions[day][hour_key]), "pageViews": daily_hourly_views[day][hour_key]})
+        daily_hourly_timeline.append({"day": day, "hours": hours})
     score_operations = []
     for score_id, stats in score_stats.items():
         edit_count = stats["editOpened"] + stats["editSaved"]
@@ -521,9 +551,30 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     return {
         "rangeDays": days,
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "summary": {"sessions": len(sessions), "pageViews": page_views, "events": len(records), "macroDownloads": event_counts["macro_downloaded"]},
+        "summary": {
+            "timezone": "UTC",
+            "todayDate": today.isoformat(),
+            "today": {
+                "uniqueVisitors": len(today_sessions),
+                "pageViews": today_page_views,
+                "events": today_events,
+                "activeVisitors": sum(recorded_at >= now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS) for recorded_at in today_latest_seen.values()),
+            },
+            "range": {
+                "uniqueVisitors": len(sessions),
+                "pageViews": page_views,
+                "events": len(records),
+                "macroDownloads": event_counts["macro_downloaded"],
+            },
+            # Keep the old keys for the standalone analytics page and older clients.
+            "sessions": len(sessions),
+            "pageViews": page_views,
+            "events": len(records),
+            "macroDownloads": event_counts["macro_downloaded"],
+        },
         "timeline": timeline,
         "hourlyTimeline": hourly_timeline,
+        "dailyHourlyTimeline": daily_hourly_timeline,
         "sources": [{"name": name, "count": count} for name, count in source_counts.most_common(8)],
         "events": [{"name": name, "count": count, "sessions": len(event_sessions[name])} for name, count in event_counts.most_common()],
         "scoreOperations": score_operations[:100],
@@ -536,6 +587,7 @@ def compute_public_analytics_summary() -> dict[str, int]:
     """Count today's sessions and the currently active ones from today's log."""
     now = datetime.now(timezone.utc)
     today_sessions: set[str] = set()
+    today_page_views = 0
     latest_seen: dict[str, datetime] = {}
     path = analytics_event_path(now.date())
     if path.exists():
@@ -550,6 +602,7 @@ def compute_public_analytics_summary() -> dict[str, int]:
                     continue
                 if item.get("event") == "page_view":
                     today_sessions.add(item["session"])
+                    today_page_views += 1
                 if recorded_at <= now and recorded_at > latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
                     latest_seen[item["session"]] = recorded_at
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
@@ -558,6 +611,7 @@ def compute_public_analytics_summary() -> dict[str, int]:
     return {
         "activeVisitors": sum(recorded_at >= cutoff for recorded_at in latest_seen.values()),
         "todayVisitors": len(today_sessions),
+        "todayPageViews": today_page_views,
         "activeWindowSeconds": ACTIVE_VISITOR_WINDOW_SECONDS,
     }
 
@@ -569,6 +623,54 @@ def build_public_analytics_summary() -> dict[str, int]:
         PUBLIC_ANALYTICS_SUMMARY_CACHE_SECONDS,
         compute_public_analytics_summary,
     )
+
+
+def sqlite_snapshot(path: Path) -> bytes:
+    """Read a consistent SQLite snapshot without copying a live journal file."""
+    if not path.exists():
+        return b""
+    try:
+        source = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
+        try:
+            serialize = getattr(source, "serialize", None)
+            return serialize() if callable(serialize) else path.read_bytes()
+        finally:
+            source.close()
+    except sqlite3.Error:
+        return path.read_bytes()
+
+
+def build_data_backup() -> tuple[bytes, str]:
+    """Create a restorable archive of persistent data only, never application source."""
+    DATA_DIRECTORY.mkdir(parents=True, exist_ok=True)
+    entries: list[tuple[str, bytes]] = []
+    for path in sorted(DATA_DIRECTORY.rglob("*")):
+        if not path.is_file() or path.is_symlink() or path.name == ".maintenance":
+            continue
+        relative = path.relative_to(REPOSITORY_ROOT).as_posix()
+        body = sqlite_snapshot(path) if path in {AUTH_DATABASE, HOT_RANKING_DATABASE} else path.read_bytes()
+        entries.append((relative, body))
+
+    manifest = {
+        "format": "delta-harmonica-data-backup",
+        "version": 1,
+        "createdAt": now_iso_timestamp(),
+        "contents": "仅包含 data/ 下的用户与站点持久化数据，不包含源代码、静态资源或临时维护标记。",
+        "restore": [
+            "停止站点服务。",
+            "将压缩包内的 data/ 目录覆盖到项目根目录。",
+            "确认 data/auth.sqlite3、data/community-scores/、data/analytics/ 和其他 data/ 文件均已恢复。",
+            "重新启动站点服务。",
+        ],
+        "files": [{"path": path, "bytes": len(body)} for path, body in entries],
+    }
+    archive = io.BytesIO()
+    with zipfile.ZipFile(archive, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as bundle:
+        bundle.writestr("BACKUP-MANIFEST.json", json.dumps(manifest, ensure_ascii=False, indent=2) + "\n")
+        for path, body in entries:
+            bundle.writestr(path, body)
+    filename = f"delta-harmonica-data-backup-{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}.zip"
+    return archive.getvalue(), filename
 
 
 def analytics_score_id(score: dict[str, Any], origin: str = "community") -> str:
@@ -1122,6 +1224,7 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         "bpm": payload.get("bpm"),
         "jianpu": payload.get("jianpu"),
         "displayUrl": payload.get("displayUrl"),
+        "declaration": payload.get("declaration"),
     })
     with LIBRARY_LOCK:
         existing_scores = read_scores()
@@ -1142,8 +1245,9 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         candidate["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
         candidate["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
         candidate["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
-        # The quick editor has no declaration field; keep the stored value.
-        if existing_score.get("declaration"):
+        # Keep compatibility with older clients that do not send declaration;
+        # an explicit empty declaration still clears the stored value.
+        if "declaration" not in payload and existing_score.get("declaration"):
             candidate["declaration"] = existing_score["declaration"]
         destination = existing_path
         candidate["createdAt"] = existing_score.get("createdAt") or now_iso_timestamp()
@@ -2680,6 +2784,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def send_download(self, body: bytes, filename: str, content_type: str) -> None:
+        """Send a private binary download without compression or caching."""
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
+
     def send_json_with_cookie(self, status: HTTPStatus, payload: dict[str, Any], cookie: str | None = None) -> None:
         encoded = json.dumps(payload, ensure_ascii=False).encode("utf-8")
         body, compressed = self.encode_response_body(encoded)
@@ -2997,6 +3111,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, build_runtime_report(self.server))
             return
+        if path == "/api/admin/backup":
+            if not self.is_admin_console_request():
+                return
+            try:
+                body, filename = build_data_backup()
+            except (OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": f"生成数据备份失败：{error}"})
+                return
+            self.send_download(body, filename, "application/zip")
+            return
         if path == "/api/admin/overview":
             if not self.is_admin_console_request():
                 return
@@ -3010,6 +3134,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             report = build_analytics_report(days)
             self.send_json(HTTPStatus.OK, {
                 "generatedAt": report["generatedAt"],
+                "summaryRangeDays": report["rangeDays"],
                 "summary": report["summary"],
                 "library": {
                     "total": len(library),

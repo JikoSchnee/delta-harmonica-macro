@@ -19,6 +19,7 @@
       .titlebar { display:flex; align-items:center; min-height:39px; padding:7px 12px; border-bottom:2px solid var(--line); color:#061512; background:var(--aqua); font:700 12px "JetBrains Mono",monospace; letter-spacing:.04em; }
       .titlebar::before { content:"● ● ●"; margin-right:10px; color:#196454; font-size:9px; letter-spacing:3px; }
       .titlebar a { margin-left:auto; color:#061512; text-decoration:none; }
+      .admin-version { margin-left:14px; color:#196454; font-size:10px; white-space:nowrap; }
       .hero { display:grid; grid-template-columns:1fr 260px; gap:30px; padding:34px; }
       .eyebrow { color:var(--dim); font:11px "JetBrains Mono",monospace; letter-spacing:.1em; }
       h1,h2,h3 { margin:0; font-family:"Silkscreen","Noto Sans SC",sans-serif; line-height:1.35; }
@@ -50,7 +51,7 @@
   <body>
     <main>
       <section class="window">
-        <div class="titlebar">ADMIN://START — HARMONICA DECK <a href="../">返回站点 ↗</a></div>
+        <div class="titlebar">ADMIN://START — HARMONICA DECK <span class="admin-version" data-site-version>ADMIN v— · WEB SYNC</span><a href="../">返回站点 ↗</a></div>
         <div class="hero">
           <div>
             <div class="eyebrow">DELTA / ADMINISTRATOR LANDING PAGE</div>
@@ -65,10 +66,11 @@
         <div class="directory-head"><div><div class="eyebrow">AVAILABLE WORKSPACES / 02</div><h2>管理员页面</h2></div><p>所有管理入口集中于此</p></div>
         <div class="cards">
           <a class="card" href="./console.html"><span class="card-index">01 / OPERATIONS</span><h3>后台控制台</h3><p>管理社区曲库、用户目录和导出方式品牌适用范围，查看曲目状态、推荐设置和上传贡献。</p><div class="card-foot"><span class="tag">曲库管理</span><span class="tag">用户管理</span><span class="tag">导出方式</span><span class="tag amber">需管理令牌</span></div></a>
-          <a class="card" href="./analytics.html"><span class="card-index">02 / SIGNALS</span><h3>数据分析</h3><p>查看匿名访问、功能使用漏斗、小时/天趋势、曲谱操作量和高频使用路径。</p><div class="card-foot"><span class="tag">小时 / 天趋势</span><span class="tag">使用漏斗</span><span class="tag amber">需管理令牌</span></div></a>
+          <a class="card" href="./console.html"><span class="card-index">06 / SIGNALS</span><h3>数据分析</h3><p>进入控制台 06 板块，查看今日与区间访问、去重访客、不去重访问、使用漏斗和高频路径。</p><div class="card-foot"><span class="tag">06 · 数据分析</span><span class="tag">去重 / 不去重</span><span class="tag amber">需管理令牌</span></div></a>
         </div>
       </section>
-      <footer><span>HARMONICA DECK · PRIVATE ADMIN AREA</span><span><a href="./console.html">打开控制台</a> · <a href="./analytics.html">打开分析</a></span></footer>
+      <footer><span>HARMONICA DECK · PRIVATE ADMIN AREA · <span class="admin-version" data-site-version>ADMIN v— · WEB SYNC</span></span><span><a href="./console.html">打开控制台（含 06 数据分析）</a> · <a href="./analytics.html">独立分析页</a></span></footer>
     </main>
+    <script src="./admin.js"></script>
   </body>
 </html>

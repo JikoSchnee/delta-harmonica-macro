@@ -17,6 +17,7 @@
       .window { border:2px solid var(--line); background:rgba(16,54,48,.94); box-shadow:8px 8px 0 #03100d; }
       .titlebar { display:flex; align-items:center; min-height:38px; padding:7px 12px; border-bottom:2px solid var(--line); color:#061512; background:var(--aqua); font:700 13px "JetBrains Mono", monospace; letter-spacing:.04em; }
       .titlebar::before { content:"● ● ●"; margin-right:10px; color:#196454; font-size:10px; letter-spacing:3px; }
+      .admin-version { margin-left:14px; color:#196454; font-size:10px; white-space:nowrap; }
       .hero { padding:26px; } .eyebrow, .muted { color:var(--dim); font:12px "JetBrains Mono", monospace; letter-spacing:.08em; } h1,h2 { margin:0; font-family:"Silkscreen","Noto Sans SC",sans-serif; line-height:1.35; } h1 { margin-top:8px; font-size:28px; color:var(--aqua); } h2 { font-size:17px; } p { margin:8px 0 0; }
       form { display:flex; gap:10px; margin-top:22px; } input,select,button { color:var(--ink); border:1px solid var(--line); background:#071d19; font:14px "JetBrains Mono",monospace; } input,select { min-height:40px; padding:0 11px; } input { flex:1; min-width:0; } button { min-height:40px; padding:0 14px; cursor:pointer; background:#16493f; } button:hover { color:#071816; background:var(--aqua); } .error { min-height:22px; color:var(--danger); }
       #dashboard { display:grid; gap:18px; margin-top:22px; } .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; } .metric { position:relative; min-height:112px; padding:17px; } .metric b { display:block; margin-top:7px; color:var(--aqua); font:26px "Silkscreen",sans-serif; } .metric span { color:var(--dim); font:12px "JetBrains Mono",monospace; } .metric .metric-icon { position:absolute; top:15px; right:15px; color:var(--aqua); opacity:.72; }
@@ -31,7 +32,7 @@
   <body>
     <main>
       <section class="window">
-        <div class="titlebar">ANALYTICS.EXE — PRIVATE CONSOLE <a href="./" style="margin-left:auto;color:#061512;text-decoration:none">管理首页 ↗</a></div>
+        <div class="titlebar">ANALYTICS.EXE — PRIVATE CONSOLE <span class="admin-version" data-site-version>ADMIN v— · WEB SYNC</span><a href="./" style="margin-left:auto;color:#061512;text-decoration:none">管理首页 ↗</a></div>
         <div class="hero">
           <span class="eyebrow">HARMONICA DECK · ANONYMOUS PRODUCT SIGNALS</span>
           <h1>站内数据分析</h1>
@@ -53,7 +54,7 @@
           <div class="trend-foot" id="trendFoot"></div>
         </section>
         <div class="grid">
-          <section class="window section"><span class="eyebrow">DAILY TRAFFIC</span><h2>访问走势</h2><table><thead><tr><th>日期</th><th>会话</th><th>访问</th><th>导出</th></tr></thead><tbody id="timeline"></tbody></table></section>
+          <section class="window section"><span class="eyebrow">DAILY TRAFFIC</span><h2>访问走势</h2><table><thead><tr><th>日期</th><th>访客（去重）</th><th>访问（不去重）</th><th>导出</th></tr></thead><tbody id="timeline"></tbody></table></section>
           <section class="window section"><span class="eyebrow">CONVERSION FUNNEL</span><h2>使用漏斗</h2><table><thead><tr><th>步骤</th><th>匿名会话</th></tr></thead><tbody id="funnel"></tbody></table></section>
           <section class="window section"><span class="eyebrow">ENTRY SOURCES / ACTIONS</span><h2>来源与操作</h2><table><thead><tr><th>项目</th><th>次数</th></tr></thead><tbody id="events"></tbody></table></section>
           <section class="window section"><span class="eyebrow">SCORE OPERATIONS</span><h2>谱子操作量</h2><table><thead><tr><th>曲谱</th><th>载入</th><th>编辑</th><th>导出</th><th>总计</th><th>会话</th></tr></thead><tbody id="scores"></tbody></table></section>
@@ -96,7 +97,8 @@
         $("#trendFoot").textContent = hourly ? "小时视图显示最近 24 个完整小时；每个柱组左侧为人流量，右侧为谱子导出量。" : `天视图显示当前选择的最近 ${report.rangeDays} 天；访客会话按天去重。`;
       }
       function render(report) {
-        const cards = [["匿名会话",report.summary.sessions,icons.sessions],["页面访问",report.summary.pageViews,icons.page],["记录事件",report.summary.events,icons.events],["宏文件下载",report.summary.macroDownloads,icons.macro]];
+        const summary = report.summary || {}, today = summary.today || {}, range = summary.range || {};
+        const cards = [["今日访客（去重）",today.uniqueVisitors,icons.sessions],["今日访问（不去重）",today.pageViews,icons.page],[`近 ${report.rangeDays} 天访客（去重）`,range.uniqueVisitors,icons.sessions],[`近 ${report.rangeDays} 天访问（不去重）`,range.pageViews,icons.page]];
         $("#summary").innerHTML = cards.map(([name,value,icon]) => `<section class="window metric"><span>${name}</span><span class="metric-icon">${icon}</span><b>${number.format(value)}</b></section>`).join("");
         renderTrend(report);
         rows("#timeline", report.timeline.slice().reverse(), item => `<tr><td>${item.day.slice(5)}</td><td>${number.format(item.sessions)}</td><td>${number.format(item.pageViews)}</td><td>${number.format(item.scoreExports || 0)}</td></tr>`);
@@ -123,5 +125,6 @@
         } catch (error) { $("#dashboard").hidden = true; $("#error").textContent = error.message || "无法读取数据。"; }
       });
     </script>
+    <script src="./admin.js"></script>
   </body>
 </html>
