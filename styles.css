@@ -1252,7 +1252,7 @@ main {
 .song-edit-status { flex: 0 0 auto; padding: 6px 8px; color: #d8ffff; background: var(--screen); border: 1px solid #46706d; font: 700 9px/1.3 var(--mono); }
 .song-edit-description { margin: 10px 0 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
 .song-edit-controls { margin-top: 16px; }
-.song-edit-video-field { grid-column: 1 / -1; }
+.song-edit-video-field, .song-edit-declaration-field { grid-column: 1 / -1; }
 .song-edit-score-pane { margin-top: 18px; padding-top: 16px; border-top: 2px groove var(--surface); }
 .song-edit-score-wrap { height: 280px; min-height: 280px; }
 .song-edit-soft-keyboard { margin-top: 10px; }
@@ -1733,7 +1733,7 @@ dialog.toast[open] { display: block; }
   .song-edit-status { align-self: stretch; }
   .song-edit-body { padding: 14px; }
   .song-edit-controls { grid-template-columns: 1fr 1fr; }
-  .song-edit-controls .song-title-label, .song-edit-video-field { grid-column: 1 / -1; }
+  .song-edit-controls .song-title-label, .song-edit-video-field, .song-edit-declaration-field { grid-column: 1 / -1; }
   .song-edit-score-wrap { height: 235px; min-height: 235px; }
   .controls-grid { grid-template-columns: 1fr 1fr; }
   .song-title-label { grid-column: span 2; }

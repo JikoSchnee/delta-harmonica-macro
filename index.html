@@ -78,7 +78,9 @@
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>当前<b id="activeVisitorCount">--</b>人正在访问</span>
           <span aria-hidden="true">｜</span>
-          <span>今日访问量<b id="todayVisitorCount">--</b></span>
+          <span>今日访客（去重）<b id="todayVisitorCount">--</b></span>
+          <span aria-hidden="true">｜</span>
+          <span>今日访问（不去重）<b id="todayPageViewCount">--</b></span>
         </div>
         <button class="account-button" id="accountButton" type="button" aria-haspopup="dialog" hidden><span class="account-indicator" aria-hidden="true"></span><span id="accountButtonLabel">登录 / 注册</span></button>
       </nav>
@@ -1006,7 +1008,7 @@
         <div class="window-titlebar"><span>MY_SCORE.EXE — QUICK EDITOR</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭曲目编辑窗口">×</button></div>
         <div class="song-edit-body">
           <div class="song-edit-heading"><div><span class="index">MY LIBRARY · QUICK EDIT</span><h2 id="songEditTitle">编辑曲目</h2></div><span class="song-edit-status" id="songEditStatus" role="status" aria-live="polite">编辑自己的曲目</span></div>
-          <p id="songEditDescription" class="song-edit-description">这里只保留常用曲目信息和简谱编辑。修改完成后点击右下角“保存”，谱子会同步更新到我的曲库。</p>
+          <p id="songEditDescription" class="song-edit-description">这里只保留常用曲目信息、声明和简谱编辑。修改完成后点击右下角“保存”，谱子会同步更新到我的曲库。</p>
           <div class="controls-grid song-edit-controls">
             <label class="song-title-label">歌名<input id="songEditName" type="text" maxlength="48" required /></label>
             <label>歌手/作者<input id="songEditArtist" type="text" maxlength="64" required /></label>
@@ -1018,6 +1020,7 @@
               <div><button id="songEditTransposeDown" type="button" aria-label="整首谱子降低半音">−</button><output id="songEditTransposeStatus" aria-live="polite">等待曲谱</output><button id="songEditTransposeUp" type="button" aria-label="整首谱子升高半音">+</button></div>
             </section>
             <label class="song-edit-video-field">展示视频链接（可不填）<input id="songEditDisplayUrl" type="url" maxlength="2048" inputmode="url" placeholder="https://example.com/video" /></label>
+            <label class="song-edit-declaration-field">声明（可不填）<textarea id="songEditDeclaration" maxlength="200" rows="3" placeholder="例如：转载请注明出处，禁止二次上传"></textarea></label>
           </div>
           <section class="song-edit-score-pane" aria-labelledby="songEditScoreHeading">
             <div class="mode-intro"><div><span class="index">READABLE SCORE</span><h3 id="songEditScoreHeading">直接输入数字简谱</h3></div><p>乐谱改动会随曲目信息一起保存。</p></div>
