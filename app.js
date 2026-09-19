@@ -28,8 +28,12 @@ let selectedExportBrand = "all";
 // helper release cannot leave stale links or compatibility ranges behind.
 const RECORDER_HELPER_MANIFEST_URL = "./recording-helper/version.json";
 let recorderHelperManifest = null;
+let recorderHelperManifestPromise = null;
 let recorderHelperVersion = "—";
 let recorderHelperCompatibility = Object.freeze({ label: "加载中", prefixes: Object.freeze([]) });
+const RECORDER_PROTOCOL_MAX_LENGTH = 30000;
+let recorderCompressionCache = { key: "", payload: null };
+let recorderCompressionPending = { key: "", promise: null };
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
 const THIRD_PARTY_LOGIN_UI_ENABLED = false;
 const GITHUB_REPOSITORY = "JikoSchnee/delta-harmonica-macro";
@@ -453,8 +457,7 @@ function promptAnonymousMacroExportLogin() {
   showAuthDialog({ reason: "anonymous-export-limit" });
 }
 
-async function reserveMacroExportSlot() {
-  await authReadyPromise.catch(() => {});
+function reserveMacroExportSlotNow() {
   if (!authState.available || !authState.statusKnown || authState.account) return { commit() {}, release() {} };
   const used = anonymousMacroExportCount();
   if (used + anonymousMacroExportReservations >= ANONYMOUS_MACRO_EXPORT_LIMIT) {
@@ -476,6 +479,11 @@ async function reserveMacroExportSlot() {
       anonymousMacroExportReservations = Math.max(0, anonymousMacroExportReservations - 1);
     }
   };
+}
+
+async function reserveMacroExportSlot() {
+  await authReadyPromise.catch(() => {});
+  return reserveMacroExportSlotNow();
 }
 
 function analyticsEntrySource() {
@@ -3308,21 +3316,27 @@ function normalizeRecordingHelperManifest(manifest) {
   });
 }
 
-async function loadRecordingHelperManifest() {
-  try {
-    const response = await fetch(`${RECORDER_HELPER_MANIFEST_URL}?t=${Date.now()}`, { headers: { Accept: "application/json" }, cache: "no-store" });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const manifest = normalizeRecordingHelperManifest(await response.json());
-    if (!manifest) throw new Error("invalid manifest");
-    recorderHelperManifest = manifest;
-    recorderHelperVersion = manifest.version;
-    recorderHelperCompatibility = Object.freeze({ label: manifest.compatibilityLabel, prefixes: manifest.compatibleHelperPrefixes });
-    syncRecordingHelperVersionBoards();
-    return manifest;
-  } catch {
-    recorderHelperManifest = null;
-    return null;
-  }
+function loadRecordingHelperManifest() {
+  if (recorderHelperManifestPromise) return recorderHelperManifestPromise;
+  recorderHelperManifestPromise = (async () => {
+    try {
+      const response = await fetch(`${RECORDER_HELPER_MANIFEST_URL}?t=${Date.now()}`, { headers: { Accept: "application/json" }, cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const manifest = normalizeRecordingHelperManifest(await response.json());
+      if (!manifest) throw new Error("invalid manifest");
+      recorderHelperManifest = manifest;
+      recorderHelperVersion = manifest.version;
+      recorderHelperCompatibility = Object.freeze({ label: manifest.compatibilityLabel, prefixes: manifest.compatibleHelperPrefixes });
+      syncRecordingHelperVersionBoards();
+      return manifest;
+    } catch {
+      recorderHelperManifest = null;
+      return null;
+    } finally {
+      recorderHelperManifestPromise = null;
+    }
+  })();
+  return recorderHelperManifestPromise;
 }
 
 function syncRecordingHelperVersionBoards() {
@@ -4195,6 +4209,49 @@ function encodeUrlSafePayload(payload) {
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
+function recorderPayloadFromSequence(sequence) {
+  return {
+    v: 1,
+    wv: WEBSITE_VERSION,
+    title: safeName(),
+    events: [
+      { w: RECORDER_STARTUP_GUARD_MS },
+      ...sequence.notes.map((item) => item.isRest
+        ? { w: item.durationMs }
+        : { k: item.key, m: item.modifier || "", l: item.inputLeadMs || 0, h: item.pressMs, w: item.waitMs || 0 })
+    ],
+    hc: recorderHelperCompatibility.prefixes
+  };
+}
+
+function recorderPayloadKey(payload) {
+  return JSON.stringify(payload);
+}
+
+function warmRecorderCompression(payload) {
+  const key = recorderPayloadKey(payload);
+  if (recorderCompressionCache.key === key || recorderCompressionPending.key === key) return;
+  recorderCompressionPending = { key, promise: encodeGzipUrlPayload(payload).then((compressed) => {
+    if (recorderCompressionPending.key === key && compressed) recorderCompressionCache = { key, payload: compressed };
+    return compressed;
+  }).catch(() => null) };
+}
+
+function requestRecorderProtocol(url) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.hidden = true;
+  document.body.append(link);
+  try {
+    // Keep this synchronous: Chromium and Edge may reject a custom protocol
+    // navigation after an awaited fetch/compression step loses user activation.
+    link.click();
+    return true;
+  } finally {
+    link.remove();
+  }
+}
+
 async function encodeGzipUrlPayload(payload) {
   if (typeof CompressionStream !== "function") return null;
   try {
@@ -4210,41 +4267,36 @@ async function encodeGzipUrlPayload(payload) {
   }
 }
 
-async function launchIndependentRecorder(sequence) {
+function launchIndependentRecorder(sequence) {
   if (!recorderHelperManifest) {
-    await loadRecordingHelperManifest();
-    if (!recorderHelperManifest) {
-      toast("无法读取宏录制助手版本清单，请稍后重试。 ");
-      return;
-    }
-  }
-  const reservation = await reserveMacroExportSlot();
-  if (!reservation) return;
-  const payload = {
-    v: 1,
-    wv: WEBSITE_VERSION,
-    title: safeName(),
-    events: [
-      { w: RECORDER_STARTUP_GUARD_MS },
-      ...sequence.notes.map((item) => item.isRest
-        ? { w: item.durationMs }
-        : { k: item.key, m: item.modifier || "", l: item.inputLeadMs || 0, h: item.pressMs, w: item.waitMs || 0 })
-    ],
-    hc: recorderHelperCompatibility.prefixes
-  };
-  const compressedPayload = await encodeGzipUrlPayload(payload);
-  const url = compressedPayload
-    ? `harmonica-recorder://play?encoding=gzip&payload=${compressedPayload}`
-    : `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
-  if (url.length > 30000) {
-    reservation.release();
-    toast(compressedPayload
-      ? "当前曲谱压缩后仍超过系统导入上限，请拆分为较短的段落。 "
-      : "当前浏览器不支持压缩导入，且曲谱过长；请拆分为较短的段落。 ");
+    void loadRecordingHelperManifest();
+    toast("正在读取宏录制助手信息，请稍后再次点击导出。 ");
     return;
   }
+  const payload = recorderPayloadFromSequence(sequence);
+  const payloadKey = recorderPayloadKey(payload);
+  const compressedPayload = recorderCompressionCache.key === payloadKey ? recorderCompressionCache.payload : null;
+  const plainUrl = `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
+  const url = compressedPayload
+    ? `harmonica-recorder://play?encoding=gzip&payload=${compressedPayload}`
+    : plainUrl;
+  if (url.length > RECORDER_PROTOCOL_MAX_LENGTH) {
+    if (compressedPayload) {
+      toast("当前曲谱压缩后仍超过系统导入上限，请拆分为较短的段落。 ");
+      return;
+    }
+    if (typeof CompressionStream !== "function") {
+      toast("当前浏览器不支持压缩导入，且曲谱过长；请拆分为较短的段落。 ");
+      return;
+    }
+    warmRecorderCompression(payload);
+    toast("当前曲谱较长，正在准备压缩导入，请稍后再次点击。 ");
+    return;
+  }
+  const reservation = reserveMacroExportSlotNow();
+  if (!reservation) return;
   try {
-    window.location.assign(url);
+    requestRecorderProtocol(url);
   } catch {
     reservation.release();
     toast("无法启动宏录制助手，请确认助手已安装。 ");
