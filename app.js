@@ -6494,7 +6494,7 @@ function handleSongCardClick(event) {
     return;
   }
   if (actionButton.dataset.songAction === "edit") {
-    loadSong(song, { destination: "editor", editMode: true });
+    openSongEditDialog(song);
     return;
   }
   const destination = actionButton.dataset.songAction === "export" ? "export" : "editor";
