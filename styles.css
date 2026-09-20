@@ -1001,6 +1001,16 @@ main {
 .export-brand-filter-button[aria-selected="true"] { color: #e8ffff; background: var(--teal-dark); border-color: #72bbb5; border-bottom-color: #034b48; box-shadow: 1px 1px 0 rgba(0, 42, 42, .55); }
 .export-brand-filter-button[aria-selected="true"] > small { color: #9ce4de; }
 .export-brand-filter-button:active { border-style: inset; box-shadow: none; transform: translateY(1px); }
+.export-brand-filter-button[data-export-brand-filter="logitech"] { color: #2d4058; }
+.export-brand-filter-button[data-export-brand-filter="razer"] { color: #27645f; }
+.export-brand-filter-button[data-export-brand-filter="mchose"] { color: #315b42; }
+.export-brand-filter-button[data-export-brand-filter="rog"] { color: #555b2a; }
+.export-brand-filter-button[data-export-brand-filter="recorder"] { color: #73451f; }
+.export-brand-filter-button[data-export-brand-filter="atk"] { color: #6d342a; }
+.export-brand-filter-button[data-export-brand-filter="vgn"] { color: #6d3d4d; }
+.export-brand-filter-button[data-export-brand-filter="rapoo"] { color: #514064; }
+.export-brand-filter-button[data-export-brand-filter="aula"] { color: #3c4270; }
+.export-brand-filter-button[data-export-brand-filter="hp"] { color: #2d5074; }
 .export-brand-tags { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; margin-bottom: 14px; }
 .export-brand-tags[hidden] { display: none; }
 .export-brand-tags > .software-logo {
@@ -1022,12 +1032,54 @@ main {
 .software-logo--export .software-logo-image--mchose img { top: -28px; left: -6px; width: 68px; height: 68px; }
 .software-logo--export .software-logo-image--rog { width: 30px; height: 19px; }
 .software-logo--export .software-logo-image--rog img { left: -8px; width: 47px; height: 25px; }
+.software-logo--export .software-logo-image--razer { width: 22px; height: 20px; background: #e8fffb; }
+.software-logo--export .software-logo-image--razer img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--export .software-logo-image--rapoo { width: 42px; height: 18px; background: #fff; }
+.software-logo--export .software-logo-image--rapoo img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--export .software-logo-image--aula { width: 42px; height: 18px; background: #fff; }
+.software-logo--export .software-logo-image--aula img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--export .software-logo-image--hp { width: 19px; height: 19px; background: #fff; }
+.software-logo--export .software-logo-image--hp img { width: 100%; height: 100%; object-fit: contain; }
 .software-logo--atk { color: #fff; background: #24272a; border-color: #8f969c; border-bottom-color: #101214; }
 .software-logo--vgn { color: #241e18; background: #f2c879; border-color: #ffe8ad; border-bottom-color: #9b6b25; }
 .software-logo-image--atk, .software-logo-image--vgn { width: 38px; height: 18px; background: #fff; }
 .software-logo-image--atk img, .software-logo-image--vgn img { width: 100%; height: 100%; object-fit: contain; }
 .software-logo--atk small { color: #c6d0d7; }
 .software-logo--vgn small { color: #5c421f; }
+.software-logo--rapoo { color: #101820; background: #e9f0f4; border-color: #fff; border-bottom-color: #8295a3; }
+.software-logo-image--rapoo { width: 48px; height: 18px; background: #fff; }
+.software-logo-image--rapoo img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--rapoo small { color: #50616d; }
+.software-logo--aula { color: #101820; background: #f0f3f5; border-color: #fff; border-bottom-color: #87939c; }
+.software-logo-image--aula { width: 48px; height: 18px; background: #fff; }
+.software-logo-image--aula img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--aula small { color: #5b6972; }
+.software-logo--hp { color: #fff; background: #087fba; border-color: #8fe0ff; border-bottom-color: #045274; }
+.software-logo-image--hp { width: 22px; height: 22px; background: #fff; }
+.software-logo-image--hp img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--hp small { color: #d9f5ff; }
+
+/* Brand ribbon follows the Supports order: Logitech → Razer → MCHOSE → ROG → REC → ATK → VGN → Rapoo → AULA → HP. */
+.software-logo--logitech { color: #fff; background: #4f6f95; border-color: #bfd0e4; border-bottom-color: #2d4058; }
+.software-logo--logitech small { color: #e8f1fb; }
+.software-logo--razer { color: #073d3a; background: #3f9e98; border-color: #aee7e1; border-bottom-color: #27645f; }
+.software-logo--razer small { color: #e0fffb; }
+.software-logo--mchose { color: #fff; background: #5d9f76; border-color: #bde3c9; border-bottom-color: #315b42; }
+.software-logo--mchose > span small { color: #e8ffed; }
+.software-logo--rog { color: #fff; background: #8c9550; border-color: #e1e5a4; border-bottom-color: #555b2a; }
+.software-logo--rog small { color: #f4f6cf; }
+.software-logo--recorder { color: #fff; background: #c18a4b; border-color: #f1d2a6; border-bottom-color: #73451f; }
+.software-logo--recorder small { color: #fff0d7; }
+.software-logo--atk { color: #fff; background: #b96858; border-color: #e4afa4; border-bottom-color: #6d342a; }
+.software-logo--atk small { color: #ffe5df; }
+.software-logo--vgn { color: #fff; background: #ad6e81; border-color: #e4b7c5; border-bottom-color: #6d3d4d; }
+.software-logo--vgn small { color: #ffe9f0; }
+.software-logo--rapoo { color: #fff; background: #8c70a5; border-color: #cbb9dd; border-bottom-color: #514064; }
+.software-logo--rapoo small { color: #f1e8fa; }
+.software-logo--aula { color: #fff; background: #6d74ad; border-color: #b8c0ea; border-bottom-color: #3c4270; }
+.software-logo--aula small { color: #e9ecff; }
+.software-logo--hp { color: #fff; background: #4a83b8; border-color: #b8d6ed; border-bottom-color: #2d5074; }
+.software-logo--hp small { color: #e2f3ff; }
 .export-card .macro-settings { margin-top: 18px; }
 .export-top { display: flex; align-items: center; gap: 12px; }
 .driver-mark { display: grid; width: 36px; height: 36px; place-items: center; color: var(--white); background: var(--teal); border: 2px outset #69b5b5; font: 700 17px/1 var(--pixel); }

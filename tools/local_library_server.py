@@ -132,6 +132,9 @@ EXPORT_BRAND_DEFINITIONS = (
     {"id": "recorder", "label": "通用录制", "subLabel": "RECORDER"},
     {"id": "atk", "label": "ATK", "subLabel": "GAMING GEAR"},
     {"id": "vgn", "label": "VGN", "subLabel": "GAMING GEAR"},
+    {"id": "rapoo", "label": "Rapoo", "subLabel": "雷柏"},
+    {"id": "aula", "label": "AULA", "subLabel": "狼蛛"},
+    {"id": "hp", "label": "HP", "subLabel": "惠普"},
 )
 EXPORT_METHOD_DEFINITIONS = (
     {"id": "logitech", "title": "Logitech G HUB", "description": "Lua 脚本 · 手动粘贴"},
@@ -145,8 +148,8 @@ EXPORT_METHOD_DEFINITIONS = (
 EXPORT_BRAND_IDS = {item["id"] for item in EXPORT_BRAND_DEFINITIONS}
 EXPORT_METHOD_IDS = {item["id"] for item in EXPORT_METHOD_DEFINITIONS}
 EXPORT_DEFAULT_BRANDS = {
-    "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn"],
-    "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn"],
+    "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
+    "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
     "logitech": ["logitech"],
     "razer-synapse-3": ["razer"],
     "razer-synapse-4": ["razer"],

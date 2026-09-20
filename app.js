@@ -8,12 +8,15 @@ const EXPORT_BRANDS = {
   rog: { label: "ROG", small: "ARMOURY CRATE", className: "software-logo--rog", type: "image", src: "https://press.asus.com/assets/w_1200,h_630/90767418-95b3-4934-b729-d5a6b1e97bd3/ROG-logo-white.png" },
   recorder: { label: "REC", small: "通用录制", className: "software-logo--recorder", type: "recorder" },
   atk: { label: "ATK", small: "GAMING GEAR", className: "software-logo--atk", type: "image", src: "assets/brand-logos/atk.svg" },
-  vgn: { label: "VGN", small: "GAMING GEAR", className: "software-logo--vgn", type: "image", src: "assets/brand-logos/vgn.svg" }
+  vgn: { label: "VGN", small: "GAMING GEAR", className: "software-logo--vgn", type: "image", src: "assets/brand-logos/vgn.svg" },
+  rapoo: { label: "RAPOO", small: "雷柏", className: "software-logo--rapoo", type: "image", src: "assets/brand-logos/rapoo.svg" },
+  aula: { label: "AULA", small: "狼蛛", className: "software-logo--aula", type: "image", src: "assets/brand-logos/aula.svg" },
+  hp: { label: "HP", small: "惠普", className: "software-logo--hp", type: "image", src: "assets/brand-logos/hp.svg" }
 };
 const EXPORT_METHOD_IDS = ["logitech", "razer-synapse-3", "razer-synapse-4", "mchose", "rog", "recording-helper", "manual-entry"];
 const DEFAULT_EXPORT_METHOD_BRANDS = {
-  "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn"],
-  "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn"],
+  "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
+  "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
   logitech: ["logitech"],
   "razer-synapse-3": ["razer"],
   "razer-synapse-4": ["razer"],
@@ -46,10 +49,23 @@ const AI_SCORE_PROMPT = `你是一名严谨的数字简谱转写助手。请将�
 // for recording and Razer scancodes, then translate only for Lua export.
 const GHUB_KEY_NAMES = { ",": "comma" };
 const MAKE_CODES = { z: 44, x: 45, c: 46, v: 47, b: 48, n: 49, m: 50, ",": 51 };
+// Synapse 4 stores Windows virtual-key codes and scan codes separately.
+// The older exporter only emitted the scan code as Makecode, which makes the
+// XML look valid but prevents Synapse 4 from recognising its keyboard events.
+const RAZER4_KEY_CODES = {
+  z: { makeCode: 90, scanCode: 44 }, x: { makeCode: 88, scanCode: 45 },
+  c: { makeCode: 67, scanCode: 46 }, v: { makeCode: 86, scanCode: 47 },
+  b: { makeCode: 66, scanCode: 48 }, n: { makeCode: 78, scanCode: 49 },
+  m: { makeCode: 77, scanCode: 50 }, ",": { makeCode: 188, scanCode: 51 }
+};
 // G HUB raw mouse events use left=1, right=2, middle=3. Its simulated-input
 // API (PressMouseButton / ReleaseMouseButton) uses left=1, middle=2, right=3.
 // Razer XML follows the raw physical-button order.
-const MOUSE_BUTTONS = { L: { name: "左键降调", ghub: 1, razer: 1 }, M: { name: "中键半音", ghub: 2, razer: 3 }, R: { name: "右键升调", ghub: 3, razer: 2 } };
+const MOUSE_BUTTONS = {
+  L: { name: "左键降调", ghub: 1, razer: 1, razer4: 0 },
+  M: { name: "中键半音", ghub: 2, razer: 3, razer4: 2 },
+  R: { name: "右键升调", ghub: 3, razer: 2, razer4: 1 }
+};
 // Armoury Crate GMAC stores the display name and the same 301/302/303 button
 // code in both numeric fields. These values are taken from a real GMAC export;
 // the generic Linux input codes (272/273/274) are not accepted by Armoury
@@ -4312,6 +4328,57 @@ function generateRazerXml(sequence, version) {
   return `<?xml version="1.0" encoding="utf-8"?>\n<!-- Harmonica Deck experimental Synapse ${version} macro. Synapse 3 and 4 files are not interchangeable. -->\n<Macro xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n  <Name>${name}</Name>\n  <Guid>${makeUuid()}</Guid>\n  <MacroEvents>\n${events.join("\n")}\n  </MacroEvents>\n  <IsFolder>false</IsFolder>\n  <FolderGuid>00000000-0000-0000-0000-000000000000</FolderGuid>\n</Macro>\n`;
 }
 
+function razer4DelayEvent(milliseconds, selected = false) {
+  const seconds = (Math.max(0, Math.round(milliseconds)) / 1000).toFixed(3);
+  return `    <MacroEvent><Type>0</Type><Number>${seconds}</Number><selected>${selected}</selected></MacroEvent>`;
+}
+
+function razer4KeyboardEvent(state, codes, id, selected = false) {
+  return `    <MacroEvent><Type>1</Type><Id>${id}</Id><KeyEvent><Makecode>${codes.makeCode}</Makecode><State>${state}</State></KeyEvent><flag>0</flag><selected>${selected}</selected><isPairing>false</isPairing><ScanCode>${codes.scanCode}</ScanCode></MacroEvent>`;
+}
+
+function razer4MouseEvent(state, button, id, selected = false) {
+  return `    <MacroEvent><Type>2</Type><Id>${id}</Id><MouseEvent><MouseButton>${button}</MouseButton><State>${state}</State></MouseEvent><flag>0</flag><selected>${selected}</selected><isPairing>false</isPairing></MacroEvent>`;
+}
+
+function generateRazer4Xml(sequence) {
+  const events = [];
+  let nextEventId = Date.now();
+  const eventId = () => String(nextEventId++);
+  const selected = false;
+  const pushDelay = (milliseconds) => events.push(razer4DelayEvent(milliseconds, selected));
+
+  sequence.notes.forEach((item) => {
+    if (item.isRest) {
+      pushDelay(item.durationMs);
+      return;
+    }
+    const codes = RAZER4_KEY_CODES[item.key];
+    if (!codes) return;
+    const modifiers = [...(item.modifier || "")];
+    const modifierIds = modifiers.map(() => eventId());
+    modifiers.forEach((modifier, index) => {
+      pushDelay(0);
+      events.push(razer4MouseEvent(0, MOUSE_BUTTONS[modifier].razer4, modifierIds[index], selected));
+    });
+    const inputLeadMs = item.inputLeadMs || 0;
+    const keyId = eventId();
+    pushDelay(inputLeadMs);
+    events.push(razer4KeyboardEvent(0, codes, keyId, selected));
+    pushDelay(item.pressMs - inputLeadMs);
+    events.push(razer4KeyboardEvent(1, codes, keyId, selected));
+    modifiers.slice().reverse().forEach((modifier, index) => {
+      pushDelay(0);
+      const originalIndex = modifiers.length - 1 - index;
+      events.push(razer4MouseEvent(1, MOUSE_BUTTONS[modifier].razer4, modifierIds[originalIndex], selected));
+    });
+    if (item.waitMs > 0) pushDelay(item.waitMs);
+  });
+  if (events.length) pushDelay(0);
+  const name = escapedXml(`${safeName()} · Synapse 4`);
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<Macro>\n  <Name>${name}</Name>\n  <MacroEvents>\n${events.join("\n")}\n  </MacroEvents>\n  <DelaySetting>0</DelaySetting>\n  <Guid>${makeUuid()}</Guid>\n  <Version>4</Version>\n  <MouseMoveType>none</MouseMoveType>\n</Macro>\n`;
+}
+
 function mchoseAction(val, type, press) {
   return { val, type, press, hover: false };
 }
@@ -4656,7 +4723,7 @@ const MACRO_DOWNLOAD_CONFIG = {
     suffix: "-synapse-4.xml",
     type: "application/xml",
     requiresTriggerSettings: false,
-    build: (sequence) => generateRazerXml(sequence, 4),
+    build: (sequence) => generateRazer4Xml(sequence),
     success: "Synapse 4 XML 已下载。"
   },
   "download-mchose": {

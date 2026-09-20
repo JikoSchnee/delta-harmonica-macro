@@ -121,6 +121,20 @@
       .admin-export-logo img { width: 32px; height: 18px; object-fit: contain; background: #f1f4f2; }
       .admin-export-logo--atk { color: #fff; background: #24272a; }
       .admin-export-logo--vgn { color: #241e18; background: #f2c879; }
+      .admin-export-logo--rapoo { color: #101820; background: #e9f0f4; }
+      .admin-export-logo--aula { color: #101820; background: #f0f3f5; }
+      .admin-export-logo--hp { color: #fff; background: #0096d6; }
+      /* Match the public Supports order with one continuous brand color ribbon. */
+      .admin-export-logo--logitech { color: #fff; background: #4f6f95; border-color: #bfd0e4; }
+      .admin-export-logo--razer { color: #073d3a; background: #3f9e98; border-color: #aee7e1; }
+      .admin-export-logo--mchose { color: #fff; background: #5d9f76; border-color: #bde3c9; }
+      .admin-export-logo--rog { color: #fff; background: #8c9550; border-color: #e1e5a4; }
+      .admin-export-logo--recorder { color: #fff; background: #c18a4b; border-color: #f1d2a6; }
+      .admin-export-logo--atk { color: #fff; background: #b96858; border-color: #e4afa4; }
+      .admin-export-logo--vgn { color: #fff; background: #ad6e81; border-color: #e4b7c5; }
+      .admin-export-logo--rapoo { color: #fff; background: #8c70a5; border-color: #cbb9dd; }
+      .admin-export-logo--aula { color: #fff; background: #6d74ad; border-color: #b8c0ea; }
+      .admin-export-logo--hp { color: #fff; background: #4a83b8; border-color: #b8d6ed; }
       .export-config-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 18px; }
       .export-config-status { min-height: 22px; margin: 0; color: var(--dim); font-size: 12px; }
       .export-config-status.success { color: var(--aqua); }
@@ -376,7 +390,10 @@
         rog: { label:"ROG", small:"ARMOURY CRATE", className:"admin-export-logo--rog", src:"https://press.asus.com/assets/w_1200,h_630/90767418-95b3-4934-b729-d5a6b1e97bd3/ROG-logo-white.png" },
         recorder: { label:"REC", small:"通用录制", className:"admin-export-logo--recorder" },
         atk: { label:"ATK", small:"GAMING GEAR", className:"admin-export-logo--atk", src:"../assets/brand-logos/atk.svg" },
-        vgn: { label:"VGN", small:"GAMING GEAR", className:"admin-export-logo--vgn", src:"../assets/brand-logos/vgn.svg" }
+        vgn: { label:"VGN", small:"GAMING GEAR", className:"admin-export-logo--vgn", src:"../assets/brand-logos/vgn.svg" },
+        rapoo: { label:"RAPOO", small:"雷柏", className:"admin-export-logo--rapoo", src:"../assets/brand-logos/rapoo.svg" },
+        aula: { label:"AULA", small:"狼蛛", className:"admin-export-logo--aula", src:"../assets/brand-logos/aula.svg" },
+        hp: { label:"HP", small:"惠普", className:"admin-export-logo--hp", src:"../assets/brand-logos/hp.svg" }
       };
       const adminBrandLogo = brandId => { const brand = brandPresentation[brandId]; if (!brand) return ""; return brand.src ? `<img src="${brand.src}" alt="" /><span>${brand.label}<small>${brand.small}</small></span>` : `<b>${brand.label}</b><span>${brand.small}</span>`; };
       function renderExportMethods() {
