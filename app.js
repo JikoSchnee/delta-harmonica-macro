@@ -2303,7 +2303,7 @@ function openMidiTrackPicker(file, parsed) {
 
 function midiTrackLabel(trackIndex) {
   const track = midiImportState?.parsed.tracks[trackIndex];
-  return track?.name || `音轨 ${String(trackIndex + 1).padStart(2, "0")}`;
+  return midiTrackDisplayName(track, trackIndex);
 }
 
 function updateMidiNotePickerSelectionUi() {
