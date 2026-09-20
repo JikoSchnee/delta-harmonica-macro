@@ -509,16 +509,6 @@ main {
 .directory-tutorial-link:active { transform: translateY(1px); }
 .directory-action-card > i { color: var(--teal-dark); font: 700 17px/1 var(--mono); font-style: normal; }
 
-.library-remix { margin-top: 14px; }
-.library-remix-label { display: block; margin-bottom: 6px; color: var(--teal-dark); font: 700 9px/1 var(--mono); letter-spacing: .09em; }
-.library-remix .remix-code-status { margin-top: 7px; white-space: normal; }
-.remix-code-search { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 0 9px; color: var(--teal); background: var(--white); border-top: 2px solid var(--surface-dark); border-left: 2px solid var(--surface-dark); border-right: 2px solid var(--white); border-bottom: 2px solid var(--white); }
-.remix-code-search input { width: 100%; min-width: 0; padding: 7px 0; border: 0; outline: 0; color: var(--black); background: transparent; font: 11px var(--mono); }
-.remix-code-search input::placeholder { color: #657777; }
-.remix-code-status { color: var(--teal-dark); font: 700 10px/1 var(--mono); letter-spacing: .03em; white-space: nowrap; }
-.remix-code-result { grid-template-columns: minmax(0, 1fr); margin-top: 12px; }
-.library-deck-browser .remix-code-result { grid-column: 1 / -1; margin-top: 0; }
-.remix-code-result .song-card { min-height: 176px; }
 .song-card .song-remix-code { display: inline-flex; flex: 0 1 auto; align-items: center; gap: 6px; max-width: 100%; min-width: 0; padding: 4px 6px; color: #704923; background: #fff0c9; border: 1px solid #d4a455; font: 700 9px/1.2 var(--mono); text-align: left; word-break: break-all; cursor: copy; }
 .song-card .song-remix-code span:first-child { min-width: 0; }
 .song-remix-copy-icon { flex: 0 0 auto; font-size: 13px; line-height: .8; }
@@ -1703,7 +1693,6 @@ dialog.toast[open] { display: block; }
   .midi-range-labels { align-items: start; flex-wrap: wrap; }
   .midi-range-labels strong { order: 3; width: 100%; text-align: left; }
   .library-deck-browser { grid-template-columns: 1fr auto; }
-  .remix-code-status { white-space: normal; }
   .recommendation-actions { width: 100%; justify-content: space-between; }
   .recommendation-row { grid-template-columns: 1fr; }
   .library-grid { grid-template-columns: 1fr; max-height: 390px; }

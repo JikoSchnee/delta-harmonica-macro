@@ -997,7 +997,7 @@ const SECTION_GUIDES = {
       ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；登录后可在「我的」查看当前账号的上传记录。"],
       ["03", "查看与编辑", "点击「查看」会载入该曲并定位到编辑器；点击卡片主体会直接导出并复制改曲码链接；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
-      ["05", "按改曲码定位", "左侧「改曲码」输入 21 位改曲码或包含 <code>?code=</code> 的分享链接，匹配的曲目会显示在列表上方。"],
+      ["05", "按改曲码定位", "打开包含 <code>?code=</code> 的改曲码分享链接，会自动跳到曲库、切换「全部」并把改曲码填入搜索框；也可以直接在曲库搜索框中输入改曲码。"],
       ["06", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
   },
@@ -2738,45 +2738,21 @@ function renderRecommendationBoard() {
   }
 }
 
-function renderRemixCodeResult(value = elements.remixCodeInput.value) {
-  const parsed = remixCodeFromInput(value);
-  if (parsed.state === "empty") {
-    elements.remixCodeStatus.textContent = "等待输入";
-    elements.remixCodeResult.innerHTML = "";
-    elements.remixCodeResult.hidden = true;
-    return;
-  }
-  elements.remixCodeResult.hidden = false;
-  if (parsed.state === "invalid") {
-    elements.remixCodeStatus.textContent = "格式错误 · 需要 21 位十六进制改曲码";
-    elements.remixCodeResult.innerHTML = '<p class="library-empty remix-code-empty">改曲码应为 21 位数字或 a–f 字母，请检查输入。</p>';
-    return;
-  }
-  const song = remixCodeSong(parsed.value);
-  if (!song) {
-    elements.remixCodeStatus.textContent = "未找到曲目";
-    elements.remixCodeResult.innerHTML = '<p class="library-empty remix-code-empty">没有找到对应曲目，请确认改曲码或分享链接是否完整。</p>';
-    return;
-  }
-  elements.remixCodeStatus.textContent = "已找到 1 首曲目";
-  elements.remixCodeResult.innerHTML = renderSongCard(song);
-}
-
-async function refreshRemixCodeViews() {
+async function refreshLibraryViews() {
   await ensureRemixCodes();
   renderSongLibrary(elements.songSearch.value);
-  renderRemixCodeResult(elements.remixCodeInput.value);
   renderRecommendationBoard();
 }
 
 function applyRemixCodeFromUrl() {
   const url = new URL(window.location.href);
-  const code = url.searchParams.get("code");
-  elements.remixCodeInput.value = code || "";
-  renderRemixCodeResult(elements.remixCodeInput.value);
-  if (!code) return;
+  const parsed = remixCodeFromInput(url.searchParams.get("code") || "");
+  if (parsed.state !== "valid") return;
+  elements.songSearch.value = parsed.value;
+  setLibraryView("all");
   window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
-    elements.remixCodeSection.scrollIntoView({ behavior: "auto", block: "start" });
+    document.querySelector("#library")?.scrollIntoView({ behavior: "auto", block: "start" });
+    elements.songSearch.focus({ preventScroll: true });
   }));
 }
 
@@ -4882,7 +4858,7 @@ function handleOAuthRedirectStatus() {
 function replaceCommunitySongs(songs) {
   if (!Array.isArray(songs)) return;
   SONG_LIBRARY.splice(0, SONG_LIBRARY.length, ...[...BUILTIN_SONGS_FOR_LIBRARY(), ...songs].map((song) => normalizeSong(song)));
-  void refreshRemixCodeViews();
+  void refreshLibraryViews();
 }
 
 function setLibraryView(view = "recommended") {
@@ -4934,7 +4910,7 @@ async function loadMySongLibrary() {
   } catch {
     mySongLibrary = [];
   }
-  void refreshRemixCodeViews();
+  void refreshLibraryViews();
 }
 
 function setSongEditStatus(message = "", success = false) {
@@ -6370,7 +6346,6 @@ function handleSongCardClick(event) {
   if (destination === "export") completeTourAction("library-export", "曲目已载入，正在打开导出区。");
 }
 elements.songGrid.addEventListener("click", handleSongCardClick);
-elements.remixCodeResult.addEventListener("click", handleSongCardClick);
 [elements.recommendationPrimaryRow, elements.recommendationSecondaryRow].forEach((row) => row?.addEventListener("click", handleSongCardClick));
 function handleSongCardKeydown(event) {
   if (!event.target.closest(".song-card-main") || !["Enter", " "].includes(event.key)) return;
@@ -6378,10 +6353,8 @@ function handleSongCardKeydown(event) {
   handleSongCardClick(event);
 }
 elements.songGrid.addEventListener("keydown", handleSongCardKeydown);
-elements.remixCodeResult.addEventListener("keydown", handleSongCardKeydown);
 [elements.recommendationPrimaryRow, elements.recommendationSecondaryRow].forEach((row) => row?.addEventListener("keydown", handleSongCardKeydown));
 elements.recommendationShuffleButton?.addEventListener("click", () => renderRecommendationBoard());
-elements.remixCodeInput.addEventListener("input", () => renderRemixCodeResult(elements.remixCodeInput.value));
 elements.libraryDeleteConfirm.addEventListener("click", confirmLibraryDelete);
 elements.libraryDeleteDialog.addEventListener("close", () => {
   pendingLibrarySong = null;
@@ -6640,7 +6613,7 @@ authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 initializeBlankEditor();
-void refreshRemixCodeViews().then(applyRemixCodeFromUrl);
+void refreshLibraryViews().then(applyRemixCodeFromUrl);
 trackAnalytics("page_view", { entry: analyticsEntrySource() });
 window.setTimeout(refreshPublicData, 1600);
 window.setInterval(() => {
