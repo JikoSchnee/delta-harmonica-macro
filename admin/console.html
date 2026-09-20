@@ -95,6 +95,8 @@
       .admin-song-grid input[readonly] { color: var(--dim); border-style: dashed; background: #0a2621; }
       .admin-song-grid select { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
       .admin-song-grid select:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
+      .admin-sponsor-picker { display: grid; gap: 7px; }
+      .admin-sponsor-picker input { min-height: 34px; }
       .admin-song-wide { grid-column: 1 / -1; }
       .admin-song-binding { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; grid-column: 1 / -1; padding: 12px; border: 1px solid rgba(122,168,151,.28); background: rgba(7,29,25,.65); }
       .admin-song-binding-title { grid-column: 1 / -1; color: var(--aqua); font: 11px "JetBrains Mono", monospace; letter-spacing: .06em; }
@@ -363,7 +365,7 @@
               <div class="admin-song-binding-title">CREDIT BINDING / ADMIN EDITABLE SPONSOR</div>
               <label>共享人<input id="adminSongSharedBy" type="text" readonly /></label>
               <label>账号归属<input id="adminSongOwner" type="text" readonly /></label>
-              <label>赞助人<select id="adminSongSponsor" aria-describedby="adminSongSponsorHint"><option value="">无赞助人</option></select><small id="adminSongSponsorHint">选择后，公开卡片会同步该用户当前的 ID 特效。</small></label>
+              <label class="admin-sponsor-field">赞助人<div class="admin-sponsor-picker"><input id="adminSongSponsorSearch" type="search" autocomplete="off" placeholder="输入用户 ID 搜索…" aria-label="搜索赞助人" /><select id="adminSongSponsor" aria-describedby="adminSongSponsorHint"><option value="">无赞助人</option></select></div><small id="adminSongSponsorHint">输入用户 ID 可筛选赞助人；选择后，公开卡片会同步该用户当前的 ID 特效。</small></label>
             </div>
             <div class="admin-song-file">
               <label for="adminSongFile">替换 .deltamusic 文件<input id="adminSongFile" type="file" accept=".deltamusic,application/json" /></label>
@@ -563,6 +565,34 @@
         target.textContent = message;
         target.classList.toggle("success", Boolean(message && success));
       }
+      function renderAdminSponsorOptions(preferredValue = null) {
+        const sponsorSelect = $("#adminSongSponsor");
+        const searchInput = $("#adminSongSponsorSearch");
+        const allUsers = state.sponsorUsers.length ? state.sponsorUsers : state.users;
+        const query = searchInput.value.trim().toLocaleLowerCase();
+        const selectedValue = preferredValue ?? sponsorSelect.value;
+        const matchingUsers = allUsers.filter(user => `${user.userId} ${user.email}`.toLocaleLowerCase().includes(query));
+        const selectedUser = allUsers.find(user => user.id === selectedValue);
+        sponsorSelect.replaceChildren(new Option("无赞助人", ""));
+        matchingUsers.forEach(user => {
+          const option = new Option(`@${user.userId}${user.role === "管理员" ? " · 管理员" : ""}`, user.id);
+          option.selected = user.id === selectedValue;
+          sponsorSelect.add(option);
+        });
+        if (selectedValue && !matchingUsers.some(user => user.id === selectedValue) && selectedUser) {
+          const option = new Option(`@${selectedUser.userId} · 已选`, selectedUser.id);
+          option.selected = true;
+          sponsorSelect.add(option);
+        }
+        const currentSponsor = pendingAdminSong?.sponsor || "";
+        if (currentSponsor && sponsorSelect.dataset.touched !== "true" && !allUsers.some(user => user.userId === currentSponsor)) {
+          const option = new Option(`@${currentSponsor} · 当前记录（账号未载入）`, "");
+          option.selected = true;
+          sponsorSelect.add(option);
+        }
+        const matchLabel = query ? `当前匹配 ${matchingUsers.length} 位用户。` : `共 ${allUsers.length} 位用户。`;
+        $("#adminSongSponsorHint").textContent = `${matchLabel} 选择后，公开卡片会同步该用户当前的 ID 特效。`;
+      }
       function openAdminSongDialog(song) {
         pendingAdminSong = song;
         $("#adminSongTitle").textContent = "编辑《" + song.title + "》";
@@ -575,17 +605,12 @@
         $("#adminSongSharedBy").value = song.sharedBy || "—";
         $("#adminSongOwner").value = song.owner || "—";
         const sponsorSelect = $("#adminSongSponsor");
-        sponsorSelect.replaceChildren(new Option("无赞助人", ""));
+        $("#adminSongSponsorSearch").value = "";
+        sponsorSelect.dataset.touched = "false";
         const sponsorUsers = state.sponsorUsers.length ? state.sponsorUsers : state.users;
-        sponsorUsers.forEach(user => {
-          const option = new Option(`@${user.userId}${user.role === "管理员" ? " · 管理员" : ""}`, user.id);
-          option.selected = user.userId === song.sponsor;
-          sponsorSelect.add(option);
-        });
-        if (song.sponsor && !sponsorUsers.some(user => user.userId === song.sponsor)) {
-          sponsorSelect.add(new Option(`@${song.sponsor} · 当前记录（账号未载入）`, ""));
-          sponsorSelect.lastElementChild.selected = true;
-        }
+        const selectedSponsor = sponsorUsers.find(user => user.userId === song.sponsor);
+        sponsorSelect.replaceChildren(new Option("无赞助人", ""));
+        renderAdminSponsorOptions(selectedSponsor?.id || "");
         $("#adminSongFile").value = "";
         $("#adminSongFileHint").textContent = "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。";
         setAdminSongStatus();
@@ -612,7 +637,8 @@
         payload.append("meter", $("#adminSongMeter").value);
         payload.append("bpm", $("#adminSongBpm").value);
         payload.append("displayUrl", $("#adminSongDisplayUrl").value);
-        payload.append("sponsorAccountId", $("#adminSongSponsor").value);
+        const sponsorSelect = $("#adminSongSponsor");
+        if (sponsorSelect.dataset.touched === "true" || sponsorSelect.value) payload.append("sponsorAccountId", sponsorSelect.value);
         if (file) payload.append("scoreFile", file, file.name);
         $("#adminSongSave").disabled = true;
         setAdminSongStatus(file ? "正在替换文件并更新曲目…" : "正在更新曲目信息…");
@@ -759,6 +785,8 @@
       $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
       $("#libraryTable").addEventListener("click", async event => { const edit = event.target.closest("[data-edit-index]"), recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(edit?.dataset.editIndex ?? recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (edit) { openAdminSongDialog(song); return; } if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
       $("#adminSongSave").addEventListener("click", saveAdminSong);
+      $("#adminSongSponsorSearch").addEventListener("input", renderAdminSponsorOptions);
+      $("#adminSongSponsor").addEventListener("change", event => { event.target.dataset.touched = "true"; });
       $("#userTable").addEventListener("click", async event => {
         const button = event.target.closest("[data-save-donation]");
         if (!button) return;
