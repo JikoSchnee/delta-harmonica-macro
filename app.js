@@ -1069,7 +1069,7 @@ const elements = {
   timeline: document.querySelector("#timeline"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
-  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), remixCodeSection: document.querySelector("#remix-code"), remixCodeInput: document.querySelector("#remixCodeInput"), remixCodeStatus: document.querySelector("#remixCodeStatus"), remixCodeResult: document.querySelector("#remixCodeResult"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
+  inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), todayPageViewCount: document.querySelector("#todayPageViewCount"), registeredUserCount: document.querySelector("#registeredUserCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]"),], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperQqButton: document.querySelector("#recordingHelperQqButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportDeclaration: document.querySelector("#exportDeclaration"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
@@ -1559,6 +1559,7 @@ let recording = null;
 let selectedRecordModifier = "";
 let liveRecordingVoice = null;
 let currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
+let currentScoreEditMode = false;
 let scoreExportMode = "download";
 
 function tokenPosition(source, offset) {
@@ -3017,7 +3018,7 @@ function syncSequenceToEditors(sequence, { except = null, sourceMode = null, sou
   resetScoreHistory();
 }
 
-function loadSong(song, { destination = "editor", scroll = true, focusEditor = true, analytics = true } = {}) {
+function loadSong(song, { destination = "editor", scroll = true, focusEditor = true, analytics = true, editMode = false } = {}) {
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -3028,7 +3029,8 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   elements.keySignature.value = song.key || "1=C";
   elements.timeSignature.value = song.meter || "4/4";
   elements.bpm.value = song.bpm;
-  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "", declaration: song.declaration || "", remixCode: normalizeStoredRemixCode(song.remixCode) };
+  currentScoreEditMode = Boolean(editMode);
+  currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "", declaration: song.declaration || "", remixCode: editMode ? normalizeStoredRemixCode(song.remixCode) : "" };
   activeAnalyticsScoreOrigin = songAnalyticsOrigin(song);
   activeAnalyticsScoreId = analyticsScoreIdForSong(song, activeAnalyticsScoreOrigin);
   const sourceMode = song.jianpu ? "jianpu" : song.score ? "precise" : null;
@@ -3061,6 +3063,7 @@ function initializeBlankEditor() {
   resetMidiTrackPicker();
   currentSequence = null;
   currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
+  currentScoreEditMode = false;
   activeAnalyticsScoreOrigin = "editor";
   activeAnalyticsScoreId = "";
   suppressUploadCompatibilityWarning = false;
@@ -5609,10 +5612,12 @@ async function scorePackageFromDialog() {
     ...scoreMetadata,
     ...(displayUrl ? { displayUrl } : {}),
     ...(declaration ? { declaration } : {}),
-    ...(normalizeStoredRemixCode(currentScoreCredit.remixCode) ? { remixCode: normalizeStoredRemixCode(currentScoreCredit.remixCode) } : {}),
+    ...(currentScoreEditMode && normalizeStoredRemixCode(currentScoreCredit.remixCode) ? { remixCode: normalizeStoredRemixCode(currentScoreCredit.remixCode) } : {}),
     jianpu
   };
   value.remixCode = await remixCodeForSong(value);
+  activeAnalyticsScoreOrigin = "community";
+  activeAnalyticsScoreId = normalizeStoredRemixCode(value.remixCode);
   return { value };
 }
 
@@ -5620,6 +5625,17 @@ function applyScorePackageMetadata(score) {
   elements.macroName.value = score.title;
   elements.artistName.value = score.artist;
   currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy, displayUrl: score.displayUrl || "", declaration: score.declaration || "", remixCode: normalizeStoredRemixCode(score.remixCode) };
+  activeAnalyticsScoreOrigin = "community";
+  activeAnalyticsScoreId = normalizeStoredRemixCode(score.remixCode);
+}
+
+function findSavedScore(scores, packaged) {
+  if (!Array.isArray(scores)) return null;
+  const exact = scores.find((song) => song.remixCode === packaged.remixCode);
+  if (exact) return exact;
+  return scores
+    .filter((song) => ["title", "artist", "sharedBy"].every((field) => String(song[field] || "").trim().toLocaleLowerCase() === String(packaged[field] || "").trim().toLocaleLowerCase()))
+    .sort((left, right) => String(right.createdAt || "").localeCompare(String(left.createdAt || "")))[0] || null;
 }
 
 async function exportScorePackage() {
@@ -5640,12 +5656,12 @@ async function saveScoreToLocalLibrary() {
     const response = await fetch("./api/local-library/songs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(packaged.value)
+      body: JSON.stringify({ ...packaged.value, ...(currentScoreEditMode ? { replaceExisting: true } : {}) })
     });
     const result = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(result.error || "写入本地曲库失败。");
     if (!Array.isArray(result.songs)) throw new Error("本地服务返回的曲库数据无效。");
-    const savedSong = result.songs.find((song) => song.remixCode === packaged.value.remixCode);
+    const savedSong = findSavedScore(result.songs, packaged.value);
     applyScorePackageMetadata(savedSong || packaged.value);
     replaceCommunitySongs(result.songs);
     elements.scoreExportDialog.close();
@@ -5665,7 +5681,7 @@ async function uploadScoreToCommunityLibrary({ confirmReplace = false, packagedO
     const response = await fetch("./api/public-library/songs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...packaged.value, ...(confirmReplace ? { confirmReplace: true } : {}) })
+      body: JSON.stringify({ ...packaged.value, ...(currentScoreEditMode ? { replaceExisting: true } : {}), ...(confirmReplace ? { confirmReplace: true } : {}) })
     });
     const result = await response.json().catch(() => ({}));
     if (response.status === 409 && result.code === "owned_duplicate" && !confirmReplace) {
@@ -5677,7 +5693,7 @@ async function uploadScoreToCommunityLibrary({ confirmReplace = false, packagedO
     }
     if (!response.ok) throw new Error(result.error || "上传到曲库失败，请稍后重试。");
     if (!Array.isArray(result.songs)) throw new Error("服务器返回的曲库数据无效。");
-    const savedSong = result.songs.find((song) => song.remixCode === packaged.value.remixCode);
+    const savedSong = findSavedScore(result.songs, packaged.value);
     applyScorePackageMetadata(savedSong || packaged.value);
     replaceCommunitySongs(result.songs);
     await loadMySongLibrary();
@@ -5873,6 +5889,7 @@ function applyMidiSelection() {
     elements.timeSignature.value = converted.meter;
     elements.bpm.value = converted.bpm;
     currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
+    currentScoreEditMode = false;
     activeAnalyticsScoreOrigin = "midi";
     activeAnalyticsScoreId = analyticsScoreId({ origin: "midi", title: selection.title });
     converted.sequence.notes.forEach((item, index) => { item.index = index; });

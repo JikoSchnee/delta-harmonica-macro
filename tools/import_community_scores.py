@@ -187,11 +187,10 @@ def validate_package(payload: Any) -> dict[str, Any]:
     if created_at:
         score["createdAt"] = created_at
     analytics_id = payload.get("analyticsId")
-    if analytics_id is None:
-        analytics_id = legacy_analytics_score_id(score)
-    elif not isinstance(analytics_id, str) or not ANALYTICS_SCORE_ID_PATTERN.fullmatch(analytics_id.strip()):
-        raise ValueError("统计标识无效")
-    score["analyticsId"] = analytics_id.strip().lower()
+    if analytics_id is not None:
+        if not isinstance(analytics_id, str) or not ANALYTICS_SCORE_ID_PATTERN.fullmatch(analytics_id.strip()):
+            raise ValueError("统计标识无效")
+        score["analyticsId"] = analytics_id.strip().lower()
     legacy_analytics_ids = payload.get("legacyAnalyticsIds")
     if legacy_analytics_ids is None:
         legacy_analytics_ids = []
@@ -203,7 +202,7 @@ def validate_package(payload: Any) -> dict[str, Any]:
     score["legacyAnalyticsIds"] = list(dict.fromkeys(
         value.strip().lower()
         for value in legacy_analytics_ids
-        if value.strip().lower() != score["analyticsId"]
+        if value.strip().lower() != score.get("analyticsId")
     ))
     legacy_ids = payload.get("legacyAdminIds")
     if legacy_ids is None:

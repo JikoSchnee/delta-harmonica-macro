@@ -58,6 +58,7 @@ from import_community_scores import (  # noqa: E402
     dedupe_key,
     legacy_admin_id_for_score,
     legacy_analytics_score_id,
+    remix_code_for_score,
     validate_package,
     write_library,
 )
@@ -1156,19 +1157,51 @@ def score_owner_account_id(path: Path, score: dict[str, Any] | None = None) -> s
     return row["account_id"] if row else None
 
 
-def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: str | None = None) -> tuple[str, list[dict[str, Any]], Path]:
+def same_score_metadata(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    """Require all public identity fields before an edit can replace a score."""
+    return all(
+        str(left.get(field, "")).strip().casefold() == str(right.get(field, "")).strip().casefold()
+        for field in ("title", "artist", "sharedBy")
+    )
+
+
+def reset_uploaded_identity(score: dict[str, Any]) -> None:
+    """Discard a stale client identity and derive a new score identity."""
+    score["remixCode"] = remix_code_for_score(score)
+    score.pop("analyticsId", None)
+    score["legacyAnalyticsIds"] = []
+    score["legacyAdminIds"] = [legacy_admin_id_for_score(score)]
+
+
+def save_score(
+    payload: Any,
+    *,
+    allow_replace: bool = True,
+    owner_account_id: str | None = None,
+    replace_existing: bool = False,
+) -> tuple[str, list[dict[str, Any]], Path]:
     """Validate, store, and expose one score while serialising concurrent uploads."""
     incoming_code = normalize_remix_code(payload.get("remixCode")) if isinstance(payload, dict) else None
     score = validate_package(payload)
     with LIBRARY_LOCK:
         existing_scores = read_scores()
         matches = [(path, item) for path, item in existing_scores if item["remixCode"] == score["remixCode"]]
-        if not matches and owner_account_id and not incoming_code:
+        can_replace = bool(matches and replace_existing and same_score_metadata(score, matches[0][1]))
+        stale_code = bool(incoming_code and incoming_code != remix_code_for_score(score))
+        if (stale_code and not can_replace) or (matches and not can_replace):
+            # A viewed score or a stale package may carry another score's code.
+            # Re-key it from the submitted content and never let that request
+            # replace the code it accidentally referenced.
+            reset_uploaded_identity(score)
+            matches = [(path, item) for path, item in existing_scores if item["remixCode"] == score["remixCode"]]
+            allow_replace = False
+        if not matches and owner_account_id and not incoming_code and replace_existing:
             owned_title_artist_matches = [
                 (path, item)
                 for path, item in existing_scores
                 if item["title"].casefold() == score["title"].casefold()
                 and item["artist"].casefold() == score["artist"].casefold()
+                and item["sharedBy"].casefold() == score["sharedBy"].casefold()
                 and score_owner_account_id(path) == owner_account_id
             ]
             if len(owned_title_artist_matches) > 1:
@@ -1190,8 +1223,14 @@ def save_score(payload: Any, *, allow_replace: bool = True, owner_account_id: st
         existing_score = matches[0][1] if matches else None
         if existing_score:
             score["remixCode"] = existing_score["remixCode"]
-            score["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
-            score["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
+            if existing_score.get("analyticsId"):
+                score["analyticsId"] = existing_score["analyticsId"]
+            else:
+                score.pop("analyticsId", None)
+            if existing_score.get("legacyAnalyticsIds"):
+                score["legacyAnalyticsIds"] = existing_score["legacyAnalyticsIds"]
+            else:
+                score.pop("legacyAnalyticsIds", None)
             score["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
             if existing_score.get("sponsor") and not score.get("sponsor"):
                 score["sponsor"] = existing_score["sponsor"]
@@ -1248,8 +1287,14 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
             raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
         existing_path, existing_score = matches[0]
         candidate["remixCode"] = existing_score["remixCode"]
-        candidate["analyticsId"] = existing_score.get("analyticsId") or legacy_analytics_score_id(existing_score)
-        candidate["legacyAnalyticsIds"] = existing_score.get("legacyAnalyticsIds") or []
+        if existing_score.get("analyticsId"):
+            candidate["analyticsId"] = existing_score["analyticsId"]
+        else:
+            candidate.pop("analyticsId", None)
+        if existing_score.get("legacyAnalyticsIds"):
+            candidate["legacyAnalyticsIds"] = existing_score["legacyAnalyticsIds"]
+        else:
+            candidate.pop("legacyAnalyticsIds", None)
         candidate["legacyAdminIds"] = existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)]
         if existing_score.get("sponsor"):
             candidate["sponsor"] = existing_score["sponsor"]
@@ -1644,10 +1689,12 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         "declaration": payload.get("declaration", source_score.get("declaration")),
         "createdAt": existing_score.get("createdAt"),
         "remixCode": existing_score.get("remixCode"),
-        "analyticsId": existing_score.get("analyticsId") or analytics_score_id(existing_score),
-        "legacyAnalyticsIds": existing_score.get("legacyAnalyticsIds") or [],
         "legacyAdminIds": existing_score.get("legacyAdminIds") or [legacy_admin_id(existing_score)],
     }
+    if existing_score.get("analyticsId"):
+        candidate_payload["analyticsId"] = existing_score["analyticsId"]
+    if existing_score.get("legacyAnalyticsIds"):
+        candidate_payload["legacyAnalyticsIds"] = existing_score["legacyAnalyticsIds"]
     candidate = validate_package(candidate_payload)
     with LIBRARY_LOCK:
         destination = existing_path
@@ -3446,6 +3493,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 if not isinstance(payload, dict):
                     raise ValueError("上传内容格式无效。")
                 confirm_replace = payload.pop("confirmReplace", False) is True
+                replace_existing = payload.pop("replaceExisting", False) is True
                 # The overwrite confirmation is the continuation of an
                 # already initiated upload and must not consume a rate-limit
                 # slot or be blocked by the 30-second upload limit.
@@ -3453,7 +3501,12 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                     self.send_json(HTTPStatus.TOO_MANY_REQUESTS, {"error": "30 秒内最多上传 5 次，请稍后再试。"})
                     return
                 payload = {**payload, "sharedBy": account["user_id"]}
-                action, songs, destination = save_score(payload, allow_replace=confirm_replace, owner_account_id=account["id"])
+                action, songs, destination = save_score(
+                    payload,
+                    allow_replace=confirm_replace,
+                    owner_account_id=account["id"],
+                    replace_existing=replace_existing,
+                )
                 bind_score_owner(account["id"], destination)
             except DuplicateScoreError as error:
                 self.send_json(HTTPStatus.CONFLICT, {
@@ -3473,7 +3526,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.FORBIDDEN, {"error": "维护接口只允许本机访问。"})
             return
         try:
-            action, songs, _ = save_score(self.read_payload())
+            payload = self.read_payload()
+            replace_existing = payload.pop("replaceExisting", False) is True if isinstance(payload, dict) else False
+            action, songs, _ = save_score(payload, replace_existing=replace_existing)
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法写入本地曲库。"})
             return
