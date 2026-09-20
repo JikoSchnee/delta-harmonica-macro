@@ -120,23 +120,41 @@
       .admin-export-logo { display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 7px; color: var(--ink); border: 1px solid var(--line); background: #071d19; font: 700 10px "JetBrains Mono", monospace; }
       .admin-export-logo span { display: grid; gap: 2px; line-height: 1; }
       .admin-export-logo span small { color: var(--dim); font: 700 7px "JetBrains Mono", monospace; }
+      .admin-export-logo-mask { display: block; flex: 0 0 auto; background: currentColor; mask-position: center; mask-repeat: no-repeat; mask-size: contain; -webkit-mask-position: center; -webkit-mask-repeat: no-repeat; -webkit-mask-size: contain; }
+      .admin-export-logo-image--mchose { background: #edf8f0; }
+      .admin-export-logo-image--atk { background: #f5e1dd; }
+      .admin-export-logo-image--vgn { background: #f3e4ea; }
+      .admin-export-logo-image--rapoo { background: #eee8f4; }
+      .admin-export-logo-image--aula { background: #e9eafa; }
+      .admin-export-logo-mask--mchose { width: 28px; height: 18px; color: #315b42; mask-image: url("../assets/brand-logos/mchose-icon-cutout.png"); -webkit-mask-image: url("../assets/brand-logos/mchose-icon-cutout.png"); }
+      .admin-export-logo-mask--atk { width: 34px; height: 18px; color: #6d342a; mask-image: url("../assets/brand-logos/atk-official.png"); -webkit-mask-image: url("../assets/brand-logos/atk-official.png"); }
+      .admin-export-logo-mask--vgn { width: 34px; height: 18px; color: #6d3d4d; mask-image: url("../assets/brand-logos/vgn-wordmark.png"); -webkit-mask-image: url("../assets/brand-logos/vgn-wordmark.png"); }
+      .admin-export-logo-mask--rapoo { width: 42px; height: 18px; color: #514064; mask-image: url("../assets/brand-logos/rapoo.svg"); -webkit-mask-image: url("../assets/brand-logos/rapoo.svg"); }
+      .admin-export-logo-mask--aula { width: 42px; height: 18px; color: #3c4270; mask-image: url("../assets/brand-logos/aula-icon-cutout.png"); -webkit-mask-image: url("../assets/brand-logos/aula-icon-cutout.png"); }
       .admin-export-logo img { width: 32px; height: 18px; object-fit: contain; background: #f1f4f2; }
+      .admin-export-logo-image { display: grid; width: 32px; height: 18px; place-items: center; background: #e7f7f5; }
+      .admin-export-logo-icon--razer { width: 100%; height: 100%; background: #3f9e98; mask: url("../assets/brand-logos/razer.svg") center / contain no-repeat; -webkit-mask: url("../assets/brand-logos/razer.svg") center / contain no-repeat; }
+      .admin-export-logo--logitech img { background: #e9f0f8; }
+      .admin-export-logo--mchose img { background: #edf8f0; }
+      .admin-export-logo--rog img { background: #f1f3de; }
+      .admin-export-logo--atk img { background: #f5e1dd; }
+      .admin-export-logo--vgn img { background: #17191c; }
+      .admin-export-logo--rapoo img { background: #eee8f4; }
+      .admin-export-logo--aula img { background: #fff; }
       .admin-export-logo--atk { color: #fff; background: #24272a; }
       .admin-export-logo--vgn { color: #241e18; background: #f2c879; }
       .admin-export-logo--rapoo { color: #101820; background: #e9f0f4; }
       .admin-export-logo--aula { color: #101820; background: #f0f3f5; }
-      .admin-export-logo--hp { color: #fff; background: #0096d6; }
       /* Match the public Supports order with one continuous brand color ribbon. */
       .admin-export-logo--logitech { color: #fff; background: #4f6f95; border-color: #bfd0e4; }
       .admin-export-logo--razer { color: #073d3a; background: #3f9e98; border-color: #aee7e1; }
       .admin-export-logo--mchose { color: #fff; background: #5d9f76; border-color: #bde3c9; }
       .admin-export-logo--rog { color: #fff; background: #8c9550; border-color: #e1e5a4; }
-      .admin-export-logo--recorder { color: #fff; background: #c18a4b; border-color: #f1d2a6; }
       .admin-export-logo--atk { color: #fff; background: #b96858; border-color: #e4afa4; }
       .admin-export-logo--vgn { color: #fff; background: #ad6e81; border-color: #e4b7c5; }
       .admin-export-logo--rapoo { color: #fff; background: #8c70a5; border-color: #cbb9dd; }
       .admin-export-logo--aula { color: #fff; background: #6d74ad; border-color: #b8c0ea; }
-      .admin-export-logo--hp { color: #fff; background: #4a83b8; border-color: #b8d6ed; }
+      .admin-export-logo--recorder { color: #fff; background: #c18a4b; border-color: #f1d2a6; }
       .export-config-actions { display: flex; align-items: center; justify-content: flex-end; gap: 12px; margin-top: 18px; }
       .export-config-status { min-height: 22px; margin: 0; color: var(--dim); font-size: 12px; }
       .export-config-status.success { color: var(--aqua); }
@@ -388,16 +406,15 @@
       const brandPresentation = {
         logitech: { label:"LOGITECH", small:"G HUB", className:"admin-export-logo--logitech", src:"../assets/brand-logos/logitech-g.svg" },
         razer: { label:"RAZER", small:"SYNAPSE", className:"admin-export-logo--razer", src:"../assets/brand-logos/razer.svg" },
-        mchose: { label:"迈从", small:"MCHOSE", className:"admin-export-logo--mchose", src:"https://www.mchose.store/cdn/shop/files/Mchose_logo_6a0b71d4-d3a3-4605-9026-e7599f4a2e2d.png" },
+        mchose: { label:"迈从", small:"MCHOSE", className:"admin-export-logo--mchose", maskSrc:"../assets/brand-logos/mchose-icon-cutout.png" },
         rog: { label:"ROG", small:"ARMOURY CRATE", className:"admin-export-logo--rog", src:"https://press.asus.com/assets/w_1200,h_630/90767418-95b3-4934-b729-d5a6b1e97bd3/ROG-logo-white.png" },
-        recorder: { label:"REC", small:"通用录制", className:"admin-export-logo--recorder" },
-        atk: { label:"ATK", small:"GAMING GEAR", className:"admin-export-logo--atk", src:"../assets/brand-logos/atk.svg" },
-        vgn: { label:"VGN", small:"GAMING GEAR", className:"admin-export-logo--vgn", src:"../assets/brand-logos/vgn.svg" },
-        rapoo: { label:"RAPOO", small:"雷柏", className:"admin-export-logo--rapoo", src:"../assets/brand-logos/rapoo.svg" },
-        aula: { label:"AULA", small:"狼蛛", className:"admin-export-logo--aula", src:"../assets/brand-logos/aula.svg" },
-        hp: { label:"HP", small:"惠普", className:"admin-export-logo--hp", src:"../assets/brand-logos/hp.svg" }
+        atk: { label:"ATK", small:"MOUSE · KEYBOARD", className:"admin-export-logo--atk", maskSrc:"../assets/brand-logos/atk-official.png" },
+        vgn: { label:"VGN", small:"MOUSE · KEYBOARD", className:"admin-export-logo--vgn", maskSrc:"../assets/brand-logos/vgn-wordmark.png" },
+        rapoo: { label:"RAPOO", small:"雷柏", className:"admin-export-logo--rapoo", maskSrc:"../assets/brand-logos/rapoo.svg" },
+        aula: { label:"AULA", small:"MOUSE · KEYBOARD", className:"admin-export-logo--aula", maskSrc:"../assets/brand-logos/aula-icon-cutout.png" },
+        recorder: { label:"REC", small:"通用录制", className:"admin-export-logo--recorder" }
       };
-      const adminBrandLogo = brandId => { const brand = brandPresentation[brandId]; if (!brand) return ""; return brand.src ? `<img src="${brand.src}" alt="" /><span>${brand.label}<small>${brand.small}</small></span>` : `<b>${brand.label}</b><span>${brand.small}</span>`; };
+      const adminBrandLogo = brandId => { const brand = brandPresentation[brandId]; if (!brand) return ""; const icon = brandId === "razer" ? `<span class="admin-export-logo-image"><span class="admin-export-logo-icon--razer" aria-hidden="true"></span></span>` : (brand.maskSrc ? `<span class="admin-export-logo-image admin-export-logo-image--${brandId}"><span class="admin-export-logo-mask admin-export-logo-mask--${brandId}" aria-hidden="true"></span></span>` : (brand.src ? `<img src="${brand.src}" alt="" />` : `<b>${brand.label}</b>`)); return `${icon}<span>${brand.label}<small>${brand.small}</small></span>`; };
       function renderExportMethods() {
         const methods = state.exportMethods.methods || [];
         const brands = state.exportMethods.brands || [];

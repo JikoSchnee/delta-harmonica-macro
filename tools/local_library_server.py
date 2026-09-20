@@ -129,12 +129,11 @@ EXPORT_BRAND_DEFINITIONS = (
     {"id": "razer", "label": "Razer", "subLabel": "SYNAPSE"},
     {"id": "mchose", "label": "迈从", "subLabel": "MCHOSE"},
     {"id": "rog", "label": "ROG", "subLabel": "ARMOURY CRATE"},
-    {"id": "recorder", "label": "通用录制", "subLabel": "RECORDER"},
-    {"id": "atk", "label": "ATK", "subLabel": "GAMING GEAR"},
-    {"id": "vgn", "label": "VGN", "subLabel": "GAMING GEAR"},
+    {"id": "atk", "label": "ATK", "subLabel": "MOUSE · KEYBOARD"},
+    {"id": "vgn", "label": "VGN", "subLabel": "MOUSE · KEYBOARD"},
     {"id": "rapoo", "label": "Rapoo", "subLabel": "雷柏"},
-    {"id": "aula", "label": "AULA", "subLabel": "狼蛛"},
-    {"id": "hp", "label": "HP", "subLabel": "惠普"},
+    {"id": "aula", "label": "AULA", "subLabel": "MOUSE · KEYBOARD"},
+    {"id": "recorder", "label": "通用录制", "subLabel": "RECORDER"},
 )
 EXPORT_METHOD_DEFINITIONS = (
     {"id": "logitech", "title": "Logitech G HUB", "description": "Lua 脚本 · 手动粘贴"},
@@ -148,8 +147,8 @@ EXPORT_METHOD_DEFINITIONS = (
 EXPORT_BRAND_IDS = {item["id"] for item in EXPORT_BRAND_DEFINITIONS}
 EXPORT_METHOD_IDS = {item["id"] for item in EXPORT_METHOD_DEFINITIONS}
 EXPORT_DEFAULT_BRANDS = {
-    "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
-    "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
+    "recording-helper": ["logitech", "razer", "mchose", "rog", "atk", "vgn", "rapoo", "aula", "recorder"],
+    "manual-entry": ["logitech", "razer", "mchose", "rog", "atk", "vgn", "rapoo", "aula", "recorder"],
     "logitech": ["logitech"],
     "razer-synapse-3": ["razer"],
     "razer-synapse-4": ["razer"],
@@ -600,9 +599,10 @@ def compute_registered_account_count() -> int:
 
 
 def compute_public_analytics_summary() -> dict[str, int]:
-    """Count today's raw page views and registered accounts for the public header."""
+    """Count active visitors, today's raw page views, and registered accounts for the public header."""
     now = datetime.now(timezone.utc)
     today_page_views = 0
+    latest_seen: dict[str, datetime] = {}
     path = analytics_event_path(now.date())
     if path.exists():
         try:
@@ -614,11 +614,17 @@ def compute_public_analytics_summary() -> dict[str, int]:
                     recorded_at = datetime.fromisoformat(str(item.get("time", "")).replace("Z", "+00:00"))
                 except ValueError:
                     continue
-                if item.get("event") == "page_view" and recorded_at <= now:
+                if item.get("event") not in ANALYTICS_EVENTS or recorded_at > now:
+                    continue
+                session = item["session"]
+                if recorded_at > latest_seen.get(session, datetime.min.replace(tzinfo=timezone.utc)):
+                    latest_seen[session] = recorded_at
+                if item.get("event") == "page_view":
                     today_page_views += 1
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             pass
     return {
+        "activeVisitors": sum(recorded_at >= now - timedelta(seconds=ACTIVE_VISITOR_WINDOW_SECONDS) for recorded_at in latest_seen.values()),
         "todayPageViews": today_page_views,
         "registeredUsers": compute_registered_account_count(),
     }

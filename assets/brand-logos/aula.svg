@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 48" role="img" aria-labelledby="title">
   <title>AULA 狼蛛</title>
+  <style>path, text { fill: #6d74ad; }</style>
   <path fill="#101820" d="m20 6 13 7.5v15L20 36.1 7 28.5v-15L20 6Zm0 6.2-7.6 4.4v8.8l7.6 4.4 7.6-4.4v-8.8L20 12.2Z"/>
   <path fill="#101820" d="m20 14.7 6.1 3.5v6.9L20 28.6l-6.1-3.5v-6.9l6.1-3.5Z"/>
   <text x="43" y="31" fill="#101820" font-family="Arial, Helvetica, sans-serif" font-size="23" font-weight="800" letter-spacing="1.5">AULA</text>

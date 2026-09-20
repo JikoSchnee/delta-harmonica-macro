@@ -465,24 +465,34 @@ main {
 .software-logo > span strong { display: block; font-size: 9px; letter-spacing: .06em; }
 .software-logo > span small { display: block; font: 700 7px/1 var(--mono); letter-spacing: .05em; }
 .software-logo--logitech { background: #526d8d; border-color: #a9c4dd; border-bottom-color: #2e4059; }
-.software-logo-image--logitech { width: 48px; height: 22px; background: #e2edf6; }
+.software-logo-image--logitech { width: 48px; height: 22px; background: #e9f0f8; }
 .software-logo-image--logitech img { top: 3px; left: 1px; width: 46px; height: 16px; object-fit: contain; filter: none; }
 .software-logo--logitech small { color: #e2edf6; }
 .software-logo--razer { color: #073d3a; background: #8be8df; border-color: #d5fff8; border-bottom-color: #04504b; }
-.software-logo--razer .software-logo-icon { padding: 2px; color: #073d3a; background: #e8fffb; object-fit: contain; filter: none; }
+.software-logo--razer .software-logo-icon { padding: 2px; color: #3f9e98; background: #e7f7f5; object-fit: contain; filter: none; }
+.software-logo-image--razer { display: grid; width: 25px; height: 23px; place-items: center; background: #e7f7f5; }
+.software-logo--razer .software-logo-icon--razer { width: 100%; height: 100%; padding: 3px; background: #3f9e98; mask: url("assets/brand-logos/razer.svg") center / contain no-repeat; -webkit-mask: url("assets/brand-logos/razer.svg") center / contain no-repeat; }
 .software-logo--razer small { color: #073d3a; }
 .software-logo--mchose { gap: 7px; padding-right: 10px; color: #fff; background: #111; border-color: #666; border-bottom-color: #000; }
-.software-logo-image--mchose { width: 76px; height: 21px; background: #efefef; }
-.software-logo-image--mchose img { top: -33px; left: -8px; width: 92px; height: 92px; filter: invert(1); }
-.software-logo--mchose > span strong { color: #fff; font-size: 10px; letter-spacing: .08em; }
-.software-logo--mchose > span small { color: #cfcfcf; font: 700 7px/1 var(--mono); letter-spacing: .08em; }
+.software-logo-image--mchose, .software-logo-image--atk, .software-logo-image--vgn, .software-logo-image--rapoo, .software-logo-image--aula { display: grid; place-items: center; }
+.software-logo-image--mchose { width: 28px; height: 20px; background: #edf8f0; }
+.software-logo-image--atk { width: 38px; height: 18px; background: #f5e1dd; }
+.software-logo-image--vgn { width: 38px; height: 18px; background: #f3e4ea; }
+.software-logo-image--rapoo { width: 48px; height: 18px; background: #eee8f4; }
+.software-logo-image--aula { width: 48px; height: 18px; background: #e9eafa; }
+.software-logo-mask { display: block; flex: 0 0 auto; background: currentColor; mask-position: center; mask-repeat: no-repeat; mask-size: contain; -webkit-mask-position: center; -webkit-mask-repeat: no-repeat; -webkit-mask-size: contain; }
+.software-logo-mask--mchose { width: 100%; height: 100%; color: #315b42; mask-image: url("assets/brand-logos/mchose-icon-cutout.png"); -webkit-mask-image: url("assets/brand-logos/mchose-icon-cutout.png"); }
+.software-logo-mask--atk { width: 100%; height: 100%; color: #6d342a; mask-image: url("assets/brand-logos/atk-official.png"); -webkit-mask-image: url("assets/brand-logos/atk-official.png"); }
+.software-logo-mask--vgn { width: 100%; height: 100%; color: #6d3d4d; mask-image: url("assets/brand-logos/vgn-wordmark.png"); -webkit-mask-image: url("assets/brand-logos/vgn-wordmark.png"); }
+.software-logo-mask--rapoo { width: 100%; height: 100%; color: #514064; mask-image: url("assets/brand-logos/rapoo.svg"); -webkit-mask-image: url("assets/brand-logos/rapoo.svg"); }
+.software-logo-mask--aula { width: 100%; height: 100%; color: #3c4270; mask-image: url("assets/brand-logos/aula-icon-cutout.png"); -webkit-mask-image: url("assets/brand-logos/aula-icon-cutout.png"); }
 .software-logo--rog { background: #9b4c2f; border-color: #e0a387; border-bottom-color: #5e2b1d; }
-.software-logo-image--rog { width: 38px; height: 23px; background: #ffe1c7; }
+.software-logo-image--rog { width: 38px; height: 23px; background: #f1f3de; }
 .software-logo-image--rog img { top: 0; left: -10px; width: 58px; height: 30px; object-fit: contain; filter: brightness(0) saturate(100%) invert(27%) sepia(23%) saturate(1449%) hue-rotate(337deg) brightness(88%) contrast(89%); }
-.software-logo--rog small { color: #ffe1c7; }
+.software-logo--rog small { color: #f1f3de; }
 .software-logo--recorder { color: #fff7ff; background: #6a3777; border-color: #c08bc8; border-bottom-color: #452452; }
-.software-logo--recorder .software-logo-icon { padding: 2px; color: #6a3777; background: #f3e8f5; stroke-width: 2; }
-.software-logo--recorder small { color: #f3e8f5; }
+.software-logo--recorder .software-logo-icon { padding: 2px; color: #c18a4b; background: #fbf0df; stroke-width: 2; }
+.software-logo--recorder small { color: #fbf0df; }
 
 .rankings-thanks-row { display: grid; grid-template-columns: minmax(190px, .48fr) minmax(0, 1.52fr); align-items: stretch; gap: 14px; margin-top: 14px; }
 .rankings-thanks-row > .donation-thanks, .rankings-thanks-row > .public-rankings { margin-top: 0; }
@@ -1011,7 +1021,6 @@ main {
 .export-brand-filter-button[data-export-brand-filter="vgn"] { color: #6d3d4d; }
 .export-brand-filter-button[data-export-brand-filter="rapoo"] { color: #514064; }
 .export-brand-filter-button[data-export-brand-filter="aula"] { color: #3c4270; }
-.export-brand-filter-button[data-export-brand-filter="hp"] { color: #2d5074; }
 .export-brand-tags { position: relative; z-index: 1; display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; margin-bottom: 14px; }
 .export-brand-tags[hidden] { display: none; }
 .export-brand-tags > .software-logo {
@@ -1029,21 +1038,21 @@ main {
 .software-logo--export .software-logo-icon { width: 22px; height: 20px; }
 .software-logo--export .software-logo-image--logitech { width: 40px; height: 18px; }
 .software-logo--export .software-logo-image--logitech img { top: 2px; left: 1px; width: 38px; height: 14px; }
-.software-logo--export .software-logo-image--mchose { width: 52px; height: 18px; }
-.software-logo--export .software-logo-image--mchose img { top: -28px; left: -6px; width: 68px; height: 68px; }
+.software-logo--export .software-logo-image--mchose { width: 26px; height: 18px; }
 .software-logo--export .software-logo-image--rog { width: 30px; height: 19px; }
 .software-logo--export .software-logo-image--rog img { left: -8px; width: 47px; height: 25px; }
-.software-logo--export .software-logo-image--razer { width: 22px; height: 20px; background: #e8fffb; }
+.software-logo--export .software-logo-image--razer { width: 22px; height: 20px; background: #e7f7f5; }
 .software-logo--export .software-logo-image--razer img { width: 100%; height: 100%; object-fit: contain; }
-.software-logo--export .software-logo-image--rapoo { width: 42px; height: 18px; background: #fff; }
-.software-logo--export .software-logo-image--rapoo img { width: 100%; height: 100%; object-fit: contain; }
-.software-logo--export .software-logo-image--aula { width: 42px; height: 18px; background: #fff; }
-.software-logo--export .software-logo-image--aula img { width: 100%; height: 100%; object-fit: contain; }
-.software-logo--export .software-logo-image--hp { width: 19px; height: 19px; background: #fff; }
-.software-logo--export .software-logo-image--hp img { width: 100%; height: 100%; object-fit: contain; }
+.software-logo--export .software-logo-image--razer { display: grid; place-items: center; }
+.software-logo--export .software-logo-image--razer .software-logo-icon--razer { width: 100%; height: 100%; padding: 3px; background: #3f9e98; mask: url("assets/brand-logos/razer.svg") center / contain no-repeat; -webkit-mask: url("assets/brand-logos/razer.svg") center / contain no-repeat; }
+.software-logo--export .software-logo-image--rapoo { width: 42px; height: 18px; }
+.software-logo--export .software-logo-image--aula { width: 42px; height: 18px; }
+.software-logo--export .software-logo-image--atk { width: 38px; height: 18px; }
+.software-logo--export .software-logo-image--vgn { width: 38px; height: 18px; }
 .software-logo--atk { color: #fff; background: #24272a; border-color: #8f969c; border-bottom-color: #101214; }
 .software-logo--vgn { color: #241e18; background: #f2c879; border-color: #ffe8ad; border-bottom-color: #9b6b25; }
 .software-logo-image--atk, .software-logo-image--vgn { width: 38px; height: 18px; background: #fff; }
+.software-logo-image--vgn { background: #17191c; }
 .software-logo-image--atk img, .software-logo-image--vgn img { width: 100%; height: 100%; object-fit: contain; }
 .software-logo--atk small { color: #c6d0d7; }
 .software-logo--vgn small { color: #5c421f; }
@@ -1055,22 +1064,15 @@ main {
 .software-logo-image--aula { width: 48px; height: 18px; background: #fff; }
 .software-logo-image--aula img { width: 100%; height: 100%; object-fit: contain; }
 .software-logo--aula small { color: #5b6972; }
-.software-logo--hp { color: #fff; background: #087fba; border-color: #8fe0ff; border-bottom-color: #045274; }
-.software-logo-image--hp { width: 22px; height: 22px; background: #fff; }
-.software-logo-image--hp img { width: 100%; height: 100%; object-fit: contain; }
-.software-logo--hp small { color: #d9f5ff; }
 
-/* Brand ribbon follows the Supports order: Logitech → Razer → MCHOSE → ROG → REC → ATK → VGN → Rapoo → AULA → HP. */
+/* Brand ribbon follows the Supports order: Logitech → Razer → MCHOSE → ROG → ATK → VGN → Rapoo → AULA → REC. */
 .software-logo--logitech { color: #fff; background: #4f6f95; border-color: #bfd0e4; border-bottom-color: #2d4058; }
 .software-logo--logitech small { color: #e8f1fb; }
 .software-logo--razer { color: #073d3a; background: #3f9e98; border-color: #aee7e1; border-bottom-color: #27645f; }
 .software-logo--razer small { color: #e0fffb; }
 .software-logo--mchose { color: #fff; background: #5d9f76; border-color: #bde3c9; border-bottom-color: #315b42; }
-.software-logo--mchose > span small { color: #e8ffed; }
 .software-logo--rog { color: #fff; background: #8c9550; border-color: #e1e5a4; border-bottom-color: #555b2a; }
 .software-logo--rog small { color: #f4f6cf; }
-.software-logo--recorder { color: #fff; background: #c18a4b; border-color: #f1d2a6; border-bottom-color: #73451f; }
-.software-logo--recorder small { color: #fff0d7; }
 .software-logo--atk { color: #fff; background: #b96858; border-color: #e4afa4; border-bottom-color: #6d342a; }
 .software-logo--atk small { color: #ffe5df; }
 .software-logo--vgn { color: #fff; background: #ad6e81; border-color: #e4b7c5; border-bottom-color: #6d3d4d; }
@@ -1079,8 +1081,13 @@ main {
 .software-logo--rapoo small { color: #f1e8fa; }
 .software-logo--aula { color: #fff; background: #6d74ad; border-color: #b8c0ea; border-bottom-color: #3c4270; }
 .software-logo--aula small { color: #e9ecff; }
-.software-logo--hp { color: #fff; background: #4a83b8; border-color: #b8d6ed; border-bottom-color: #2d5074; }
-.software-logo--hp small { color: #e2f3ff; }
+.software-logo--recorder { color: #fff; background: #c18a4b; border-color: #f1d2a6; border-bottom-color: #73451f; }
+.software-logo--recorder small { color: #fff0d7; }
+.software-logo-image--atk { background: #f5e1dd; }
+.software-logo-image--vgn { background: #f3e4ea; }
+.software-logo-image--rapoo { background: #eee8f4; }
+.software-logo-image--aula { background: #e9eafa; }
+.software-logo-image--recorder { background: #fbf0df; }
 .export-card .macro-settings { margin-top: 18px; }
 .export-top { display: flex; align-items: center; gap: 12px; }
 .driver-mark { display: grid; width: 36px; height: 36px; place-items: center; color: var(--white); background: var(--teal); border: 2px outset #69b5b5; font: 700 17px/1 var(--pixel); }

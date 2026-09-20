@@ -4,14 +4,13 @@ const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
   razer: { label: "RAZER", small: "SYNAPSE", className: "software-logo--razer", type: "image", src: "assets/brand-logos/razer.svg" },
-  mchose: { label: "迈从", small: "MCHOSE", className: "software-logo--mchose", type: "image", src: "https://www.mchose.store/cdn/shop/files/Mchose_logo_6a0b71d4-d3a3-4605-9026-e7599f4a2e2d.png" },
+  mchose: { label: "迈从", small: "MCHOSE", className: "software-logo--mchose", type: "mask", maskSrc: "assets/brand-logos/mchose-icon-cutout.png" },
   rog: { label: "ROG", small: "ARMOURY CRATE", className: "software-logo--rog", type: "image", src: "https://press.asus.com/assets/w_1200,h_630/90767418-95b3-4934-b729-d5a6b1e97bd3/ROG-logo-white.png" },
-  recorder: { label: "REC", small: "通用录制", className: "software-logo--recorder", type: "recorder" },
-  atk: { label: "ATK", small: "GAMING GEAR", className: "software-logo--atk", type: "image", src: "assets/brand-logos/atk.svg" },
-  vgn: { label: "VGN", small: "GAMING GEAR", className: "software-logo--vgn", type: "image", src: "assets/brand-logos/vgn.svg" },
-  rapoo: { label: "RAPOO", small: "雷柏", className: "software-logo--rapoo", type: "image", src: "assets/brand-logos/rapoo.svg" },
-  aula: { label: "AULA", small: "狼蛛", className: "software-logo--aula", type: "image", src: "assets/brand-logos/aula.svg" },
-  hp: { label: "HP", small: "惠普", className: "software-logo--hp", type: "image", src: "assets/brand-logos/hp.svg" }
+  atk: { label: "ATK", small: "MOUSE · KEYBOARD", className: "software-logo--atk", type: "mask", maskSrc: "assets/brand-logos/atk-official.png" },
+  vgn: { label: "VGN", small: "MOUSE · KEYBOARD", className: "software-logo--vgn", type: "mask", maskSrc: "assets/brand-logos/vgn-wordmark.png" },
+  rapoo: { label: "RAPOO", small: "雷柏", className: "software-logo--rapoo", type: "mask", maskSrc: "assets/brand-logos/rapoo.svg" },
+  aula: { label: "AULA", small: "MOUSE · KEYBOARD", className: "software-logo--aula", type: "mask", maskSrc: "assets/brand-logos/aula-icon-cutout.png" },
+  recorder: { label: "REC", small: "通用录制", className: "software-logo--recorder", type: "recorder" }
 };
 const EXPORT_METHOD_IDS = ["logitech", "razer-synapse-3", "razer-synapse-4", "mchose", "rog", "recording-helper", "manual-entry"];
 const DEFAULT_EXPORT_METHOD_BRANDS = {
@@ -5857,6 +5856,10 @@ function softwareLogoMarkup(brandId) {
   let icon = "";
   if (brand.type === "recorder") {
     icon = '<svg class="software-logo-icon" viewBox="0 0 28 24" aria-hidden="true" focusable="false"><circle cx="14" cy="12" r="4.5" /><path d="M6.5 12a7.5 7.5 0 0 0 7.5 7.5M21.5 12a7.5 7.5 0 0 1-7.5 7.5M6.5 12A7.5 7.5 0 0 1 14 4.5M21.5 12A7.5 7.5 0 0 0 14 4.5" /></svg>';
+  } else if (brand.type === "mask") {
+    icon = `<span class="software-logo-image software-logo-image--${brandId}"><span class="software-logo-mask software-logo-mask--${brandId}" aria-hidden="true"></span></span>`;
+  } else if (brandId === "razer") {
+    icon = '<span class="software-logo-image software-logo-image--razer"><span class="software-logo-icon software-logo-icon--razer" aria-hidden="true"></span></span>';
   } else {
     icon = `<span class="software-logo-image software-logo-image--${brandId}"><img src="${brand.src}" alt="" /></span>`;
   }
