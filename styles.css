@@ -851,6 +851,7 @@ main {
 .midi-track[aria-checked="true"] { color: var(--white); background: #105550; border-color: #d0ffff; box-shadow: inset 3px 0 #67d6cc; }
 .midi-track-index { display: grid; width: 27px; height: 27px; place-items: center; color: #d5ffff; background: var(--teal-dark); border: 1px solid #4d8884; font: 700 9px/1 var(--mono); }
 .midi-track-name { overflow: hidden; font: 700 10px/1.25 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.midi-track-name em { margin-left: 4px; color: #ffd166; font-style: normal; font-size: 8px; }
 .midi-track-name small { display: block; margin-top: 3px; color: #9fbdba; font: 9px/1 var(--mono); }
 .midi-track-bar { position: relative; height: 46px; overflow: hidden; background: repeating-linear-gradient(to bottom, transparent 0 10px, rgba(112, 193, 187, .12) 10px 11px), #031a19; border: 1px solid #315956; }
 .midi-track-bar::before { position: absolute; z-index: 0; inset: 0; background: repeating-linear-gradient(to right, transparent 0 10%, rgba(112, 193, 187, .08) 10% calc(10% + 1px)); content: ""; }

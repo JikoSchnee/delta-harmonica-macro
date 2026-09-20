@@ -360,7 +360,7 @@
               <button class="directory-tutorial-link" data-tour-start="library" type="button">教程</button><i aria-hidden="true">→</i>
             </div>
             <div class="directory-action-card midi">
-              <button class="directory-button" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>自动提取单旋律</small></span></button>
+              <button class="directory-button" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>多音轨编排 / 单声部导出</small></span></button>
               <button class="directory-tutorial-link" data-tour-start="midi" type="button">教程</button><i aria-hidden="true">→</i>
             </div>
             <div class="directory-action-card manual">
@@ -476,7 +476,7 @@
               <div><span class="index">MIDI ARRANGEMENT</span><h3 id="midiTrackPickerTitle">选择音轨与演奏片段</h3></div>
               <span class="midi-picker-status" id="midiPickerStatus">等待 MIDI 文件</span>
             </div>
-            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。可直接选择音轨，或点击右侧「精确选中」逐个决定保留哪些音符；选轨后会自动裁去头尾无音区，仍可拖动范围两端调整片段。</p>
+            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。点击音轨可勾选或取消导入，多选即可把不同乐器放进同一时间线；右侧「精确选中」可逐个保留音符。所有勾选音轨共用一个统一移调值，音轨之间的相对音高不变。当前项目输出单声部口琴宏，多轨同时发声时会取最高音。</p>
             <div class="midi-track-list" id="midiTrackList" role="radiogroup" aria-label="MIDI 音轨列表"></div>
             <div class="midi-range-editor">
               <div class="midi-range-labels"><span id="midiRangeStart">开始 00:00.000</span><strong id="midiRangeSummary">选中整段</strong><span id="midiRangeEnd">结束 00:00.000</span></div>
@@ -486,7 +486,7 @@
                 <span class="midi-range-window" aria-hidden="true"></span>
               </div>
             </div>
-            <div class="midi-picker-actions"><button class="primary-button" id="confirmMidiSelection" type="button"><span>确定并生成谱子</span><b>✓</b></button><span>确认后播放器、简谱与导出将只使用此片段。</span></div>
+            <div class="midi-picker-actions"><button class="primary-button" id="confirmMidiSelection" type="button"><span>导入勾选音轨并生成谱子</span><b>✓</b></button><span>确认后播放器、简谱与导出将使用所选音轨和片段。</span></div>
           </section>
           <div class="input-mode-switch" role="tablist" aria-label="谱子输入方式">
             <button class="input-mode active" data-input-mode="jianpu" type="button" role="tab" aria-selected="true"><b>1</b><span>简谱模式<small>常用符号</small></span></button>
