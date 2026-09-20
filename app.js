@@ -14,8 +14,8 @@ const EXPORT_BRANDS = {
 };
 const EXPORT_METHOD_IDS = ["logitech", "razer-synapse-3", "razer-synapse-4", "mchose", "rog", "recording-helper", "manual-entry"];
 const DEFAULT_EXPORT_METHOD_BRANDS = {
-  "recording-helper": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
-  "manual-entry": ["logitech", "razer", "mchose", "rog", "recorder", "atk", "vgn", "rapoo", "aula", "hp"],
+  "recording-helper": ["logitech", "razer", "mchose", "rog", "atk", "vgn", "rapoo", "aula", "recorder"],
+  "manual-entry": ["logitech", "razer", "mchose", "rog", "atk", "vgn", "rapoo", "aula", "recorder"],
   logitech: ["logitech"],
   "razer-synapse-3": ["razer"],
   "razer-synapse-4": ["razer"],
