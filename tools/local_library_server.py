@@ -104,6 +104,10 @@ REQUEST_SOCKET_TIMEOUT_SECONDS = 30
 MAX_REQUEST_THREADS = 128
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 OAUTH_HTTP_TIMEOUT_SECONDS = 15
+POINT_RULES = {"unlock": 10, "register": 30, "github_star": 100, "first_upload": 50, "referral": 20, "author_every": 10, "author_reward": 10}
+POINTS_NOTICE_KEY = "points-v1"
+INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+INVITE_CODE_PREFIX = "DH"
 GZIP_MIN_BYTES = 1024
 GZIP_LEVEL = 6
 COMPRESSED_ASSET_CACHE_MAX_BYTES = 48 * 1024 * 1024
@@ -172,7 +176,7 @@ ANALYTICS_EVENTS = {
     "page_view", "directory_selected", "library_search", "song_loaded", "input_mode_selected",
     "midi_import_opened", "midi_selection_applied", "score_imported", "preview_started",
     "macro_section_opened", "export_mode_selected", "score_downloaded", "community_upload_succeeded", "macro_downloaded",
-    "macro_exported", "lua_copied", "score_edit_opened", "score_edit_saved", "tour_started", "heartbeat",
+    "macro_exported", "lua_copied", "score_edit_opened", "score_edit_saved", "tour_started", "points_insufficient", "heartbeat",
 }
 ANALYTICS_ENUMERATIONS = {
     "entry": {"direct", "search", "social", "referral", "internal"},
@@ -362,6 +366,7 @@ def analytics_label(event: dict[str, Any]) -> str:
         "score_edit_opened": "打开编辑",
         "score_edit_saved": "保存编辑",
         "tour_started": "打开教程",
+        "points_insufficient": "积分不足",
     }
     return labels.get(event["event"], event["event"])
 
@@ -1388,6 +1393,57 @@ def initialize_auth_database() -> None:
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS donor_entitlements (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                granted_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS point_ledger (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                amount INTEGER NOT NULL,
+                reason TEXT NOT NULL,
+                reference TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                UNIQUE(account_id, reason, reference)
+            );
+            CREATE INDEX IF NOT EXISTS point_ledger_account ON point_ledger(account_id);
+            CREATE TABLE IF NOT EXISTS score_unlocks (
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                remix_code TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(account_id, remix_code)
+            );
+            CREATE TABLE IF NOT EXISTS author_unlocks (
+                owner_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                remix_code TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                PRIMARY KEY(account_id, remix_code)
+            );
+            CREATE INDEX IF NOT EXISTS author_unlocks_owner ON author_unlocks(owner_id);
+            CREATE TABLE IF NOT EXISTS referrals (
+                invitee_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                inviter_id TEXT NOT NULL REFERENCES accounts(id),
+                created_at INTEGER NOT NULL,
+                rewarded_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS invite_codes (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                code TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS invite_codes_lookup ON invite_codes(code COLLATE NOCASE);
+            CREATE TABLE IF NOT EXISTS github_stars (
+                github_id TEXT PRIMARY KEY,
+                account_id TEXT NOT NULL UNIQUE REFERENCES accounts(id) ON DELETE CASCADE,
+                created_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS account_notices (
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                notice_key TEXT NOT NULL,
+                acknowledged_at INTEGER NOT NULL,
+                PRIMARY KEY(account_id, notice_key)
+            );
             CREATE TABLE IF NOT EXISTS account_effects (
                 account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
                 effect TEXT NOT NULL,
@@ -1405,6 +1461,11 @@ def initialize_auth_database() -> None:
         donation_columns = {row[1] for row in connection.execute("PRAGMA table_info(donations)").fetchall()}
         if "created_at" not in donation_columns:
             connection.execute("ALTER TABLE donations ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0")
+        connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) "
+                           "SELECT account_id, COALESCE(NULLIF(created_at, 0), ?) FROM donations WHERE amount_cents > 0",
+                           (now_timestamp(),))
+        for row in connection.execute("SELECT id FROM accounts").fetchall():
+            ensure_invite_code(connection, row[0])
         for method_id, brand_ids in EXPORT_DEFAULT_BRANDS.items():
             existing = connection.execute(
                 "SELECT 1 FROM export_method_brands WHERE method_id = ? LIMIT 1",
@@ -1489,8 +1550,141 @@ def mask_email(email: str) -> str:
     return f"{visible}@{domain}"
 
 
+def new_invite_code() -> str:
+    return INVITE_CODE_PREFIX + "".join(secrets.choice(INVITE_CODE_ALPHABET) for _ in range(10))
+
+
+def ensure_invite_code(connection: sqlite3.Connection, account_id: str, created_at: int | None = None) -> str:
+    existing = connection.execute("SELECT code FROM invite_codes WHERE account_id = ?", (account_id,)).fetchone()
+    if existing:
+        return str(existing[0])
+    created_at = created_at or now_timestamp()
+    while True:
+        code = new_invite_code()
+        try:
+            connection.execute(
+                "INSERT INTO invite_codes(account_id, code, created_at) VALUES (?, ?, ?)",
+                (account_id, code, created_at),
+            )
+            return code
+        except sqlite3.IntegrityError:
+            continue
+
+
+def inviter_id_for_referral(connection: sqlite3.Connection, referral: Any) -> str | None:
+    value = str(referral or "").strip()
+    if not value:
+        return None
+    invite_code = connection.execute(
+        "SELECT account_id FROM invite_codes WHERE code = ? COLLATE NOCASE",
+        (value,),
+    ).fetchone()
+    if invite_code:
+        return str(invite_code[0])
+    # Keep older user-ID links working while all newly generated links use the
+    # immutable account invite code. History also preserves links created
+    # before an account changed its user ID.
+    legacy_user = connection.execute(
+        "SELECT id FROM accounts WHERE user_id = ? COLLATE NOCASE",
+        (value,),
+    ).fetchone()
+    if legacy_user:
+        return str(legacy_user[0])
+    historical_user = connection.execute(
+        "SELECT account_id FROM user_id_history WHERE user_id = ? COLLATE NOCASE",
+        (value,),
+    ).fetchone()
+    return str(historical_user[0]) if historical_user else None
+
+
 def is_admin_account(account: sqlite3.Row | dict[str, Any] | None) -> bool:
     return bool(account and str(account["email"]).casefold() == ADMIN_EMAIL.casefold())
+
+
+def award_points(connection: sqlite3.Connection, account_id: str, amount: int, reason: str, reference: str) -> bool:
+    cursor = connection.execute(
+        "INSERT OR IGNORE INTO point_ledger(account_id, amount, reason, reference, created_at) VALUES (?, ?, ?, ?, ?)",
+        (account_id, amount, reason, reference, now_timestamp()),
+    )
+    return cursor.rowcount == 1
+
+
+def ensure_initial_points(connection: sqlite3.Connection, account_id: str) -> None:
+    award_points(connection, account_id, POINT_RULES["register"], "register", account_id)
+    if connection.execute("SELECT 1 FROM score_owners WHERE account_id = ? LIMIT 1", (account_id,)).fetchone():
+        award_points(connection, account_id, POINT_RULES["first_upload"], "first_upload", account_id)
+
+
+def point_balance(connection: sqlite3.Connection, account_id: str) -> int:
+    row = connection.execute("SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id = ?", (account_id,)).fetchone()
+    return int(row[0])
+
+
+def points_payload(server: ThreadingHTTPServer, account_id: str) -> dict[str, Any]:
+    with AUTH_LOCK, auth_database() as connection:
+        ensure_initial_points(connection, account_id)
+        invite_code = ensure_invite_code(connection, account_id)
+        donor = connection.execute("SELECT 1 FROM donor_entitlements WHERE account_id = ?", (account_id,)).fetchone()
+        author_count = connection.execute("SELECT COUNT(*) FROM author_unlocks WHERE owner_id = ?", (account_id,)).fetchone()[0]
+        uploads = connection.execute("SELECT 1 FROM score_owners WHERE account_id = ? LIMIT 1", (account_id,)).fetchone()
+        star = connection.execute("SELECT 1 FROM github_stars WHERE account_id = ?", (account_id,)).fetchone()
+        notice = connection.execute("SELECT 1 FROM account_notices WHERE account_id = ? AND notice_key = ?", (account_id, POINTS_NOTICE_KEY)).fetchone()
+        unlocks = [row[0] for row in connection.execute("SELECT remix_code FROM score_unlocks WHERE account_id = ?", (account_id,))]
+        owned = [row[0] for row in connection.execute("SELECT remix_code FROM score_owners WHERE account_id = ?", (account_id,))]
+        return {"balance": point_balance(connection, account_id), "unlimited": bool(donor), "inviteCode": invite_code,
+                "unlocked": unlocks, "owned": owned, "firstUploadRewarded": bool(uploads), "githubStarRewarded": bool(star),
+                "githubStarAvailable": bool(getattr(server, "github_oauth", None)),
+                "githubRepoUrl": "https://github.com/" + (server.github_oauth["repo"] if getattr(server, "github_oauth", None) else "JikoSchnee/delta-harmonica-macro"),
+                "authorUnlocks": author_count, "authorProgress": author_count % POINT_RULES["author_every"],
+                "noticePending": not bool(notice),
+                "rules": POINT_RULES}
+
+
+def points_admin_report(days: int = 14) -> dict[str, Any]:
+    since = now_timestamp() - days * 86400
+    with AUTH_LOCK, auth_database() as connection:
+        ledger = connection.execute(
+            "SELECT reason, COUNT(*) AS events, COALESCE(SUM(amount), 0) AS points FROM point_ledger "
+            "WHERE created_at >= ? GROUP BY reason", (since,)).fetchall()
+        unlocks = connection.execute("SELECT COUNT(*) FROM score_unlocks WHERE created_at >= ?", (since,)).fetchone()[0]
+        invites = connection.execute("SELECT COUNT(*) FROM referrals WHERE rewarded_at >= ?", (since,)).fetchone()[0]
+    return {"days": days, "unlocks": unlocks, "rewardedInvites": invites,
+            "ledger": {row["reason"]: {"events": row["events"], "points": row["points"]} for row in ledger}}
+
+
+def unlock_public_score(server: ThreadingHTTPServer, account_id: str, remix_code: Any) -> dict[str, Any]:
+    code = normalize_remix_code(remix_code)
+    if not code:
+        raise ValueError("曲谱标识无效。")
+    # Only current public library identities qualify. Never accept an owner or
+    # price supplied by the browser.
+    if not any(is_canonical_source(path) and score.get("remixCode") == code for path, score in read_scores()):
+        raise FileNotFoundError("未找到这首公共曲谱。")
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        ensure_initial_points(connection, account_id)
+        owner = connection.execute("SELECT account_id FROM score_owners WHERE remix_code = ?", (code,)).fetchone()
+        existing = connection.execute("SELECT 1 FROM score_unlocks WHERE account_id = ? AND remix_code = ?", (account_id, code)).fetchone()
+        donor = connection.execute("SELECT 1 FROM donor_entitlements WHERE account_id = ?", (account_id,)).fetchone()
+        owned = bool(owner and owner[0] == account_id)
+        if not existing and not owned:
+            if not donor and point_balance(connection, account_id) < POINT_RULES["unlock"]:
+                raise ValueError("积分不足，完成邀请、投稿或 GitHub Star 可获得积分。")
+            connection.execute("INSERT INTO score_unlocks(account_id, remix_code, created_at) VALUES (?, ?, ?)",
+                               (account_id, code, now_timestamp()))
+            if not donor:
+                award_points(connection, account_id, -POINT_RULES["unlock"], "unlock", code)
+            if owner and owner[0] != account_id:
+                connection.execute("INSERT OR IGNORE INTO author_unlocks(owner_id, account_id, remix_code, created_at) VALUES (?, ?, ?, ?)",
+                                   (owner[0], account_id, code, now_timestamp()))
+                total = connection.execute("SELECT COUNT(*) FROM author_unlocks WHERE owner_id = ?", (owner[0],)).fetchone()[0]
+                if total % POINT_RULES["author_every"] == 0:
+                    award_points(connection, owner[0], POINT_RULES["author_reward"], "author", str(total))
+            referral = connection.execute("SELECT inviter_id FROM referrals WHERE invitee_id = ? AND rewarded_at IS NULL", (account_id,)).fetchone()
+            if referral and not donor:
+                award_points(connection, referral[0], POINT_RULES["referral"], "referral", account_id)
+                connection.execute("UPDATE referrals SET rewarded_at = ? WHERE invitee_id = ?", (now_timestamp(), account_id))
+    return {"charged": bool(not existing and not owned and not donor), "owned": owned, **points_payload(server, account_id)}
 
 
 def account_payload(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str, Any]) -> dict[str, Any]:
@@ -1505,6 +1699,7 @@ def account_payload(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str
         "email": credential,
         "isAdmin": is_admin_account(account),
         "effectState": account_effect_state(server, account),
+        "points": points_payload(server, account["id"]),
     }
 
 
@@ -1801,6 +1996,7 @@ def admin_set_donation(payload: Any) -> dict[str, Any]:
                 "ON CONFLICT(account_id) DO UPDATE SET amount_cents=excluded.amount_cents, updated_at=excluded.updated_at",
                 (account_id, amount_cents, now, now),
             )
+            connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) VALUES (?, ?)", (account_id, now))
     PUBLIC_DONORS_CACHE.invalidate()
     PUBLIC_RANKINGS_CACHE.invalidate()
     return {"accountId": account_id, "amountCents": amount_cents}
@@ -2019,7 +2215,7 @@ def oauth_callback_target(server: ThreadingHTTPServer, provider: str, result: st
     query = {"auth": result}
     if message:
         query["message"] = message[:120]
-    return urlunsplit((parsed.scheme, parsed.netloc, app_path, "", urlencode(query), ""))
+    return urlunsplit((parsed.scheme, parsed.netloc, app_path, urlencode(query), ""))
 
 
 def fetch_oauth_response(url: str, *, data: dict[str, str] | None = None, headers: dict[str, str] | None = None) -> str:
@@ -2101,7 +2297,48 @@ def oauth_profile(server: ThreadingHTTPServer, provider: str, code: str) -> dict
     return {"subject": f"wechat:{subject}", "display_name": str(user_info.get("nickname", "")).strip()}
 
 
-def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str, str]) -> sqlite3.Row:
+def claim_github_star(server: ThreadingHTTPServer, account_id: str, code: str) -> None:
+    config = server.github_oauth
+    token_payload = json.loads(fetch_oauth_response("https://github.com/login/oauth/access_token", data={
+        "client_id": config["client_id"], "client_secret": config["client_secret"],
+        "code": code, "redirect_uri": config["redirect_uri"],
+    }, headers={"Accept": "application/json"}))
+    token = token_payload.get("access_token") if isinstance(token_payload, dict) else None
+    if not token:
+        raise ValueError("GitHub 授权失败，请重试。")
+    headers = {"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "User-Agent": "delta-harmonica-points"}
+    profile = json.loads(fetch_oauth_response("https://api.github.com/user", headers=headers))
+    github_id = str(profile.get("id", "")) if isinstance(profile, dict) else ""
+    if not github_id.isdecimal():
+        raise ValueError("无法确认 GitHub 账号。")
+    try:
+        with urlopen(Request(f"https://api.github.com/user/starred/{config['repo']}", headers=headers), timeout=OAUTH_HTTP_TIMEOUT_SECONDS) as response:
+            starred = response.status == 204
+    except HTTPError as error:
+        if error.code == 404:
+            starred = False
+        else:
+            raise ValueError("GitHub 暂时无法验证 Star，请稍后重试。") from error
+    if not starred:
+        raise ValueError("请先在 GitHub 为项目点 Star，再回来领取积分。")
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        existing = connection.execute("SELECT account_id FROM github_stars WHERE github_id = ? OR account_id = ?", (github_id, account_id)).fetchone()
+        if existing:
+            if existing[0] == account_id:
+                return
+            raise ValueError("该 GitHub 账号已经领取过 Star 积分。")
+        connection.execute("INSERT INTO github_stars(github_id, account_id, created_at) VALUES (?, ?, ?)", (github_id, account_id, now_timestamp()))
+        award_points(connection, account_id, POINT_RULES["github_star"], "github_star", github_id)
+
+
+def github_star_return(server: ThreadingHTTPServer, result: str) -> str:
+    callback = urlparse(server.github_oauth["redirect_uri"])
+    app_path = callback.path.removesuffix("api/points/github/callback")
+    return urlunsplit((callback.scheme, callback.netloc, app_path or "/", urlencode({"github-star": result}), ""))
+
+
+def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str, str], referral: str = "") -> sqlite3.Row:
     subject = profile["subject"]
     display_name = re.sub(r"[^A-Za-z0-9_]+", "_", profile.get("display_name", "")).strip("_")[:12]
     prefix = "qq" if provider == "qq" else "wx"
@@ -2130,6 +2367,7 @@ def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str,
             "INSERT INTO accounts(id, email, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
             (account_id, synthetic_email, user_id, now, now),
         )
+        ensure_invite_code(connection, account_id, now)
         connection.execute(
             "INSERT INTO user_id_history(user_id, account_id, reserved_at) VALUES (?, ?, ?)",
             (user_id, account_id, now),
@@ -2138,6 +2376,10 @@ def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str,
             "INSERT INTO oauth_identities(provider, subject, account_id, display_name, created_at) VALUES (?, ?, ?, ?, ?)",
             (provider, subject, account_id, profile.get("display_name", "")[:120], now),
         )
+        inviter_id = inviter_id_for_referral(connection, referral)
+        if inviter_id and inviter_id != account_id:
+            connection.execute("INSERT INTO referrals(invitee_id, inviter_id, created_at) VALUES (?, ?, ?)",
+                               (account_id, inviter_id, now))
         return connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
 
 
@@ -2376,21 +2618,31 @@ def issue_session(server: ThreadingHTTPServer, account_id: str) -> str:
     return token
 
 
-def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any, mode: Any = None) -> sqlite3.Row:
+def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any, mode: Any = None, referral: Any = None) -> sqlite3.Row:
     value = str(code or "").strip()
     if not re.fullmatch(r"\d{6}", value):
         raise ValueError("请输入 6 位验证码。")
+    fixed_test_login = bool(
+        server.auth_code_log_only
+        and server.fixed_test_login_email
+        and server.fixed_test_login_code
+        and hmac.compare_digest(email, server.fixed_test_login_email)
+        and hmac.compare_digest(value, server.fixed_test_login_code)
+    )
     now = now_timestamp()
     with AUTH_LOCK, auth_database() as connection:
-        record = connection.execute("SELECT code_hash, expires_at, attempts FROM email_codes WHERE email = ?", (email,)).fetchone()
-        if not record or record["expires_at"] <= now:
-            connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
-            raise ValueError("验证码已失效，请重新获取。")
-        if record["attempts"] >= AUTH_CODE_MAX_ATTEMPTS or not hmac.compare_digest(record["code_hash"], auth_digest(server, value)):
-            connection.execute("UPDATE email_codes SET attempts = attempts + 1 WHERE email = ?", (email,))
-            raise ValueError("验证码不正确，请重试。")
+        if not fixed_test_login:
+            record = connection.execute("SELECT code_hash, expires_at, attempts FROM email_codes WHERE email = ?", (email,)).fetchone()
+            if not record or record["expires_at"] <= now:
+                connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
+                raise ValueError("验证码已失效，请重新获取。")
+            if record["attempts"] >= AUTH_CODE_MAX_ATTEMPTS or not hmac.compare_digest(record["code_hash"], auth_digest(server, value)):
+                connection.execute("UPDATE email_codes SET attempts = attempts + 1 WHERE email = ?", (email,))
+                raise ValueError("验证码不正确，请重试。")
         account = connection.execute("SELECT id, email, user_id FROM accounts WHERE email = ?", (email,)).fetchone()
         if account is None:
+            if fixed_test_login:
+                raise ValueError("固定测试账号尚未建立。")
             if mode == "login":
                 raise ValueError("该邮箱尚未注册，请切换到注册。")
             user_id = validate_user_id(requested_user_id)
@@ -2401,12 +2653,18 @@ def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any
                     (account_id, email, user_id, now, now),
                 )
                 connection.execute("INSERT INTO user_id_history(user_id, account_id, reserved_at) VALUES (?, ?, ?)", (user_id, account_id, now))
+                ensure_invite_code(connection, account_id, now)
             except sqlite3.IntegrityError as error:
                 raise ValueError("该用户 ID 已被使用或保留。") from error
             account = connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
+            inviter_id = inviter_id_for_referral(connection, referral)
+            if inviter_id and inviter_id != account_id:
+                connection.execute("INSERT INTO referrals(invitee_id, inviter_id, created_at) VALUES (?, ?, ?)",
+                                   (account_id, inviter_id, now))
         elif mode == "register":
             raise ValueError("该邮箱已注册，请切换到登录。")
-        connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
+        if not fixed_test_login:
+            connection.execute("DELETE FROM email_codes WHERE email = ?", (email,))
     backfill_legacy_score_owners(account)
     return account
 
@@ -3075,6 +3333,49 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if self.serve_maintenance_if_active(path):
             return
+        if path in {"/api/points", "/api/points/github/start", "/api/points/github/callback"}:
+            if not self.server.auth_enabled:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账号服务未启用。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            if path == "/api/points":
+                self.send_json(HTTPStatus.OK, points_payload(self.server, account["id"]))
+                return
+            config = self.server.github_oauth
+            if not config:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "GitHub Star 验证尚未配置。"})
+                return
+            if path.endswith("/start"):
+                state = issue_oauth_state(self.server, "github_star")
+                with self.server.oauth_state_lock:
+                    self.server.oauth_states[state]["account_id"] = account["id"]
+                location = "https://github.com/login/oauth/authorize?" + urlencode({
+                    "client_id": config["client_id"], "redirect_uri": config["redirect_uri"],
+                    "state": state, "scope": "read:user",
+                })
+                self.send_redirect(location, oauth_state_cookie(self, state))
+                return
+            query = parse_qs(urlparse(self.path).query)
+            state = query.get("state", [""])[0]
+            cookie = self.cookies().get(OAUTH_STATE_COOKIE_NAME)
+            with self.server.oauth_state_lock:
+                pending = self.server.oauth_states.get(state, {}).copy()
+            if not state or not cookie or not hmac.compare_digest(state, cookie.value) or pending.get("account_id") != account["id"] or not consume_oauth_state(self.server, state, "github_star"):
+                self.send_redirect(github_star_return(self.server, "error"), oauth_state_cookie(self, expired=True))
+                return
+            try:
+                code = query.get("code", [""])[0]
+                if not code:
+                    raise ValueError("GitHub 授权已取消。")
+                claim_github_star(self.server, account["id"], code)
+            except (ValueError, OSError, json.JSONDecodeError, sqlite3.Error):
+                self.send_redirect(github_star_return(self.server, "error"), oauth_state_cookie(self, expired=True))
+                return
+            self.send_redirect(github_star_return(self.server, "success"), oauth_state_cookie(self, expired=True))
+            return
         oauth_match = re.fullmatch(r"/api/auth/oauth/(qq|wechat)/(start|callback)", path)
         if oauth_match:
             provider, action = oauth_match.groups()
@@ -3084,6 +3385,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             if action == "start":
                 state = issue_oauth_state(self.server, provider)
+                referral = parse_qs(urlparse(self.path).query).get("ref", [""])[0]
+                if isinstance(referral, str) and USER_ID_PATTERN.fullmatch(referral):
+                    with self.server.oauth_state_lock:
+                        self.server.oauth_states[state]["referral"] = referral
                 if provider == "qq":
                     location = "https://graph.qq.com/oauth2.0/authorize?" + urlencode({
                         "response_type": "code",
@@ -3105,6 +3410,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             query = parse_qs(urlparse(self.path).query)
             state = query.get("state", [""])[0]
             state_cookie = self.cookies().get(OAUTH_STATE_COOKIE_NAME)
+            with self.server.oauth_state_lock:
+                pending = self.server.oauth_states.get(state, {}).copy()
             if not state or not state_cookie or not hmac.compare_digest(state, state_cookie.value) or not consume_oauth_state(self.server, state, provider):
                 self.send_redirect(oauth_callback_target(self.server, provider, "error", "登录状态已失效，请重试。"), oauth_state_cookie(self, expired=True))
                 return
@@ -3116,7 +3423,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_redirect(oauth_callback_target(self.server, provider, "error", "未获取到授权码，请重试。"), oauth_state_cookie(self, expired=True))
                 return
             try:
-                account = oauth_account(self.server, provider, oauth_profile(self.server, provider, code))
+                account = oauth_account(self.server, provider, oauth_profile(self.server, provider, code), pending.get("referral", ""))
                 token = issue_session(self.server, account["id"])
             except (ValueError, OSError, sqlite3.Error) as error:
                 self.send_redirect(oauth_callback_target(self.server, provider, "error", str(error) or "第三方登录失败，请重试。"), oauth_state_cookie(self, expired=True))
@@ -3232,6 +3539,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, export_methods_payload())
             return
+        if path == "/api/admin/points":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, points_admin_report())
+            return
         if path == "/api/admin/library":
             if not self.is_admin_console_request():
                 return
@@ -3303,6 +3615,45 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if path == "/api/points/notice":
+            if not self.server.auth_enabled or not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "请从本站登录后确认积分说明。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            try:
+                with AUTH_LOCK, auth_database() as connection:
+                    connection.execute("INSERT OR IGNORE INTO account_notices(account_id, notice_key, acknowledged_at) VALUES (?, ?, ?)",
+                                       (account["id"], POINTS_NOTICE_KEY, now_timestamp()))
+            except sqlite3.Error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "暂时无法保存阅读状态，请稍后再试。"})
+                return
+            self.send_empty(HTTPStatus.NO_CONTENT)
+            return
+        if path == "/api/points/unlock":
+            if not self.server.auth_enabled or not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "请从本站登录后解锁曲谱。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录后导出公共曲谱。"})
+                return
+            try:
+                payload = self.read_payload()
+                result = unlock_public_score(self.server, account["id"], payload.get("remixCode") if isinstance(payload, dict) else None)
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except ValueError as error:
+                self.send_json(HTTPStatus.PAYMENT_REQUIRED, {"error": str(error)})
+                return
+            except sqlite3.Error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "积分服务暂时繁忙，请稍后重试。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
+            return
         if self.serve_maintenance_if_active(path):
             return
         if path == "/api/admin/donations":
@@ -3398,7 +3749,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 payload = self.read_payload()
                 if not isinstance(payload, dict):
                     raise ValueError("认证请求格式无效。")
-                account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"), payload.get("mode"))
+                account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"), payload.get("mode"), payload.get("referral"))
                 token = issue_session(self.server, account["id"])
             except sqlite3.Error:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
@@ -3734,7 +4085,13 @@ def main() -> int:
     parser.add_argument("--wechat-app-id", default=os.environ.get("DELTA_WECHAT_APP_ID", ""), help="微信开放平台网站应用 AppID；也可设 DELTA_WECHAT_APP_ID")
     parser.add_argument("--wechat-app-secret", default=os.environ.get("DELTA_WECHAT_APP_SECRET", ""), help="微信开放平台网站应用 AppSecret；也可设 DELTA_WECHAT_APP_SECRET")
     parser.add_argument("--wechat-redirect-uri", default=os.environ.get("DELTA_WECHAT_REDIRECT_URI", ""), help="微信 OAuth 回调地址；也可设 DELTA_WECHAT_REDIRECT_URI")
+    parser.add_argument("--github-client-id", default=os.environ.get("DELTA_GITHUB_CLIENT_ID", ""), help="GitHub OAuth 应用 Client ID")
+    parser.add_argument("--github-client-secret", default=os.environ.get("DELTA_GITHUB_CLIENT_SECRET", ""), help="GitHub OAuth 应用 Client Secret")
+    parser.add_argument("--github-redirect-uri", default=os.environ.get("DELTA_GITHUB_REDIRECT_URI", ""), help="GitHub Star 授权回调地址")
+    parser.add_argument("--github-star-repo", default=os.environ.get("DELTA_GITHUB_STAR_REPO", "JikoSchnee/delta-harmonica-macro"), help="领取 Star 奖励的 owner/repo")
     parser.add_argument("--auth-code-log-only", action="store_true", default=os.environ.get("DELTA_AUTH_CODE_LOG_ONLY", "").lower() in {"1", "true", "yes"}, help="仅本地测试：把验证码写入服务日志，不发送邮件")
+    parser.add_argument("--fixed-test-login-email", default=os.environ.get("DELTA_FIXED_TEST_LOGIN_EMAIL", ""), help="仅本地验证码日志模式：允许指定账号跳过发送验证码")
+    parser.add_argument("--fixed-test-login-code", default=os.environ.get("DELTA_FIXED_TEST_LOGIN_CODE", ""), help="仅本地验证码日志模式：指定账号使用的固定 6 位验证码")
     parser.add_argument("--insecure-auth-cookies", action="store_true", help="仅本地测试：允许 HTTP 登录 Cookie；生产环境请勿使用")
     parser.add_argument("--analytics-admin-token", default=os.environ.get("DELTA_ANALYTICS_ADMIN_TOKEN", ""), help="启用内置分析并保护管理接口的令牌；也可设 DELTA_ANALYTICS_ADMIN_TOKEN")
     parser.add_argument("--analytics-retention-days", type=int, default=DEFAULT_ANALYTICS_RETENTION_DAYS, help=f"行为事件保留天数（默认 {DEFAULT_ANALYTICS_RETENTION_DAYS}，最多 365）")
@@ -3748,6 +4105,17 @@ def main() -> int:
     email_auth_requested = bool(args.smtp_host or args.smtp_from or args.auth_code_log_only)
     if email_auth_requested and not args.auth_secret:
         parser.error("启用邮箱登录时必须设置 DELTA_AUTH_SECRET 或 --auth-secret")
+    if bool(args.fixed_test_login_email) != bool(args.fixed_test_login_code):
+        parser.error("固定测试登录邮箱与验证码必须同时设置")
+    if args.fixed_test_login_email:
+        if not args.auth_code_log_only:
+            parser.error("固定测试登录仅允许与 --auth-code-log-only 一起使用")
+        try:
+            args.fixed_test_login_email = normalize_email(args.fixed_test_login_email)
+        except ValueError as error:
+            parser.error(str(error))
+        if not re.fullmatch(r"\d{6}", args.fixed_test_login_code):
+            parser.error("固定测试登录验证码必须为 6 位数字")
     if email_auth_requested and not args.auth_code_log_only:
         if not (args.smtp_host and args.smtp_from):
             parser.error("启用 SMTP 登录时必须设置 DELTA_SMTP_HOST 和 DELTA_SMTP_FROM")
@@ -3767,6 +4135,15 @@ def main() -> int:
                 parser.error(f"{oauth_provider_label(provider)}登录回调地址必须是 HTTPS，并以 /api/auth/oauth/{provider}/callback 结尾")
             oauth_providers[provider] = {"app_id": values[0], "app_secret": values[1], "redirect_uri": values[2]}
     oauth_requested = bool(oauth_providers)
+    github_values = (args.github_client_id, args.github_client_secret, args.github_redirect_uri)
+    if any(github_values) and not all(github_values):
+        parser.error("GitHub Star 验证需要 Client ID、Client Secret 和回调地址")
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", args.github_star_repo):
+        parser.error("GitHub Star 仓库需为 owner/repo")
+    if all(github_values):
+        redirect = urlparse(args.github_redirect_uri)
+        if redirect.scheme != "https" or not redirect.path.endswith("/api/points/github/callback"):
+            parser.error("GitHub Star 回调地址需为 HTTPS，并指向 /api/points/github/callback")
     auth_requested = email_auth_requested or oauth_requested
     if auth_requested and not args.auth_secret:
         parser.error("启用登录时必须设置 DELTA_AUTH_SECRET 或 --auth-secret")
@@ -3794,8 +4171,12 @@ def main() -> int:
     server.smtp_ssl = args.smtp_ssl
     server.smtp_starttls = not args.no_smtp_starttls and not args.smtp_ssl
     server.auth_code_log_only = args.auth_code_log_only
+    server.fixed_test_login_email = args.fixed_test_login_email
+    server.fixed_test_login_code = args.fixed_test_login_code
     server.insecure_auth_cookies = args.insecure_auth_cookies
     server.oauth_providers = oauth_providers
+    server.github_oauth = {"client_id": args.github_client_id, "client_secret": args.github_client_secret,
+                           "redirect_uri": args.github_redirect_uri, "repo": args.github_star_repo} if all(github_values) else None
     server.oauth_states: dict[str, dict[str, Any]] = {}
     server.oauth_state_lock = threading.Lock()
     server.auth_code_requests: dict[str, list[float]] = {}

@@ -103,7 +103,7 @@ function Get-RemoteStatus {
   $payload = @'
 set -u
 app_container=delta-harmonica-macro
-docker_network=study-desk-webdav_default
+docker_network=delta-production
 proxy_info=$(docker ps --format '{{.Names}}|{{.Image}}' 2>/dev/null | awk -F'|' 'tolower($2) ~ /nginx|caddy|traefik/ {print $1 "|" $2; exit}')
 proxy_container=${proxy_info%%|*}
 proxy_image=${proxy_info#*|}

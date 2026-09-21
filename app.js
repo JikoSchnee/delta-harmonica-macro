@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "3.4.1";
+const WEBSITE_VERSION = "3.5.0";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
@@ -498,7 +498,23 @@ function reserveMacroExportSlotNow() {
 
 async function reserveMacroExportSlot() {
   await authReadyPromise.catch(() => {});
-  return reserveMacroExportSlotNow();
+  if (!currentPublicScoreCode || !authState.available) return { commit() {}, release() {} };
+  if (!authState.account) {
+    toast("请先登录，领取 30 积分后解锁公共曲谱。");
+    showAuthDialog();
+    return null;
+  }
+  try {
+    const result = await authRequest("./api/points/unlock", { method: "POST", body: { remixCode: currentPublicScoreCode } });
+    authState.account.points = result;
+    renderPointsUi();
+    renderSongLibrary(elements.songSearch.value);
+    return { commit() {}, release() {} };
+  } catch (error) {
+    toast(error.message || "解锁曲谱失败，请稍后重试。");
+    if (error.status === 402) { trackAnalytics("points_insufficient"); openAccountDialog(); }
+    return null;
+  }
 }
 
 function analyticsEntrySource() {
@@ -1183,7 +1199,27 @@ Object.assign(elements, {
   libraryOverwriteDescription: document.querySelector("#libraryOverwriteDescription"),
   libraryOverwriteConfirm: document.querySelector("#libraryOverwriteConfirm"),
   communityContact: document.querySelector("#communityContact"),
-  qqGroupCopyButton: document.querySelector("#qqGroupCopyButton")
+  qqGroupCopyButton: document.querySelector("#qqGroupCopyButton"),
+  qqGroupCopyButton2: document.querySelector("#qqGroupCopyButton2")
+});
+
+Object.assign(elements, {
+  pointsTaskButton: document.querySelector("#pointsTaskButton"),
+  pointsTaskButtonLabel: document.querySelector("#pointsTaskButtonLabel"),
+  pointsTaskDialog: document.querySelector("#pointsTaskDialog"),
+  pointsTaskClose: document.querySelector("#pointsTaskClose"),
+  pointsTaskBalance: document.querySelector("#pointsTaskBalance"),
+  pointsTaskRegistration: document.querySelector("#pointsTaskRegistration"),
+  pointsTaskGithub: document.querySelector("#pointsTaskGithub"),
+  pointsTaskUpload: document.querySelector("#pointsTaskUpload"),
+  pointsTaskAuthor: document.querySelector("#pointsTaskAuthor"),
+  pointsTaskStatus: document.querySelector("#pointsTaskStatus"),
+  githubStarVerifyButton: document.querySelector("#githubStarVerifyButton"),
+  copyInviteCodeButton: document.querySelector("#copyInviteCodeButton"),
+  copyInviteLinkButton: document.querySelector("#copyInviteLinkButton"),
+  inviteCodeDisplay: document.querySelector("#inviteCodeDisplay"),
+  inviteTaskStatus: document.querySelector("#inviteTaskStatus"),
+  inviteFriends: document.querySelector("#inviteFriends")
 });
 
 let currentSequence = null;
@@ -1214,11 +1250,12 @@ let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
-let authState = { available: false, statusKnown: false, account: null, pendingCommunityUpload: false, email: "", mode: "login", providers: [] };
+let authState = { available: false, statusKnown: false, account: null, pendingCommunityUpload: false, pendingPointsTask: "", email: "", mode: "login", providers: [] };
 let pendingLibrarySong = null;
 let pendingSongEdit = null;
 let activeAnalyticsScoreId = "";
 let activeAnalyticsScoreOrigin = "editor";
+let currentPublicScoreCode = "";
 const AUTH_MAIL_WATCH_INTERVAL_MS = 1500;
 const AUTH_MAIL_WATCH_TIMEOUT_MS = 90 * 1000;
 let authMailWatch = null;
@@ -1309,6 +1346,7 @@ function clearScoreContent() {
   resetMidiTrackPicker();
   activeAnalyticsScoreOrigin = "editor";
   activeAnalyticsScoreId = "";
+  currentPublicScoreCode = "";
   updateLineNumbers();
   convert();
   editorForMode(inputMode)?.focus({ preventScroll: true });
@@ -2708,13 +2746,17 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const canManageRecommendations = Boolean(authState.account?.isAdmin);
   const recommendationAction = isRecommended ? "unrecommend" : "recommend";
   const recommendationLabel = isRecommended ? "取消推荐" : "推荐";
+  const needsPoints = songAnalyticsOrigin(song) === "community" && Boolean(song.remixCode);
+  const unlocked = authState.account?.points?.unlocked?.includes(song.remixCode);
+  const owned = authState.account?.points?.owned?.includes(song.remixCode);
+  const priceLabel = needsPoints ? (owned ? "我的谱子·免费" : unlocked ? "已解锁" : authState.account?.points?.unlimited ? "无限使用" : "首次 10 积分") : "";
   return `
     <article class="song-card" data-song-index="${index}" data-remix-code="${escapeHtml(song.remixCode || "")}" data-index="${String(index + 1).padStart(2, "0")}">
       <div class="song-card-main" data-song-action="card-export-copy-remix" role="button" tabindex="0" aria-label="导出《${escapeHtml(song.title)}》并复制改曲码链接">
       <span class="song-number">TRACK ${String(index + 1).padStart(2, "0")}</span>
       <div class="song-title-row"><h3>${escapeHtml(song.title)}</h3>${song.displayUrl ? `<a class="song-showcase-link" href="${escapeHtml(song.displayUrl)}" target="_blank" rel="noopener noreferrer">展示视频 <span aria-hidden="true">↗</span></a>` : ""}</div>
       <p class="song-artist"><span class="song-artist-link" data-song-action="search-artist" data-artist="${escapeHtml(song.artist)}" title="在曲库中查看这位作者的作品">${escapeHtml(song.artist)}</span></p>
-      <div class="song-meta"><div class="song-meta-primary"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-action-count" title="脚本执行的键盘/鼠标动作总数">动作 ${song.actionCount ?? songActionCount(song)} 次</span></div><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
+      <div class="song-meta"><div class="song-meta-primary"><span>${escapeHtml(song.key)}</span><span>${escapeHtml(song.meter)}</span><span>${escapeHtml(song.bpm)} BPM</span><span class="song-action-count" title="脚本执行的键盘/鼠标动作总数">动作 ${song.actionCount ?? songActionCount(song)} 次</span>${priceLabel ? `<span class="song-points-label">${priceLabel}</span>` : ""}</div><span class="song-export-count" title="统计周期内总导出量">导出 ${song.exportCount ?? scoreExportCount(song)}</span></div>
       ${song.declaration ? `<p class="song-declaration" title="上传者声明">声明：${escapeHtml(song.declaration)}</p>` : ""}
       </div>
       <div class="song-card-footer"><button class="song-share${sharedByEffect === "default" ? "" : ` song-share--${sharedByEffect}`}" data-song-action="search-sharer" type="button" title="在曲库中查看这位共享人的作品" aria-label="在曲库中查看共享人 ${escapeHtml(song.sharedBy)} 的作品">共享：${userIdMarkup(song.sharedBy)}</button>${sponsor ? `<button class="song-share song-sponsor${sponsorEffect === "default" ? "" : ` song-share--${sponsorEffect}`}" data-song-action="search-sponsor" type="button" title="在曲库中查看这位赞助人的作品" aria-label="在曲库中查看赞助人 ${escapeHtml(sponsor)} 的作品">赞助人：${userIdMarkup(sponsor)}</button>` : ""}${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
@@ -3095,6 +3137,7 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   currentScoreEditMode = Boolean(editMode);
   currentScoreCredit = { artist: song.artist || "", sharedBy: song.sharedBy || "", displayUrl: song.displayUrl || "", declaration: song.declaration || "", remixCode: editMode ? normalizeStoredRemixCode(song.remixCode) : "" };
   activeAnalyticsScoreOrigin = songAnalyticsOrigin(song);
+  currentPublicScoreCode = activeAnalyticsScoreOrigin === "community" ? normalizeStoredRemixCode(song.remixCode) : "";
   activeAnalyticsScoreId = analyticsScoreIdForSong(song, activeAnalyticsScoreOrigin);
   const sourceMode = song.jianpu ? "jianpu" : song.score ? "precise" : null;
   const sourceText = sourceMode === "jianpu" ? String(song.sourceJianpu || song.jianpu || "") : String(song.score || "");
@@ -3128,6 +3171,7 @@ function initializeBlankEditor() {
   currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
   currentScoreEditMode = false;
   activeAnalyticsScoreOrigin = "editor";
+  currentPublicScoreCode = "";
   activeAnalyticsScoreId = "";
   suppressUploadCompatibilityWarning = false;
   elements.macroName.value = "自定义曲目";
@@ -4333,7 +4377,7 @@ async function encodeGzipUrlPayload(payload) {
   }
 }
 
-function launchIndependentRecorder(sequence) {
+async function launchIndependentRecorder(sequence) {
   if (!recorderHelperManifest) {
     void loadRecordingHelperManifest();
     toast("正在读取宏录制助手信息，请稍后再次点击导出。 ");
@@ -4359,7 +4403,7 @@ function launchIndependentRecorder(sequence) {
     toast("当前曲谱较长，正在准备压缩导入，请稍后再次点击。 ");
     return;
   }
-  const reservation = reserveMacroExportSlotNow();
+  const reservation = await reserveMacroExportSlot();
   if (!reservation) return;
   try {
     requestRecorderProtocol(url);
@@ -4978,7 +5022,8 @@ function startOAuthLogin(provider) {
     setAuthStatus(elements.authStatus, `${provider === "wechat" ? "微信" : "QQ"}登录尚未配置。`);
     return;
   }
-  window.location.assign(`./api/auth/oauth/${provider}/start`);
+  const referral = document.querySelector("#authReferral")?.value.trim();
+  window.location.assign(`./api/auth/oauth/${provider}/start${referral ? `?ref=${encodeURIComponent(referral)}` : ""}`);
 }
 
 function handleOAuthRedirectStatus() {
@@ -5352,10 +5397,123 @@ function setSignedInAccount(account) {
     elements.accountEmail.textContent = account.email;
     elements.accountUserId.value = account.userId;
   }
+  renderPointsUi();
   renderSongLibrary(elements.songSearch.value);
   renderSupportNotePreview();
   renderIdEffectPicker();
+  schedulePointsNotice();
   scheduleEffectUnlockNotice();
+}
+
+let pointsNoticeTimer = null;
+
+function schedulePointsNotice() {
+  window.clearTimeout(pointsNoticeTimer);
+  const dialog = document.querySelector("#pointsNoticeDialog");
+  if (!dialog || !authState.account?.points?.noticePending || dialog.open) return;
+  const blockers = [...document.querySelectorAll("dialog[open]")].filter((node) => node !== dialog && !node.classList.contains("toast"));
+  if (blockers.length) {
+    pointsNoticeTimer = window.setTimeout(schedulePointsNotice, 400);
+    return;
+  }
+  dialog.showModal();
+}
+
+document.querySelector("#pointsNoticeConfirm").addEventListener("click", () => document.querySelector("#pointsNoticeDialog").close());
+document.querySelector("#pointsNoticeDialog").addEventListener("close", () => {
+  if (!authState.account?.points?.noticePending) return;
+  authState.account.points.noticePending = false;
+  authRequest("./api/points/notice", { method: "POST", body: {} }).catch(() => {});
+  scheduleEffectUnlockNotice();
+  flushPendingPointsTask();
+});
+
+function renderPointsUi() {
+  const points = authState.account?.points;
+  const signedIn = Boolean(authState.account);
+  const inviteCode = authState.account?.inviteCode || points?.inviteCode || "";
+  elements.pointsTaskButton.hidden = !authState.available;
+  elements.pointsTaskButtonLabel.textContent = !signedIn ? "登录领 30 分" : points?.unlimited ? "∞" : `${points?.balance ?? 0} 积分`;
+  elements.pointsTaskButton.title = signedIn ? "查看积分任务" : "登录或注册领取 30 积分";
+  elements.pointsTaskBalance.textContent = !signedIn ? "登录领 30" : points?.unlimited ? "∞" : `${points?.balance ?? 0} 积分`;
+  elements.pointsTaskRegistration.textContent = signedIn ? "已领取注册奖励 +30" : "完成注册后领取 +30";
+  elements.pointsTaskGithub.textContent = points?.githubStarRewarded ? "已验证 Star，已领取 +100" : "验证项目 Star 后领取 +100";
+  elements.pointsTaskUpload.textContent = points?.firstUploadRewarded ? "已领取首次投稿奖励 +50" : "成功发布一首谱子后领取 +50";
+  elements.pointsTaskAuthor.textContent = signedIn
+    ? `已累计 ${points?.authorUnlocks || 0} 次有效解锁，当前 ${points?.authorProgress || 0} / 10`
+    : "每累计 10 次有效解锁 +10";
+
+  elements.inviteCodeDisplay.textContent = signedIn ? (inviteCode || "生成中…") : "登录后显示";
+  elements.copyInviteCodeButton.disabled = false;
+  elements.copyInviteLinkButton.disabled = false;
+
+  const githubReady = Boolean(points?.githubStarAvailable);
+  elements.githubStarVerifyButton.disabled = signedIn && (!githubReady || Boolean(points?.githubStarRewarded));
+  elements.githubStarVerifyButton.textContent = !signedIn
+    ? "登录后验证 Star · +100"
+    : points?.githubStarRewarded
+      ? "已验证 Star · +100"
+      : githubReady
+        ? "验证 Star · 领取 100 积分"
+        : "Star 验证暂不可用";
+  elements.githubStarVerifyButton.title = !signedIn ? "登录后即可验证 GitHub Star" : githubReady ? "通过 GitHub 授权验证 Star" : "当前站点尚未配置 GitHub Star 验证";
+}
+
+async function refreshPointsUi() {
+  if (!authState.account) { renderPointsUi(); return; }
+  try { authState.account.points = await authRequest("./api/points"); } catch {}
+  renderPointsUi();
+}
+
+function inviteLinkForCurrentAccount() {
+  const link = new URL(window.location.pathname, window.location.origin);
+  const inviteCode = authState.account?.inviteCode || authState.account?.points?.inviteCode || "";
+  if (inviteCode) link.searchParams.set("ref", inviteCode);
+  return link.href;
+}
+
+function flashTaskTarget(target) {
+  target.classList.remove("task-target");
+  void target.offsetWidth;
+  target.classList.add("task-target");
+  window.setTimeout(() => target.classList.remove("task-target"), 1800);
+}
+
+function navigateToPointsTask(task) {
+  const targetMap = { github: elements.githubStarVerifyButton, invite: elements.inviteFriends, upload: elements.editorPanel, support: document.querySelector("#supportAuthor") };
+  const target = targetMap[task];
+  if (!target) return;
+  elements.pointsTaskDialog.close();
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  flashTaskTarget(target);
+  window.setTimeout(() => target.focus?.({ preventScroll: true }), 500);
+}
+
+function flushPendingPointsTask() {
+  const task = authState.pendingPointsTask;
+  if (!task || !authState.account) return;
+  const pointsNotice = document.querySelector("#pointsNoticeDialog");
+  if (authState.account.points?.noticePending && !pointsNotice?.open) {
+    window.setTimeout(flushPendingPointsTask, 250);
+    return;
+  }
+  if (elements.authDialog.open || pointsNotice?.open) {
+    window.setTimeout(flushPendingPointsTask, 250);
+    return;
+  }
+  authState.pendingPointsTask = "";
+  navigateToPointsTask(task);
+}
+
+function requirePointsTaskLogin(task, { register = false } = {}) {
+  if (authState.account) return false;
+  authState.pendingPointsTask = task;
+  if (elements.pointsTaskDialog.open) elements.pointsTaskDialog.close();
+  showAuthDialog();
+  if (register) {
+    setAuthMode("register", { focus: true });
+  }
+  return true;
 }
 
 function authFieldsForMode(mode = authState.mode) {
@@ -5504,14 +5662,16 @@ async function verifyLoginCode() {
   const fields = authFieldsForMode();
   const code = fields.code.value.trim();
   if (!/^\d{6}$/.test(code)) { setAuthStatus(elements.authStatus, "请输入 6 位验证码。 "); return; }
-  if (!authState.email) { setAuthStatus(elements.authStatus, "请先发送验证码。 "); return; }
+  const email = authState.email || fields.email.value.trim();
+  if (!email) { setAuthStatus(elements.authStatus, "请先填写邮箱地址。 "); return; }
+  authState.email = email;
   const userId = authState.mode === "register" ? elements.authUserId.value.trim() : "";
   if (authState.mode === "register" && !userId) { setAuthStatus(elements.authStatus, "请填写用户 ID。 "); return; }
   const verifyButton = authState.mode === "register" ? elements.authVerifyRegister : elements.authVerifyLogin;
   verifyButton.disabled = true;
   setAuthStatus(elements.authStatus, "正在验证邮箱…", true);
   try {
-    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, userId, mode: authState.mode } });
+    const result = await authRequest("./api/auth/verify", { method: "POST", body: { email: authState.email, code, userId, mode: authState.mode, referral: document.querySelector("#authReferral")?.value.trim() || "" } });
     setSignedInAccount(result.account);
     await loadMySongLibrary();
     elements.authDialog.close();
@@ -5520,6 +5680,7 @@ async function verifyLoginCode() {
       authState.pendingCommunityUpload = false;
       openScoreExportDialog("community-upload");
     }
+    flushPendingPointsTask();
   } catch (error) {
     setAuthStatus(elements.authStatus, error.message || "登录失败。 ");
   } finally {
@@ -5531,6 +5692,8 @@ async function openAccountDialog() {
   if (!authState.account) { showAuthDialog(); return; }
   elements.accountEmail.textContent = authState.account.email;
   elements.accountUserId.value = authState.account.userId;
+  try { authState.account.points = await authRequest("./api/points"); } catch {}
+  renderPointsUi();
   setAuthStatus(elements.accountStatus);
   renderIdEffectPicker();
   elements.accountDialog.showModal();
@@ -5573,6 +5736,7 @@ async function initializeCommunityAuth(status) {
   authState.statusKnown = false;
   setOAuthProviders(status?.authProviders);
   elements.accountButton.hidden = !authState.available;
+  elements.pointsTaskButton.hidden = !authState.available;
   if (!authState.available) return;
   try {
     const result = await authRequest("./api/auth/me");
@@ -5587,6 +5751,7 @@ async function initializeCommunityAuth(status) {
     try { await loadMySongLibrary(); } catch {}
   }
   handleOAuthRedirectStatus();
+  renderPointsUi();
 }
 
 function compactText(value, field, limit) {
@@ -5740,6 +5905,7 @@ function applyScorePackageMetadata(score) {
   elements.artistName.value = score.artist;
   currentScoreCredit = { artist: score.artist, sharedBy: score.sharedBy, displayUrl: score.displayUrl || "", declaration: score.declaration || "", remixCode: normalizeStoredRemixCode(score.remixCode) };
   activeAnalyticsScoreOrigin = "community";
+  currentPublicScoreCode = "";
   activeAnalyticsScoreId = normalizeStoredRemixCode(score.remixCode);
 }
 
@@ -5806,6 +5972,9 @@ async function uploadScoreToCommunityLibrary({ confirmReplace = false, packagedO
       return;
     }
     if (!response.ok) throw new Error(result.error || "上传到曲库失败，请稍后重试。");
+    if (authState.account) {
+      try { authState.account.points = await authRequest("./api/points"); renderPointsUi(); } catch {}
+    }
     if (!Array.isArray(result.songs)) throw new Error("服务器返回的曲库数据无效。");
     const savedSong = findSavedScore(result.songs, packaged.value);
     applyScorePackageMetadata(savedSong || packaged.value);
@@ -5964,6 +6133,7 @@ async function importScorePackage(file) {
     if (parsed.error) throw new Error(parsed.error);
     await remixCodeForSong(parsed.value);
     loadSong(parsed.value, { analytics: false });
+    currentPublicScoreCode = "";
     trackScoreAnalytics("score_imported", { origin: "imported" });
     toast(`已导入《${parsed.value.title}》；可试听并继续编辑。`);
   } catch (error) {
@@ -6010,6 +6180,7 @@ function applyMidiSelection() {
     currentScoreCredit = { artist: "", sharedBy: "", displayUrl: "", declaration: "", remixCode: "" };
     currentScoreEditMode = false;
     activeAnalyticsScoreOrigin = "midi";
+    currentPublicScoreCode = "";
     activeAnalyticsScoreId = analyticsScoreId({ origin: "midi", title: selection.title });
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
@@ -6263,6 +6434,56 @@ elements.macroExportButton.addEventListener("click", () => {
 elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
 elements.communityUploadButton.addEventListener("click", () => openScoreExportDialog("community-upload"));
 elements.accountButton.addEventListener("click", openAccountDialog);
+elements.pointsTaskButton.addEventListener("click", async () => {
+  await refreshPointsUi();
+  setAuthStatus(elements.pointsTaskStatus);
+  if (!elements.pointsTaskDialog.open) elements.pointsTaskDialog.showModal();
+});
+elements.pointsTaskClose.addEventListener("click", () => elements.pointsTaskDialog.close());
+document.querySelectorAll("[data-points-task]").forEach((button) => button.addEventListener("click", () => {
+  const task = button.dataset.pointsTask;
+  if (task === "register") {
+    if (authState.account) {
+      setAuthStatus(elements.pointsTaskStatus, "注册奖励已领取。", true);
+      return;
+    }
+    requirePointsTaskLogin("", { register: true });
+    return;
+  }
+  if (requirePointsTaskLogin(task)) return;
+  navigateToPointsTask(task);
+}));
+async function copyInviteValue(kind) {
+  if (!authState.account) {
+    requirePointsTaskLogin("invite");
+    return;
+  }
+  const inviteCode = authState.account?.inviteCode || authState.account?.points?.inviteCode || "";
+  const value = kind === "code" ? inviteCode : inviteLinkForCurrentAccount();
+  if (!value) {
+    setAuthStatus(elements.inviteTaskStatus, "邀请码正在生成，请稍后重试。");
+    return;
+  }
+  try {
+    await navigator.clipboard.writeText(value);
+    setAuthStatus(elements.inviteTaskStatus, kind === "code" ? "邀请码已复制。" : "邀请链接已复制。", true);
+  } catch { setAuthStatus(elements.inviteTaskStatus, "复制失败，请检查浏览器剪贴板权限。"); }
+}
+elements.copyInviteCodeButton.addEventListener("click", () => copyInviteValue("code"));
+elements.copyInviteLinkButton.addEventListener("click", () => copyInviteValue("link"));
+elements.githubStarVerifyButton.addEventListener("click", () => {
+  if (requirePointsTaskLogin("github")) return;
+  if (authState.account?.points?.githubStarAvailable && !authState.account.points.githubStarRewarded) {
+    window.location.assign("./api/points/github/start");
+  }
+});
+const invitation = new URLSearchParams(window.location.search).get("ref");
+if (invitation && /^[\p{L}\p{N}_]{3,24}$/u.test(invitation)) document.querySelector("#authReferral").value = invitation;
+const starReturn = new URLSearchParams(window.location.search).get("github-star");
+if (starReturn) {
+  window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+  window.setTimeout(() => toast(starReturn === "success" ? "GitHub Star 已验证，100 积分已到账。" : "GitHub Star 验证未完成，请确认已点 Star 后重试。"), 300);
+}
 elements.authDialogClose.addEventListener("click", () => elements.authDialog.close());
 elements.authDialog.addEventListener("close", stopAuthMailWatch);
 elements.authModeTabs.forEach((tab) => tab.addEventListener("click", () => {
@@ -6680,9 +6901,10 @@ function openUploadHelpDialogOnFirstVisit() {
   try { window.localStorage.setItem(storageKey, "1"); } catch {}
 }
 
-function copyQqGroupNumber() {
-  const copyPromise = navigator.clipboard?.writeText("1102489399");
-  copyPromise?.then(() => toast("QQ群号 1102489399 已复制")).catch(() => {});
+function copyQqGroupNumber(number = "1102489399") {
+  const value = String(number);
+  const copyPromise = navigator.clipboard?.writeText(value);
+  copyPromise?.then(() => toast(`QQ群号 ${value} 已复制`)).catch(() => {});
 }
 
 // 赞赏备注里带上站点 ID，才能把打赏对应到账号、发放赞助者标签。
@@ -6722,7 +6944,8 @@ elements.updateDialog.addEventListener("close", () => {
   pendingWebsiteUpdate = null;
   deferredWebsiteUpdateDialog = false;
 });
-elements.qqGroupCopyButton.addEventListener("click", copyQqGroupNumber);
+elements.qqGroupCopyButton.addEventListener("click", () => copyQqGroupNumber(elements.qqGroupCopyButton.dataset.qqGroupNumber));
+elements.qqGroupCopyButton2.addEventListener("click", () => copyQqGroupNumber(elements.qqGroupCopyButton2.dataset.qqGroupNumber));
 elements.supportCopyButton.addEventListener("click", copySupportNote);
 elements.uploadScoreButton.addEventListener("click", () => {
   elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });

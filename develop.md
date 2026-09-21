@@ -162,7 +162,7 @@ QQ 需要在 QQ 互联应用中登记 QQ 回调地址；微信需要在微信开
 
 `--public` 监听所有网卡并启用公共直传；只有端口不直接暴露、且 `X-Forwarded-For` 由自有反向代理覆盖时，才可使用 `--trust-proxy`。
 
-正式站点 `jiko-official.top` 由阿里云 ECS（`47.102.211.4`）上的 Caddy 反向代理，它和 WebDAV 项目共用同一个代理容器（`study-desk-webdav-caddy-1`，镜像 `caddy:2`）。Caddyfile 放在服务器宿主机的 `/opt/study-desk-webdav/Caddyfile`，以只读方式挂载为容器内的 `/etc/caddy/Caddyfile`。应用容器不发布宿主机端口，只挂在 `study-desk-webdav_default` 网络上，因此代理直接用容器名寻址：
+正式站点 `jiko-official.top` 由阿里云 ECS（`47.102.211.4`）上的独立 Caddy 反向代理（镜像 `caddy:2`）。Caddyfile 放在服务器宿主机的 `/opt/delta-proxy/Caddyfile`，以只读方式挂载为容器内的 `/etc/caddy/Caddyfile`。应用容器不发布宿主机端口，只挂在 `delta-production` 网络上，因此代理直接用容器名寻址：
 
 ```caddyfile
 {$DOMAIN} {
@@ -171,7 +171,7 @@ QQ 需要在 QQ 互联应用中登记 QQ 回调地址；微信需要在微信开
     handle_path /delta/* {
       reverse_proxy delta-harmonica-macro:8765
     }
-    reverse_proxy webdav:6065
+    respond 404
   }
 }
 ```
@@ -181,8 +181,8 @@ QQ 需要在 QQ 互联应用中登记 QQ 回调地址；微信需要在微信开
 改动 Caddyfile 后先校验再热重载，不要跳过校验直接重启容器：
 
 ```bash
-docker exec study-desk-webdav-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
-docker exec study-desk-webdav-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec delta-proxy-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec delta-proxy-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
 Caddy 官方镜像不自带 `rate_limit` 指令，要加代理层限流需自行编译插件，因此当前站点依靠服务端自身的 128 个请求线程上限和认证接口限流兜底。如果将来改用 nginx 承接，可参考下面的写法，注意 `X-Forwarded-For` 必须用 `$remote_addr` 覆盖：服务端取该头的第一段做限流，而 `$proxy_add_x_forwarded_for` 会把客户端自带的头排在前面，等于给出可伪造的空间。
@@ -242,11 +242,19 @@ Docker 方式增加 `-e DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌'`�
 
 后台控制台 `/admin/console.html` 另有「运行时状态」页：集中显示服务器负载、内存、磁盘、请求线程占用，验证码邮件的队列深度与投递计数，以及当前线程列表。页内按钮可开启每 5 秒自动刷新，再次点击即停止，离开该页也会自动停止。数据来自只读的 `GET /api/admin/runtime`，与其它管理接口共用同一个令牌，只读取内存计数与系统信息，不写入任何数据。
 
-分析仅记录临时匿名会话 ID、匿名谱子标识、来源类别、入口选择、曲库来源类别、输入模式、试听、编辑打开/保存、导出格式和投稿成功等事件；不记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。已登录账号只在服务端生成不可读的稳定匿名标识，用于同一账号对同一曲谱的导出量去重，不会写入邮箱或用户 ID。后台会按匿名谱子标识聚合载入、编辑和去重后的宏导出量；导出量只来自导出区成功产出宏的操作，包括复制 Lua，不包含 `.deltamusic` 分享下载、打开导出区、切换板块或查看键盘谱。未登录用户每个匿名 session 最多成功导出 3 次宏（所有曲谱和格式合计）；达到上限后网页会引导注册或登录。认证未启用或认证状态不可用时不限制匿名导出；该配额是体验限制，不是防刷机制。曲目卡片的导出量从原始分析事件统计，服务端缓存 10 分钟后刷新；公开接口不会读取每日热榜快照。热门曲库每天按服务器本地时间凌晨 0 点计算一次，结果保存在 `data/hot-rankings.sqlite3`，统计口径变化时会自动刷新当天缓存，页面不会实时重排。分析数据按天存于 `data/analytics/`，默认保留 90 天，可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客。
+分析仅记录临时匿名会话 ID、匿名谱子标识、来源类别、入口选择、曲库来源类别、输入模式、试听、编辑打开/保存、导出格式和投稿成功等事件；不记录 IP、曲名、谱子内容、搜索词、MIDI 文件名、上传文件或剪贴板内容。已登录账号只在服务端生成不可读的稳定匿名标识，用于同一账号对同一曲谱的导出量去重，不会写入邮箱或用户 ID。后台会按匿名谱子标识聚合载入、编辑和去重后的宏导出量；导出量只来自导出区成功产出宏的操作，包括复制 Lua，不包含 `.deltamusic` 分享下载、打开导出区、切换板块或查看键盘谱。公共曲库中他人的曲谱须登录并首次消耗 10 积分解锁；本地导入、原创和自己的曲谱免费。曲目卡片的导出量从原始分析事件统计，服务端缓存 10 分钟后刷新；公开接口不会读取每日热榜快照。热门曲库每天按服务器本地时间凌晨 0 点计算一次，结果保存在 `data/hot-rankings.sqlite3`，统计口径变化时会自动刷新当天缓存，页面不会实时重排。分析数据按天存于 `data/analytics/`，默认保留 90 天，可用 `--analytics-retention-days 1..365` 调整。请在站点隐私说明中告知访客。
 
 首页的三个公开统计接口（`/api/analytics/summary`、`/api/public-rankings`、`/api/analytics/score-exports`）都通过 `SingleFlightCache` 做 single-flight：缓存到期时只允许一个请求去重算，其余请求等待并复用同一份结果，避免多个标签页同时刷新把一次重算放大成多次。三个接口只读的日志范围也已收窄：`/api/public-rankings` 的"昨日导出榜"只读覆盖目标本地日的那一到两个日志文件（此前会遍历整个保留期目录），导出总量按保留期扫描一次后在三个接口间共享，且所有扫描都会先用子串预筛掉占绝大多数的 heartbeat 行，再交给 JSON 解析器。首页榜单同屏展示三个榜：贡献榜、昨日导出榜和使用榜（不再用标签切换）。贡献榜仍是"上传曲目累计导出量"，使用榜按账号统计保留期内去重后的导出量——同一账号对同一曲谱只计一次，未登录的导出只计入曲目总量、不归属到具体账号；两个榜共用一次日志扫描（`EXPORT_EVENT_COUNT_CACHE`），不会重复遍历保留期。
 
 ## 打赏与用户 ID 特效
+
+### 曲谱积分
+
+积分规则配置在服务端 `POINT_RULES`：注册 30、Star 100、首次投稿 50、有效邀请 20；他人公共曲谱首次解锁消耗 10；作者名下曲谱每累计 10 位不同账号的首次解锁奖励 10。历史导出不追溯；老用户首次读取账号资料时领取注册奖励，已有投稿者另领取一次首次投稿奖励。积分流水、解锁、邀请、作者计数和永久打赏权益存于 `data/auth.sqlite3`。`GET /api/points` 查询状态，`POST /api/points/unlock` 提交 `{"remixCode":"..."}` 永久解锁；同一曲谱重复提交不重复扣费。更新说明在账号首次登录后展示一次，`POST /api/points/notice` 按账号记录已阅读状态，换设备登录也不会重复弹出。
+
+GitHub Star 奖励需要创建 GitHub OAuth App，回调 URL 配为站点的 `/api/points/github/callback`，并设置 `DELTA_GITHUB_CLIENT_ID`、`DELTA_GITHUB_CLIENT_SECRET`、`DELTA_GITHUB_REDIRECT_URI`。默认仓库为 `JikoSchnee/delta-harmonica-macro`，可用 `DELTA_GITHUB_STAR_REPO=owner/repo` 修改。未配置时页面不显示领取按钮。GitHub 授权只验证账号身份和 Star 状态；每个 GitHub 账号、站内账号只能领取一次。打赏金额大于零经后台确认后，永久获得免扣权益；此权益与当前展示的打赏金额分别保存。管理令牌可读取 `GET /api/admin/points` 的近 14 日积分发放、消耗、解锁和邀请汇总；积分不足次数在现有数据分析事件中查看。
+
+本地固定测试登录可在 `--auth-code-log-only` 模式下设置 `DELTA_FIXED_TEST_LOGIN_EMAIL` 和 `DELTA_FIXED_TEST_LOGIN_CODE`。指定账号必须已经存在，登录时可直接填写邮箱和固定 6 位验证码，无需先请求验证码；缺少日志测试模式时服务会拒绝启动，避免正式环境误开固定验证码。
 
 ### 打赏记录
 

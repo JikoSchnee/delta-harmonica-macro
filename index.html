@@ -64,7 +64,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=3.4.1" />
+    <link rel="stylesheet" href="./styles.css?v=3.5.7" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -73,7 +73,6 @@
         <span class="brand-mark"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
         <span>三角洲口琴演奏家</span>
       </a>
-      <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v3.4.1</strong></button>
       <nav class="topbar-actions" aria-label="项目链接">
         <div class="public-analytics" id="publicAnalyticsSummary" aria-label="站点访问统计" aria-live="polite" hidden>
           <span><i aria-hidden="true"></i>访问中 <b id="activeVisitorCount">--</b></span>
@@ -82,6 +81,8 @@
           <span aria-hidden="true">｜</span>
           <span>已注册 <b id="registeredUserCount">--</b></span>
         </div>
+        <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v3.5.7</strong></button>
+        <button class="points-task-button" id="pointsTaskButton" type="button" aria-haspopup="dialog" aria-controls="pointsTaskDialog" hidden><span class="points-task-button-mark" aria-hidden="true">✦</span><span id="pointsTaskButtonLabel">登录领 30 分</span></button>
         <button class="account-button" id="accountButton" type="button" aria-haspopup="dialog" hidden><span class="account-indicator" aria-hidden="true"></span><span id="accountButtonLabel">登录 / 注册</span></button>
       </nav>
     </header>
@@ -96,6 +97,7 @@
           <div class="section-sidebar-heading"><span class="index">NAVIGATION</span><strong>页面目录</strong></div>
           <nav class="section-sidebar-nav" aria-label="跳转到页面板块">
             <a href="#home" data-section-nav-target="home"><b>00</b><span>首页</span></a>
+            <a href="#inviteFriends" data-section-nav-target="inviteFriends"><b>00A</b><span>邀请好友</span></a>
             <a href="#disclaimer" data-section-nav-target="disclaimer"><b>01</b><span>免责声明</span></a>
             <a href="#tutorial" data-section-nav-target="tutorial"><b>02</b><span>视频教程 / 使用说明</span></a>
             <a href="#directory" data-section-nav-target="directory"><b>03</b><span>目录</span></a>
@@ -166,10 +168,13 @@
             <span class="index">OPEN SOURCE</span>
             <h2 id="githubStarTitle">觉得好用请到 GitHub 点亮小星星</h2>
             <p id="githubStarDescription">打开仓库页面，点一下标题右侧的 Star 按钮，就能让更多口琴玩家找到这个工具。</p>
-            <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库点亮 Star">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
-              <span>打开仓库点亮 Star</span>
-            </a>
+            <div class="hero-star-actions">
+              <a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库点亮 Star">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg>
+                <span>打开仓库点亮 Star</span>
+              </a>
+              <button class="github-verify-button" id="githubStarVerifyButton" type="button">验证 Star · 领取 100 积分</button>
+            </div>
           </div>
           <figure class="hero-star-demo">
             <svg class="gh-demo" viewBox="0 0 170 132" role="img" aria-label="演示：从 GitHub 仓库整页放大到 Star 那一行，把鼠标移到 Star 上点击点亮小星星">
@@ -301,18 +306,27 @@
             <span class="index">COMMUNITY CONTACT</span>
             <h2 id="qqGroupTitle">分享曲目、反馈问题</h2>
             <p id="qqGroupDescription">欢迎加入 QQ 群交流口琴曲谱、宏文件和使用问题。</p>
-            <button class="qq-group-number" id="qqGroupCopyButton" type="button" aria-label="点击复制 QQ 群号 1102489399"><span>QQ群号</span><strong>1102489399</strong></button>
+            <div class="qq-group-number-list">
+              <button class="qq-group-number" id="qqGroupCopyButton" data-qq-group-number="1102489399" type="button" aria-label="点击复制 QQ 一群群号 1102489399"><span>QQ群 1</span><strong>1102489399</strong></button>
+              <button class="qq-group-number" id="qqGroupCopyButton2" data-qq-group-number="419658256" type="button" aria-label="点击复制 QQ 二群群号 419658256"><span>QQ群 2</span><strong>419658256</strong></button>
+            </div>
           </div>
-          <figure class="upload-qr hero-contact-qr">
-            <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
-            <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
-          </figure>
+          <div class="qq-group-qr-list">
+            <figure class="upload-qr hero-contact-qr">
+              <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
+              <figcaption>QQ群 1 · 扫码加入</figcaption>
+            </figure>
+            <figure class="upload-qr hero-contact-qr">
+              <img src="./assets/qq-group-qr-2.jpg" alt="加入 QQ 群 419658256 的二维码" />
+              <figcaption>QQ群 2 · 扫码加入</figcaption>
+            </figure>
+          </div>
         </section>
         <section class="hero-block hero-support" id="supportAuthor" aria-labelledby="supportTitle" aria-describedby="supportDescription">
           <div class="hero-block-main">
             <span class="index">SUPPORT THE AUTHOR</span>
             <h2 id="supportTitle">请作者喝杯水</h2>
-            <p id="supportDescription">本工具完全免费，如果觉得好用可以给作者打赏，用于网站维护和域名、服务器的租赁。赞赏完全自愿，不解锁任何功能；想在站内获得「赞助者」标签，请在赞赏留言里写上你的站点用户 ID或邮箱。</p>
+            <p id="supportDescription">打赏用于网站维护。经后台确认的任意金额打赏可永久无限导出公共曲谱；请在赞赏留言里写上站点用户 ID 或邮箱，方便关联账号。</p>
             <button class="support-note-button" id="supportCopyButton" type="button" aria-label="复制赞赏备注格式">
               <span>复制赞赏备注</span><strong id="supportNotePreview">站点ID：@你的ID</strong>
             </button>
@@ -321,6 +335,19 @@
             <img src="./assets/赞赏码.JPG" alt="微信赞赏码，扫码请作者喝杯水" />
             <figcaption>使用微信扫一扫赞赏</figcaption>
           </figure>
+        </section>
+        <section class="hero-block hero-invite" id="inviteFriends" aria-labelledby="inviteFriendsTitle" aria-describedby="inviteFriendsDescription">
+          <div class="hero-block-main">
+            <span class="index">COMMUNITY INVITE</span>
+            <h2 id="inviteFriendsTitle">邀请好友，一起扩充曲库</h2>
+            <p id="inviteFriendsDescription">好友注册并首次用积分解锁他人曲谱后，你将获得 20 积分。邀请码为账号固定生成，与用户 ID 无关。</p>
+            <div class="invite-actions">
+              <button class="invite-copy-button" id="copyInviteCodeButton" type="button"><span>复制邀请码</span><strong id="inviteCodeDisplay">登录后显示</strong></button>
+              <button class="text-button" id="copyInviteLinkButton" type="button">复制邀请链接</button>
+            </div>
+            <p class="hero-task-status" id="inviteTaskStatus" role="status" aria-live="polite" hidden></p>
+          </div>
+          <aside class="invite-signal" aria-label="邀请积分说明"><span>INVITE</span><strong>+20</strong><small>好友首次解锁后到账</small></aside>
         </section>
       </section>
 
@@ -857,7 +884,7 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v3.4.1</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v3.5.7</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="usage-notice-dialog" id="usageNoticeDialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeIntro">
       <form class="usage-notice-form" method="dialog">
         <div class="window-titlebar"><span>USAGE_NOTICE.EXE — READ BEFORE USE</span></div>
@@ -892,7 +919,7 @@
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v3.4.1</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v3.5.7</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待版本信息</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自当前版本 version.json 的发布说明。</p>
@@ -911,7 +938,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v3.4.1</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v3.5.7</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -1090,6 +1117,7 @@
             <p class="auth-email-note" id="authRegisterEmailNote" hidden></p>
             <label>6 位验证码<input id="authRegisterCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" /></label>
             <label>用户 ID（用户名）<input id="authUserId" type="text" autocomplete="username" maxlength="24" pattern="[\p{L}\p{N}_]{3,24}" placeholder="例如 口琴玩家_01" aria-describedby="authUserIdHint" required /><small id="authUserIdHint">支持中文、字母、数字和下划线，长度为 3–24 个字符；上传曲目时会自动作为共享人显示。</small></label>
+            <label>邀请码（选填）<input id="authReferral" type="text" maxlength="24" autocomplete="off" placeholder="好友的邀请码" /><small>仅注册时绑定；首次用积分解锁他人谱后，邀请人获得 20 积分。</small></label>
             <button class="primary-button auth-submit" id="authVerifyRegister" type="button"><span>注册并登录</span><b>✓</b></button>
           </section>
           <p class="auth-status" id="authStatus" role="status" aria-live="polite" hidden></p>
@@ -1113,6 +1141,38 @@
           <div class="dialog-actions"><button class="text-button" id="logoutButton" type="button">退出登录</button><button class="primary-button" id="saveAccountButton" type="button"><span>保存用户 ID</span><b>✓</b></button></div>
         </div>
       </form>
+    </dialog>
+    <dialog class="auth-dialog points-task-dialog" id="pointsTaskDialog" aria-labelledby="pointsTaskTitle" aria-describedby="pointsTaskSummary">
+      <div class="auth-form">
+        <div class="window-titlebar"><span>POINTS.EXE — COMMUNITY TASKS</span><button class="dialog-close" id="pointsTaskClose" type="button" aria-label="关闭积分任务">×</button></div>
+        <div class="auth-dialog-body">
+          <div class="points-task-heading"><div><span class="index">SCORE POINTS</span><h2 id="pointsTaskTitle">积分任务</h2></div><strong id="pointsTaskBalance">--</strong></div>
+          <p id="pointsTaskSummary">公共曲库中他人的曲谱首次导出消耗 10 积分；解锁后可永久重导。</p>
+          <div class="points-task-list" id="pointsTaskList">
+            <section class="points-task-row points-task-row--registration"><div class="points-task-copy"><span class="index">01 · REGISTRATION</span><b>注册账号</b><span id="pointsTaskRegistration">完成注册后领取 +30</span></div><button class="text-button" data-points-task="register" type="button">登录 / 注册</button></section>
+            <section class="points-task-row points-task-row--github"><div class="points-task-copy"><span class="index">02 · GITHUB STAR</span><b>GitHub Star</b><span id="pointsTaskGithub">验证项目 Star 后领取 +100</span></div><button class="text-button" data-points-task="github" type="button">前往 GitHub 任务</button></section>
+            <section class="points-task-row points-task-row--invite"><div class="points-task-copy"><span class="index">03 · INVITE FRIENDS</span><b>邀请好友</b><span>每位好友完成首次解锁后 +20</span></div><button class="text-button" data-points-task="invite" type="button">前往邀请</button></section>
+            <section class="points-task-row points-task-row--upload"><div class="points-task-copy"><span class="index">04 · FIRST UPLOAD</span><b>首次有效投稿</b><span id="pointsTaskUpload">成功发布一首谱子后领取 +50</span></div><button class="text-button" data-points-task="upload" type="button">前往编辑器</button></section>
+            <section class="points-task-row points-task-row--author"><div class="points-task-copy"><span class="index">05 · COMMUNITY USE</span><b>作品被使用</b><span id="pointsTaskAuthor">每累计 10 次有效解锁 +10</span></div><span class="points-task-static">自动累计</span></section>
+            <section class="points-task-row points-task-row--support"><div class="points-task-copy"><span class="index">06 · SUPPORT</span><b>打赏支持</b><span>任意金额经确认后永久无限导出</span></div><button class="text-button" data-points-task="support" type="button">前往打赏</button></section>
+          </div>
+          <p class="auth-status" id="pointsTaskStatus" role="status" aria-live="polite" hidden></p>
+        </div>
+      </div>
+    </dialog>
+    <dialog class="auth-dialog points-notice-dialog" id="pointsNoticeDialog" aria-labelledby="pointsNoticeTitle" aria-describedby="pointsNoticeIntro">
+      <div class="auth-form">
+        <div class="window-titlebar"><span>COMMUNITY.EXE — 积分规则更新</span></div>
+        <div class="auth-dialog-body">
+          <span class="index">写给每一位使用者</span>
+          <h2 id="pointsNoticeTitle">曲谱导出改用积分制</h2>
+          <p id="pointsNoticeIntro">这个项目由个人维护。服务器、带宽和曲库维护都需要持续投入；随着作品和使用者增加，希望通过积分让免费体验与社区贡献能够长期并存。</p>
+          <p>每个账号已经获得 <b>30 积分</b>。公共曲库里他人的曲谱首次导出消耗 <b>10 积分</b>，之后这首谱可以永久重复导出；自己的谱、原创和本地导入仍可免费导出。</p>
+          <p>邀请好友注册并首次解锁，可获得 20 积分；首次投稿获得 50 积分；自己的作品每被不同用户累计解锁 10 次，还可获得 10 积分。已确认打赏的账号享有永久无限导出。</p>
+          <p>如果你愿意支持这个持续免费的项目，欢迎在 <a href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer">GitHub 为项目点 Star</a>。绑定 GitHub 并验证 Star 后，账号可领取 <b>100 积分</b>。感谢你帮助更多人发现和使用它。</p>
+          <div class="dialog-actions"><button class="primary-button" id="pointsNoticeConfirm" type="button"><span>我知道了</span><b>✓</b></button></div>
+        </div>
+      </div>
     </dialog>
     <dialog class="keyboard-macro-dialog" id="keyboardMacroDialog" aria-labelledby="keyboardMacroTitle">
       <form method="dialog" class="keyboard-macro-form">
@@ -1203,11 +1263,17 @@
             <button class="upload-method-tab" id="uploadMethodGithub" data-upload-method="github" type="button" role="tab" aria-selected="false" aria-controls="uploadPanelGithub">GitHub 投稿</button>
           </div>
           <section class="upload-method-panel" id="uploadPanelQq" data-upload-panel="qq" role="tabpanel" aria-labelledby="uploadMethodQq">
-            <p>加入 QQ 群 <b>1102489399</b>，把导出的 <code>.deltamusic</code> 文件发送给维护者审核入库。</p>
-            <figure class="upload-qr">
-              <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
-              <figcaption>使用 QQ 扫一扫加入群聊</figcaption>
-            </figure>
+            <p>加入 QQ 群 <b>1102489399</b> 或二群 <b>419658256</b>，把导出的 <code>.deltamusic</code> 文件发送给维护者审核入库。</p>
+            <div class="qq-group-qr-list qq-group-qr-list--upload">
+              <figure class="upload-qr">
+                <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
+                <figcaption>QQ群 1 · 扫码加入</figcaption>
+              </figure>
+              <figure class="upload-qr">
+                <img src="./assets/qq-group-qr-2.jpg" alt="加入 QQ 群 419658256 的二维码" />
+                <figcaption>QQ群 2 · 扫码加入</figcaption>
+              </figure>
+            </div>
           </section>
           <section class="upload-method-panel" id="uploadPanelGithub" data-upload-panel="github" role="tabpanel" aria-labelledby="uploadMethodGithub" hidden>
             <p>先下载 <code>.deltamusic</code> 文件，再 Fork 项目，把文件上传到 <code>data/community-scores/</code> 并创建 Pull Request。合并前不会出现在公共曲库。</p>
@@ -1242,7 +1308,7 @@
       </section>
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
-    <script src="./data/community-songs.js?v=3.4.1"></script>
-    <script src="./app.js?v=3.4.1"></script>
+    <script src="./data/community-songs.js?v=3.5.7"></script>
+    <script src="./app.js?v=3.5.7"></script>
   </body>
 </html>

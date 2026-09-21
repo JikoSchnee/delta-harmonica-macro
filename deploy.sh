@@ -9,7 +9,7 @@ readonly ARCHIVE_PATH="/private/tmp/delta-harmonica-macro.tgz"
 readonly REMOTE_ARCHIVE="/tmp/delta-harmonica-macro.tgz"
 readonly CONTAINER_NAME="delta-harmonica-macro"
 readonly IMAGE_NAME="delta-harmonica-macro:latest"
-readonly DOCKER_NETWORK="study-desk-webdav_default"
+readonly DOCKER_NETWORK="delta-production"
 readonly WEBSITE_VERSION_FILE="$PROJECT_DIR/version.json"
 readonly DEPLOYED_WEBSITE_VERSION_URL="${DEPLOYED_WEBSITE_VERSION_URL:-https://jiko-official.top/delta/version.json}"
 
@@ -217,7 +217,7 @@ remote_dir='/opt/delta-harmonica-macro'
 remote_archive='/tmp/delta-harmonica-macro.tgz'
 container_name='delta-harmonica-macro'
 image_name='delta-harmonica-macro:latest'
-docker_network='study-desk-webdav_default'
+docker_network='delta-production'
 maintenance_marker='/app/data/.maintenance'
 redeploy_mode="${REDEPLOY_MODE:-0}"
 preserved_env=()
@@ -266,6 +266,10 @@ run_args=(
   -v delta-harmonica-data:/app/data
 )
 run_args+=("${preserved_env[@]}")
+
+if ! docker network inspect "$docker_network" >/dev/null 2>&1; then
+  docker network create "$docker_network" >/dev/null
+fi
 
 docker run "${run_args[@]}" "$image_name" --public --trust-proxy --port 8765
 
