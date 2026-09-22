@@ -1206,6 +1206,8 @@ Object.assign(elements, {
 Object.assign(elements, {
   pointsTaskButton: document.querySelector("#pointsTaskButton"),
   pointsTaskButtonLabel: document.querySelector("#pointsTaskButtonLabel"),
+  pointsLedgerPanel: document.querySelector("#pointsLedgerPanel"),
+  pointsLedgerList: document.querySelector("#pointsLedgerList"),
   pointsTaskDialog: document.querySelector("#pointsTaskDialog"),
   pointsTaskClose: document.querySelector("#pointsTaskClose"),
   pointsTaskBalance: document.querySelector("#pointsTaskBalance"),
@@ -5430,6 +5432,38 @@ document.querySelector("#pointsNoticeDialog").addEventListener("close", () => {
   flushPendingPointsTask();
 });
 
+const POINT_REASON_LABELS = { register: "注册奖励", legacy_grant: "版本更新补偿", legacy_export: "历史导出结算", daily_login: "每日登录", github_star: "GitHub Star", first_upload: "首次投稿", referral: "邀请好友", author: "作品被使用", unlock: "解锁曲谱" };
+
+// 只有能帮用户看懂来源的参考信息才展示；注册/投稿/邀请的参考值是内部账号 ID，
+// 既不直观也不该暴露，所以不显示。
+const POINT_REFERENCE_NOTES = {
+  daily_login: (reference) => (reference ? `日期 ${reference}` : ""),
+  github_star: (reference) => (reference ? `GitHub ID ${reference}` : ""),
+  unlock: (reference) => (reference ? `曲谱 ${reference}` : ""),
+  author: (reference) => (reference ? `累计 ${reference} 次解锁` : ""),
+};
+
+function renderPointsLedger(entries = []) {
+  if (!elements.pointsLedgerPanel || !elements.pointsLedgerList) return;
+  elements.pointsLedgerPanel.hidden = !authState.account;
+  if (!authState.account) return;
+  if (!entries.length) { elements.pointsLedgerList.innerHTML = '<span class="points-ledger-empty">暂无积分记录</span>'; return; }
+  elements.pointsLedgerList.innerHTML = entries.map(entry => {
+    const amount = Number(entry.amount) || 0;
+    const label = POINT_REASON_LABELS[entry.reason] || entry.reason || "积分变动";
+    const date = new Date((Number(entry.created_at) || 0) * 1000);
+    const when = Number.isNaN(date.getTime()) ? "" : date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+    const note = POINT_REFERENCE_NOTES[entry.reason]?.(String(entry.reference ?? "")) || "";
+    const meta = [when, note].filter(Boolean).join(" · ");
+    return `<div class="points-ledger-entry"><span><b>${escapeHtml(label)}</b><small>${escapeHtml(meta)}</small></span><strong class="${amount >= 0 ? "positive" : "negative"}">${amount >= 0 ? "+" : ""}${amount}</strong></div>`;
+  }).join("");
+}
+
+async function refreshPointsLedger() {
+  if (!authState.account) { renderPointsLedger([]); return; }
+  try { const result = await authRequest("./api/points/ledger"); renderPointsLedger(result.entries || []); } catch { renderPointsLedger([]); }
+}
+
 function renderPointsUi() {
   const points = authState.account?.points;
   const signedIn = Boolean(authState.account);
@@ -6440,6 +6474,7 @@ elements.communityUploadButton.addEventListener("click", () => openScoreExportDi
 elements.accountButton.addEventListener("click", openAccountDialog);
 elements.pointsTaskButton.addEventListener("click", async () => {
   await refreshPointsUi();
+  await refreshPointsLedger();
   setAuthStatus(elements.pointsTaskStatus);
   if (!elements.pointsTaskDialog.open) elements.pointsTaskDialog.showModal();
 });

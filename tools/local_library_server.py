@@ -3761,7 +3761,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return
         if self.serve_maintenance_if_active(path):
             return
-        if path in {"/api/points", "/api/points/github/start", "/api/points/github/callback"}:
+        if path in {"/api/points", "/api/points/ledger", "/api/points/github/start",
+                    "/api/points/github/callback"}:
             if not self.server.auth_enabled:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账号服务未启用。"})
                 return
@@ -3771,6 +3772,15 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             if path == "/api/points":
                 self.send_json(HTTPStatus.OK, points_payload(self.server, account["id"]))
+                return
+            if path == "/api/points/ledger":
+                with AUTH_LOCK, auth_database() as connection:
+                    ensure_initial_points(connection, account["id"])
+                    rows = connection.execute(
+                        "SELECT amount, reason, reference, created_at FROM point_ledger WHERE account_id = ? ORDER BY created_at DESC, id DESC LIMIT 100",
+                        (account["id"],),
+                    ).fetchall()
+                self.send_json(HTTPStatus.OK, {"entries": [dict(row) for row in rows]})
                 return
             config = self.server.github_oauth
             if not config:

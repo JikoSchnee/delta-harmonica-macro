@@ -1148,6 +1148,10 @@
         <div class="auth-dialog-body">
           <div class="points-task-heading"><div><span class="index">SCORE POINTS</span><h2 id="pointsTaskTitle">积分任务</h2></div><strong id="pointsTaskBalance">--</strong></div>
           <p id="pointsTaskSummary">公共曲库中他人的曲谱首次导出消耗 10 积分；解锁后可永久重导。</p>
+          <div class="points-ledger-panel" id="pointsLedgerPanel" hidden>
+            <div class="points-ledger-heading"><span class="index">POINT LEDGER</span><strong>积分明细</strong></div>
+            <div id="pointsLedgerList" class="points-ledger-list"><span class="points-ledger-empty">正在读取积分日志…</span></div>
+          </div>
           <div class="points-task-list" id="pointsTaskList">
             <section class="points-task-row points-task-row--registration"><div class="points-task-copy"><span class="index">01 · REGISTRATION</span><b>注册账号</b><span id="pointsTaskRegistration">完成注册后领取 +30</span></div><button class="text-button" data-points-task="register" type="button">登录 / 注册</button></section>
             <section class="points-task-row points-task-row--daily"><div class="points-task-copy"><span class="index">02 · DAILY LOGIN</span><b>每日登录</b><span id="pointsTaskDailyLogin">每天首次登录领取 +20</span></div><span class="points-task-static" id="pointsTaskDailyLoginStatus">登录后自动领取</span></section>
