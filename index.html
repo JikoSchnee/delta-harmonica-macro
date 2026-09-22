@@ -1101,8 +1101,9 @@
             <div class="oauth-login-buttons">
               <button class="oauth-login-button oauth-login-qq" data-oauth-provider="qq" type="button"><b aria-hidden="true">Q</b><span>QQ 快捷登录</span><strong>→</strong></button>
               <button class="oauth-login-button oauth-login-wechat" data-oauth-provider="wechat" type="button"><b aria-hidden="true">微</b><span>微信扫码登录</span><strong>→</strong></button>
+              <button class="oauth-login-button oauth-login-github" data-oauth-provider="github" type="button" hidden><b aria-hidden="true">G</b><span>GitHub 快捷登录</span><strong>→</strong></button>
             </div>
-            <p class="oauth-login-note">将跳转到官方授权页；微信使用扫码确认，QQ 可在授权页选择扫码或快捷确认。</p>
+            <p class="oauth-login-note">将跳转到官方授权页；GitHub 需先绑定已有账号，无法直接新建账号。</p>
           </div>
           <section id="authLoginPanel" class="auth-mode-panel" role="tabpanel" aria-labelledby="authLoginTab">
             <label>邮箱地址<input id="authEmail" type="email" autocomplete="email" maxlength="254" inputmode="email" placeholder="you@example.com" /></label>
@@ -1136,6 +1137,12 @@
           <section class="id-effect-picker" aria-labelledby="idEffectTitle">
             <div class="id-effect-heading"><span class="index">USER ID EFFECT</span><h3 id="idEffectTitle">用户 ID 特效</h3></div>
             <div class="id-effect-options" id="idEffectOptions" role="group" aria-label="选择用户 ID 特效"></div>
+          </section>
+          <section class="github-binding" aria-labelledby="githubBindingTitle">
+            <div class="id-effect-heading"><span class="index">GITHUB LINK</span><h3 id="githubBindingTitle">GitHub 账号</h3></div>
+            <p class="auth-account-note" id="accountGithubState">尚未绑定。</p>
+            <button class="text-button" id="bindGithubButton" type="button">绑定 GitHub 账号</button>
+            <p class="auth-account-note">绑定后可直接用 GitHub 快捷登录；GitHub 账号只能绑定一个本站账号，本站账号也只能绑定一个 GitHub 账号。</p>
           </section>
           <p class="auth-status" id="accountStatus" role="status" aria-live="polite" hidden></p>
           <div class="dialog-actions"><button class="text-button" id="logoutButton" type="button">退出登录</button><button class="primary-button" id="saveAccountButton" type="button"><span>保存用户 ID</span><b>✓</b></button></div>

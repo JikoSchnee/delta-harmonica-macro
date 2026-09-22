@@ -1400,6 +1400,8 @@ main {
 .oauth-login-button b { display: grid; width: 23px; height: 23px; place-items: center; color: #fff; font: 700 13px/1 var(--mono); }
 .oauth-login-qq b { background: #1d8dd6; }
 .oauth-login-wechat b { background: #1aad19; }
+.oauth-login-github b { background: #24292f; }
+.oauth-login-button[hidden] { display: none; }
 .oauth-login-button strong { color: #40716b; font-size: 15px; text-align: right; }
 .oauth-login-note { margin: 0; color: #a9c9c6; font: 9px/1.55 var(--mono); }
 .auth-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; padding: 4px; background: #87aaa7; border: 2px inset var(--surface); }

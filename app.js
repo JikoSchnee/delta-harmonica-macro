@@ -1122,6 +1122,11 @@ Object.assign(elements, {
 });
 
 Object.assign(elements, {
+  accountGithubState: document.querySelector("#accountGithubState"),
+  bindGithubButton: document.querySelector("#bindGithubButton")
+});
+
+Object.assign(elements, {
   usageNoticeDialog: document.querySelector("#usageNoticeDialog"),
   usageNoticeForm: document.querySelector(".usage-notice-form"),
   usageNoticeBody: document.querySelector("#usageNoticeBody"),
@@ -5010,11 +5015,17 @@ function setAuthStatus(target, message = "", success = false) {
   target.classList.toggle("success", Boolean(message && success));
 }
 
-function setOAuthProviders(providers = []) {
-  authState.providers = THIRD_PARTY_LOGIN_UI_ENABLED && Array.isArray(providers)
-    ? providers.filter((provider) => ["qq", "wechat"].includes(provider))
-    : [];
-  const available = new Set(authState.providers);
+const OAUTH_PROVIDER_LABELS = { qq: "QQ", wechat: "微信", github: "GitHub" };
+
+function setOAuthProviders(providers = [], { github = false } = {}) {
+  // GitHub 快捷登录只看服务端是否配置了 GitHub OAuth 应用；QQ / 微信入口仍由
+  // THIRD_PARTY_LOGIN_UI_ENABLED 控制，避免恢复未完成的后端入口。
+  const available = new Set();
+  if (github) available.add("github");
+  if (THIRD_PARTY_LOGIN_UI_ENABLED && Array.isArray(providers)) {
+    providers.filter((provider) => ["qq", "wechat"].includes(provider)).forEach((provider) => available.add(provider));
+  }
+  authState.providers = [...available];
   elements.oauthLoginButtons.forEach((button) => {
     button.hidden = !available.has(button.dataset.oauthProvider);
   });
@@ -5023,7 +5034,12 @@ function setOAuthProviders(providers = []) {
 
 function startOAuthLogin(provider) {
   if (!authState.providers.includes(provider)) {
-    setAuthStatus(elements.authStatus, `${provider === "wechat" ? "微信" : "QQ"}登录尚未配置。`);
+    setAuthStatus(elements.authStatus, `${OAUTH_PROVIDER_LABELS[provider] || provider}登录尚未配置。`);
+    return;
+  }
+  // GitHub 的 Star 验证与快捷登录共用一个回调地址，入口按用途区分。
+  if (provider === "github") {
+    window.location.assign("./api/auth/github/start");
     return;
   }
   const referral = document.querySelector("#authReferral")?.value.trim();
@@ -5731,11 +5747,30 @@ async function openAccountDialog() {
   elements.accountEmail.textContent = authState.account.email;
   elements.accountUserId.value = authState.account.userId;
   try { authState.account.points = await authRequest("./api/points"); } catch {}
+  // Re-read the binding: it changes from the Star task as well as from here.
+  try { authState.account = (await authRequest("./api/auth/me")).account; } catch {}
   renderPointsUi();
+  renderGithubBinding();
   setAuthStatus(elements.accountStatus);
   renderIdEffectPicker();
   elements.accountDialog.showModal();
   elements.accountUserId.focus();
+}
+
+function renderGithubBinding() {
+  const github = authState.account?.github;
+  if (!elements.accountGithubState) return;
+  elements.accountGithubState.textContent = github
+    ? `已绑定 GitHub：@${github.login || github.githubId}`
+    : "尚未绑定 GitHub；绑定后可直接用 GitHub 快捷登录。";
+  elements.bindGithubButton.hidden = Boolean(github);
+}
+
+function startGithubBinding() {
+  if (!authState.account) { showAuthDialog(); return; }
+  // 已登录时该入口只做绑定，不会创建新账号。
+  elements.bindGithubButton.disabled = true;
+  window.location.assign("./api/auth/github/start");
 }
 
 async function saveAccountUserId() {
@@ -5772,7 +5807,7 @@ async function logoutAccount() {
 async function initializeCommunityAuth(status) {
   authState.available = Boolean(status?.publicLibrary && status?.authAvailable);
   authState.statusKnown = false;
-  setOAuthProviders(status?.authProviders);
+  setOAuthProviders(status?.authProviders, { github: Boolean(status?.githubLogin) });
   elements.accountButton.hidden = !authState.available;
   elements.pointsTaskButton.hidden = !authState.available;
   if (!authState.available) return;
@@ -6542,6 +6577,39 @@ if (starReturn) {
     : starFailureCopy[starReason] || "GitHub Star 验证未完成，请重试；若多次失败请把页面提示截图反馈。";
   window.setTimeout(() => toast(starMessage), 300);
 }
+
+const githubLoginReturn = new URLSearchParams(window.location.search).get("github-login");
+if (githubLoginReturn) {
+  const loginParams = new URLSearchParams(window.location.search);
+  const loginReason = loginParams.get("reason") || "";
+  const loginAccount = loginParams.get("login") || "";
+  window.history.replaceState({}, "", window.location.pathname + window.location.hash);
+  const who = loginAccount ? `@${loginAccount}` : "该 GitHub 账号";
+  // GitHub 只能登录到已绑定的站点账号；未绑定时明确告诉用户下一步该做什么。
+  const loginCopy = {
+    success: `已用 GitHub 账号 ${who} 登录。`,
+    bound: `已绑定 GitHub 账号 ${who}，之后可直接用它快捷登录。`,
+    unbound: `${who} 还没有绑定本站账号：请先用邮箱验证码登录，再到「账户资料」里绑定 GitHub。`,
+    taken: `${who} 已经绑定到其他本站账号，无法重复绑定。`,
+    banned: "该账号已被管理员封禁。",
+    expired: "登录状态已失效，请先登录后再绑定 GitHub。",
+    cancelled: "你取消了 GitHub 授权，可以重新点击登录。",
+    authorize_failed: "GitHub 授权已失效，请重新点击登录。",
+    profile_failed: "无法确认 GitHub 账号，请稍后重试。",
+    unavailable: "GitHub 暂时无法访问（网络或限流），请稍后重试。",
+  };
+  const githubLoginSucceeded = githubLoginReturn === "success" || githubLoginReturn === "bound";
+  window.setTimeout(async () => {
+    toast(loginCopy[loginReason || githubLoginReturn]
+      || (githubLoginSucceeded ? "GitHub 操作已完成。" : "GitHub 登录未完成，请重试。"));
+    if (!githubLoginSucceeded || !authState.available) return;
+    // The session cookie just changed, so re-read the account before rendering.
+    try {
+      const result = await authRequest("./api/auth/me");
+      setSignedInAccount(result.account);
+    } catch {}
+  }, 300);
+}
 elements.authDialogClose.addEventListener("click", () => elements.authDialog.close());
 elements.authDialog.addEventListener("close", stopAuthMailWatch);
 elements.authModeTabs.forEach((tab) => tab.addEventListener("click", () => {
@@ -6561,6 +6629,7 @@ elements.authRegisterRequestCode.addEventListener("click", requestLoginCode);
 elements.authVerifyLogin.addEventListener("click", verifyLoginCode);
 elements.authVerifyRegister.addEventListener("click", verifyLoginCode);
 elements.oauthLoginButtons.forEach((button) => button.addEventListener("click", () => startOAuthLogin(button.dataset.oauthProvider)));
+elements.bindGithubButton?.addEventListener("click", startGithubBinding);
 elements.saveAccountButton.addEventListener("click", saveAccountUserId);
 elements.logoutButton.addEventListener("click", logoutAccount);
 elements.idEffectOptions?.addEventListener("click", async (event) => {

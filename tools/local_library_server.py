@@ -1994,11 +1994,18 @@ def account_payload(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str
         credential = f"{provider} 登录账号"
     else:
         credential = mask_email(email)
+    with AUTH_LOCK, auth_database() as connection:
+        github = bound_github_identity(connection, str(account["id"]))
     return {
         "userId": account["user_id"],
         "email": credential,
         "isAdmin": is_admin_account(account),
         "effectState": account_effect_state(server, account),
+        "github": {
+            "login": str(github["display_name"] or ""),
+            "githubId": str(github["subject"]),
+            "boundAt": int(github["created_at"]),
+        } if github else None,
         "points": points_payload(server, account["id"]),
     }
 
@@ -2849,6 +2856,9 @@ def claim_github_star(server: ThreadingHTTPServer, account_id: str, code: str) -
         )
     with AUTH_LOCK, auth_database() as connection:
         connection.execute("BEGIN IMMEDIATE")
+        # Verifying the Star is also the natural moment to remember which GitHub
+        # account the user proved ownership of.
+        bind_github_identity(connection, account_id, github_id, login)
         existing = connection.execute(
             "SELECT account_id FROM github_stars WHERE github_id = ? OR account_id = ?",
             (github_id, account_id),
@@ -2862,6 +2872,45 @@ def claim_github_star(server: ThreadingHTTPServer, account_id: str, code: str) -
         award_points(connection, account_id, POINT_RULES["github_star"], "github_star", github_id)
     log_github_star(f"Star 验证成功 login={login or 'unknown'} account={account_id}")
     return login
+
+
+def github_login_account(server: ThreadingHTTPServer, code: str,
+                         link_account_id: str | None = None) -> tuple[sqlite3.Row, str]:
+    """Sign in through GitHub without ever creating an account.
+
+    ``link_account_id`` is set when the flow started from an authenticated
+    session: the verified GitHub account is bound to that existing account.
+    Otherwise the GitHub account must already be bound to a site account, so a
+    brand-new GitHub login can never mint a fresh account by accident.
+
+    Returns the site account plus the verified GitHub login.
+    """
+    github_id, login, _headers = github_exchange_profile(server, code, github_flow_attempts())
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        if link_account_id:
+            account = connection.execute(
+                "SELECT id, email, user_id FROM accounts WHERE id = ?", (link_account_id,)
+            ).fetchone()
+            if not account:
+                raise GithubLoginError("登录状态已失效，请重新登录后再绑定。", "expired")
+            if is_account_banned(connection, str(account["id"])):
+                raise GithubLoginError("该账号已被管理员封禁。", "banned")
+            bind_github_identity(connection, str(account["id"]), github_id, login)
+            log_github_star(f"绑定成功 login={login or 'unknown'} account={account['id']}")
+            return account, login
+        account = github_bound_account(connection, github_id)
+        if not account:
+            log_github_star(f"登录被拒：GitHub 账号未绑定 login={login or 'unknown'}")
+            raise GithubLoginError(
+                "该 GitHub 账号还没有绑定站点账号，请先用邮箱或 QQ 登录后在账户里绑定。",
+                "unbound",
+                login,
+            )
+        if is_account_banned(connection, str(account["id"])):
+            raise GithubLoginError("该账号已被管理员封禁。", "banned", login)
+        log_github_star(f"登录成功 login={login or 'unknown'} account={account['id']}")
+        return account, login
 
 
 def github_star_return(server: ThreadingHTTPServer, result: str) -> str:
@@ -2880,6 +2929,17 @@ def github_star_return_url(server: ThreadingHTTPServer, result: str, reason: str
     """Build the return URL, carrying the failure reason for the frontend."""
     callback = urlparse(server.github_oauth["redirect_uri"])
     query = {"github-star": result}
+    if reason:
+        query["reason"] = reason
+    if login:
+        query["login"] = login
+    return urlunsplit((callback.scheme, callback.netloc, github_app_path(server), urlencode(query), ""))
+
+
+def github_login_return_url(server: ThreadingHTTPServer, result: str, reason: str = "", login: str = "") -> str:
+    """Build the sign-in/binding return URL, carrying reason and login."""
+    callback = urlparse(server.github_oauth["redirect_uri"])
+    query = {"github-login": result}
     if reason:
         query["reason"] = reason
     if login:
@@ -4119,12 +4179,19 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.serve_maintenance_if_active(path):
             return
         if path in {"/api/points", "/api/points/ledger", "/api/points/github/start",
-                    "/api/points/github/callback"}:
+                    "/api/points/github/callback", "/api/auth/github/start"}:
             if not self.server.auth_enabled:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账号服务未启用。"})
                 return
             account = authenticate_request(self)
             config = self.server.github_oauth
+            if path == "/api/auth/github/start":
+                # GitHub 快捷登录入口：已登录时是「绑定」，未登录时是「登录」。
+                if not config:
+                    self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "GitHub 登录尚未配置。"})
+                    return
+                self.start_github_flow(account, "bind" if account else "login")
+                return
             if path == "/api/points/github/callback":
                 # 同一个已注册的回调地址同时服务 Star 验证与 GitHub 登录/绑定。
                 self.handle_github_callback(account)
@@ -4361,6 +4428,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 "authRequired": True,
                 "authAvailable": self.server.auth_enabled,
                 "authProviders": sorted(self.server.oauth_providers),
+                # GitHub doubles as a login/binding provider next to the Star task.
+                "githubLogin": bool(self.server.github_oauth),
             })
             return
         if path == "/api/public-library/songs":
