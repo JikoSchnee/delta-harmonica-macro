@@ -6520,8 +6520,27 @@ const invitation = new URLSearchParams(window.location.search).get("ref");
 if (invitation && /^[\p{L}\p{N}_]{3,24}$/u.test(invitation)) document.querySelector("#authReferral").value = invitation;
 const starReturn = new URLSearchParams(window.location.search).get("github-star");
 if (starReturn) {
+  const starParams = new URLSearchParams(window.location.search);
+  const starReason = starParams.get("reason") || "";
+  const starLogin = starParams.get("login") || "";
   window.history.replaceState({}, "", window.location.pathname + window.location.hash);
-  window.setTimeout(() => toast(starReturn === "success" ? "GitHub Star 已验证，500 积分已到账。" : "GitHub Star 验证未完成，请确认已点 Star 后重试。"), 300);
+  // Map the server's machine-readable reason to a message that says what actually
+  // went wrong, instead of always blaming a missing Star.
+  const starFailureCopy = {
+    not_starred: starLogin
+      ? `未检测到 Star：请确认用刚授权的 ${starLogin} 这个 GitHub 账号为仓库点 Star 后再试。`
+      : "未检测到 Star：请确认用刚刚授权的 GitHub 账号为仓库点 Star 后再试。",
+    already_claimed: "该 GitHub 账号已经领取过 Star 积分。",
+    state: "验证会话已失效，请重新点击「验证 Star」再试一次。",
+    cancelled: "你取消了 GitHub 授权，可以重新点击验证。",
+    authorize_failed: "GitHub 授权已失效，请重新点击验证。",
+    profile_failed: "无法确认 GitHub 账号，请稍后重试。",
+    unavailable: "GitHub 暂时无法访问（网络或限流），请稍后重试。",
+  };
+  const starMessage = starReturn === "success"
+    ? `GitHub Star 已验证${starLogin ? `（${starLogin}）` : ""}，500 积分已到账。`
+    : starFailureCopy[starReason] || "GitHub Star 验证未完成，请重试；若多次失败请把页面提示截图反馈。";
+  window.setTimeout(() => toast(starMessage), 300);
 }
 elements.authDialogClose.addEventListener("click", () => elements.authDialog.close());
 elements.authDialog.addEventListener("close", stopAuthMailWatch);

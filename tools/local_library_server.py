@@ -105,6 +105,16 @@ REQUEST_SOCKET_TIMEOUT_SECONDS = 30
 MAX_REQUEST_THREADS = 128
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 OAUTH_HTTP_TIMEOUT_SECONDS = 15
+# GitHub Star verification: retry once so a single slow/timed-out call does not
+# fail the whole flow (mainland-China egress to api.github.com is flaky).
+GITHUB_API_ATTEMPTS = 2
+# Keep a single GitHub call short (a stalled connect is the common failure from
+# mainland China) and cap the whole Star flow so "verify" never hangs forever.
+GITHUB_HTTP_TIMEOUT_SECONDS = 8
+GITHUB_STAR_FLOW_BUDGET_SECONDS = 20
+# GitHub is both the Star-reward provider and a login/binding provider; the
+# binding lives in oauth_identities under this provider id.
+GITHUB_LOGIN_PROVIDER = "github"
 POINT_RULES = {"unlock": 10, "register": 30, "daily_login": 20, "github_star": 500, "first_upload": 50, "referral": 20, "author_every": 10, "author_reward": 10, "legacy_grant": 100}
 LEGACY_POINTS_NOTICE_KEY = "legacy-points-grant-v1"
 LEGACY_EXPORT_POINTS_NOTICE_KEY = "legacy-export-points-v1"
@@ -2571,11 +2581,12 @@ def oauth_callback_target(server: ThreadingHTTPServer, provider: str, result: st
     return urlunsplit((parsed.scheme, parsed.netloc, app_path, urlencode(query), ""))
 
 
-def fetch_oauth_response(url: str, *, data: dict[str, str] | None = None, headers: dict[str, str] | None = None) -> str:
+def fetch_oauth_response(url: str, *, data: dict[str, str] | None = None, headers: dict[str, str] | None = None,
+                         timeout: float = OAUTH_HTTP_TIMEOUT_SECONDS) -> str:
     encoded = urlencode(data).encode("utf-8") if data is not None else None
     request = Request(url, data=encoded, headers=headers or {"Accept": "application/json"}, method="POST" if encoded else "GET")
     try:
-        with urlopen(request, timeout=OAUTH_HTTP_TIMEOUT_SECONDS) as response:
+        with urlopen(request, timeout=timeout) as response:
             return response.read(MAX_REQUEST_BYTES).decode("utf-8")
     except (HTTPError, URLError, OSError) as error:
         raise ValueError("第三方登录服务暂时不可用，请稍后重试。") from error
@@ -2650,45 +2661,230 @@ def oauth_profile(server: ThreadingHTTPServer, provider: str, code: str) -> dict
     return {"subject": f"wechat:{subject}", "display_name": str(user_info.get("nickname", "")).strip()}
 
 
-def claim_github_star(server: ThreadingHTTPServer, account_id: str, code: str) -> None:
+class GithubOAuthError(ValueError):
+    """GitHub flow failure that carries a machine-readable reason.
+
+    The reason drives the message the frontend shows, so a user who really did
+    star the repo is never told to "go star it" when the actual problem was a
+    rate limit, a network stall, or a different GitHub account.
+    """
+
+    def __init__(self, message: str, reason: str, login: str = "") -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.login = login
+
+
+# Kept so callers written against the Star-only name keep working.
+GithubStarError = GithubOAuthError
+
+
+class GithubLoginError(GithubOAuthError):
+    """GitHub sign-in / binding failure (a stricter variant of the flow error)."""
+
+
+def log_github_star(message: str) -> None:
+    """Emit a single secret-free diagnostic line for the Star flow."""
+    print(f"[github-star] {message}", file=sys.stderr, flush=True)
+
+
+def fetch_github_json(url: str, *, data: dict[str, str] | None = None, headers: dict[str, str] | None = None,
+                      attempts: int = GITHUB_API_ATTEMPTS) -> dict[str, Any]:
+    """Fetch GitHub JSON with one retry, so a single network hiccup is not fatal."""
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        started = time.monotonic()
+        try:
+            payload = json.loads(fetch_oauth_response(url, data=data, headers=headers,
+                                                     timeout=GITHUB_HTTP_TIMEOUT_SECONDS))
+        except (ValueError, json.JSONDecodeError, OSError) as error:
+            last_error = error
+            log_github_star(f"请求失败 attempt={attempt}/{attempts} elapsed={time.monotonic() - started:.2f}s url={url.split('?')[0]}")
+            continue
+        log_github_star(f"请求成功 attempt={attempt}/{attempts} elapsed={time.monotonic() - started:.2f}s url={url.split('?')[0]}")
+        if not isinstance(payload, dict):
+            raise GithubStarError("GitHub 返回数据异常，请稍后重试。", "unavailable")
+        return payload
+    error = last_error
+    log_github_star(f"全部尝试失败：{type(error).__name__ if error else 'unknown'}")
+    raise GithubStarError("GitHub 暂时无法访问，请稍后重试。", "unavailable")
+
+
+def github_star_status(repo: str, headers: dict[str, str], attempts: int = GITHUB_API_ATTEMPTS) -> bool:
+    """Return whether the authorized GitHub user starred ``repo``.
+
+    204 means starred, 404 means not starred; anything else (rate limit, 5xx,
+    timeouts) is reported as unavailable instead of being mistaken for
+    "not starred", which used to send users chasing a Star they already gave.
+    """
+    url = f"https://api.github.com/user/starred/{repo}"
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        started = time.monotonic()
+        try:
+            with urlopen(Request(url, headers=headers), timeout=GITHUB_HTTP_TIMEOUT_SECONDS) as response:
+                log_github_star(f"Star 检查 status={response.status} elapsed={time.monotonic() - started:.2f}s attempt={attempt}")
+                return response.status == 204
+        except HTTPError as error:
+            elapsed = time.monotonic() - started
+            if error.code == 404:
+                # 404 is GitHub's definitive "this user has not starred it".
+                log_github_star(f"Star 检查 404（未点 Star）elapsed={elapsed:.2f}s")
+                return False
+            if error.code in {401, 403}:
+                log_github_star(f"Star 检查被拒绝 status={error.code} elapsed={elapsed:.2f}s")
+                raise GithubStarError("GitHub 拒绝了 Star 验证请求，请稍后重试。", "unavailable") from error
+            last_error = error
+            log_github_star(f"Star 检查失败 status={error.code} elapsed={elapsed:.2f}s attempt={attempt}")
+        except (URLError, OSError) as error:
+            last_error = error
+            log_github_star(f"Star 检查网络失败 elapsed={time.monotonic() - started:.2f}s attempt={attempt} {type(error).__name__}")
+    log_github_star(f"Star 检查全部尝试失败：{type(last_error).__name__ if last_error else 'unknown'}")
+    raise GithubStarError("GitHub 暂时无法验证 Star，请稍后重试。", "unavailable")
+
+
+def github_exchange_profile(server: ThreadingHTTPServer, code: str,
+                            attempts_left: "Callable[[], int]") -> tuple[str, str, dict[str, str]]:
+    """Exchange the OAuth code for the caller's GitHub identity.
+
+    Shared by the Star flow and the login/binding flow so both get the same
+    retry, timeout and diagnostic behaviour.
+    """
     config = server.github_oauth
-    token_payload = json.loads(fetch_oauth_response("https://github.com/login/oauth/access_token", data={
-        "client_id": config["client_id"], "client_secret": config["client_secret"],
-        "code": code, "redirect_uri": config["redirect_uri"],
-    }, headers={"Accept": "application/json"}))
-    token = token_payload.get("access_token") if isinstance(token_payload, dict) else None
+    token_payload = fetch_github_json(
+        "https://github.com/login/oauth/access_token",
+        data={
+            "client_id": config["client_id"], "client_secret": config["client_secret"],
+            "code": code, "redirect_uri": config["redirect_uri"],
+        },
+        headers={"Accept": "application/json"},
+        attempts=attempts_left(),
+    )
+    token = token_payload.get("access_token")
     if not token:
-        raise ValueError("GitHub 授权失败，请重试。")
-    headers = {"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}", "User-Agent": "delta-harmonica-points"}
-    profile = json.loads(fetch_oauth_response("https://api.github.com/user", headers=headers))
-    github_id = str(profile.get("id", "")) if isinstance(profile, dict) else ""
+        error_code = str(token_payload.get("error", "") or "")
+        log_github_star(f"换取 access_token 失败 error={error_code or 'unknown'}")
+        raise GithubOAuthError("GitHub 授权已失效，请重新点击验证。", "authorize_failed")
+    headers = {"Accept": "application/vnd.github+json", "Authorization": f"Bearer {token}",
+               "User-Agent": "delta-harmonica-points"}
+    profile = fetch_github_json("https://api.github.com/user", headers=headers, attempts=attempts_left())
+    github_id = str(profile.get("id", ""))
+    login = str(profile.get("login", "") or "")
     if not github_id.isdecimal():
-        raise ValueError("无法确认 GitHub 账号。")
-    try:
-        with urlopen(Request(f"https://api.github.com/user/starred/{config['repo']}", headers=headers), timeout=OAUTH_HTTP_TIMEOUT_SECONDS) as response:
-            starred = response.status == 204
-    except HTTPError as error:
-        if error.code == 404:
-            starred = False
-        else:
-            raise ValueError("GitHub 暂时无法验证 Star，请稍后重试。") from error
-    if not starred:
-        raise ValueError("请先在 GitHub 为项目点 Star，再回来领取积分。")
+        log_github_star("GitHub /user 未返回有效 id")
+        raise GithubOAuthError("无法确认 GitHub 账号，请稍后重试。", "profile_failed")
+    return github_id, login, headers
+
+
+def github_flow_attempts() -> "Callable[[], int]":
+    """Return an attempts provider bounded by one shared time budget.
+
+    Once the budget is spent (GitHub stalling from mainland China) the remaining
+    calls stop retrying, so a failure surfaces quickly instead of every step
+    waiting twice.
+    """
+    deadline = time.monotonic() + GITHUB_STAR_FLOW_BUDGET_SECONDS
+
+    def attempts_left(default: int = GITHUB_API_ATTEMPTS) -> int:
+        return default if time.monotonic() < deadline else 1
+
+    return attempts_left
+
+
+def bound_github_identity(connection: sqlite3.Connection, account_id: str) -> sqlite3.Row | None:
+    """The GitHub identity linked to a site account, if any."""
+    return connection.execute(
+        "SELECT subject, display_name, created_at FROM oauth_identities WHERE provider = ? AND account_id = ?",
+        (GITHUB_LOGIN_PROVIDER, account_id),
+    ).fetchone()
+
+
+def bind_github_identity(connection: sqlite3.Connection, account_id: str, github_id: str, login: str) -> None:
+    """Link a verified GitHub account to one site account.
+
+    Both directions are exclusive: a GitHub account belongs to one site account,
+    and a site account holds at most one GitHub account.
+    """
+    taken = connection.execute(
+        "SELECT account_id FROM oauth_identities WHERE provider = ? AND subject = ?",
+        (GITHUB_LOGIN_PROVIDER, github_id),
+    ).fetchone()
+    if taken and str(taken["account_id"]) != account_id:
+        raise GithubLoginError("该 GitHub 账号已经绑定到其他站点账号。", "taken", login)
+    current = bound_github_identity(connection, account_id)
+    if current and str(current["subject"]) != github_id:
+        raise GithubLoginError("当前站点账号已绑定其他 GitHub 账号。", "taken", login)
+    if current:
+        connection.execute(
+            "UPDATE oauth_identities SET display_name = ? WHERE provider = ? AND account_id = ?",
+            (login[:120], GITHUB_LOGIN_PROVIDER, account_id),
+        )
+        return
+    connection.execute(
+        "INSERT INTO oauth_identities(provider, subject, account_id, display_name, created_at) VALUES (?, ?, ?, ?, ?)",
+        (GITHUB_LOGIN_PROVIDER, github_id, account_id, login[:120], now_timestamp()),
+    )
+
+
+def github_bound_account(connection: sqlite3.Connection, github_id: str) -> sqlite3.Row | None:
+    """The site account a GitHub account is already bound to."""
+    return connection.execute(
+        "SELECT accounts.id, accounts.email, accounts.user_id FROM oauth_identities "
+        "JOIN accounts ON accounts.id = oauth_identities.account_id "
+        "WHERE oauth_identities.provider = ? AND oauth_identities.subject = ?",
+        (GITHUB_LOGIN_PROVIDER, github_id),
+    ).fetchone()
+
+
+def claim_github_star(server: ThreadingHTTPServer, account_id: str, code: str) -> str:
+    """Verify the Star, bind the GitHub account and grant the reward once."""
+    config = server.github_oauth
+    attempts_left = github_flow_attempts()
+    github_id, login, headers = github_exchange_profile(server, code, attempts_left)
+    if not github_star_status(config["repo"], headers, attempts=attempts_left()):
+        raise GithubOAuthError(
+            f"未检测到 Star：账号 {('@' + login) if login else '（未知）'} 没有为 {config['repo']} 点 Star。",
+            "not_starred",
+            login,
+        )
     with AUTH_LOCK, auth_database() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        existing = connection.execute("SELECT account_id FROM github_stars WHERE github_id = ? OR account_id = ?", (github_id, account_id)).fetchone()
+        existing = connection.execute(
+            "SELECT account_id FROM github_stars WHERE github_id = ? OR account_id = ?",
+            (github_id, account_id),
+        ).fetchone()
         if existing:
-            if existing[0] == account_id:
-                return
-            raise ValueError("该 GitHub 账号已经领取过 Star 积分。")
-        connection.execute("INSERT INTO github_stars(github_id, account_id, created_at) VALUES (?, ?, ?)", (github_id, account_id, now_timestamp()))
+            if str(existing[0]) == account_id:
+                return login
+            raise GithubOAuthError("该 GitHub 账号已经领取过 Star 积分。", "already_claimed", login)
+        connection.execute("INSERT INTO github_stars(github_id, account_id, created_at) VALUES (?, ?, ?)",
+                           (github_id, account_id, now_timestamp()))
         award_points(connection, account_id, POINT_RULES["github_star"], "github_star", github_id)
+    log_github_star(f"Star 验证成功 login={login or 'unknown'} account={account_id}")
+    return login
 
 
 def github_star_return(server: ThreadingHTTPServer, result: str) -> str:
     callback = urlparse(server.github_oauth["redirect_uri"])
     app_path = callback.path.removesuffix("api/points/github/callback")
     return urlunsplit((callback.scheme, callback.netloc, app_path or "/", urlencode({"github-star": result}), ""))
+
+
+def github_app_path(server: ThreadingHTTPServer) -> str:
+    """The site path GitHub should return the browser to."""
+    callback = urlparse(server.github_oauth["redirect_uri"])
+    return callback.path.removesuffix("api/points/github/callback") or "/"
+
+
+def github_star_return_url(server: ThreadingHTTPServer, result: str, reason: str = "", login: str = "") -> str:
+    """Build the return URL, carrying the failure reason for the frontend."""
+    callback = urlparse(server.github_oauth["redirect_uri"])
+    query = {"github-star": result}
+    if reason:
+        query["reason"] = reason
+    if login:
+        query["login"] = login
+    return urlunsplit((callback.scheme, callback.netloc, github_app_path(server), urlencode(query), ""))
 
 
 def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str, str], referral: str = "") -> sqlite3.Row:
@@ -3748,6 +3944,113 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return True
         return False
 
+    def start_github_flow(self, account: sqlite3.Row | None, purpose: str) -> None:
+        """Redirect to GitHub's consent screen for the Star, login or bind flow.
+
+        All three purposes share the one callback URL already registered on the
+        GitHub OAuth App, so no extra GitHub-side configuration is needed.
+        """
+        config = self.server.github_oauth
+        state = issue_oauth_state(self.server, GITHUB_LOGIN_PROVIDER)
+        with self.server.oauth_state_lock:
+            self.server.oauth_states[state]["purpose"] = purpose
+            if account:
+                self.server.oauth_states[state]["account_id"] = account["id"]
+        location = "https://github.com/login/oauth/authorize?" + urlencode({
+            "client_id": config["client_id"],
+            "redirect_uri": config["redirect_uri"],
+            "state": state,
+            "scope": "read:user",
+        })
+        self.send_redirect(location, oauth_state_cookie(self, state))
+
+    def github_flow_return(self, purpose: str, result: str, reason: str = "", login: str = "") -> None:
+        """Send the browser back into the app for whichever GitHub flow ran."""
+        builder = github_star_return_url if purpose == "star" else github_login_return_url
+        self.send_redirect(builder(self.server, result, reason, login), oauth_state_cookie(self, expired=True))
+
+    def handle_github_callback(self, account: sqlite3.Row | None) -> None:
+        """Handle the shared GitHub callback for the Star, login and bind flows.
+
+        Star verification and GitHub sign-in use the same registered redirect
+        URI; the state record carries the purpose, so one callback serves both
+        without asking the user to register a second callback URL.
+        """
+        query = parse_qs(urlparse(self.path).query)
+        state = query.get("state", [""])[0]
+        cookie = self.cookies().get(OAUTH_STATE_COOKIE_NAME)
+        with self.server.oauth_state_lock:
+            pending = self.server.oauth_states.get(state, {}).copy()
+        # A callback without a session can only come from the login flow; that
+        # guess keeps an expired state pointing at the right entry point.
+        purpose = str(pending.get("purpose") or ("star" if account else "login"))
+        if purpose not in {"star", "login", "bind"}:
+            purpose = "star"
+        # The state cookie is a best-effort CSRF hint only: browsers such as
+        # Safari (ITP) and hardened privacy settings routinely drop a cookie set
+        # on the redirect out to github.com. Requiring it made verification fail
+        # for those users on every attempt.
+        #
+        # CSRF protection does not depend on that cookie: the state must still
+        # exist in memory, be unused, be unexpired, belong to this provider, and
+        # be bound to the currently authenticated account where relevant.
+        if cookie is not None and not hmac.compare_digest(state, cookie.value):
+            log_github_star("state cookie 与回调 state 不一致")
+            self.github_flow_return(purpose, "error", "state")
+            return
+        if cookie is None:
+            log_github_star("state cookie 缺失，改用绑定校验")
+        if (not state or pending.get("provider") != GITHUB_LOGIN_PROVIDER
+                or not consume_oauth_state(self.server, state, GITHUB_LOGIN_PROVIDER)):
+            log_github_star(f"state 校验失败 purpose={purpose}")
+            self.github_flow_return(purpose, "error", "state")
+            return
+        if purpose in {"star", "bind"} and not account:
+            log_github_star(f"回调缺少登录会话 purpose={purpose}")
+            self.github_flow_return(purpose, "error", "expired")
+            return
+        if purpose in {"star", "bind"} and pending.get("account_id") not in (None, account["id"]):
+            log_github_star("state 绑定的账号与当前登录账号不一致")
+            self.github_flow_return(purpose, "error", "state")
+            return
+        code = query.get("code", [""])[0]
+        if not code:
+            # The user pressed "Cancel" on GitHub's consent screen.
+            log_github_star("回调缺少 code（用户取消授权）")
+            self.github_flow_return(purpose, "error", "cancelled")
+            return
+        started = time.monotonic()
+        try:
+            if purpose == "star":
+                login = claim_github_star(self.server, account["id"], code)
+            else:
+                link_account_id = account["id"] if purpose == "bind" else None
+                target, login = github_login_account(self.server, code, link_account_id)
+                token = issue_session(self.server, target["id"])
+                log_github_star(
+                    f"GitHub {'绑定' if link_account_id else '登录'}完成 "
+                    f"elapsed={time.monotonic() - started:.2f}s login={login or 'unknown'}"
+                )
+                self.send_redirect(
+                    github_login_return_url(self.server, "bound" if link_account_id else "success", "", login),
+                    [self.session_cookie(token), oauth_state_cookie(self, expired=True)],
+                )
+                return
+        except GithubLoginError as error:
+            log_github_star(f"GitHub 登录流程失败 reason={error.reason} elapsed={time.monotonic() - started:.2f}s")
+            self.github_flow_return(purpose, "error", error.reason, error.login)
+            return
+        except GithubOAuthError as error:
+            log_github_star(f"验证失败 reason={error.reason} elapsed={time.monotonic() - started:.2f}s")
+            self.github_flow_return(purpose, "error", error.reason, error.login)
+            return
+        except (ValueError, OSError, json.JSONDecodeError, sqlite3.Error) as error:
+            log_github_star(f"流程异常 {type(error).__name__} elapsed={time.monotonic() - started:.2f}s")
+            self.github_flow_return(purpose, "error", "unavailable")
+            return
+        log_github_star(f"Star 验证成功 elapsed={time.monotonic() - started:.2f}s login={login or 'unknown'}")
+        self.github_flow_return("star", "success", "", login)
+
     def allow_public_upload(self) -> bool:
         """Allow up to five public upload attempts per IP in a 30-second window."""
         now = time.monotonic()
@@ -3821,6 +4124,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账号服务未启用。"})
                 return
             account = authenticate_request(self)
+            config = self.server.github_oauth
+            if path == "/api/points/github/callback":
+                # 同一个已注册的回调地址同时服务 Star 验证与 GitHub 登录/绑定。
+                self.handle_github_callback(account)
+                return
             if not account:
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
                 return
@@ -3836,37 +4144,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                     ).fetchall()
                 self.send_json(HTTPStatus.OK, {"entries": [dict(row) for row in rows]})
                 return
-            config = self.server.github_oauth
             if not config:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "GitHub Star 验证尚未配置。"})
                 return
-            if path.endswith("/start"):
-                state = issue_oauth_state(self.server, "github_star")
-                with self.server.oauth_state_lock:
-                    self.server.oauth_states[state]["account_id"] = account["id"]
-                location = "https://github.com/login/oauth/authorize?" + urlencode({
-                    "client_id": config["client_id"], "redirect_uri": config["redirect_uri"],
-                    "state": state, "scope": "read:user",
-                })
-                self.send_redirect(location, oauth_state_cookie(self, state))
-                return
-            query = parse_qs(urlparse(self.path).query)
-            state = query.get("state", [""])[0]
-            cookie = self.cookies().get(OAUTH_STATE_COOKIE_NAME)
-            with self.server.oauth_state_lock:
-                pending = self.server.oauth_states.get(state, {}).copy()
-            if not state or not cookie or not hmac.compare_digest(state, cookie.value) or pending.get("account_id") != account["id"] or not consume_oauth_state(self.server, state, "github_star"):
-                self.send_redirect(github_star_return(self.server, "error"), oauth_state_cookie(self, expired=True))
-                return
-            try:
-                code = query.get("code", [""])[0]
-                if not code:
-                    raise ValueError("GitHub 授权已取消。")
-                claim_github_star(self.server, account["id"], code)
-            except (ValueError, OSError, json.JSONDecodeError, sqlite3.Error):
-                self.send_redirect(github_star_return(self.server, "error"), oauth_state_cookie(self, expired=True))
-                return
-            self.send_redirect(github_star_return(self.server, "success"), oauth_state_cookie(self, expired=True))
+            self.start_github_flow(account, "star")
             return
         oauth_match = re.fullmatch(r"/api/auth/oauth/(qq|wechat)/(start|callback)", path)
         if oauth_match:
