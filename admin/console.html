@@ -90,8 +90,8 @@
       .admin-song-description { margin: 10px 0 18px; color: var(--dim); font-size: 12px; }
       .admin-song-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
       .admin-song-grid label { display: grid; gap: 6px; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
-      .admin-song-grid input { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
-      .admin-song-grid input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
+      .admin-song-grid input, .admin-song-grid textarea { min-height: 40px; width: 100%; padding: 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; font: 13px "Noto Sans SC", sans-serif; resize: vertical; }
+      .admin-song-grid input:focus, .admin-song-grid textarea:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
       .admin-song-grid input[readonly] { color: var(--dim); border-style: dashed; background: #0a2621; }
       .admin-song-grid select { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
       .admin-song-grid select:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
@@ -380,6 +380,7 @@
             <label>拍号<input id="adminSongMeter" type="text" maxlength="5" inputmode="numeric" required /></label>
             <label>BPM<input id="adminSongBpm" type="number" min="30" max="300" step="1" required /></label>
             <label class="admin-song-wide">展示视频链接（可不填）<input id="adminSongDisplayUrl" type="url" maxlength="2048" placeholder="https://example.com/video" /></label>
+            <label class="admin-song-wide">声明（可不填）<textarea id="adminSongDeclaration" maxlength="200" rows="3" placeholder="例如：转载请注明出处，禁止二次上传"></textarea></label>
             <div class="admin-song-binding">
               <div class="admin-song-binding-title">CREDIT BINDING / ADMIN EDITABLE SPONSOR</div>
               <label>共享人<input id="adminSongSharedBy" type="text" readonly /></label>
@@ -623,6 +624,7 @@
         $("#adminSongMeter").value = song.meter || "4/4";
         $("#adminSongBpm").value = song.bpm || 120;
         $("#adminSongDisplayUrl").value = song.displayUrl || "";
+        $("#adminSongDeclaration").value = song.declaration || "";
         $("#adminSongSharedBy").value = song.sharedBy || "—";
         $("#adminSongOwner").value = song.owner || "—";
         const sponsorSelect = $("#adminSongSponsor");
@@ -658,6 +660,7 @@
         payload.append("meter", $("#adminSongMeter").value);
         payload.append("bpm", $("#adminSongBpm").value);
         payload.append("displayUrl", $("#adminSongDisplayUrl").value);
+        payload.append("declaration", $("#adminSongDeclaration").value);
         const sponsorSelect = $("#adminSongSponsor");
         if (sponsorSelect.dataset.touched === "true" || sponsorSelect.value) payload.append("sponsorAccountId", sponsorSelect.value);
         if (file) payload.append("scoreFile", file, file.name);
