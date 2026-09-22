@@ -1,3 +1,6 @@
+# AI/automation policy: see /llms.txt
+# /delta/data/ is copyrighted, on-site use only; scraping & redistribution prohibited.
+
 User-agent: *
 Allow: /
 Disallow: /api/
@@ -6,5 +9,14 @@ Disallow: /data/
 
 User-agent: harmonica-autoplay
 Disallow: /
+
+User-agent: GPTBot
+Disallow: /data/
+
+User-agent: ClaudeBot
+Disallow: /data/
+
+User-agent: Google-Extended
+Disallow: /data/
 
 Sitemap: https://jiko-official.top/delta/sitemap.xml
