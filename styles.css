@@ -433,6 +433,7 @@ main {
 .gh-readme-line { fill: #d8dee4; }
 .gh-cursor { transform-box: view-box; transform-origin: 0 0; transform: translate(172px, 138px); animation: ghCursorMove 6.4s ease-in-out infinite; }
 .gh-cursor-shape { fill: var(--black); stroke: var(--white); stroke-width: .8; }
+/* The click target is the star glyph itself (x≈141.8,y≈27.2), not the Star label/count. */
 .gh-ripple { fill: none; stroke: #ffd166; stroke-width: 1.6; opacity: 0; transform-box: fill-box; transform-origin: center; animation: ghRipple 6.4s ease-out infinite; }
 .gh-plus { fill: #a76b00; font: 700 9px var(--mono); opacity: 0; animation: ghPlus 6.4s ease-out infinite; }
 @keyframes ghZoom {
@@ -442,7 +443,8 @@ main {
 }
 @keyframes ghCursorMove {
   0%, 34% { transform: translate(172px, 138px); }
-  48%, 66% { transform: translate(133.5px, 64.5px); }
+  /* .gh-cursor is above .gh-page, so use the star's zoomed coordinates. */
+  48%, 66% { transform: translate(120.7px, 66.4px); }
   78%, 100% { transform: translate(172px, 138px); }
 }
 @keyframes ghPress {
