@@ -113,6 +113,85 @@ class LockOrderingTests(unittest.TestCase):
         self.assertFalse(SERVER.LIBRARY_LOCK.locked())
 
 
+class StartupLockSafetyTests(unittest.TestCase):
+    def setUp(self):
+        self._originals = {}
+        self._temp = TemporaryDirectory()
+        root = Path(self._temp.name)
+        (root / "data" / "community-scores").mkdir(parents=True)
+        (root / "data" / "analytics").mkdir(parents=True)
+        overrides = {
+            "REPOSITORY_ROOT": root,
+            "SOURCE_DIRECTORY": root / "data" / "community-scores",
+            "LIBRARY_OUTPUT": root / "data" / "community-songs.js",
+            "AUTH_DATABASE": root / "data" / "auth.sqlite3",
+            "ANALYTICS_DIRECTORY": root / "data" / "analytics",
+            "EXPORT_EVENT_COUNT_CACHE": SERVER.SingleFlightCache(),
+            "AUTH_LOCK": DetectingLock("AUTH_LOCK"),
+            "LIBRARY_LOCK": DetectingLock("LIBRARY_LOCK"),
+            "ANALYTICS_LOCK": DetectingLock("ANALYTICS_LOCK"),
+            "HOT_RANKING_LOCK": DetectingLock("HOT_RANKING_LOCK"),
+        }
+        for name, value in overrides.items():
+            self._originals[name] = getattr(SERVER, name)
+            setattr(SERVER, name, value)
+        SERVER.reset_auth_schema_guard()
+
+    def tearDown(self):
+        SERVER.reset_auth_schema_guard()
+        for name, value in self._originals.items():
+            setattr(SERVER, name, value)
+        self._temp.cleanup()
+
+    def _run_with_watchdog(self, label, fn, timeout=25.0):
+        outcome = {}
+
+        def target():
+            try:
+                fn()
+                outcome["result"] = "ok"
+            except BaseException as error:  # noqa: BLE001 - surface anything
+                outcome["result"] = f"{type(error).__name__}: {error}"
+
+        thread = threading.Thread(target=target, name=label, daemon=True)
+        thread.start()
+        thread.join(timeout)
+        if thread.is_alive():
+            self.fail(f"startup step {label} deadlocked (never returned within {timeout}s)")
+        if outcome.get("result") != "ok":
+            self.fail(f"startup step {label} failed: {outcome.get('result')}")
+
+    def test_startup_sequence_never_reenters_the_account_lock(self):
+        server = SimpleNamespace(
+            auth_enabled=True,
+            analytics_enabled=True,
+            analytics_retention_days=SERVER.DEFAULT_ANALYTICS_RETENTION_DAYS,
+        )
+        self._run_with_watchdog("initialize_auth_database", SERVER.initialize_auth_database)
+        self._run_with_watchdog("migrate_identity_tables", SERVER.migrate_identity_tables)
+        self._run_with_watchdog(
+            "backfill_legacy_score_owners_for_known_account",
+            SERVER.backfill_legacy_score_owners_for_known_account,
+        )
+        self._run_with_watchdog(
+            "apply_legacy_export_points_migration",
+            lambda: SERVER.apply_legacy_export_points_migration(server),
+        )
+        nested = [entry for lock in (SERVER.AUTH_LOCK, SERVER.LIBRARY_LOCK) for entry in lock.nested]
+        self.assertEqual(nested, [], f"startup path nested locks: {nested}")
+
+    def test_export_migration_refuses_to_run_while_holding_the_account_lock(self):
+        server = SimpleNamespace(
+            auth_enabled=True,
+            analytics_enabled=True,
+            analytics_retention_days=SERVER.DEFAULT_ANALYTICS_RETENTION_DAYS,
+        )
+        SERVER.initialize_auth_database()
+        with SERVER.AUTH_LOCK:
+            with self.assertRaises(SERVER.LockOrderError):
+                SERVER.apply_legacy_export_points_migration(server)
+
+
 class PointMigrationIdempotencyTests(unittest.TestCase):
     def setUp(self):
         self._temp = TemporaryDirectory()
@@ -144,6 +223,42 @@ class PointMigrationIdempotencyTests(unittest.TestCase):
             self.assertEqual(len(calls), 2)
         finally:
             SERVER._initialize_auth_database_locked = original
+
+    def test_legacy_grant_is_idempotent_and_worth_one_hundred(self):
+        SERVER.initialize_auth_database()
+        with SERVER.AUTH_LOCK, SERVER.auth_database() as connection:
+            connection.execute(
+                "INSERT OR IGNORE INTO accounts(id, email, user_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                ("acct-legacy", "legacy@example.invalid", "legacy", 1, 1),
+            )
+            # Initialization already ran the migration against an empty account
+            # table, so clear the marker to model "this account existed when the
+            # migration first runs" (the production startup situation).
+            connection.execute(
+                "DELETE FROM point_migrations WHERE migration_key = ?",
+                (SERVER.LEGACY_POINTS_NOTICE_KEY,),
+            )
+            SERVER.apply_legacy_points_migration(connection)
+            first = SERVER.point_balance(connection, "acct-legacy")
+            SERVER.apply_legacy_points_migration(connection)
+            second = SERVER.point_balance(connection, "acct-legacy")
+            grants = connection.execute(
+                "SELECT COUNT(*) FROM point_ledger WHERE account_id = ? AND reason = 'legacy_grant'",
+                ("acct-legacy",),
+            ).fetchone()[0]
+            migrations = connection.execute(
+                "SELECT COUNT(*) FROM point_migrations WHERE migration_key = ?",
+                (SERVER.LEGACY_POINTS_NOTICE_KEY,),
+            ).fetchone()[0]
+        self.assertEqual(first, SERVER.POINT_RULES["legacy_grant"])
+        self.assertEqual(second, first)
+        self.assertEqual(grants, 1)
+        self.assertEqual(migrations, 1)
+
+    def test_star_reward_matches_the_configured_rule(self):
+        self.assertEqual(SERVER.POINT_RULES["github_star"], 500)
+        self.assertEqual(SERVER.POINT_RULES["legacy_grant"], 100)
+
 
 if __name__ == "__main__":
     unittest.main()

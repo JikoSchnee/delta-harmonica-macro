@@ -60,6 +60,16 @@ class DailyLoginPointsTests(unittest.TestCase):
         ])
 
 
+    def test_legacy_grant_is_once_only(self):
+        self._server_tables = True
+        _SERVER.ensure_initial_points(self.connection, "account-legacy")
+        _SERVER.apply_legacy_points_migration(self.connection)
+        first = self.connection.execute("SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id = ?", ("account-legacy",)).fetchone()[0]
+        _SERVER.apply_legacy_points_migration(self.connection)
+        second = self.connection.execute("SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id = ?", ("account-legacy",)).fetchone()[0]
+        self.assertEqual(first, second)
+        self.assertEqual(first, 130)
+
     def test_accounts_are_isolated(self):
         today = datetime(2026, 9, 22, tzinfo=timezone.utc)
         self.assertTrue(award_daily_login_points(self.connection, "account-1", today))

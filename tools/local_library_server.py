@@ -105,7 +105,9 @@ REQUEST_SOCKET_TIMEOUT_SECONDS = 30
 MAX_REQUEST_THREADS = 128
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 OAUTH_HTTP_TIMEOUT_SECONDS = 15
-POINT_RULES = {"unlock": 10, "register": 30, "github_star": 100, "first_upload": 50, "referral": 20, "author_every": 10, "author_reward": 10}
+POINT_RULES = {"unlock": 10, "register": 30, "daily_login": 20, "github_star": 500, "first_upload": 50, "referral": 20, "author_every": 10, "author_reward": 10, "legacy_grant": 100}
+LEGACY_POINTS_NOTICE_KEY = "legacy-points-grant-v1"
+LEGACY_EXPORT_POINTS_NOTICE_KEY = "legacy-export-points-v1"
 POINTS_NOTICE_KEY = "points-v1"
 INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 INVITE_CODE_PREFIX = "DH"
@@ -1662,6 +1664,11 @@ def _initialize_auth_database_locked() -> None:
                 acknowledged_at INTEGER NOT NULL,
                 PRIMARY KEY(account_id, notice_key)
             );
+            CREATE TABLE IF NOT EXISTS point_migrations (
+                migration_key TEXT PRIMARY KEY,
+                applied_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS point_migrations_key ON point_migrations(migration_key);
             CREATE TABLE IF NOT EXISTS account_effects (
                 account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
                 effect TEXT NOT NULL,
@@ -1684,6 +1691,7 @@ def _initialize_auth_database_locked() -> None:
                            (now_timestamp(),))
         for row in connection.execute("SELECT id FROM accounts").fetchall():
             ensure_invite_code(connection, row[0])
+        apply_legacy_points_migration(connection)
         for method_id, brand_ids in EXPORT_DEFAULT_BRANDS.items():
             existing = connection.execute(
                 "SELECT 1 FROM export_method_brands WHERE method_id = ? LIMIT 1",
@@ -1850,6 +1858,51 @@ def ensure_initial_points(connection: sqlite3.Connection, account_id: str) -> No
         award_points(connection, account_id, POINT_RULES["first_upload"], "first_upload", account_id)
 
 
+def apply_legacy_points_migration(connection: sqlite3.Connection) -> None:
+    """Grant the one-time +100 update bonus to accounts existing at migration time."""
+    migration_key = LEGACY_POINTS_NOTICE_KEY
+    if connection.execute("SELECT 1 FROM point_migrations WHERE migration_key = ?", (migration_key,)).fetchone():
+        return
+    account_ids = [row[0] for row in connection.execute("SELECT id FROM accounts").fetchall()]
+    for account_id in account_ids:
+        award_points(connection, account_id, POINT_RULES["legacy_grant"], "legacy_grant", migration_key)
+    connection.execute("INSERT INTO point_migrations(migration_key, applied_at) VALUES (?, ?)", (migration_key, now_timestamp()))
+
+
+def apply_legacy_export_points_migration(server: ThreadingHTTPServer) -> None:
+    """Credit one point per deduplicated historical export for existing owners.
+
+    Every helper that touches the account store is called *before* AUTH_LOCK is
+    taken, and inside the lock only plain statements against the connection
+    already in hand are used. That keeps the startup migration from re-entering
+    the account lock (which would hang the process at boot with no traceback),
+    and the explicit guard below turns a future refactor that breaks the rule
+    into a visible error instead of a production freeze.
+    """
+    if not server.analytics_enabled:
+        return
+    if lock_held_by_current_thread(AUTH_LOCK):
+        raise LockOrderError("不能在持有 AUTH_LOCK 时执行历史导出结算（会自死锁）。")
+    exports_by_score = cached_score_export_counts(server.analytics_retention_days)
+    owner_scores = public_owned_scores(True)
+    with AUTH_LOCK, auth_database() as connection:
+        if connection.execute("SELECT 1 FROM point_migrations WHERE migration_key = ?", (LEGACY_EXPORT_POINTS_NOTICE_KEY,)).fetchone():
+            return
+        account_by_user = {
+            str(row["user_id"]): str(row["id"])
+            for row in connection.execute("SELECT id, user_id FROM accounts").fetchall()
+        }
+        totals: dict[str, int] = {}
+        for user_id, score_id in owner_scores:
+            account_id = account_by_user.get(user_id)
+            if account_id:
+                totals[account_id] = totals.get(account_id, 0) + int(exports_by_score.get(score_id, 0))
+        for account_id, amount in totals.items():
+            if amount > 0:
+                award_points(connection, account_id, amount, "legacy_export", LEGACY_EXPORT_POINTS_NOTICE_KEY)
+        connection.execute("INSERT INTO point_migrations(migration_key, applied_at) VALUES (?, ?)", (LEGACY_EXPORT_POINTS_NOTICE_KEY, now_timestamp()))
+
+
 def point_balance(connection: sqlite3.Connection, account_id: str) -> int:
     row = connection.execute("SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id = ?", (account_id,)).fetchone()
     return int(row[0])
@@ -1869,6 +1922,7 @@ def points_payload(server: ThreadingHTTPServer, account_id: str) -> dict[str, An
         return {"balance": point_balance(connection, account_id), "unlimited": bool(donor), "inviteCode": invite_code,
                 "unlocked": unlocks, "owned": owned, "firstUploadRewarded": bool(uploads), "githubStarRewarded": bool(star),
                 "dailyLoginRewarded": daily_login_rewarded(connection, account_id),
+                "legacyGrantRewarded": bool(connection.execute("SELECT 1 FROM point_ledger WHERE account_id = ? AND reason = 'legacy_grant' AND reference = ?", (account_id, LEGACY_POINTS_NOTICE_KEY)).fetchone()),
                 "githubStarAvailable": bool(getattr(server, "github_oauth", None)),
                 "githubRepoUrl": "https://github.com/" + (server.github_oauth["repo"] if getattr(server, "github_oauth", None) else "JikoSchnee/delta-harmonica-macro"),
                 "authorUnlocks": author_count, "authorProgress": author_count % POINT_RULES["author_every"],
@@ -4680,6 +4734,7 @@ def main() -> int:
         migrate_identity_tables()
     if server.auth_enabled:
         backfill_legacy_score_owners_for_known_account()
+        apply_legacy_export_points_migration(server)
     if server.email_auth_enabled and not server.auth_code_log_only:
         server.auth_mail_dispatcher = AuthMailDispatcher(server)
     if server.analytics_enabled:

@@ -5475,7 +5475,7 @@ function renderPointsUi() {
   elements.pointsTaskRegistration.textContent = signedIn ? "已领取注册奖励 +30" : "完成注册后领取 +30";
   elements.pointsTaskDailyLogin.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取 +20" : "每天首次登录领取 +20";
   elements.pointsTaskDailyLoginStatus.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取" : signedIn ? "登录奖励处理中" : "登录后自动领取";
-  elements.pointsTaskGithub.textContent = points?.githubStarRewarded ? "已验证 Star，已领取 +100" : "验证项目 Star 后领取 +100";
+  elements.pointsTaskGithub.textContent = points?.githubStarRewarded ? "已验证 Star，已领取 +500" : "验证项目 Star 后领取 +500";
   elements.pointsTaskUpload.textContent = points?.firstUploadRewarded ? "已领取首次投稿奖励 +50" : "成功发布一首谱子后领取 +50";
   elements.pointsTaskAuthor.textContent = signedIn
     ? `已累计 ${points?.authorUnlocks || 0} 次有效解锁，当前 ${points?.authorProgress || 0} / 10`
@@ -5488,11 +5488,11 @@ function renderPointsUi() {
   const githubReady = Boolean(points?.githubStarAvailable);
   elements.githubStarVerifyButton.disabled = signedIn && (!githubReady || Boolean(points?.githubStarRewarded));
   elements.githubStarVerifyButton.textContent = !signedIn
-    ? "登录后验证 Star · +100"
+    ? "登录后验证 Star · +500"
     : points?.githubStarRewarded
-      ? "已验证 Star · +100"
+      ? "已验证 Star · +500"
       : githubReady
-        ? "验证 Star · 领取 100 积分"
+        ? "验证 Star · 领取 500 积分"
         : "Star 验证暂不可用";
   elements.githubStarVerifyButton.title = !signedIn ? "登录后即可验证 GitHub Star" : githubReady ? "通过 GitHub 授权验证 Star" : "当前站点尚未配置 GitHub Star 验证";
 }
@@ -6521,7 +6521,7 @@ if (invitation && /^[\p{L}\p{N}_]{3,24}$/u.test(invitation)) document.querySelec
 const starReturn = new URLSearchParams(window.location.search).get("github-star");
 if (starReturn) {
   window.history.replaceState({}, "", window.location.pathname + window.location.hash);
-  window.setTimeout(() => toast(starReturn === "success" ? "GitHub Star 已验证，100 积分已到账。" : "GitHub Star 验证未完成，请确认已点 Star 后重试。"), 300);
+  window.setTimeout(() => toast(starReturn === "success" ? "GitHub Star 已验证，500 积分已到账。" : "GitHub Star 验证未完成，请确认已点 Star 后重试。"), 300);
 }
 elements.authDialogClose.addEventListener("click", () => elements.authDialog.close());
 elements.authDialog.addEventListener("close", stopAuthMailWatch);
