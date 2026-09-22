@@ -2,5 +2,9 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
+Disallow: /data/
+
+User-agent: harmonica-autoplay
+Disallow: /
 
 Sitemap: https://jiko-official.top/delta/sitemap.xml

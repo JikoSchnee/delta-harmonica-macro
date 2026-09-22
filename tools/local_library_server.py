@@ -2967,6 +2967,22 @@ def compressed_static_body(path: str) -> bytes | None:
     return body
 
 
+SCRAPER_UA_TOKENS = ("harmonica-autoplay",)
+PROTECTED_DATA_SUFFIXES = (".js", ".json")
+ALLOWED_REFERER_HOSTS = {"jiko-official.top", "www.jiko-official.top", "localhost", "127.0.0.1"}
+LIBRARY_NOTICE_SONG = {
+    "title": "请通过官方站点 jiko-official.top 访问曲库",
+    "artist": "Jiko",
+    "sharedBy": "Jiko",
+    "key": "1=C",
+    "meter": "4/4",
+    "bpm": 120,
+    "jianpu": "1 2 3 4 5 6 7 1'",
+    "source": "本站曲库数据仅供 jiko-official.top/delta 页面内使用，禁止脚本批量抓取与二次分发（见 robots.txt 与站点条款）。",
+    "remixCode": "",
+}
+
+
 class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
     response_status = 200
@@ -3329,8 +3345,49 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.server.public_uploads[client] = timestamps
         return True
 
+    def data_request_is_blocked(self, path: str) -> bool:
+        """/data/ 下的曲库数据文件只允许站内页面引用，阻断已知抓取脚本。
+
+        判定顺序：
+          1. 命中已知爬虫 UA（如 harmonica-autoplay）→ 直接拦；
+          2. 浏览器 <script src> / fetch 会带同站 Referer → 放行；
+          3. 无 Referer 或异站 Referer 的直接 GET（urllib/curl 等）→ 拦。
+        仅对公开部署（--public）生效，本地预览不受影响。
+        """
+        if not self.server.public_library:
+            return False
+        lowered = path.lower()
+        if not lowered.startswith("/data/") or not lowered.endswith(PROTECTED_DATA_SUFFIXES):
+            return False
+        user_agent = self.headers.get("User-Agent", "").lower()
+        if any(token in user_agent for token in SCRAPER_UA_TOKENS):
+            return True
+        referer = self.headers.get("Referer", "")
+        if not referer:
+            return True
+        referer_host = (urlparse(referer).hostname or "").casefold()
+        request_host = (urlparse(f"//{self.headers.get('Host', '')}").hostname or "").casefold()
+        return referer_host not in ALLOWED_REFERER_HOSTS and referer_host != request_host
+
+    def send_blocked_library(self) -> None:
+        """被拦截的曲库请求返回一份只含提示曲目的合法载荷（脚本端解析不报错，但拿不到数据）。"""
+        body = ("globalThis.COMMUNITY_SONGS = "
+                + json.dumps([LIBRARY_NOTICE_SONG], ensure_ascii=False)
+                + ";\n").encode("utf-8")
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/javascript; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Robots-Tag", "noindex")
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
+
     def do_GET(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
+        if self.data_request_is_blocked(path):
+            self.send_blocked_library()
+            return
         if self.serve_maintenance_if_active(path):
             return
         if path in {"/api/points", "/api/points/github/start", "/api/points/github/callback"}:
