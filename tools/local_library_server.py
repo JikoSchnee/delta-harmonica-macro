@@ -19,6 +19,7 @@ import gzip
 import hashlib
 import hmac
 import io
+import ipaddress
 import json
 import os
 import queue
@@ -1424,6 +1425,90 @@ def auth_database() -> sqlite3.Connection:
     return connection
 
 
+def _ban_now(now: int | None = None) -> int:
+    return int(now if now is not None else now_timestamp())
+
+
+def _active_ban(row: sqlite3.Row | None, now: int) -> bool:
+    return bool(row and (row["expires_at"] is None or int(row["expires_at"]) > now))
+
+
+def is_account_banned(connection: sqlite3.Connection, account_id: str, *, now: int | None = None) -> bool:
+    current = _ban_now(now)
+    row = connection.execute("SELECT expires_at FROM account_bans WHERE account_id = ?", (account_id,)).fetchone()
+    if row and row["expires_at"] is not None and int(row["expires_at"]) <= current:
+        connection.execute("DELETE FROM account_bans WHERE account_id = ?", (account_id,))
+        return False
+    return _active_ban(row, current)
+
+
+def is_ip_banned(connection: sqlite3.Connection, ip: str, *, now: int | None = None) -> bool:
+    normalized = str(ip).strip()
+    try:
+        normalized = str(ipaddress.ip_address(normalized))
+    except ValueError:
+        return False
+    current = _ban_now(now)
+    row = connection.execute("SELECT expires_at FROM ip_bans WHERE ip = ?", (normalized,)).fetchone()
+    if row and row["expires_at"] is not None and int(row["expires_at"]) <= current:
+        connection.execute("DELETE FROM ip_bans WHERE ip = ?", (normalized,))
+        return False
+    return _active_ban(row, current)
+
+
+def set_account_ban(connection: sqlite3.Connection, account_id: str, reason: str = "", *, now: int | None = None, expires_at: int | None = None) -> None:
+    connection.execute(
+        "INSERT INTO account_bans(account_id, reason, banned_at, expires_at) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(account_id) DO UPDATE SET reason=excluded.reason, banned_at=excluded.banned_at, expires_at=excluded.expires_at",
+        (account_id, str(reason).strip()[:200], _ban_now(now), expires_at),
+    )
+    # A ban takes effect immediately even for already-issued cookies.
+    connection.execute("DELETE FROM sessions WHERE account_id = ?", (account_id,))
+
+
+def account_ban_payload(connection: sqlite3.Connection, account_id: str, *, now: int | None = None) -> dict[str, Any]:
+    current = _ban_now(now)
+    row = connection.execute(
+        "SELECT reason, banned_at, expires_at FROM account_bans WHERE account_id = ?",
+        (account_id,),
+    ).fetchone()
+    if not _active_ban(row, current):
+        if row:
+            connection.execute("DELETE FROM account_bans WHERE account_id = ?", (account_id,))
+        return {"banned": False, "reason": "", "bannedAt": None, "expiresAt": None}
+    return {
+        "banned": True,
+        "reason": str(row["reason"] or ""),
+        "bannedAt": int(row["banned_at"]),
+        "expiresAt": int(row["expires_at"]) if row["expires_at"] is not None else None,
+    }
+
+
+def clear_account_ban(connection: sqlite3.Connection, account_id: str) -> None:
+    connection.execute("DELETE FROM account_bans WHERE account_id = ?", (account_id,))
+
+
+def set_ip_ban(connection: sqlite3.Connection, ip: str, reason: str = "", *, now: int | None = None, expires_at: int | None = None) -> str:
+    try:
+        normalized = str(ipaddress.ip_address(str(ip).strip()))
+    except ValueError as error:
+        raise ValueError("IP 地址无效。") from error
+    connection.execute(
+        "INSERT INTO ip_bans(ip, reason, banned_at, expires_at) VALUES (?, ?, ?, ?) "
+        "ON CONFLICT(ip) DO UPDATE SET reason=excluded.reason, banned_at=excluded.banned_at, expires_at=excluded.expires_at",
+        (normalized, str(reason).strip()[:200], _ban_now(now), expires_at),
+    )
+    return normalized
+
+
+def clear_ip_ban(connection: sqlite3.Connection, ip: str) -> None:
+    try:
+        normalized = str(ipaddress.ip_address(str(ip).strip()))
+    except ValueError as error:
+        raise ValueError("IP 地址无效。") from error
+    connection.execute("DELETE FROM ip_bans WHERE ip = ?", (normalized,))
+
+
 _AUTH_SCHEMA_READY = False
 _AUTH_SCHEMA_INIT_LOCK = threading.Lock()
 
@@ -1464,6 +1549,20 @@ def _initialize_auth_database_locked() -> None:
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS account_bans (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                reason TEXT NOT NULL DEFAULT '',
+                banned_at INTEGER NOT NULL,
+                expires_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS ip_bans (
+                ip TEXT PRIMARY KEY,
+                reason TEXT NOT NULL DEFAULT '',
+                banned_at INTEGER NOT NULL,
+                expires_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS account_bans_expiry ON account_bans(expires_at);
+            CREATE INDEX IF NOT EXISTS ip_bans_expiry ON ip_bans(expires_at);
             CREATE TABLE IF NOT EXISTS user_id_history (
                 user_id TEXT PRIMARY KEY COLLATE NOCASE,
                 account_id TEXT NOT NULL REFERENCES accounts(id),
@@ -2034,6 +2133,61 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
         return rebuilt_scores
 
 
+def admin_ban_account(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("封禁请求格式无效。")
+    account_id = str(payload.get("accountId") or "").strip()
+    reason = str(payload.get("reason") or "管理员封禁").strip()[:200]
+    if not account_id:
+        raise ValueError("缺少账号标识。")
+    expires_at = payload.get("expiresAt")
+    if expires_at is not None:
+        try:
+            expires_at = int(expires_at)
+        except (TypeError, ValueError) as error:
+            raise ValueError("封禁到期时间无效。") from error
+        if expires_at <= now_timestamp():
+            raise ValueError("封禁到期时间必须晚于当前时间。")
+    with AUTH_LOCK, auth_database() as connection:
+        if not connection.execute("SELECT 1 FROM accounts WHERE id = ?", (account_id,)).fetchone():
+            raise ValueError("账号不存在。")
+        set_account_ban(connection, account_id, reason, expires_at=expires_at)
+        return account_ban_payload(connection, account_id)
+
+
+def admin_unban_account(payload: Any) -> None:
+    if not isinstance(payload, dict) or not str(payload.get("accountId") or "").strip():
+        raise ValueError("缺少账号标识。")
+    with AUTH_LOCK, auth_database() as connection:
+        clear_account_ban(connection, str(payload["accountId"]).strip())
+
+
+def admin_ban_ip(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("封禁请求格式无效。")
+    ip = str(payload.get("ip") or "").strip()
+    reason = str(payload.get("reason") or "管理员封禁").strip()[:200]
+    expires_at = payload.get("expiresAt")
+    if expires_at is not None:
+        try:
+            expires_at = int(expires_at)
+        except (TypeError, ValueError) as error:
+            raise ValueError("封禁到期时间无效。") from error
+        if expires_at <= now_timestamp():
+            raise ValueError("封禁到期时间必须晚于当前时间。")
+    with AUTH_LOCK, auth_database() as connection:
+        normalized = set_ip_ban(connection, ip, reason, expires_at=expires_at)
+        row = connection.execute("SELECT ip, reason, banned_at, expires_at FROM ip_bans WHERE ip = ?", (normalized,)).fetchone()
+        return dict(row)
+
+
+def admin_unban_ip(payload: Any) -> None:
+    if not isinstance(payload, dict) or not str(payload.get("ip") or "").strip():
+        raise ValueError("缺少 IP 地址。")
+    with AUTH_LOCK, auth_database() as connection:
+        clear_ip_ban(connection, str(payload["ip"]).strip())
+
+
 def admin_user_catalog() -> list[dict[str, Any]]:
     """Return privacy-safe account rows and lightweight activity counts."""
     now = now_timestamp()
@@ -2050,6 +2204,9 @@ def admin_user_catalog() -> list[dict[str, Any]]:
             "GROUP BY accounts.id ORDER BY accounts.created_at DESC",
             (now,),
         ).fetchall()
+        bans = {row["account_id"]: dict(row) for row in connection.execute(
+            "SELECT account_id, reason, banned_at, expires_at FROM account_bans"
+        ).fetchall()}
     return [{
         "id": row["id"],
         "userId": row["user_id"],
@@ -2058,6 +2215,11 @@ def admin_user_catalog() -> list[dict[str, Any]]:
         "donationCents": int(row["donation_cents"] or 0),
         "uploads": row["uploads"],
         "active": bool(row["active_sessions"]),
+        "ban": {
+            "banned": bool(bans.get(row["id"]) and (bans[row["id"]]["expires_at"] is None or int(bans[row["id"]]["expires_at"]) > now)),
+            "reason": str(bans.get(row["id"], {}).get("reason", "")),
+            "expiresAt": bans.get(row["id"], {}).get("expires_at"),
+        },
         "registeredAt": datetime.fromtimestamp(row["created_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "updatedAt": datetime.fromtimestamp(row["updated_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
     } for row in rows]
@@ -2711,6 +2873,16 @@ def auth_rate_allowed(server: ThreadingHTTPServer, key: str, limit: int) -> bool
         return True
 
 
+def request_client_ip(handler: "LocalLibraryRequestHandler") -> str:
+    """Return the peer IP, trusting X-Forwarded-For only behind our proxy."""
+    forwarded_for = handler.headers.get("X-Forwarded-For", "") if handler.server.trust_proxy else ""
+    candidate = forwarded_for.split(",", 1)[0].strip() or handler.client_address[0]
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return handler.client_address[0]
+
+
 def authenticate_request(handler: "LocalLibraryRequestHandler") -> sqlite3.Row | None:
     token = handler.cookies().get(AUTH_COOKIE_NAME)
     if not token:
@@ -2719,16 +2891,25 @@ def authenticate_request(handler: "LocalLibraryRequestHandler") -> sqlite3.Row |
     now = now_timestamp()
     with AUTH_LOCK, auth_database() as connection:
         connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (now,))
-        return connection.execute(
+        client_ip = request_client_ip(handler)
+        if is_ip_banned(connection, client_ip, now=now):
+            return None
+        account = connection.execute(
             "SELECT accounts.id, accounts.email, accounts.user_id FROM sessions "
             "JOIN accounts ON accounts.id = sessions.account_id WHERE sessions.token_hash = ? AND sessions.expires_at > ?",
             (token_hash, now),
         ).fetchone()
+        if account and is_account_banned(connection, account["id"], now=now):
+            connection.execute("DELETE FROM sessions WHERE account_id = ?", (account["id"],))
+            return None
+        return account
 
 
 def issue_session(server: ThreadingHTTPServer, account_id: str) -> str:
     token = secrets.token_urlsafe(32)
     with AUTH_LOCK, auth_database() as connection:
+        if is_account_banned(connection, account_id):
+            raise ValueError("该账号已被管理员封禁。")
         connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (now_timestamp(),))
         connection.execute(
             "INSERT INTO sessions(token_hash, account_id, expires_at) VALUES (?, ?, ?)",
@@ -3471,6 +3652,17 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return False
         return True
 
+    def reject_banned_ip(self) -> bool:
+        """Reject banned clients, while allowing the admin token to recover one."""
+        if self.is_analytics_admin():
+            return False
+        with AUTH_LOCK, auth_database() as connection:
+            banned = is_ip_banned(connection, request_client_ip(self))
+        if banned:
+            self.send_json(HTTPStatus.FORBIDDEN, {"error": "当前 IP 已被封禁。"})
+            return True
+        return False
+
     def allow_public_upload(self) -> bool:
         """Allow up to five public upload attempts per IP in a 30-second window."""
         now = time.monotonic()
@@ -3530,6 +3722,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
 
     def do_GET(self) -> None:  # noqa: N802
+        if self.reject_banned_ip():
+            return
         path = self.path.split("?", 1)[0]
         if self.data_request_is_blocked(path):
             self.send_blocked_library()
@@ -3769,6 +3963,13 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 users = [item for item in users if needle in f"{item['userId']} {item['email']}".casefold()]
             self.send_json(HTTPStatus.OK, {"users": users, "total": len(users)})
             return
+        if path == "/api/admin/ip-bans":
+            if not self.is_admin_console_request():
+                return
+            with AUTH_LOCK, auth_database() as connection:
+                rows = connection.execute("SELECT ip, reason, banned_at, expires_at FROM ip_bans ORDER BY banned_at DESC").fetchall()
+            self.send_json(HTTPStatus.OK, {"bans": [dict(row) for row in rows]})
+            return
         if path == "/api/public-library/export-providers":
             self.send_json(HTTPStatus.OK, export_provider_payload())
             return
@@ -3817,6 +4018,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
+        if self.reject_banned_ip():
+            return
         path = self.path.split("?", 1)[0]
         if path == "/api/points/notice":
             if not self.server.auth_enabled or not self.request_is_same_origin():
@@ -3858,6 +4061,26 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, result)
             return
         if self.serve_maintenance_if_active(path):
+            return
+        if path == "/api/admin/account-ban":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_ban_account(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法封禁账号。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
+            return
+        if path == "/api/admin/ip-ban":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_ban_ip(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法封禁 IP。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
             return
         if path == "/api/admin/donations":
             if not self.is_admin_console_request():
@@ -4098,7 +4321,29 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         self.send_json(HTTPStatus.OK, {"action": action, "songs": songs})
 
     def do_DELETE(self) -> None:  # noqa: N802
+        if self.reject_banned_ip():
+            return
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/account-ban":
+            if not self.is_admin_console_request():
+                return
+            try:
+                admin_unban_account(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法解除账号封禁。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "unbanned"})
+            return
+        if path == "/api/admin/ip-ban":
+            if not self.is_admin_console_request():
+                return
+            try:
+                admin_unban_ip(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法解除 IP 封禁。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "unbanned"})
+            return
         if path == "/api/admin/library/song":
             if not self.is_admin_console_request():
                 return
@@ -4196,6 +4441,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         self.send_json(HTTPStatus.OK, updated)
 
     def do_PATCH(self) -> None:  # noqa: N802
+        if self.reject_banned_ip():
+            return
         path = self.path.split("?", 1)[0]
         if path == "/api/admin/library/song":
             if not self.is_admin_console_request():
