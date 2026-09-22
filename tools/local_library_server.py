@@ -165,10 +165,99 @@ HOT_RANKING_DATABASE = DATA_DIRECTORY / "hot-rankings.sqlite3"
 # while retaining the existing underscore support.
 USER_ID_PATTERN = re.compile(r"^[\w]{3,24}$", re.UNICODE)
 EMAIL_PATTERN = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
-LIBRARY_LOCK = threading.Lock()
-ANALYTICS_LOCK = threading.Lock()
-AUTH_LOCK = threading.Lock()
-HOT_RANKING_LOCK = threading.Lock()
+class LockOrderError(RuntimeError):
+    """Raised when a thread would take locks in a hang-prone order."""
+
+
+class TrackedLock:
+    """Lock that tracks its owner so lock-order mistakes fail fast.
+
+    A lock declared with ``outer=<other lock>`` must not be acquired while that
+    outer lock is already held by the same thread. That A-B/B-A inversion is
+    what silently freezes a threaded server (no traceback, just a process that
+    stops answering), so here it raises immediately instead.
+
+    ``AUTH_LOCK`` is the innermost lock of the server: it may be taken while
+    holding the library/analytics/ranking locks, but nothing may be taken while
+    holding it. It is also reentrant, so a helper that re-enters the account
+    store from inside an account-store section can never deadlock itself.
+    """
+
+    def __init__(self, name: str, outer: "TrackedLock | None" = None, reentrant: bool = False) -> None:
+        self.name = name
+        self._outer = outer
+        self._reentrant = reentrant
+        self._local = threading.local()
+        self._lock: Any = threading.RLock() if reentrant else threading.Lock()
+        self._state_lock = threading.Lock()
+        self._holders = 0
+
+    def depth(self) -> int:
+        """How many times the calling thread currently holds this lock."""
+        return int(getattr(self._local, "depth", 0))
+
+    def held_by_current_thread(self) -> bool:
+        return self.depth() > 0
+
+    def acquire(self, blocking: bool = True, timeout: float = -1) -> bool:
+        depth = self.depth()
+        if depth and not self._reentrant:
+            raise LockOrderError(f"{self.name} 被同一线程重复获取（该锁不可重入）。")
+        if self._outer is not None and self._outer.held_by_current_thread():
+            raise LockOrderError(
+                f"锁顺序错误：持有 {self._outer.name} 时不能再获取 {self.name}，会与反向顺序死锁。"
+            )
+        acquired = self._lock.acquire(blocking, timeout) if timeout >= 0 else self._lock.acquire(blocking)
+        if acquired:
+            self._local.depth = depth + 1
+            with self._state_lock:
+                self._holders += 1
+        return bool(acquired)
+
+    def release(self) -> None:
+        depth = self.depth()
+        if depth:
+            self._local.depth = depth - 1
+        with self._state_lock:
+            self._holders = max(0, self._holders - 1)
+        self._lock.release()
+
+    def __enter__(self) -> "TrackedLock":
+        self.acquire()
+        return self
+
+    def __exit__(self, *_exc: Any) -> bool:
+        self.release()
+        return False
+
+    def locked(self) -> bool:
+        # ``RLock.locked()`` only exists on Python 3.14+, so track holders
+        # ourselves instead of relying on the underlying object.
+        with self._state_lock:
+            return self._holders > 0
+
+
+# AUTH_LOCK must be defined first: it is the innermost lock in the ordering.
+AUTH_LOCK = TrackedLock("AUTH_LOCK", reentrant=True)
+LIBRARY_LOCK = TrackedLock("LIBRARY_LOCK", outer=AUTH_LOCK)
+ANALYTICS_LOCK = TrackedLock("ANALYTICS_LOCK", outer=AUTH_LOCK)
+HOT_RANKING_LOCK = TrackedLock("HOT_RANKING_LOCK", outer=AUTH_LOCK)
+
+
+def lock_held_by_current_thread(lock: Any) -> bool:
+    """Best-effort "does the calling thread already hold this lock?" check.
+
+    A plain ``threading.Lock`` cannot answer that, so callers that substitute a
+    simpler lock (tests, tooling) keep working: an uninspectable lock reports
+    False instead of raising.
+    """
+    checker = getattr(lock, "held_by_current_thread", None)
+    if not callable(checker):
+        return False
+    try:
+        return bool(checker())
+    except Exception:  # noqa: BLE001 - never let diagnostics break a write path
+        return False
 ANALYTICS_DIRECTORY = DATA_DIRECTORY / "analytics"
 DEFAULT_ANALYTICS_RETENTION_DAYS = 90
 ACTIVE_VISITOR_WINDOW_SECONDS = 300
@@ -1335,7 +1424,37 @@ def auth_database() -> sqlite3.Connection:
     return connection
 
 
+_AUTH_SCHEMA_READY = False
+_AUTH_SCHEMA_INIT_LOCK = threading.Lock()
+
+
+def reset_auth_schema_guard() -> None:
+    """Let tests run initialization again against a freshly created database."""
+    global _AUTH_SCHEMA_READY
+    _AUTH_SCHEMA_READY = False
+
+
 def initialize_auth_database() -> None:
+    """Create and migrate the account store exactly once per process.
+
+    Request handlers call this defensively before reading account data. It used
+    to repeat the whole migration (including the one-shot point grants) on every
+    one of those calls while holding AUTH_LOCK, which both wasted work on the
+    request path and made any future nesting of the account-store lock a silent
+    startup/request hang. The guard keeps the expensive work on the startup
+    path only, and the second check makes concurrent callers safe.
+    """
+    global _AUTH_SCHEMA_READY
+    if _AUTH_SCHEMA_READY:
+        return
+    with _AUTH_SCHEMA_INIT_LOCK:
+        if _AUTH_SCHEMA_READY:
+            return
+        _initialize_auth_database_locked()
+        _AUTH_SCHEMA_READY = True
+
+
+def _initialize_auth_database_locked() -> None:
     with AUTH_LOCK, auth_database() as connection:
         connection.executescript("""
             CREATE TABLE IF NOT EXISTS accounts (
