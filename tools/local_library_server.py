@@ -2499,8 +2499,15 @@ def admin_delete_score(payload: Any) -> list[dict[str, Any]]:
     with LIBRARY_LOCK:
         existing_path.unlink()
         with AUTH_LOCK, auth_database() as connection:
-            connection.execute("DELETE FROM score_owners WHERE remix_code = ?", (existing_score["remixCode"],))
-            connection.execute("DELETE FROM recommended_scores WHERE remix_code = ?", (existing_score["remixCode"],))
+            remix_code = existing_score["remixCode"]
+            connection.execute("DELETE FROM score_owners WHERE remix_code = ?", (remix_code,))
+            connection.execute("DELETE FROM recommended_scores WHERE remix_code = ?", (remix_code,))
+            # Remove all account-level metadata tied to the deleted score so it
+            # cannot remain apparently unlocked or count toward author rewards.
+            for table in ("score_unlocks", "author_unlocks"):
+                connection.execute(f"DELETE FROM {table} WHERE remix_code = ?", (remix_code,))
+        if existing_path.exists():
+            raise OSError(f"删除曲谱文件失败：{existing_path}")
         songs = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, songs)
         return songs
