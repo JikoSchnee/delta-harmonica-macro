@@ -1100,7 +1100,7 @@ const elements = {
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
-  previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"),
+  previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"), previewSource: document.querySelector("#previewSource"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), todayPageViewCount: document.querySelector("#todayPageViewCount"), registeredUserCount: document.querySelector("#registeredUserCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]"),], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperQqButton: document.querySelector("#recordingHelperQqButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportDeclaration: document.querySelector("#exportDeclaration"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
@@ -1239,6 +1239,11 @@ Object.assign(elements, {
 });
 
 let currentSequence = null;
+// 卡片试听载入播放器的曲目：与编辑器共用播放面板，但不改动 currentSequence。
+let playerSongSequence = null;
+let playerSongCode = "";
+let playerSongTitle = "";
+let pendingUnlockRequest = null;
 let pendingCommunityOverwrite = null;
 let audioContext = null;
 let masterGain = null;
@@ -2694,82 +2699,82 @@ function songUnlockState(song) {
   return "locked";
 }
 
-// ============ 卡片试听（独立于编辑器播放器） ============
-let activeCardPreview = null;
+// ============ 卡片试听（载入播放器，不改编辑器） ============
+// 试听不再自己播一份：把曲目载入播放器（MONITOR.EXE）播放，编辑器与导出内容保持不变。
 
-function refreshCardPreviewButtons() {
-  const activeCode = activeCardPreview?.remixCode || "";
-  document.querySelectorAll("[data-song-action='preview']").forEach((button) => {
-    const playing = Boolean(activeCode) && button.closest("[data-remix-code]")?.dataset.remixCode === activeCode;
-    button.textContent = playing ? "停止" : "试听";
-    button.classList.toggle("is-playing", playing);
-  });
-  const dialogButton = elements.scoreUnlockPreview;
-  if (dialogButton) {
-    const playing = Boolean(activeCode) && pendingUnlockRequest?.song?.remixCode === activeCode;
-    dialogButton.textContent = playing ? "停止试听" : "试听";
-    dialogButton.classList.toggle("is-playing", playing);
-  }
+// 播放器当前的谱子来源：有卡片载入的曲目就用它，否则用编辑器内容。
+function playerSourceSequence() {
+  return playerSongSequence || currentSequence;
 }
 
-function stopCardPreview() {
-  const preview = activeCardPreview;
-  if (!preview) return;
-  activeCardPreview = null;
-  if (preview.schedulerTimer) window.clearInterval(preview.schedulerTimer);
-  preview.nodes.forEach((node) => { try { node.stop(); } catch {} });
-  preview.nodes.clear();
+function playerSongPlaying() {
+  return Boolean(activePreview && playerSongSequence && activePreview.sequence === playerSongSequence);
+}
+
+function updatePlayerSourceHint() {
+  if (!elements.previewSource) return;
+  elements.previewSource.hidden = !playerSongSequence;
+  elements.previewSource.textContent = playerSongSequence
+    ? `正在试听《${playerSongTitle}》· 播放器试听，不改动编辑器与导出内容。`
+    : "";
+}
+
+function clearPlayerSong() {
+  if (!playerSongSequence && !playerSongCode) return;
+  playerSongSequence = null;
+  playerSongCode = "";
+  playerSongTitle = "";
+  updatePlayerSourceHint();
   refreshCardPreviewButtons();
 }
 
-async function toggleCardPreview(song) {
-  if (activeCardPreview?.remixCode === song.remixCode) { stopCardPreview(); return; }
-  stopCardPreview();
-  stopPreview();
-  const sourceText = song.jianpu ? String(song.sourceJianpu || song.jianpu || "") : String(song.score || "");
-  const sequence = song.jianpu ? parseJianpu(sourceText, song.bpm) : parseScore(sourceText, song.bpm);
-  if (sequence.error) { toast(`《${song.title}》的曲库数据无法试听。`); return; }
-  try {
-    const context = await wakeAudioEngine();
-    masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
-    let sampleBank = null;
-    try { sampleBank = await loadHarmonicaSampleBank(context); } catch { toast("口琴采样加载失败，已暂时使用电子音试听。 "); }
-    const preview = {
-      remixCode: song.remixCode, context, sampleBank, nodes: new Set(), schedulerTimer: null,
-      sequence, startAt: context.currentTime + 0.045, nextNoteIndex: 0
-    };
-    activeCardPreview = preview;
-    const scheduleWindow = () => {
-      if (activeCardPreview !== preview) return;
-      const positionMs = Math.max(0, (context.currentTime - preview.startAt) * 1000);
-      const windowEndMs = positionMs + PREVIEW_SCHEDULE_AHEAD_MS;
-      while (preview.nextNoteIndex < sequence.notes.length) {
-        const item = sequence.notes[preview.nextNoteIndex];
-        if (item.timeMs > windowEndMs) break;
-        preview.nextNoteIndex += 1;
-        if (item.isRest) continue;
-        const noteStart = preview.startAt + (item.timeMs + (item.inputLeadMs || 0)) / 1000;
-        const noteLength = Math.max(0.035, (item.pressMs - (item.inputLeadMs || 0)) / 1000);
-        const nodes = scheduleHarmonicaTone(context, Math.max(noteStart, context.currentTime), noteLength, macroMidi(item), sampleBank);
-        nodes.forEach((node) => {
-          preview.nodes.add(node);
-          node.addEventListener("ended", () => preview.nodes.delete(node), { once: true });
-        });
-      }
-      if (positionMs >= sequence.totalMs) stopCardPreview();
-    };
-    scheduleWindow();
-    preview.schedulerTimer = window.setInterval(scheduleWindow, PREVIEW_SCHEDULER_INTERVAL_MS);
-    refreshCardPreviewButtons();
-    trackScoreAnalytics("preview_started", { origin: songAnalyticsOrigin(song) }, analyticsScoreIdForSong(song), song);
-  } catch (error) {
-    stopCardPreview();
-    toast(error.message || "无法启动试听。 ");
+function refreshCardPreviewButtons() {
+  const playing = playerSongPlaying();
+  document.querySelectorAll("[data-song-action='preview']").forEach((button) => {
+    const same = Boolean(playerSongCode) && button.closest("[data-remix-code]")?.dataset.remixCode === playerSongCode;
+    button.textContent = same && playing ? "停止" : "试听";
+    button.classList.toggle("is-playing", same && playing);
+  });
+  const dialogButton = elements.scoreUnlockPreview;
+  if (dialogButton) {
+    const same = Boolean(playerSongCode) && pendingUnlockRequest?.song?.remixCode === playerSongCode;
+    dialogButton.textContent = same && playing ? "停止试听" : "试听";
+    dialogButton.classList.toggle("is-playing", same && playing);
   }
 }
 
+// 曲目卡片与推送卡片共用：把曲目载入播放器，只更新播放面板、时间线与进度。
+function songPreviewSequence(song) {
+  const sourceText = song.jianpu ? String(song.sourceJianpu || song.jianpu || "") : String(song.score || "");
+  const sequence = song.jianpu ? parseJianpu(sourceText, song.bpm) : parseScore(sourceText, song.bpm);
+  if (sequence.error) return null;
+  sequence.notes.forEach((item, index) => { item.index = index; });
+  return sequence;
+}
+
+async function loadSongIntoPlayer(song) {
+  const sequence = songPreviewSequence(song);
+  if (!sequence) { toast(`《${song.title}》的曲库数据无法试听。`); return false; }
+  playerSongSequence = sequence;
+  playerSongCode = song.remixCode || "";
+  playerSongTitle = song.title || "当前曲目";
+  stopPreview();
+  updateMonitor(sequence);
+  updatePlayerSourceHint();
+  refreshCardPreviewButtons();
+  document.querySelector("#playback")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  await playPreview(0, { analytics: false });
+  trackScoreAnalytics("preview_started", { origin: songAnalyticsOrigin(song) }, analyticsScoreIdForSong(song), song);
+  return true;
+}
+
+async function toggleSongPreview(song) {
+  const code = song.remixCode || "";
+  if (code && playerSongCode === code && playerSongPlaying()) { stopPreview(); return; }
+  await loadSongIntoPlayer(song);
+}
+
 // ============ 解锁确认弹窗 ============
-let pendingUnlockRequest = null;
 
 function openScoreUnlockDialog(song, { destination = "editor" } = {}) {
   pendingUnlockRequest = { song, destination };
@@ -2904,6 +2909,8 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const unlocked = authState.account?.points?.unlocked?.includes(song.remixCode);
   const owned = authState.account?.points?.owned?.includes(song.remixCode);
   const priceLabel = needsPoints ? (owned ? "我的谱子·免费" : unlocked ? "已解锁" : authState.account?.points?.unlimited ? "无限使用" : "首次 10 积分") : "";
+  // 正在播放器里试听这首曲目时，卡片按钮显示「停止」。
+  const previewPlaying = Boolean(playerSongCode) && playerSongCode === (song.remixCode || "") && playerSongPlaying();
   return `
     <article class="song-card" data-song-index="${index}" data-remix-code="${escapeHtml(song.remixCode || "")}" data-index="${String(index + 1).padStart(2, "0")}">
       <div class="song-card-main" data-song-action="card-export-copy-remix" role="button" tabindex="0" aria-label="导出《${escapeHtml(song.title)}》并复制改曲码链接">
@@ -2917,7 +2924,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <div class="song-card-actions" aria-label="曲目操作">
         <div class="song-card-actions-main">
           <button class="song-card-action" data-song-action="view" type="button">查看</button>
-          ${needsPoints ? '<button class="song-card-action preview" data-song-action="preview" type="button">试听</button>' : ""}
+          ${needsPoints ? `<button class="song-card-action preview${previewPlaying ? " is-playing" : ""}" data-song-action="preview" type="button">${previewPlaying ? "停止" : "试听"}</button>` : ""}
           ${libraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
           <button class="song-card-action export" data-song-action="export" type="button">导出</button>
           ${libraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
@@ -3204,6 +3211,7 @@ function parseMixedEditorSource(source, bpm, preferredMode) {
 
 function applyRepairedSequence(sequence, mode, { currentText = null } = {}) {
   sequence.notes.forEach((item, index) => { item.index = index; });
+  clearPlayerSong();
   currentSequence = sequence;
   syncSequenceToEditors(sequence, { except: mode });
   const editor = editorForMode(mode);
@@ -3284,7 +3292,7 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
     openScoreUnlockDialog(song, { destination });
     return;
   }
-  stopCardPreview();
+  clearPlayerSong();
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -3325,6 +3333,7 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
 
 function initializeBlankEditor() {
   stopPreview();
+  clearPlayerSong();
   finishRecording({ apply: false });
   lastMidiFile = null;
   resetMidiTrackPicker();
@@ -3479,7 +3488,7 @@ function setValidation(message, type = "") {
   elements.validation.className = `validation ${type}`;
 }
 
-function setPreviewProgress(positionMs = 0, sequence = currentSequence) {
+function setPreviewProgress(positionMs = 0, sequence = playerSourceSequence()) {
   const totalMs = sequence?.totalMs || 0;
   const safePosition = Math.max(0, Math.min(totalMs, Math.round(positionMs)));
   previewCursorMs = safePosition;
@@ -3490,7 +3499,7 @@ function setPreviewProgress(positionMs = 0, sequence = currentSequence) {
 }
 
 function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
-  const sequence = currentSequence;
+  const sequence = playerSourceSequence();
   if (!sequence) return;
   const index = timelineNoteIndexAt(sequence, positionMs);
   setTimelinePlaybackPosition(sequence, index, { scroll });
@@ -3530,6 +3539,7 @@ function updateMonitor(sequence) {
 
 function convert() {
   updateLineNumbers();
+  clearPlayerSong();
   const bpm = Number(elements.bpm.value);
   const sequence = inputMode === "jianpu"
     ? parseJianpu(elements.jianpuScore.value, bpm)
@@ -3679,6 +3689,7 @@ function handleBpmChange() {
     return;
   }
   sequence.notes.forEach((item, index) => { item.index = index; });
+  clearPlayerSong();
   currentSequence = sequence;
   syncSequenceToEditors(sequence);
   updateMonitor(sequence);
@@ -4091,6 +4102,7 @@ function setPreviewUi(state = "ready") {
   elements.stopButton.disabled = !isPlaying && !isPaused;
   elements.previewState.textContent = isPlaying ? "PLAYING" : isPaused ? "PAUSED" : "READY";
   elements.previewState.classList.toggle("live", isPlaying);
+  refreshCardPreviewButtons();
 }
 
 function clearPreviewTimers(preview) {
@@ -4226,9 +4238,9 @@ function togglePreview() {
   return resumePreview();
 }
 
-async function playPreview(positionMs = 0) {
+async function playPreview(positionMs = 0, { analytics = true } = {}) {
   if (recording) { toast("请先完成录制，再播放谱子。 "); return; }
-  const sequence = convert();
+  const sequence = playerSongSequence || convert();
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   const startPosition = Math.max(0, Math.min(sequence.totalMs, Number(positionMs) || 0));
   stopPreview({ resetProgress: false });
@@ -4253,7 +4265,7 @@ async function playPreview(positionMs = 0) {
     window.cancelAnimationFrame(previewProgressFrame);
     previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
     setPreviewUi("playing");
-    trackAnalytics("preview_started");
+    if (analytics) trackAnalytics("preview_started");
   } catch (error) {
     stopPreview({ resetProgress: false });
     setPreviewUi("ready");
@@ -6668,11 +6680,19 @@ elements.pointsTaskButton.addEventListener("click", async () => {
 elements.pointsTaskClose.addEventListener("click", () => elements.pointsTaskDialog.close());
 elements.scoreUnlockClose.addEventListener("click", () => elements.scoreUnlockDialog.close());
 elements.scoreUnlockDialog.addEventListener("close", () => {
-  stopCardPreview();
   pendingUnlockRequest = null;
+  refreshCardPreviewButtons();
 });
 elements.scoreUnlockPreview.addEventListener("click", () => {
-  if (pendingUnlockRequest?.song) void toggleCardPreview(pendingUnlockRequest.song);
+  const song = pendingUnlockRequest?.song;
+  if (!song) return;
+  // 解锁前的试听同样进播放器：关掉弹窗才能看到播放器，解锁入口仍在卡片上。
+  const code = song.remixCode || "";
+  if (code && playerSongCode === code && playerSongPlaying()) { stopPreview(); return; }
+  elements.scoreUnlockDialog.close();
+  void loadSongIntoPlayer(song).then((loaded) => {
+    if (loaded) toast("已在播放器中试听；需要载入编辑器时再点「查看」或「导出」。");
+  });
 });
 elements.scoreUnlockConfirm.addEventListener("click", () => { void confirmScoreUnlock(); });
 document.querySelectorAll("[data-points-task]").forEach((button) => button.addEventListener("click", () => {
@@ -6986,7 +7006,7 @@ function handleSongCardClick(event) {
     return;
   }
   if (actionButton?.dataset.songAction === "preview") {
-    void toggleCardPreview(song);
+    void toggleSongPreview(song);
     return;
   }
   if (actionButton?.dataset.songAction === "search-sponsor") {
