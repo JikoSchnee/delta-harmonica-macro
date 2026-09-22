@@ -1210,6 +1210,8 @@ Object.assign(elements, {
   pointsTaskClose: document.querySelector("#pointsTaskClose"),
   pointsTaskBalance: document.querySelector("#pointsTaskBalance"),
   pointsTaskRegistration: document.querySelector("#pointsTaskRegistration"),
+  pointsTaskDailyLogin: document.querySelector("#pointsTaskDailyLogin"),
+  pointsTaskDailyLoginStatus: document.querySelector("#pointsTaskDailyLoginStatus"),
   pointsTaskGithub: document.querySelector("#pointsTaskGithub"),
   pointsTaskUpload: document.querySelector("#pointsTaskUpload"),
   pointsTaskAuthor: document.querySelector("#pointsTaskAuthor"),
@@ -5437,6 +5439,8 @@ function renderPointsUi() {
   elements.pointsTaskButton.title = signedIn ? "查看积分任务" : "登录或注册领取 30 积分";
   elements.pointsTaskBalance.textContent = !signedIn ? "登录领 30" : points?.unlimited ? "∞" : `${points?.balance ?? 0} 积分`;
   elements.pointsTaskRegistration.textContent = signedIn ? "已领取注册奖励 +30" : "完成注册后领取 +30";
+  elements.pointsTaskDailyLogin.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取 +20" : "每天首次登录领取 +20";
+  elements.pointsTaskDailyLoginStatus.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取" : signedIn ? "登录奖励处理中" : "登录后自动领取";
   elements.pointsTaskGithub.textContent = points?.githubStarRewarded ? "已验证 Star，已领取 +100" : "验证项目 Star 后领取 +100";
   elements.pointsTaskUpload.textContent = points?.firstUploadRewarded ? "已领取首次投稿奖励 +50" : "成功发布一首谱子后领取 +50";
   elements.pointsTaskAuthor.textContent = signedIn

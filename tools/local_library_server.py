@@ -1827,6 +1827,23 @@ def award_points(connection: sqlite3.Connection, account_id: str, amount: int, r
     return cursor.rowcount == 1
 
 
+def award_daily_login_points(
+    connection: sqlite3.Connection,
+    account_id: str,
+    now: datetime | None = None,
+) -> bool:
+    """Grant the daily login reward once per UTC calendar day.
+
+    The ledger reference is the calendar date, so the existing unique key makes
+    concurrent or repeated logins idempotent without a separate mutable flag.
+    """
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    day = current.astimezone(timezone.utc).date().isoformat()
+    return award_points(connection, account_id, POINT_RULES["daily_login"], "daily_login", day)
+
+
 def ensure_initial_points(connection: sqlite3.Connection, account_id: str) -> None:
     award_points(connection, account_id, POINT_RULES["register"], "register", account_id)
     if connection.execute("SELECT 1 FROM score_owners WHERE account_id = ? LIMIT 1", (account_id,)).fetchone():
@@ -1851,6 +1868,7 @@ def points_payload(server: ThreadingHTTPServer, account_id: str) -> dict[str, An
         owned = [row[0] for row in connection.execute("SELECT remix_code FROM score_owners WHERE account_id = ?", (account_id,))]
         return {"balance": point_balance(connection, account_id), "unlimited": bool(donor), "inviteCode": invite_code,
                 "unlocked": unlocks, "owned": owned, "firstUploadRewarded": bool(uploads), "githubStarRewarded": bool(star),
+                "dailyLoginRewarded": daily_login_rewarded(connection, account_id),
                 "githubStarAvailable": bool(getattr(server, "github_oauth", None)),
                 "githubRepoUrl": "https://github.com/" + (server.github_oauth["repo"] if getattr(server, "github_oauth", None) else "JikoSchnee/delta-harmonica-macro"),
                 "authorUnlocks": author_count, "authorProgress": author_count % POINT_RULES["author_every"],
@@ -2902,6 +2920,10 @@ def authenticate_request(handler: "LocalLibraryRequestHandler") -> sqlite3.Row |
         if account and is_account_banned(connection, account["id"], now=now):
             connection.execute("DELETE FROM sessions WHERE account_id = ?", (account["id"],))
             return None
+        if account:
+            # Also rewards a returning user whose long-lived session is reused
+            # on a new day, not only users who submit the login form again.
+            award_daily_login_points(connection, account["id"])
         return account
 
 
@@ -2911,11 +2933,20 @@ def issue_session(server: ThreadingHTTPServer, account_id: str) -> str:
         if is_account_banned(connection, account_id):
             raise ValueError("该账号已被管理员封禁。")
         connection.execute("DELETE FROM sessions WHERE expires_at <= ?", (now_timestamp(),))
+        award_daily_login_points(connection, account_id)
         connection.execute(
             "INSERT INTO sessions(token_hash, account_id, expires_at) VALUES (?, ?, ?)",
             (auth_digest(server, token), account_id, now_timestamp() + AUTH_SESSION_TTL_SECONDS),
         )
     return token
+
+
+def daily_login_rewarded(connection: sqlite3.Connection, account_id: str) -> bool:
+    today = datetime.now(timezone.utc).date().isoformat()
+    return bool(connection.execute(
+        "SELECT 1 FROM point_ledger WHERE account_id = ? AND reason = 'daily_login' AND reference = ?",
+        (account_id, today),
+    ).fetchone())
 
 
 def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any, mode: Any = None, referral: Any = None) -> sqlite3.Row:
