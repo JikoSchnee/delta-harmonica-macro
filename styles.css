@@ -366,9 +366,13 @@ main {
 .github-verify-button:hover:not(:disabled) { color: #fff; background: #00a8a3; border-color: #9af7ef; border-bottom-color: #005552; }
 .github-verify-button:active:not(:disabled) { border-style: inset; box-shadow: none; transform: translate(2px, 2px); }
 .github-verify-button:disabled { cursor: default; color: #5d7774; background: #d2dfdd; border-color: #eaf1f0; border-bottom-color: #a7b8b5; box-shadow: none; }
+.hero-block.hero-contact { grid-template-columns: minmax(0, 1fr) max-content; gap: 14px 20px; align-items: center; }
 .hero-block .hero-contact-qr { width: 100%; margin: 0; }
+.hero-block.hero-contact .hero-contact-qr { flex: 0 0 140px; width: auto; }
 .hero-block .hero-contact-qr img { width: 100%; max-width: 150px; }
-.qq-group-qr-list { display: grid; gap: 10px; justify-items: center; width: 100%; }
+.hero-block.hero-contact .hero-contact-qr img { max-width: 140px; }
+/* 加群二维码横排：一行两个，靠右贴在群号右侧 */
+.qq-group-qr-list { display: flex; align-items: flex-start; flex-wrap: nowrap; justify-content: flex-end; gap: 14px; }
 .qq-group-qr-list--upload { display: flex; align-items: flex-start; flex-wrap: wrap; justify-content: flex-start; gap: 14px; margin-top: 10px; }
 .qq-group-qr-list--upload .upload-qr { flex: 0 1 150px; }
 .hero-block .hero-star-demo { display: grid; justify-items: center; gap: 6px; width: 100%; margin: 0; }
@@ -1763,6 +1767,11 @@ dialog.toast[open] { display: block; }
   .safety-grid { grid-template-columns: 1fr; }
   .safety-heading { align-items: start; flex-direction: column; gap: 8px; }
   .safety-heading p { max-width: none; }
+}
+/* 窄屏放不下“群号 + 两张二维码”并排（左栏会被压到 220px 以下），改为上下堆叠，二维码仍靠右 */
+@media (max-width: 940px) {
+  .hero-block.hero-contact { grid-template-columns: minmax(0, 1fr); }
+  .hero-contact .qq-group-qr-list { flex-wrap: wrap; justify-content: flex-end; }
 }
 @media (max-width: 590px) {
   .page-layout { display: block; padding: 0; }
