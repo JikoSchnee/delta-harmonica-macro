@@ -1210,6 +1210,13 @@ Object.assign(elements, {
 
 Object.assign(elements, {
   pointsTaskButton: document.querySelector("#pointsTaskButton"),
+  scoreUnlockDialog: document.querySelector("#scoreUnlockDialog"),
+  scoreUnlockClose: document.querySelector("#scoreUnlockClose"),
+  scoreUnlockTitle: document.querySelector("#scoreUnlockTitle"),
+  scoreUnlockCopy: document.querySelector("#scoreUnlockCopy"),
+  scoreUnlockPreview: document.querySelector("#scoreUnlockPreview"),
+  scoreUnlockConfirm: document.querySelector("#scoreUnlockConfirm"),
+  scoreUnlockStatus: document.querySelector("#scoreUnlockStatus"),
   pointsTaskButtonLabel: document.querySelector("#pointsTaskButtonLabel"),
   pointsLedgerPanel: document.querySelector("#pointsLedgerPanel"),
   pointsLedgerList: document.querySelector("#pointsLedgerList"),
@@ -2674,6 +2681,144 @@ function remixCodeSong(code) {
   return [...SONG_LIBRARY, ...mySongLibrary].find((song) => song.remixCode === code) || null;
 }
 
+// 未解锁的公共曲谱只能试听：不进编辑器、不给导出。载入前统一走这里判定。
+function songUnlockState(song) {
+  if (songAnalyticsOrigin(song) !== "community" || !song?.remixCode) return "free";
+  if (!authState.available) return "free";
+  // 服务器状态未确认（网络异常）时不拦；正常匿名会得到 401 并把 statusKnown 置真。
+  if (!authState.account && !authState.statusKnown) return "free";
+  const points = authState.account?.points;
+  if (!authState.account) return "locked";
+  if (points?.unlimited) return "free";
+  if (points?.owned?.includes(song.remixCode) || points?.unlocked?.includes(song.remixCode)) return "free";
+  return "locked";
+}
+
+// ============ 卡片试听（独立于编辑器播放器） ============
+let activeCardPreview = null;
+
+function refreshCardPreviewButtons() {
+  const activeCode = activeCardPreview?.remixCode || "";
+  document.querySelectorAll("[data-song-action='preview']").forEach((button) => {
+    const playing = Boolean(activeCode) && button.closest("[data-remix-code]")?.dataset.remixCode === activeCode;
+    button.textContent = playing ? "停止" : "试听";
+    button.classList.toggle("is-playing", playing);
+  });
+  const dialogButton = elements.scoreUnlockPreview;
+  if (dialogButton) {
+    const playing = Boolean(activeCode) && pendingUnlockRequest?.song?.remixCode === activeCode;
+    dialogButton.textContent = playing ? "停止试听" : "试听";
+    dialogButton.classList.toggle("is-playing", playing);
+  }
+}
+
+function stopCardPreview() {
+  const preview = activeCardPreview;
+  if (!preview) return;
+  activeCardPreview = null;
+  if (preview.schedulerTimer) window.clearInterval(preview.schedulerTimer);
+  preview.nodes.forEach((node) => { try { node.stop(); } catch {} });
+  preview.nodes.clear();
+  refreshCardPreviewButtons();
+}
+
+async function toggleCardPreview(song) {
+  if (activeCardPreview?.remixCode === song.remixCode) { stopCardPreview(); return; }
+  stopCardPreview();
+  stopPreview();
+  const sourceText = song.jianpu ? String(song.sourceJianpu || song.jianpu || "") : String(song.score || "");
+  const sequence = song.jianpu ? parseJianpu(sourceText, song.bpm) : parseScore(sourceText, song.bpm);
+  if (sequence.error) { toast(`《${song.title}》的曲库数据无法试听。`); return; }
+  try {
+    const context = await wakeAudioEngine();
+    masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
+    let sampleBank = null;
+    try { sampleBank = await loadHarmonicaSampleBank(context); } catch { toast("口琴采样加载失败，已暂时使用电子音试听。 "); }
+    const preview = {
+      remixCode: song.remixCode, context, sampleBank, nodes: new Set(), schedulerTimer: null,
+      sequence, startAt: context.currentTime + 0.045, nextNoteIndex: 0
+    };
+    activeCardPreview = preview;
+    const scheduleWindow = () => {
+      if (activeCardPreview !== preview) return;
+      const positionMs = Math.max(0, (context.currentTime - preview.startAt) * 1000);
+      const windowEndMs = positionMs + PREVIEW_SCHEDULE_AHEAD_MS;
+      while (preview.nextNoteIndex < sequence.notes.length) {
+        const item = sequence.notes[preview.nextNoteIndex];
+        if (item.timeMs > windowEndMs) break;
+        preview.nextNoteIndex += 1;
+        if (item.isRest) continue;
+        const noteStart = preview.startAt + (item.timeMs + (item.inputLeadMs || 0)) / 1000;
+        const noteLength = Math.max(0.035, (item.pressMs - (item.inputLeadMs || 0)) / 1000);
+        const nodes = scheduleHarmonicaTone(context, Math.max(noteStart, context.currentTime), noteLength, macroMidi(item), sampleBank);
+        nodes.forEach((node) => {
+          preview.nodes.add(node);
+          node.addEventListener("ended", () => preview.nodes.delete(node), { once: true });
+        });
+      }
+      if (positionMs >= sequence.totalMs) stopCardPreview();
+    };
+    scheduleWindow();
+    preview.schedulerTimer = window.setInterval(scheduleWindow, PREVIEW_SCHEDULER_INTERVAL_MS);
+    refreshCardPreviewButtons();
+    trackScoreAnalytics("preview_started", { origin: songAnalyticsOrigin(song) }, analyticsScoreIdForSong(song), song);
+  } catch (error) {
+    stopCardPreview();
+    toast(error.message || "无法启动试听。 ");
+  }
+}
+
+// ============ 解锁确认弹窗 ============
+let pendingUnlockRequest = null;
+
+function openScoreUnlockDialog(song, { destination = "editor" } = {}) {
+  pendingUnlockRequest = { song, destination };
+  const points = authState.account?.points;
+  const cost = points?.rules?.unlock ?? 10;
+  const balance = points?.unlimited ? "∞" : `${points?.balance ?? 0}`;
+  elements.scoreUnlockTitle.textContent = `解锁《${song.title}》`;
+  elements.scoreUnlockCopy.textContent = authState.account
+    ? `这是社区曲谱，首次解锁消耗 ${cost} 积分（当前余额 ${balance}）。解锁后可永久载入编辑器与导出宏；解锁前可以先试听整曲。`
+    : "这是社区曲谱，需要登录后用积分解锁才能载入编辑器（新账号自动获得 30 积分）。解锁前可以先试听整曲。";
+  elements.scoreUnlockConfirm.querySelector("span").textContent = authState.account ? `解锁并载入 · ${cost} 积分` : "登录 / 注册";
+  setAuthStatus(elements.scoreUnlockStatus);
+  refreshCardPreviewButtons();
+  if (!elements.scoreUnlockDialog.open) elements.scoreUnlockDialog.showModal();
+}
+
+async function confirmScoreUnlock() {
+  const request = pendingUnlockRequest;
+  if (!request) return;
+  if (!authState.account) {
+    elements.scoreUnlockDialog.close();
+    showAuthDialog();
+    return;
+  }
+  elements.scoreUnlockConfirm.disabled = true;
+  setAuthStatus(elements.scoreUnlockStatus, "正在解锁…", true);
+  try {
+    const result = await authRequest("./api/points/unlock", { method: "POST", body: { remixCode: request.song.remixCode } });
+    authState.account.points = result;
+    renderPointsUi();
+    elements.scoreUnlockDialog.close();
+    renderSongLibrary(elements.songSearch.value);
+    renderRecommendationBoard();
+    if (result.charged) toast(`已解锁《${request.song.title}》，消耗 ${result.rules?.unlock ?? 10} 积分。`);
+    loadSong(request.song, { destination: request.destination });
+  } catch (error) {
+    setAuthStatus(elements.scoreUnlockStatus, error.message || "解锁失败，请稍后重试。");
+    if (error.status === 402) {
+      trackAnalytics("points_insufficient");
+      elements.scoreUnlockDialog.close();
+      await refreshPointsUi();
+      setAuthStatus(elements.pointsTaskStatus, "积分不足：完成下方任务即可获得积分。");
+      if (!elements.pointsTaskDialog.open) elements.pointsTaskDialog.showModal();
+    }
+  } finally {
+    elements.scoreUnlockConfirm.disabled = false;
+  }
+}
+
 function remixCodeLink(code) {
   const url = new URL(window.location.href);
   url.search = "";
@@ -2772,6 +2917,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <div class="song-card-actions" aria-label="曲目操作">
         <div class="song-card-actions-main">
           <button class="song-card-action" data-song-action="view" type="button">查看</button>
+          ${needsPoints ? '<button class="song-card-action preview" data-song-action="preview" type="button">试听</button>' : ""}
           ${libraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
           <button class="song-card-action export" data-song-action="export" type="button">导出</button>
           ${libraryView === "mine" ? '<button class="song-card-action delete" data-song-action="delete" type="button">删除</button>' : ""}
@@ -3133,6 +3279,12 @@ function syncSequenceToEditors(sequence, { except = null, sourceMode = null, sou
 }
 
 function loadSong(song, { destination = "editor", scroll = true, focusEditor = true, analytics = true, editMode = false } = {}) {
+  // 门禁：未解锁的社区曲谱不进编辑器，改为弹解锁确认（可先试听）。
+  if (!editMode && songUnlockState(song) === "locked") {
+    openScoreUnlockDialog(song, { destination });
+    return;
+  }
+  stopCardPreview();
   stopPreview();
   finishRecording({ apply: false });
   lastMidiFile = null;
@@ -6514,6 +6666,15 @@ elements.pointsTaskButton.addEventListener("click", async () => {
   if (!elements.pointsTaskDialog.open) elements.pointsTaskDialog.showModal();
 });
 elements.pointsTaskClose.addEventListener("click", () => elements.pointsTaskDialog.close());
+elements.scoreUnlockClose.addEventListener("click", () => elements.scoreUnlockDialog.close());
+elements.scoreUnlockDialog.addEventListener("close", () => {
+  stopCardPreview();
+  pendingUnlockRequest = null;
+});
+elements.scoreUnlockPreview.addEventListener("click", () => {
+  if (pendingUnlockRequest?.song) void toggleCardPreview(pendingUnlockRequest.song);
+});
+elements.scoreUnlockConfirm.addEventListener("click", () => { void confirmScoreUnlock(); });
 document.querySelectorAll("[data-points-task]").forEach((button) => button.addEventListener("click", () => {
   const task = button.dataset.pointsTask;
   if (task === "register") {
@@ -6822,6 +6983,10 @@ function handleSongCardClick(event) {
   }
   if (actionButton?.dataset.songAction === "search-sharer") {
     openLibrarySearch(song.sharedBy);
+    return;
+  }
+  if (actionButton?.dataset.songAction === "preview") {
+    void toggleCardPreview(song);
     return;
   }
   if (actionButton?.dataset.songAction === "search-sponsor") {

@@ -1327,6 +1327,8 @@ main {
 .song-card-actions { position: absolute; z-index: 2; top: 10px; right: 10px; display: block; max-width: calc(100% - 20px); }
 .song-card-actions-main { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 5px; }
 .song-card-action { padding: 5px 7px; color: var(--teal-dark); background: var(--surface); border: 2px outset var(--surface); font: 700 9px/1 var(--mono); }
+.song-card-action.preview { color: #4a3000; background: #efe3c0; border-color: #fff3d6; border-bottom-color: #b08c3f; }
+.song-card-action.preview.is-playing { color: var(--white); background: #a5622d; border-color: #d99a63; border-bottom-color: #6d3a12; }
 .song-card-action.export { color: var(--white); background: var(--teal-dark); border-color: #4d8884; }
 .song-card-action.edit { color: var(--white); background: #38677a; border-color: #7cb5c4; border-bottom-color: #1d4658; }
 .song-card-action.recommendation-action { color: #4a3000; background: #f2c86b; border-color: #ffe8a8; border-bottom-color: #a76b00; }

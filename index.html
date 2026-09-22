@@ -1172,6 +1172,21 @@
         </div>
       </div>
     </dialog>
+    <dialog class="auth-dialog score-unlock-dialog" id="scoreUnlockDialog" aria-labelledby="scoreUnlockTitle" aria-describedby="scoreUnlockCopy">
+      <div class="auth-form">
+        <div class="window-titlebar"><span>UNLOCK.EXE — COMMUNITY SCORE</span><button class="dialog-close" id="scoreUnlockClose" type="button" aria-label="关闭解锁窗口">×</button></div>
+        <div class="auth-dialog-body">
+          <span class="index">积分解锁</span>
+          <h2 id="scoreUnlockTitle">解锁曲谱</h2>
+          <p id="scoreUnlockCopy">这是社区曲谱，需要用积分解锁后才能载入编辑器。</p>
+          <div class="dialog-actions">
+            <button class="text-button" id="scoreUnlockPreview" type="button">试听</button>
+            <button class="primary-button" id="scoreUnlockConfirm" type="button"><span>解锁并载入</span><b>✓</b></button>
+          </div>
+          <p class="auth-status" id="scoreUnlockStatus" role="status" aria-live="polite" hidden></p>
+        </div>
+      </div>
+    </dialog>
     <dialog class="auth-dialog points-notice-dialog" id="pointsNoticeDialog" aria-labelledby="pointsNoticeTitle" aria-describedby="pointsNoticeIntro">
       <div class="auth-form">
         <div class="window-titlebar"><span>COMMUNITY.EXE — 积分规则更新</span></div>
