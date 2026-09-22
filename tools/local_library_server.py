@@ -96,6 +96,13 @@ AUTH_CODE_IP_LIMIT = 12
 AUTH_CODE_RATE_WINDOW_SECONDS = 60 * 60
 AUTH_SESSION_TTL_SECONDS = 30 * 24 * 60 * 60
 AUTH_DATABASE_TIMEOUT_SECONDS = 3
+# Persist at most one "account × IP" observation per window. The write runs on
+# every authenticated request, while the admin console only needs "which IPs did
+# this account recently use" — not a per-request access log.
+ACCOUNT_IP_WRITE_INTERVAL_SECONDS = 5 * 60
+# Keep IP observations for 90 days and prune expired rows at most once an hour.
+ACCOUNT_IP_RETENTION_SECONDS = 90 * 24 * 60 * 60
+ACCOUNT_IP_PRUNE_INTERVAL_SECONDS = 60 * 60
 AUTH_MAIL_QUEUE_MAXSIZE = 64
 AUTH_MAIL_WORKERS = 2
 AUTH_SMTP_TIMEOUT_SECONDS = 15
@@ -1521,6 +1528,50 @@ def clear_ip_ban(connection: sqlite3.Connection, ip: str) -> None:
     connection.execute("DELETE FROM ip_bans WHERE ip = ?", (normalized,))
 
 
+# Throttle for record_account_ip: callers already hold AUTH_LOCK, so this cache
+# needs no lock of its own. It only exists to keep the authenticated request
+# path from doing one SQLite write per request per client.
+_ACCOUNT_IP_WRITE_CACHE: dict[tuple[str, str], int] = {}
+_ACCOUNT_IP_LAST_PRUNE = 0
+
+
+def record_account_ip(connection: sqlite3.Connection, account_id: str, ip: str, *, now: int | None = None) -> bool:
+    """Remember which client IP an account used, at most once per write window.
+
+    Returns True when the observation was persisted, False when it was skipped
+    (invalid address, or the same account/IP pair was written recently).
+    """
+    global _ACCOUNT_IP_LAST_PRUNE
+    try:
+        normalized = str(ipaddress.ip_address(str(ip).strip()))
+    except ValueError:
+        return False
+    current = _ban_now(now)
+    key = (str(account_id), normalized)
+    previous = _ACCOUNT_IP_WRITE_CACHE.get(key)
+    if previous is not None and current - previous < ACCOUNT_IP_WRITE_INTERVAL_SECONDS:
+        return False
+    _ACCOUNT_IP_WRITE_CACHE[key] = current
+    connection.execute(
+        "INSERT INTO account_ips(account_id, ip, first_seen_at, last_seen_at, hits) VALUES (?, ?, ?, ?, 1) "
+        "ON CONFLICT(account_id, ip) DO UPDATE SET last_seen_at=excluded.last_seen_at, hits=account_ips.hits + 1",
+        (key[0], normalized, current, current),
+    )
+    if current - _ACCOUNT_IP_LAST_PRUNE >= ACCOUNT_IP_PRUNE_INTERVAL_SECONDS:
+        _ACCOUNT_IP_LAST_PRUNE = current
+        connection.execute("DELETE FROM account_ips WHERE last_seen_at < ?", (current - ACCOUNT_IP_RETENTION_SECONDS,))
+        for stale_key in [item for item, stamp in _ACCOUNT_IP_WRITE_CACHE.items() if current - stamp >= ACCOUNT_IP_WRITE_INTERVAL_SECONDS]:
+            _ACCOUNT_IP_WRITE_CACHE.pop(stale_key, None)
+    return True
+
+
+def reset_account_ip_throttle() -> None:
+    """Drop the in-memory write throttle (tests and long-lived reloads)."""
+    global _ACCOUNT_IP_LAST_PRUNE
+    _ACCOUNT_IP_WRITE_CACHE.clear()
+    _ACCOUNT_IP_LAST_PRUNE = 0
+
+
 _AUTH_SCHEMA_READY = False
 _AUTH_SCHEMA_INIT_LOCK = threading.Lock()
 
@@ -1575,6 +1626,15 @@ def _initialize_auth_database_locked() -> None:
             );
             CREATE INDEX IF NOT EXISTS account_bans_expiry ON account_bans(expires_at);
             CREATE INDEX IF NOT EXISTS ip_bans_expiry ON ip_bans(expires_at);
+            CREATE TABLE IF NOT EXISTS account_ips (
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                ip TEXT NOT NULL,
+                first_seen_at INTEGER NOT NULL,
+                last_seen_at INTEGER NOT NULL,
+                hits INTEGER NOT NULL DEFAULT 0,
+                PRIMARY KEY(account_id, ip)
+            );
+            CREATE INDEX IF NOT EXISTS account_ips_last_seen ON account_ips(last_seen_at DESC);
             CREATE TABLE IF NOT EXISTS user_id_history (
                 user_id TEXT PRIMARY KEY COLLATE NOCASE,
                 account_id TEXT NOT NULL REFERENCES accounts(id),
@@ -1761,6 +1821,10 @@ def now_timestamp() -> int:
 
 def now_iso_timestamp() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+
+def iso_timestamp(value: int | float) -> str:
+    return datetime.fromtimestamp(value, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def normalize_email(value: Any) -> str:
@@ -2282,9 +2346,16 @@ def admin_unban_ip(payload: Any) -> None:
         clear_ip_ban(connection, str(payload["ip"]).strip())
 
 
-def admin_user_catalog() -> list[dict[str, Any]]:
-    """Return privacy-safe account rows and lightweight activity counts."""
+def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
+    """Return privacy-safe account rows and lightweight activity counts.
+
+    The default view keeps emails masked and never includes IP history. Only
+    ``advanced`` (the console's "高级模式" toggle) adds ``emailFull`` and the
+    observed ``ips`` list, so a plain read of this catalog cannot leak personal
+    data by accident.
+    """
     now = now_timestamp()
+    catalog: list[dict[str, Any]] = []
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
             "SELECT accounts.id, accounts.email, accounts.user_id, accounts.created_at, accounts.updated_at, "
@@ -2301,22 +2372,45 @@ def admin_user_catalog() -> list[dict[str, Any]]:
         bans = {row["account_id"]: dict(row) for row in connection.execute(
             "SELECT account_id, reason, banned_at, expires_at FROM account_bans"
         ).fetchall()}
-    return [{
-        "id": row["id"],
-        "userId": row["user_id"],
-        "email": mask_email(str(row["email"])),
-        "role": "管理员" if is_admin_account(row) else "用户",
-        "donationCents": int(row["donation_cents"] or 0),
-        "uploads": row["uploads"],
-        "active": bool(row["active_sessions"]),
-        "ban": {
-            "banned": bool(bans.get(row["id"]) and (bans[row["id"]]["expires_at"] is None or int(bans[row["id"]]["expires_at"]) > now)),
-            "reason": str(bans.get(row["id"], {}).get("reason", "")),
-            "expiresAt": bans.get(row["id"], {}).get("expires_at"),
-        },
-        "registeredAt": datetime.fromtimestamp(row["created_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "updatedAt": datetime.fromtimestamp(row["updated_at"], timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-    } for row in rows]
+        observed_ips: dict[str, list[dict[str, Any]]] = {}
+        if advanced:
+            banned_ips = {row["ip"] for row in connection.execute(
+                "SELECT ip FROM ip_bans WHERE expires_at IS NULL OR expires_at > ?", (now,)
+            ).fetchall()}
+            for row in connection.execute(
+                "SELECT account_id, ip, first_seen_at, last_seen_at, hits FROM account_ips "
+                "ORDER BY last_seen_at DESC, ip ASC"
+            ).fetchall():
+                observed_ips.setdefault(row["account_id"], []).append({
+                    "ip": row["ip"],
+                    "firstSeenAt": iso_timestamp(row["first_seen_at"]),
+                    "lastSeenAt": iso_timestamp(row["last_seen_at"]),
+                    "hits": int(row["hits"]),
+                    "banned": row["ip"] in banned_ips,
+                })
+        for row in rows:
+            current_ban = bans.get(row["id"])
+            entry = {
+                "id": row["id"],
+                "userId": row["user_id"],
+                "email": mask_email(str(row["email"])),
+                "role": "管理员" if is_admin_account(row) else "用户",
+                "donationCents": int(row["donation_cents"] or 0),
+                "uploads": row["uploads"],
+                "active": bool(row["active_sessions"]),
+                "ban": {
+                    "banned": bool(current_ban and (current_ban["expires_at"] is None or int(current_ban["expires_at"]) > now)),
+                    "reason": str(current_ban["reason"]) if current_ban else "",
+                    "expiresAt": current_ban["expires_at"] if current_ban else None,
+                },
+                "registeredAt": iso_timestamp(row["created_at"]),
+                "updatedAt": iso_timestamp(row["updated_at"]),
+            }
+            if advanced:
+                entry["emailFull"] = str(row["email"])
+                entry["ips"] = observed_ips.get(row["id"], [])
+            catalog.append(entry)
+    return catalog
 
 
 def public_donor_list() -> list[dict[str, Any]]:
@@ -3246,6 +3340,9 @@ def authenticate_request(handler: "LocalLibraryRequestHandler") -> sqlite3.Row |
             # Also rewards a returning user whose long-lived session is reused
             # on a new day, not only users who submit the login form again.
             award_daily_login_points(connection, account["id"])
+            # The console needs to answer "which IPs does this account use", so
+            # the IP is persisted here (throttled) instead of only being checked.
+            record_account_ip(connection, account["id"], client_ip)
         return account
 
 
@@ -4413,10 +4510,23 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             query = parse_qs(urlparse(self.path).query)
             needle = query.get("q", [""])[0].strip().casefold()
-            users = admin_user_catalog()
+            # 高级模式必须显式请求：默认响应只有脱敏邮箱，不含完整邮箱与 IP 历史。
+            advanced = query.get("advanced", [""])[0].strip().lower() in {"1", "true", "yes", "on"}
+            users = admin_user_catalog(advanced=advanced)
             if needle:
-                users = [item for item in users if needle in f"{item['userId']} {item['email']}".casefold()]
-            self.send_json(HTTPStatus.OK, {"users": users, "total": len(users)})
+                users = [item for item in users if needle in " ".join([
+                    str(item["userId"]),
+                    str(item["email"]),
+                    str(item.get("emailFull", "")),
+                    *(str(entry["ip"]) for entry in item.get("ips", [])),
+                ]).casefold()]
+            if advanced:
+                print(
+                    f"[admin] 高级模式读取用户目录：{len(users)} 行含完整邮箱与 IP 历史，操作者 {request_client_ip(self)}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            self.send_json(HTTPStatus.OK, {"users": users, "total": len(users), "advanced": advanced})
             return
         if path == "/api/admin/ip-bans":
             if not self.is_admin_console_request():

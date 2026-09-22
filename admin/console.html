@@ -64,6 +64,15 @@
       .searchbar input, .login input { width: 100%; min-height: 42px; padding: 0 12px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
       .searchbar input:focus, .login input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
       .searchbar .button { flex: 0 0 auto; }
+      .heading-actions { display: flex; align-items: center; gap: 9px; }
+      .heading-actions .button { min-height: 30px; padding: 0 10px; font-size: 12px; }
+      .advanced-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 14px; padding: 10px 12px; color: var(--amber); border: 1px solid rgba(255,202,95,.45); background: rgba(255,202,95,.07); font: 11px "JetBrains Mono", monospace; }
+      .ip-list { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }
+      .ip-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+      .ip-address { color: var(--ink); font: 12px "JetBrains Mono", monospace; }
+      .ip-row .button { min-height: 24px; padding: 0 7px; font-size: 11px; }
+      .ip-meta { color: var(--dim); font-size: 10px; }
+      .advanced-clear { margin-top: 7px; padding: 0; color: var(--aqua); border: 0; background: transparent; font: 11px "JetBrains Mono", monospace; cursor: pointer; text-decoration: underline; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 11px 7px; border-bottom: 1px solid rgba(122,168,151,.22); text-align: left; vertical-align: middle; }
       th { color: var(--dim); font: 10px "JetBrains Mono", monospace; letter-spacing: .06em; }
@@ -323,7 +332,7 @@
         </section>
 
         <section id="usersPage" data-view hidden>
-          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><span id="userCount" class="tag">—</span></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID 或脱敏邮箱…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><div class="heading-actions"><button id="advancedModeButton" class="button ghost" type="button" aria-pressed="false">高级模式</button><span id="advancedModeState" class="tag amber" hidden>高级模式</span><span id="userCount" class="tag">—</span></div></div><div id="advancedBar" class="advanced-bar" hidden>高级模式已开启：本页会显示账号完整邮箱与最近使用的 IP，并可直接封禁 IP。服务端会为每次高级读取写一条审计日志。<button id="advancedModeClear" class="advanced-clear" type="button">退出高级模式</button></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID、邮箱或 IP…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">NETWORK ACCESS CONTROL</div><h3>IP 封禁</h3></div><span id="ipBanCount" class="tag">—</span></div><div class="searchbar"><input id="ipBanAddress" type="text" inputmode="url" placeholder="IPv4 / IPv6 地址" /><input id="ipBanReason" type="text" maxlength="200" placeholder="封禁原因（可选）" /><button id="ipBanButton" class="button danger" type="button">封禁 IP</button></div><div id="ipBanTable"></div></section>
         </section>
         <section id="export-methodsPage" data-view hidden>
@@ -401,7 +410,7 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], users: [], sponsorUsers: [], ipBans: [], exportMethods: { brands: [], methods: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false };
+      const state = { token: "", overview: null, songs: [], users: [], sponsorUsers: [], ipBans: [], exportMethods: { brands: [], methods: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
@@ -466,10 +475,24 @@
         $("#libraryCount").textContent = `${number.format(state.songs.length)} 首曲目`;
         $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
       }
+      function userDirectoryQuery() { return `admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}${state.advanced ? "&advanced=1" : ""}`; }
+      function renderAdvancedMode() {
+        const on = Boolean(state.advanced);
+        $("#advancedModeState").hidden = !on;
+        $("#advancedBar").hidden = !on;
+        $("#advancedModeButton").textContent = on ? "高级模式已开启" : "高级模式";
+        $("#advancedModeButton").setAttribute("aria-pressed", on ? "true" : "false");
+      }
+      function userIpCell(user) {
+        const ips = user.ips || [];
+        if (!ips.length) return '<span class="tag muted">暂无记录</span>';
+        return `<div class="ip-list">${ips.map(entry => `<div class="ip-row"><span class="ip-address">${escapeHtml(entry.ip)}</span>${entry.banned ? '<span class="tag danger">已封禁</span>' : `<button class="button danger" type="button" data-ban-user-ip="${escapeHtml(entry.ip)}" data-ban-user-id="${escapeHtml(user.userId)}">封禁</button>`}<span class="ip-meta">最近 ${formatDate(entry.lastSeenAt)} · ${number.format(entry.hits)} 次</span></div>`).join("")}</div>`;
+      }
       function renderUsers() {
         if (!$("#userSearch").value.trim()) state.sponsorUsers = state.users.slice();
-        $("#userCount").textContent = `${number.format(state.users.length)} 位用户`;
-        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th><th>角色</th><th>上传</th><th>打赏</th><th>状态</th><th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td><td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button></td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+        const advanced = Boolean(state.advanced);
+        $("#userCount").textContent = `${number.format(state.users.length)} 位用户${advanced ? " · 高级" : ""}`;
+        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th>${advanced ? "<th>邮箱（完整）</th>" : ""}<th>角色</th><th>上传</th><th>打赏</th><th>状态</th>${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button></td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
       }
       async function loadIpBans() {
         try { const result = await api("admin/ip-bans"); const bans = result.bans || []; $("#ipBanCount").textContent = `${number.format(bans.length)} 个 IP`; $("#ipBanTable").innerHTML = bans.length ? `<table><thead><tr><th>IP</th><th>原因</th><th>到期</th><th>操作</th></tr></thead><tbody>${bans.map(ban => `<tr><td class="mono">${escapeHtml(ban.ip)}</td><td>${escapeHtml(ban.reason || "—")}</td><td class="mono">${ban.expires_at ? formatDate(new Date(Number(ban.expires_at) * 1000).toISOString()) : "永久"}</td><td><button class="button" type="button" data-unban-ip="${escapeHtml(ban.ip)}">解除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无 IP 封禁。</div>'; } catch (error) { setNotice(error.message); }
@@ -681,10 +704,10 @@
       }
       async function loadAll() {
         setNotice("正在同步…");
-        try { const [overview, library, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api(`admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}`), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderUsers(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
+        try { const [overview, library, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
       }
       async function loadLibrary() { try { const result = await api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`); state.songs = result.songs || []; renderLibrary(); } catch (error) { setNotice(error.message); } }
-      async function loadUsers() { try { const result = await api(`admin/users?q=${encodeURIComponent($("#userSearch").value)}`); state.users = result.users || []; renderUsers(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
+      async function loadUsers() { try { const result = await api(userDirectoryQuery()); state.users = result.users || []; renderUsers(); renderAdvancedMode(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
       const runtimeState = { timer: 0, busy: false, data: null };
       const runtimeTone = percent => { const value = Number(percent) || 0; return value >= 90 ? "bad" : value >= 75 ? "warn" : ""; };
       const runtimePercent = value => (value === null || value === undefined ? "—" : `${Number(value).toFixed(1)}%`);
@@ -795,7 +818,7 @@
       $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginNotice").textContent = "正在验证…"; try { await connect($("#token").value); if (!state.overview) $("#loginNotice").textContent = "无法连接控制台。"; } catch (error) { $("#loginNotice").textContent = error.message; } });
       document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => showPage(button.dataset.page)));
       document.querySelectorAll("[data-jump]").forEach(link => link.addEventListener("click", event => { event.preventDefault(); showPage(link.dataset.jump); }));
-      $("#refreshButton").addEventListener("click", () => { loadAll(); if (!$("#runtimePage").hidden) loadRuntime(); }); $("#logoutButton").addEventListener("click", () => { stopRuntimePolling(); state.token = ""; sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
+      $("#refreshButton").addEventListener("click", () => { loadAll(); if (!$("#runtimePage").hidden) loadRuntime(); }); $("#logoutButton").addEventListener("click", () => { stopRuntimePolling(); state.token = ""; state.advanced = false; sessionStorage.removeItem("delta-admin-token"); sessionStorage.removeItem("delta-admin-advanced"); renderAdvancedMode(); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
       $("#runtimeButton").addEventListener("click", () => showPage("runtime"));
       $("#runtimeRefreshButton").addEventListener("click", loadRuntime);
       $("#runtimePollButton").addEventListener("click", toggleRuntimePolling);
@@ -822,7 +845,28 @@
       });
       $("#adminSongSponsorSearch").addEventListener("input", renderAdminSponsorOptions);
       $("#adminSongSponsor").addEventListener("change", event => { event.target.dataset.touched = "true"; });
+      async function setAdvancedMode(on) {
+        state.advanced = Boolean(on);
+        if (state.advanced) sessionStorage.setItem("delta-admin-advanced", "1"); else sessionStorage.removeItem("delta-admin-advanced");
+        renderAdvancedMode();
+        await loadUsers();
+        setNotice(state.advanced ? "高级模式已开启：显示完整邮箱与最近使用的 IP。" : "已退出高级模式，邮箱恢复脱敏。");
+      }
+      $("#advancedModeButton").addEventListener("click", () => {
+        if (!state.advanced && !window.confirm("高级模式会显示账号完整邮箱与最近使用的 IP，并允许直接封禁 IP。服务端会记录审计日志。确定开启？")) return;
+        setAdvancedMode(!state.advanced).catch(error => setNotice(error.message));
+      });
+      $("#advancedModeClear").addEventListener("click", () => { setAdvancedMode(false).catch(error => setNotice(error.message)); });
       $("#userTable").addEventListener("click", async event => {
+        const ipButton = event.target.closest("[data-ban-user-ip]");
+        if (ipButton) {
+          const ip = ipButton.dataset.banUserIp;
+          const label = ipButton.dataset.banUserId || "";
+          const reason = window.prompt(`封禁 IP ${ip}${label ? `（用户 @${label}）` : ""}的原因（可选）：`, "违规使用");
+          if (reason === null) return;
+          try { await api("admin/ip-ban", { method: "POST", body: JSON.stringify({ ip, reason }) }); await loadUsers(); setNotice(`已封禁 IP：${ip}`); } catch (error) { setNotice(error.message); }
+          return;
+        }
         const banButton = event.target.closest("[data-ban-account]");
         if (banButton) {
           const user = state.users.find(item => item.id === banButton.dataset.banAccount);
@@ -859,6 +903,7 @@
       });
       $("#adminSongFile").addEventListener("change", () => { const file = $("#adminSongFile").files[0]; $("#adminSongFileHint").textContent = file ? "已选择：" + file.name + "（" + number.format(file.size) + " 字节）" : "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。"; });
       $("#adminSongDialog").addEventListener("close", () => { pendingAdminSong = null; $("#adminSongFile").value = ""; setAdminSongStatus(); $("#adminSongSave").disabled = false; });
+      renderAdvancedMode();
       const savedToken = sessionStorage.getItem("delta-admin-token"); if (savedToken) { $("#token").value = savedToken; connect(savedToken).catch(error => { $("#loginNotice").textContent = error.message; }); }
     </script>
     <script src="./admin.js"></script>
