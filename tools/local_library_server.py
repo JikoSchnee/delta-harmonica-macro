@@ -115,7 +115,7 @@ GITHUB_STAR_FLOW_BUDGET_SECONDS = 20
 # GitHub is both the Star-reward provider and a login/binding provider; the
 # binding lives in oauth_identities under this provider id.
 GITHUB_LOGIN_PROVIDER = "github"
-POINT_RULES = {"unlock": 10, "register": 30, "daily_login": 20, "github_star": 500, "first_upload": 50, "referral": 20, "author_every": 10, "author_reward": 10, "legacy_grant": 100}
+POINT_RULES = {"unlock": 10, "register": 30, "daily_login": 20, "github_star": 500, "first_upload": 50, "referral": 20, "author_reward": 1, "legacy_grant": 100}
 LEGACY_POINTS_NOTICE_KEY = "legacy-points-grant-v1"
 LEGACY_EXPORT_POINTS_NOTICE_KEY = "legacy-export-points-v1"
 POINTS_NOTICE_KEY = "points-v1"
@@ -1935,7 +1935,7 @@ def points_payload(server: ThreadingHTTPServer, account_id: str) -> dict[str, An
                 "legacyGrantRewarded": bool(connection.execute("SELECT 1 FROM point_ledger WHERE account_id = ? AND reason = 'legacy_grant' AND reference = ?", (account_id, LEGACY_POINTS_NOTICE_KEY)).fetchone()),
                 "githubStarAvailable": bool(getattr(server, "github_oauth", None)),
                 "githubRepoUrl": "https://github.com/" + (server.github_oauth["repo"] if getattr(server, "github_oauth", None) else "JikoSchnee/delta-harmonica-macro"),
-                "authorUnlocks": author_count, "authorProgress": author_count % POINT_RULES["author_every"],
+                "authorUnlocks": author_count,
                 "noticePending": not bool(notice),
                 "rules": POINT_RULES}
 
@@ -1975,11 +1975,16 @@ def unlock_public_score(server: ThreadingHTTPServer, account_id: str, remix_code
             if not donor:
                 award_points(connection, account_id, -POINT_RULES["unlock"], "unlock", code)
             if owner and owner[0] != account_id:
-                connection.execute("INSERT OR IGNORE INTO author_unlocks(owner_id, account_id, remix_code, created_at) VALUES (?, ?, ?, ?)",
-                                   (owner[0], account_id, code, now_timestamp()))
-                total = connection.execute("SELECT COUNT(*) FROM author_unlocks WHERE owner_id = ?", (owner[0],)).fetchone()[0]
-                if total % POINT_RULES["author_every"] == 0:
-                    award_points(connection, owner[0], POINT_RULES["author_reward"], "author", str(total))
+                # Authors are credited per valid unlock instead of in batches of
+                # ten, so the ledger shows every unlock as it happens. The ledger
+                # reference is the (unlocker, score) pair and the insert above is
+                # the dedup guard, so a replayed or concurrent request can never
+                # credit the same unlock twice.
+                inserted = connection.execute(
+                    "INSERT OR IGNORE INTO author_unlocks(owner_id, account_id, remix_code, created_at) VALUES (?, ?, ?, ?)",
+                    (owner[0], account_id, code, now_timestamp()))
+                if inserted.rowcount == 1:
+                    award_points(connection, owner[0], POINT_RULES["author_reward"], "author", f"{account_id}:{code}")
             referral = connection.execute("SELECT inviter_id FROM referrals WHERE invitee_id = ? AND rewarded_at IS NULL", (account_id,)).fetchone()
             if referral and not donor:
                 award_points(connection, referral[0], POINT_RULES["referral"], "referral", account_id)

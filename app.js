@@ -5620,7 +5620,8 @@ const POINT_REFERENCE_NOTES = {
   daily_login: (reference) => (reference ? `日期 ${reference}` : ""),
   github_star: (reference) => (reference ? `GitHub ID ${reference}` : ""),
   unlock: (reference) => (reference ? `曲谱 ${reference}` : ""),
-  author: (reference) => (reference ? `累计 ${reference} 次解锁` : ""),
+  // 作者收益的参考值是「解锁者账号 ID : 曲谱标识」，只展示曲谱，不暴露解锁者内部 ID。
+  author: (reference) => { const code = String(reference || "").split(":").pop(); return code ? `曲谱 ${code}` : ""; },
 };
 
 function renderPointsLedger(entries = []) {
@@ -5657,9 +5658,10 @@ function renderPointsUi() {
   elements.pointsTaskDailyLoginStatus.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取" : signedIn ? "登录奖励处理中" : "登录后自动领取";
   elements.pointsTaskGithub.textContent = points?.githubStarRewarded ? "已验证 Star，已领取 +500" : "验证项目 Star 后领取 +500";
   elements.pointsTaskUpload.textContent = points?.firstUploadRewarded ? "已领取首次投稿奖励 +50" : "成功发布一首谱子后领取 +50";
+  const authorReward = points?.rules?.author_reward ?? 1;
   elements.pointsTaskAuthor.textContent = signedIn
-    ? `已累计 ${points?.authorUnlocks || 0} 次有效解锁，当前 ${points?.authorProgress || 0} / 10`
-    : "每累计 10 次有效解锁 +10";
+    ? `已累计 ${points?.authorUnlocks || 0} 次有效解锁，每次 +${authorReward}`
+    : `每次有效解锁 +${authorReward}`;
 
   elements.inviteCodeDisplay.textContent = signedIn ? (inviteCode || "生成中…") : "登录后显示";
   elements.copyInviteCodeButton.disabled = false;
