@@ -2161,7 +2161,7 @@ def admin_update_score(payload: Any) -> list[dict[str, Any]]:
 
     The existing sharedBy value is deliberately taken from the stored package.
     It is never accepted from the request or replacement file, so an admin
-    cannot accidentally move a score's author/account binding.
+    cannot accidentally move a score author/account binding.
     """
     if not isinstance(payload, dict):
         raise ValueError("曲目编辑请求格式无效。")
@@ -2342,7 +2342,7 @@ MAX_DONATION_CENTS = 10_000_000
 
 
 def admin_set_donation(payload: Any) -> dict[str, Any]:
-    """Record (or clear) one supporter's donation total. Admin console only."""
+    """Record (or clear) one supporter donation total. Admin console only."""
     if not isinstance(payload, dict):
         raise ValueError("请求内容无效。")
     account_id = str(payload.get("accountId") or "").strip()
@@ -2458,7 +2458,7 @@ def public_user_effects(server: ThreadingHTTPServer) -> dict[str, str]:
 
 
 def set_account_effect(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str, Any], requested: Any) -> None:
-    """Persist one account's ID effect after checking its unlock state."""
+    """Persist one account ID effect after checking its unlock state."""
     effect = str(requested or "").strip()
     if effect not in USER_ID_EFFECTS:
         raise ValueError("未知的 ID 特效。")
@@ -3076,7 +3076,7 @@ class AuthMailDispatcher:
                 record["updated_at"] = time.monotonic()
 
     def status(self, ticket: str) -> dict[str, Any] | None:
-        """Report one ticket's delivery state from memory only; never touches SQLite."""
+        """Report one ticket delivery state from memory only; never touches SQLite."""
         now = time.monotonic()
         with self.ticket_lock:
             self._purge_tickets_locked(now)
@@ -3478,7 +3478,7 @@ def read_system_memory() -> dict[str, float] | None:
 
 
 def read_process_memory() -> float | None:
-    """Read this process' resident set size in MB from /proc/self/status."""
+    """Read this process resident set size in MB from /proc/self/status."""
     try:
         with open("/proc/self/status", encoding="utf-8") as handle:
             for line in handle:
