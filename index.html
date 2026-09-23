@@ -2,6 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
+    <script>document.write('<base href="' + new URL(/\/(?:export|create|points)\/?$/.test(location.pathname) ? '../' : './', location.href).pathname + '">');</script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
     <title>三角洲口琴演奏家｜MIDI 转简谱转宏 · 口琴自动演奏 | 三角洲口琴宏 · 三角洲口琴脚本 · MIDI · 简谱 · 曲库</title>
@@ -1019,7 +1020,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=4.0.1" />
+    <link rel="stylesheet" href="./styles.css?v=4.0.27" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -1037,10 +1038,19 @@
           <span>已注册 <b id="registeredUserCount">--</b></span>
         </div>
         <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改"><span class="version-button-label">WEB</span><strong>v4.0.0</strong></button>
-        <button class="points-task-button" id="pointsTaskButton" type="button" aria-haspopup="dialog" aria-controls="pointsTaskDialog" hidden><span class="points-task-button-mark" aria-hidden="true">✦</span><span id="pointsTaskButtonLabel">登录领 30 分</span></button>
+        <button class="points-task-button" id="pointsTaskButton" type="button" aria-label="打开积分页" hidden><span class="points-task-button-mark" aria-hidden="true">✦</span><span id="pointsTaskButtonLabel">登录领 30 分</span></button>
         <button class="account-button" id="accountButton" type="button" aria-haspopup="dialog" hidden><span class="account-indicator" aria-hidden="true"></span><span id="accountButtonLabel">登录 / 注册</span></button>
       </nav>
     </header>
+
+    <nav class="task-navigation" aria-label="选择使用方式">
+      <div class="task-navigation-group">
+        <a href="./" data-task-route="home">首页</a>
+        <a href="./export/" data-task-route="export">曲库</a>
+        <a href="./create/" data-task-route="create">自制</a>
+        <a href="./points/" data-task-route="points">积分</a>
+      </div>
+    </nav>
 
     <div class="page-layout">
       <aside class="section-sidebar" id="sectionSidebar" data-collapsed="false" aria-label="页面板块目录">
@@ -1077,6 +1087,10 @@
         <div class="eyebrow">DELTA FORCE · HARMONICA SEQUENCER</div>
         <h1>三角洲口琴宏生成器</h1>
         <p>三角洲口琴数字简谱与 MIDI 转宏工具，支持口琴自动演奏、在线试听，以及罗技、雷蛇、迈从、ROG、雷柏、狼蛛等鼠标宏和所有带录制功能的宏软件。</p>
+        <div class="hero-task-actions" aria-label="选择要完成的任务">
+          <a href="./export/" data-task-route="export"><strong>直接导出宏</strong><span>选现成曲谱，试听并下载</span></a>
+          <a href="./create/" data-task-route="create"><strong>制作曲谱</strong><span>手动打谱或导入 MIDI，再试听导出</span></a>
+        </div>
         <div class="hero-support" aria-label="支持的宏软件与录制方式">
             <span class="hero-support-label">SUPPORTS</span>
           <div class="hero-support-logos">
@@ -1334,18 +1348,14 @@
 
         <section class="directory-deck panel" id="directory" aria-labelledby="directoryTitle">
           <div class="window-titlebar"><span>DIRECTORY.EXE — START HERE</span><button class="panel-guide-button" data-guide="directory" type="button" aria-label="查看目录帮助" aria-haspopup="dialog">?</button></div>
-          <div class="directory-heading"><div><span class="index">03 · QUICK START</span><h2 id="directoryTitle">目录</h2></div><p>选择一种开始方式，谱子始终在本地处理。</p></div>
+          <div class="directory-heading"><div><span class="index">03 · QUICK START</span><h2 id="directoryTitle">开始使用</h2></div><p>选择要完成的任务，谱子始终在本地处理。</p></div>
           <div class="directory-actions" role="navigation" aria-label="快速开始">
             <div class="directory-action-card library">
-              <button class="directory-button" data-directory-action="library" type="button"><b>01</b><span><strong>曲库-使用制作好的谱子（推荐）</strong><small>打开内置与社区曲库</small></span></button>
+              <button class="directory-button" data-directory-action="library" type="button"><b>01</b><span><strong>直接导出宏</strong><small>选曲、试听、配置并下载</small></span></button>
               <button class="directory-tutorial-link" data-tour-start="library" type="button">教程</button><i aria-hidden="true">→</i>
             </div>
-            <div class="directory-action-card midi">
-              <button class="directory-button" data-directory-action="midi" type="button"><b>02</b><span><strong>MIDI导入-我要用MIDI文件制作谱子</strong><small>多音轨编排 / 单声部导出</small></span></button>
-              <button class="directory-tutorial-link" data-tour-start="midi" type="button">教程</button><i aria-hidden="true">→</i>
-            </div>
             <div class="directory-action-card manual">
-              <button class="directory-button" data-directory-action="manual" type="button"><b>03</b><span><strong>打谱器-我是打谱人</strong><small>从数字简谱开始</small></span></button>
+              <button class="directory-button" data-directory-action="manual" type="button"><b>02</b><span><strong>制作曲谱</strong><small>手动打谱或导入 MIDI</small></span></button>
               <button class="directory-tutorial-link" data-tour-start="manual" type="button">教程</button><i aria-hidden="true">→</i>
             </div>
           </div>
@@ -1701,18 +1711,18 @@
         </div>
 
         <aside class="monitor-panel panel" id="playback">
-          <div class="window-titlebar"><span>MONITOR.EXE — PLAYBACK STATUS</span><button class="panel-guide-button" data-guide="player" type="button" aria-label="查看播放器帮助" aria-haspopup="dialog">?</button></div>
+          <div class="player-resize-handle" id="playerResizeHandle" role="separator" tabindex="0" aria-label="调整播放器宽度" aria-orientation="vertical" aria-valuemin="300" aria-valuemax="520" aria-valuenow="360" title="拖动调整宽度；方向键微调"></div>
+          <div class="window-titlebar"><span>MONITOR.EXE — PLAYBACK STATUS</span><button class="player-close" id="playerClose" type="button" aria-label="收起播放器" aria-controls="playback" aria-expanded="true">×</button></div>
           <div class="panel-heading">
             <div><span class="index">09 · PLAYBACK STATUS</span><h2>播放器</h2></div>
           </div>
-          <p class="preview-source" id="previewSource" hidden></p>
           <div class="meter-grid">
             <div class="meter"><span>总时长</span><strong id="totalTime">--:--.---</strong></div>
             <div class="meter"><span>音符</span><strong id="noteCount">--</strong></div>
             <div class="meter"><span>输入事件</span><strong id="eventCount">--</strong></div>
           </div>
           <div class="preview-console">
-            <div class="preview-topline"><span>HARMONICA PREVIEW</span><span id="previewState">READY</span></div>
+            <div class="preview-topline"><span id="previewSongTitle">自定义曲目</span><span id="previewState">READY</span></div>
             <div class="preview-controls">
               <div class="preview-playback-actions">
                 <button class="preview-button" id="previewButton" type="button" aria-label="试听整段简谱"><b>▶</b><span class="button-label">试听整段</span></button>
@@ -1721,14 +1731,17 @@
               </div>
               <label class="volume-control" for="volume"><span>VOL</span><input id="volume" type="range" min="0" max="100" value="64" /></label>
             </div>
-            <div class="preview-progress"><input id="previewProgress" type="range" min="0" max="0" value="0" step="1" aria-label="播放进度" disabled /><span id="previewProgressLabel">00:00.000 / --:--.---</span></div>
+            <div class="preview-progress"><span id="previewProgressLabel">00:00.000 / --:--.---</span><input id="previewProgress" type="range" min="0" max="0" value="0" step="1" aria-label="播放进度" disabled /></div>
             <p>口琴音色试听：簧片泛音 + 气流噪声 · L −12 / M +1 / R +12 半音</p>
           </div>
-          <div class="timeline-heading"><span>EVENT TIMELINE</span><span id="beatMs">-- MS / BEAT</span></div>
-          <ol class="timeline" id="timeline" aria-live="polite">
-            <li class="empty-state">转换后将在这里显示每个音符的按键时刻。</li>
-          </ol>
+          <section class="timeline-details" id="timelineDetails" aria-label="事件时间线">
+            <div class="timeline-heading"><span>EVENT TIMELINE</span><span id="beatMs">-- MS / BEAT</span></div>
+            <ol class="timeline" id="timeline" aria-live="polite">
+              <li class="empty-state">转换后将在这里显示每个音符的按键时刻。</li>
+            </ol>
+          </section>
         </aside>
+        <button class="player-expand-tab" id="playerExpandTab" type="button" aria-label="展开播放器" aria-controls="playback" aria-expanded="false"><span aria-hidden="true">♫</span><strong>播放器</strong><small id="playerTabStatus">待播放</small></button>
       </section>
 
       <section class="exports" id="macro-export" aria-labelledby="exportTitle">
@@ -1920,6 +1933,59 @@
             </section>
           </div>
         </div>
+      </section>
+      <section class="points-page" id="pointsPage" aria-labelledby="pointsPageTitle">
+        <section class="points-media panel" aria-labelledby="pointsMediaTitle">
+          <div class="window-titlebar"><span>POINTS.TV — FEATURED MEDIA</span></div>
+          <div class="points-media-heading"><div><span class="index">01 · FEATURED</span><h1 id="pointsPageTitle">积分</h1><p id="pointsMediaTitle">测试中，合作请在q群联系作者</p></div><span class="points-media-signal">ON AIR</span></div>
+          <div class="points-media-empty" id="pointsMediaEmpty">暂无合作产品，管理员添加内容后将在这里展示。</div>
+          <div class="points-media-stage" id="pointsMediaStage" hidden>
+            <a class="points-media-featured" id="pointsMediaFeatured" href="#" target="_blank" rel="noopener noreferrer" aria-label="打开视频或直播">
+              <img id="pointsMediaImage" alt="" loading="lazy" />
+              <span class="points-media-fallback" id="pointsMediaFallback" hidden>LIVE / PRODUCT</span>
+              <span class="points-media-reward" id="pointsMediaReward" hidden></span>
+              <span class="points-media-overlay"><b id="pointsMediaKind"></b><strong id="pointsMediaName"></strong><small id="pointsMediaDescription"></small><span id="pointsMediaCta">了解详情 ↗</span></span>
+            </a>
+            <p class="points-media-copy" id="pointsMediaCopy" hidden></p>
+            <div class="points-media-controls"><button id="pointsMediaPrevious" type="button" aria-label="上一个产品">←</button><span id="pointsMediaPosition" aria-live="polite">01 / 01</span><button id="pointsMediaNext" type="button" aria-label="下一个产品">→</button></div>
+            <div class="points-media-thumbs" id="pointsMediaThumbs" aria-label="选择合作产品"></div>
+          </div>
+        </section>
+        <div class="points-overview-row">
+        <section class="points-summary panel" aria-labelledby="pointsTaskTitle">
+          <div class="window-titlebar"><span>POINTS.EXE — ACCOUNT STATUS</span></div>
+          <div class="points-summary-body">
+            <div class="points-task-heading"><div><span class="index">02 · SCORE POINTS</span><h2 id="pointsTaskTitle">积分与明细</h2></div><strong id="pointsTaskBalance">--</strong></div>
+            <p id="pointsTaskSummary">公共曲库中他人的曲谱首次导出消耗 10 积分；解锁后可永久重导。</p>
+            <a class="points-return-link" id="pointsReturnLink" href="./export/" hidden>返回曲库继续解锁 ↗</a>
+            <div class="points-ledger-panel" id="pointsLedgerPanel" hidden>
+              <div class="points-ledger-heading"><span class="index">POINT LEDGER</span><strong id="pointsLedgerHeading">积分明细</strong></div>
+              <div id="pointsLedgerList" class="points-ledger-list"><span class="points-ledger-empty">正在读取积分日志…</span></div>
+            </div>
+          </div>
+        </section>
+        <section class="donation-thanks panel points-donation-thanks" aria-labelledby="pointsDonationThanksTitle">
+          <div class="window-titlebar"><span>THANKS.EXE — SUPPORTERS</span></div>
+          <div class="donation-thanks-body">
+            <div class="donation-thanks-heading"><div><span class="index">SUPPORTERS</span><h2 id="pointsDonationThanksTitle">感谢打赏</h2></div><span class="donation-thanks-total" id="pointsDonationThanksTotal">等待数据</span></div>
+            <p class="donation-thanks-note">打赏信息由作者手动维护，24小时内录入。如果超过24小时或未提供账号信息请在群聊中联系作者。</p>
+            <div class="donation-thanks-list" id="pointsDonationThanksList"><div class="donation-stack" id="pointsDonationStack"><div class="donation-track" id="pointsDonationTrack" role="list" aria-live="polite"></div></div></div>
+          </div>
+        </section>
+        </div>
+        <section class="points-tasks" aria-labelledby="pointsTasksTitle">
+          <div class="points-tasks-heading"><span class="index">03 · EARN POINTS</span><h2 id="pointsTasksTitle">获取积分</h2><p>完成任务后，积分状态会随账号更新。</p></div>
+          <div class="points-task-list" id="pointsTaskList">
+            <section class="points-task-row panel points-task-row--github"><div class="window-titlebar"><span>01 / GITHUB STAR</span></div><div class="points-feature-content"><div class="points-task-copy"><b>GitHub Star</b><p>打开仓库页面，点亮标题右侧的 Star，完成账号验证后领取一次奖励。</p><span id="pointsTaskGithub">验证项目 Star 后领取 +500</span><div class="points-feature-actions"><a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库点亮 Star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg><span>打开仓库点亮 Star</span></a><button class="text-button" data-points-task="github" type="button">验证 Star ↗</button></div></div><div class="points-star-demo" id="pointsStarDemo"></div></div></section>
+            <section class="points-task-row panel points-task-row--support"><div class="window-titlebar"><span>02 / SUPPORT</span></div><div class="points-feature-content"><div class="points-task-copy"><b>打赏支持</b><p>打赏经确认后，账号可永久无限导出。请在赞赏留言中写上站点用户 ID 或邮箱，方便关联账号。</p><span>任意金额经确认后永久无限导出</span><p>打赏信息由作者手动维护，24 小时内录入。超过 24 小时或未提供账号信息时，请在群聊中联系作者。</p><button class="support-note-button" id="pointsSupportCopyButton" type="button" aria-label="复制赞赏备注格式"><span>复制赞赏备注</span><strong id="pointsSupportNotePreview">站点ID：@你的ID</strong></button></div><figure class="upload-qr hero-contact-qr hero-support-qr"><img src="./assets/赞赏码.JPG" alt="微信赞赏码，扫码请作者喝杯水" /><figcaption>使用微信扫一扫赞赏</figcaption></figure></div></section>
+            <section class="points-task-row panel points-task-row--registration"><div class="window-titlebar"><span>03 / REGISTRATION</span></div><div class="points-task-copy"><b>注册账号</b><p>创建账号后自动获得首次奖励。</p><span id="pointsTaskRegistration">完成注册后领取 +30</span></div><div class="points-task-action"><button class="text-button" data-points-task="register" type="button">登录 / 注册</button></div></section>
+            <section class="points-task-row panel points-task-row--daily"><div class="window-titlebar"><span>04 / DAILY LOGIN</span></div><div class="points-task-copy"><b>每日登录</b><p>每天首次登录自动发放，无需手动签到。</p><span id="pointsTaskDailyLogin">每天首次登录领取 +20</span></div><div class="points-task-action"><span class="points-task-static" id="pointsTaskDailyLoginStatus">登录后自动领取</span></div></section>
+            <section class="points-task-row panel points-task-row--invite"><div class="window-titlebar"><span>05 / INVITE FRIENDS</span></div><div class="points-task-copy"><b>邀请注册</b><p>好友注册并首次用积分解锁他人曲谱后到账。</p><span>每位好友完成首次解锁后 +20</span><code id="pointsInviteCode">登录后显示邀请码</code></div><div class="points-task-action"><button class="text-button" data-points-task="invite" type="button">复制邀请链接</button></div></section>
+            <section class="points-task-row panel points-task-row--upload"><div class="window-titlebar"><span>06 / FIRST UPLOAD</span></div><div class="points-task-copy"><b>首次投稿</b><p>完成曲谱制作并成功发布到社区曲库。</p><span id="pointsTaskUpload">成功发布一首谱子后领取 +50</span></div><div class="points-task-action"><button class="text-button" data-points-task="upload" type="button">前往自制 ↗</button></div></section>
+            <section class="points-task-row panel points-task-row--author"><div class="window-titlebar"><span>07 / COMMUNITY USE</span></div><div class="points-task-copy"><b>作品被使用</b><p>不同用户首次解锁你的作品时自动累计。</p><span id="pointsTaskAuthor">每次有效解锁 +1</span></div><div class="points-task-action"><span class="points-task-static">自动累计</span></div></section>
+          </div>
+          <p class="auth-status" id="pointsTaskStatus" role="status" aria-live="polite" hidden></p>
+        </section>
       </section>
     </main>
     </div>
@@ -2188,29 +2254,6 @@
         </div>
       </form>
     </dialog>
-    <dialog class="auth-dialog points-task-dialog" id="pointsTaskDialog" aria-labelledby="pointsTaskTitle" aria-describedby="pointsTaskSummary">
-      <div class="auth-form">
-        <div class="window-titlebar"><span>POINTS.EXE — COMMUNITY TASKS</span><button class="dialog-close" id="pointsTaskClose" type="button" aria-label="关闭积分任务">×</button></div>
-        <div class="auth-dialog-body">
-          <div class="points-task-heading"><div><span class="index">SCORE POINTS</span><h2 id="pointsTaskTitle">积分任务</h2></div><strong id="pointsTaskBalance">--</strong></div>
-          <p id="pointsTaskSummary">公共曲库中他人的曲谱首次导出消耗 10 积分；解锁后可永久重导。</p>
-          <div class="points-ledger-panel" id="pointsLedgerPanel" hidden>
-            <div class="points-ledger-heading"><span class="index">POINT LEDGER</span><strong>积分明细</strong></div>
-            <div id="pointsLedgerList" class="points-ledger-list"><span class="points-ledger-empty">正在读取积分日志…</span></div>
-          </div>
-          <div class="points-task-list" id="pointsTaskList">
-            <section class="points-task-row points-task-row--registration"><div class="points-task-copy"><span class="index">01 · REGISTRATION</span><b>注册账号</b><span id="pointsTaskRegistration">完成注册后领取 +30</span></div><button class="text-button" data-points-task="register" type="button">登录 / 注册</button></section>
-            <section class="points-task-row points-task-row--daily"><div class="points-task-copy"><span class="index">02 · DAILY LOGIN</span><b>每日登录</b><span id="pointsTaskDailyLogin">每天首次登录领取 +20</span></div><span class="points-task-static" id="pointsTaskDailyLoginStatus">登录后自动领取</span></section>
-            <section class="points-task-row points-task-row--github"><div class="points-task-copy"><span class="index">03 · GITHUB STAR</span><b>GitHub Star</b><span id="pointsTaskGithub">验证项目 Star 后领取 +500</span></div><button class="text-button" data-points-task="github" type="button">前往 GitHub 任务</button></section>
-            <section class="points-task-row points-task-row--invite"><div class="points-task-copy"><span class="index">04 · INVITE FRIENDS</span><b>邀请好友</b><span>每位好友完成首次解锁后 +20</span></div><button class="text-button" data-points-task="invite" type="button">前往邀请</button></section>
-            <section class="points-task-row points-task-row--upload"><div class="points-task-copy"><span class="index">05 · FIRST UPLOAD</span><b>首次有效投稿</b><span id="pointsTaskUpload">成功发布一首谱子后领取 +50</span></div><button class="text-button" data-points-task="upload" type="button">前往编辑器</button></section>
-            <section class="points-task-row points-task-row--author"><div class="points-task-copy"><span class="index">06 · COMMUNITY USE</span><b>作品被使用</b><span id="pointsTaskAuthor">每次有效解锁 +1</span></div><span class="points-task-static">自动累计</span></section>
-            <section class="points-task-row points-task-row--support"><div class="points-task-copy"><span class="index">07 · SUPPORT</span><b>打赏支持</b><span>任意金额经确认后永久无限导出</span></div><button class="text-button" data-points-task="support" type="button">前往打赏</button></section>
-          </div>
-          <p class="auth-status" id="pointsTaskStatus" role="status" aria-live="polite" hidden></p>
-        </div>
-      </div>
-    </dialog>
     <dialog class="auth-dialog score-unlock-dialog" id="scoreUnlockDialog" aria-labelledby="scoreUnlockTitle" aria-describedby="scoreUnlockCopy">
       <div class="auth-form">
         <div class="window-titlebar"><span>UNLOCK.EXE — COMMUNITY SCORE</span><button class="dialog-close" id="scoreUnlockClose" type="button" aria-label="关闭解锁窗口">×</button></div>
@@ -2375,6 +2418,6 @@
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
     <script src="./data/community-songs.js?v=4.0.0"></script>
-    <script src="./app.js?v=4.0.0"></script>
+    <script src="./app.js?v=4.0.14"></script>
   </body>
 </html>
