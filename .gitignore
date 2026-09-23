@@ -9,3 +9,8 @@ recording-helper/**/bin/
 recording-helper/**/obj/
 /assets/editor tutor
 /assets/export tutor
+/assets/covers/
+/assets/logictech hub tutor/
+/downloads/
+/recording-helper/downloads/
+*.bak.*
