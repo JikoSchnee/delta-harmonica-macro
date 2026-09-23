@@ -174,12 +174,13 @@ main {
   position: fixed;
   z-index: 11;
   top: 74px;
+  bottom: 74px;
   left: 12px;
   display: flex;
   flex-direction: column;
   width: min(210px, calc(100vw - 24px));
   min-width: 0;
-  max-height: calc(100dvh - 86px);
+  min-height: 0;
   color: var(--black);
   background: var(--surface);
   border-top: 2px solid var(--white);
@@ -251,22 +252,22 @@ main {
 .section-sidebar-titlebar button:hover { color: var(--white); background: #167f7b; border-color: #6bc5bf; border-bottom-color: #07524e; }
 .section-sidebar-titlebar button:active { border-style: inset; transform: translate(1px, 1px); }
 .section-sidebar-body {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
   min-height: 0;
   padding: 13px 10px 12px;
-  overflow: auto;
-  scrollbar-color: var(--teal) var(--surface-dark);
-  scrollbar-width: thin;
+  overflow: hidden;
 }
-.section-sidebar-body::-webkit-scrollbar { width: 12px; height: 12px; background: var(--surface-dark); }
-.section-sidebar-body::-webkit-scrollbar-track { background: var(--surface-dark); border-left: 1px solid #575757; }
-.section-sidebar-body::-webkit-scrollbar-thumb { background: var(--teal); border: 2px outset #69b5b5; border-bottom-color: var(--teal-dark); }
-.section-sidebar-body::-webkit-scrollbar-thumb:hover { background: #129b9b; border-color: #9ae9e3; border-bottom-color: var(--teal-dark); }
-.section-sidebar-body::-webkit-scrollbar-thumb:active { background: var(--teal-dark); border-style: inset; }
-.section-sidebar-body::-webkit-scrollbar-button { background: var(--surface); border: 2px outset var(--surface); }
-.section-sidebar-heading { display: grid; gap: 5px; padding: 0 4px 10px; border-bottom: 2px groove var(--surface); }
+.section-sidebar-heading { display: grid; flex: 0 0 auto; gap: 5px; padding: 0 4px 10px; border-bottom: 2px groove var(--surface); }
 .section-sidebar-heading strong { color: var(--teal-dark); font: 700 13px/1.2 var(--pixel); }
-.section-sidebar-nav { display: grid; gap: 5px; margin-top: 10px; }
+.section-sidebar-nav { display: grid; flex: 1 1 auto; min-height: 0; gap: 5px; margin-top: 10px; overflow: auto; overscroll-behavior: contain; scrollbar-color: var(--teal) var(--surface-dark); scrollbar-width: thin; }
+.section-sidebar-nav::-webkit-scrollbar { width: 12px; height: 12px; background: var(--surface-dark); }
+.section-sidebar-nav::-webkit-scrollbar-track { background: var(--surface-dark); border-left: 1px solid #575757; }
+.section-sidebar-nav::-webkit-scrollbar-thumb { background: var(--teal); border: 2px outset #69b5b5; border-bottom-color: var(--teal-dark); }
+.section-sidebar-nav::-webkit-scrollbar-thumb:hover { background: #129b9b; border-color: #9ae9e3; border-bottom-color: var(--teal-dark); }
+.section-sidebar-nav::-webkit-scrollbar-thumb:active { background: var(--teal-dark); border-style: inset; }
+.section-sidebar-nav::-webkit-scrollbar-button { background: var(--surface); border: 2px outset var(--surface); }
 .section-sidebar-nav a {
   display: grid;
   grid-template-columns: 27px minmax(0, 1fr);
@@ -1735,9 +1736,17 @@ dialog.toast[open] { display: block; }
 
 @media (min-width: 591px) {
   body { zoom: var(--ui-scale); }
-  dialog:not(.midi-note-picker-dialog) { max-height: calc((100dvh - 26px) / var(--ui-scale)); }
-  .midi-note-picker-dialog { height: min(calc(900px / var(--ui-scale)), calc((100dvh - 24px) / var(--ui-scale))); max-height: calc((100dvh - 24px) / var(--ui-scale)); }
-  .tour-popover { max-height: calc(var(--tour-popover-max-height, calc(100dvh - 24px)) / var(--ui-scale)); }
+  dialog:not(.midi-note-picker-dialog) { max-height: calc((100vh - 26px) / var(--ui-scale)); }
+  .midi-note-picker-dialog { height: min(calc(900px / var(--ui-scale)), calc((100vh - 24px) / var(--ui-scale))); max-height: calc((100vh - 24px) / var(--ui-scale)); }
+  .tour-popover { max-height: calc(var(--tour-popover-max-height, calc(100vh - 24px)) / var(--ui-scale)); }
+}
+
+@supports (height: 100dvh) {
+  @media (min-width: 591px) {
+    dialog:not(.midi-note-picker-dialog) { max-height: calc((100dvh - 26px) / var(--ui-scale)); }
+    .midi-note-picker-dialog { height: min(calc(900px / var(--ui-scale)), calc((100dvh - 24px) / var(--ui-scale))); max-height: calc((100dvh - 24px) / var(--ui-scale)); }
+    .tour-popover { max-height: calc(var(--tour-popover-max-height, calc(100dvh - 24px)) / var(--ui-scale)); }
+  }
 }
 
 @media (max-width: 1100px) {
