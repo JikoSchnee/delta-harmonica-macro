@@ -166,7 +166,7 @@ cleanup() {
 trap cleanup EXIT
 
 cd "$PROJECT_DIR"
-echo "[0/4] 正在检查网站版本…"
+echo "[0/5] 正在检查网站版本…"
 LOCAL_WEBSITE_VERSION="$(read_version_from_json "$WEBSITE_VERSION_FILE")"
 REMOTE_WEBSITE_VERSION="$(curl -fsSL --retry 2 "${DEPLOYED_WEBSITE_VERSION_URL}?t=$(date +%s)" | python3 -c 'import json, sys; value = json.load(sys.stdin).get("version"); print(value.strip() if isinstance(value, str) else "")')"
 if [[ -z "$REMOTE_WEBSITE_VERSION" ]]; then
@@ -193,7 +193,15 @@ if ! version_is_newer "$LOCAL_WEBSITE_VERSION" "$REMOTE_WEBSITE_VERSION"; then
 fi
 echo "版本检查通过：正式站点 v$REMOTE_WEBSITE_VERSION → 本地 v$LOCAL_WEBSITE_VERSION"
 
-echo "[1/4] 正在打包项目…"
+echo "[1/5] 正在同步 SEO 元数据（曲库索引 / sitemap lastmod）…"
+if [[ ! -f "$PROJECT_DIR/data/community-songs.js" ]]; then
+  echo "缺少 data/community-songs.js，无法生成 SEO 曲库索引，已停止部署。" >&2
+  exit 1
+fi
+python3 "$PROJECT_DIR/tools/build_seo_metadata.py"
+python3 "$PROJECT_DIR/tools/update_sitemap_lastmod.py"
+
+echo "[2/5] 正在打包项目…"
 COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" \
   --exclude='.git' \
   --exclude='.idea' \
@@ -206,10 +214,10 @@ COPYFILE_DISABLE=1 tar -czf "$ARCHIVE_PATH" \
   --exclude='._*' \
   .
 
-echo "[2/4] 正在上传到服务器…"
+echo "[3/5] 正在上传到服务器…"
 scp "$ARCHIVE_PATH" "$REMOTE_HOST:$REMOTE_ARCHIVE"
 
-echo "[3/4] 正在构建并重启服务…"
+echo "[4/5] 正在构建并重启服务…"
 ssh "$REMOTE_HOST" "REDEPLOY_MODE=$REDEPLOY bash -s" <<'REMOTE_SCRIPT'
 set -Eeuo pipefail
 
@@ -292,7 +300,7 @@ echo '新容器在 30 秒内未就绪；已保留“正在更新”提示，请�
 exit 1
 REMOTE_SCRIPT
 
-echo "[4/4] 正在验证正式站点…"
+echo "[5/5] 正在验证正式站点…"
 for attempt in {1..15}; do
   if response="$(curl -fsS 'https://jiko-official.top/delta/api/public-library/status' 2>/dev/null)"; then
     printf '%s\n部署完成。\n' "$response"

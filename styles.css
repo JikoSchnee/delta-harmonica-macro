@@ -89,19 +89,16 @@ textarea::-webkit-scrollbar-button:active { border-style: inset; }
 .version-button:hover strong, .version-button:focus-visible strong { color: var(--white); }
 .version-button:active { border-style: inset; box-shadow: none; transform: translateY(1px); }
 .brand-mark {
-  display: flex;
-  align-items: end;
-  gap: 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 28px;
-  padding: 4px 5px;
+  padding: 4px;
   background: var(--teal);
   border: 2px outset #69b5b5;
 }
-.brand-mark i { display: block; width: 3px; background: var(--white); }
-.brand-mark i:nth-child(1), .brand-mark i:nth-child(7) { height: 6px; }
-.brand-mark i:nth-child(2), .brand-mark i:nth-child(6) { height: 11px; }
-.brand-mark i:nth-child(3), .brand-mark i:nth-child(5) { height: 15px; }
-.brand-mark i:nth-child(4) { height: 18px; background: #d7ffff; }
+.brand-mark svg { display: block; width: 20px; height: 20px; fill: var(--white); }
+.brand-mark svg circle { fill: #d7ffff; }
 .public-analytics { display: inline-flex; align-items: center; gap: 2px; margin-right: -4px; padding: 2px 4px; color: #476360; font: 700 9px/1.1 var(--mono); letter-spacing: 0; white-space: nowrap; }
 .public-analytics[hidden] { display: none; }
 .public-analytics span { display: inline-flex; align-items: center; gap: 1px; }
@@ -652,6 +649,15 @@ main {
 .library-grid::-webkit-scrollbar-track { background: var(--surface-light); }
 .library-grid::-webkit-scrollbar-thumb { background: var(--teal); border: 2px solid var(--surface-light); }
 .library-grid .song-card, .library-grid .song-card-main { min-height: 104px; }
+
+/* SEO：静态曲库索引。供搜索引擎与无脚本环境读取；JS 就绪后由 #songGrid 的曲库网格替换。 */
+.seo-song-index { padding: 10px 12px; background: var(--surface-light); border: 2px inset var(--surface); }
+.seo-song-index-title { margin: 0 0 8px; font: 700 11px/1.4 var(--mono); letter-spacing: .04em; color: var(--teal-dark); }
+.seo-song-index-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px 14px; margin: 0; padding: 0; list-style: none; }
+.seo-song-index-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; font: 400 11px/1.6 var(--mono); }
+.seo-song-name { color: var(--black); font-weight: 700; }
+.seo-song-meta { color: #557473; }
+.seo-song-index-note { margin: 8px 0 0; font-size: 10px; color: #6b8784; }
 
 .workbench { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(350px, .82fr); grid-template-rows: auto; align-items: start; gap: 16px; margin-top: 16px; }
 .workbench > * { min-width: 0; }

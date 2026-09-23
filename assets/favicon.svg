@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="title">
+  <title id="title">JIKO · 三角洲口琴演奏家</title>
+  <!-- 品牌底色方块：保证在浅色 / 深色浏览器标签栏上都清晰可辨 -->
+  <rect width="100" height="100" rx="14" fill="#008080"/>
+  <g fill="#ffffff" transform="translate(9 9) scale(0.82)">
+    <path d="M0 0h46v30c0 10-6 16-16 16H16C6 46 0 40 0 30v-8h12v8c0 3 1 4 4 4h14c3 0 4-1 4-4V12H0Z"/>
+    <path d="M54 0h46v12H83v22h17v12H54V34h17V12H54Z"/>
+    <path d="M0 54h12v17l19-17h15L23 77l23 23H30L12 83v17H0Z"/>
+    <path fill-rule="evenodd" d="M54 54h46v46H54Zm12 12v22h22V66Z"/>
+    <circle cx="77" cy="77" r="5"/>
+    <circle cx="23" cy="23" r="5"/>
+  </g>
+</svg>

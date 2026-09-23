@@ -1,5 +1,11 @@
-# AI/automation policy: see /llms.txt
-# /delta/data/ is copyrighted, on-site use only; scraping & redistribution prohibited.
+# /delta/ robots.txt — SEO 与自动化访问政策
+# 完整政策：https://jiko-official.top/delta/llms.txt
+#
+# 设计原则（只屏蔽裸抓取，不屏蔽页面索引）：
+#   1. HTML 页面完全开放给搜索引擎索引。曲库元数据（歌名 / 作者 / 调式 / BPM）
+#      已静态渲染进首页 HTML，搜索引擎无需抓取数据文件即可拿到内容。
+#   2. /delta/data/ 下是受版权保护的曲库原始数据（含可演奏的宏数据 jianpu 等），
+#      仅授权站内页面引用，禁止裸抓取、批量下载与再分发。
 
 User-agent: *
 Allow: /
@@ -7,9 +13,30 @@ Disallow: /api/
 Disallow: /admin/
 Disallow: /data/
 
+# 主流搜索引擎：明确声明站内页面可被索引（原始数据文件仍不开放）
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /data/
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /data/
+
+User-agent: Baiduspider
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /data/
+
+# 已知抓取脚本：整站拒绝
 User-agent: harmonica-autoplay
 Disallow: /
 
+# AI 训练 / 生成式抓取：不授权曲库数据
 User-agent: GPTBot
 Disallow: /data/
 
