@@ -354,6 +354,7 @@ main {
 .hero-block-main { min-width: 0; }
 .hero-block h2 { margin: 9px 0 7px; color: var(--black); font: 700 23px/1.1 var(--pixel); }
 .hero-block p { max-width: 660px; margin: 0; color: #405d5a; font-size: 12px; line-height: 1.7; }
+.hero-block .support-attribution-note { margin-top: 7px; color: #526767; font-size: 12px; line-height: 1.7; }
 .hero-block .qq-group-number-list { max-width: 320px; margin-top: 12px; }
 .qq-group-number-list { display: grid; gap: 8px; }
 .qq-group-number-list .qq-group-number { margin-top: 0; }
@@ -1239,6 +1240,7 @@ main {
 .donation-thanks-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
 .donation-thanks-heading h2 { margin: 8px 0 0; color: var(--black); font: 700 27px/1 var(--pixel); }
 .donation-thanks-total { flex: 0 0 auto; color: #526767; font: 700 10px/1.4 var(--mono); text-align: right; }
+.donation-thanks-note { margin: 9px 0 0; color: #526767; font-size: 10px; line-height: 1.6; }
 .donation-thanks-list { position: relative; flex: 1 1 0; min-height: 150px; margin-top: 14px; overflow: hidden; }
 .donation-stack { display: grid; gap: 7px; }
 .donation-track { display: grid; gap: 7px; }
