@@ -118,6 +118,22 @@
       .admin-song-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 18px; }
       .export-config-grid { display: grid; gap: 12px; }
       .export-config-row { padding: 15px; border: 1px solid rgba(122,168,151,.32); background: rgba(7,29,25,.62); }
+      .points-media-admin-list { display: grid; gap: 12px; }
+      .points-media-admin-row { display: grid; grid-template-columns: 145px minmax(0, 1fr); gap: 14px; padding: 13px; border: 1px solid rgba(122,168,151,.32); background: rgba(7,29,25,.62); }
+      .points-media-admin-preview { display: grid; min-height: 100px; place-items: center; color: var(--aqua); background: #102b26; border: 1px solid var(--line); font: 700 11px "JetBrains Mono", monospace; }
+      .points-media-admin-preview img { width: 100%; height: 100%; max-height: 120px; object-fit: cover; }
+      .points-media-admin-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .points-media-admin-fields label { display: grid; gap: 4px; color: var(--dim); font-size: 11px; }
+      .points-media-admin-fields label:first-child { grid-column: 1 / -1; }
+      .points-media-admin-fields .points-media-admin-embedded { display: flex; align-items: center; grid-column: 1 / -1; }
+      .points-media-admin-fields input:not([type="checkbox"]) { min-width: 0; min-height: 34px; padding: 5px 8px; color: var(--ink); background: #071d19; border: 1px solid var(--line); }
+      .points-media-admin-fields textarea { min-width: 0; min-height: 80px; padding: 7px 8px; color: var(--ink); background: #071d19; border: 1px solid var(--line); font: inherit; resize: vertical; }
+      .points-media-admin-fields select { min-height: 34px; color: var(--ink); background: #071d19; border: 1px solid var(--line); }
+      .points-media-admin-stats { grid-column: 1 / -1; padding: 9px; color: var(--aqua); background: #071d19; font: 11px/1.8 "JetBrains Mono", monospace; overflow-wrap: anywhere; }
+      .points-media-admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; grid-column: 1 / -1; }
+      .points-media-admin-actions .button { min-height: 30px; padding: 0 8px; font-size: 11px; }
+      .points-media-admin-actions label { display: inline-flex; align-items: center; gap: 5px; margin-right: auto; }
+      @media (max-width: 720px) { .points-media-admin-row { grid-template-columns: 1fr; } .points-media-admin-fields { grid-template-columns: 1fr; } }
       .export-config-row h4 { margin: 0; color: var(--ink); font-size: 15px; }
       .export-config-row p { margin: 4px 0 13px; color: var(--dim); font-size: 11px; }
       .export-brand-options { display: flex; flex-wrap: wrap; gap: 7px; }
@@ -307,8 +323,9 @@
           <button data-page="library"><b>02</b><span>曲库管理</span></button>
           <button data-page="users"><b>03</b><span>用户管理</span></button>
           <button data-page="export-methods"><b>04</b><span>导出方式</span></button>
-          <button data-page="runtime"><b>05</b><span>运行时状态</span></button>
-          <button data-page="analytics"><b>06</b><span>数据分析</span></button>
+          <button data-page="points-media"><b>05</b><span>积分媒体</span></button>
+          <button data-page="runtime"><b>06</b><span>运行时状态</span></button>
+          <button data-page="analytics"><b>07</b><span>数据分析</span></button>
         </nav>
         <div class="rail-foot"><span></span>TOKEN LINKED<br /><small>private / no-store</small></div>
       </aside>
@@ -329,6 +346,7 @@
 
         <section id="libraryPage" data-view hidden>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><span id="libraryCount" class="tag">—</span></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><div id="libraryTable"></div></section>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">SCORE BUFFER / HIDDEN</div><h3>下架缓冲区</h3></div><span id="bufferCount" class="tag">—</span></div><p>缓冲区曲谱不在公开曲库展示。可恢复上架，或永久删除。</p><div id="bufferTable"></div></section>
         </section>
 
         <section id="usersPage" data-view hidden>
@@ -341,6 +359,14 @@
             <p class="admin-song-description">为每个导出方法选择适用品牌。首页会按这里的配置显示品牌徽标；方法顺序固定，不会被修改。</p>
             <div id="exportMethodsConfig" class="export-config-grid"></div>
             <div class="export-config-actions"><p id="exportMethodsStatus" class="export-config-status" role="status" aria-live="polite"></p><button id="saveExportMethodsButton" class="button" type="button">保存全部配置 →</button></div>
+          </section>
+        </section>
+        <section id="points-mediaPage" data-view hidden>
+          <section class="window panel">
+            <div class="section-heading"><div><div class="eyebrow">POINTS.TV / PARTNER CONTENT</div><h3>直播与产品图片</h3></div><span id="pointsMediaAdminCount" class="tag">0 条</span></div>
+            <p class="admin-song-description">配置直播或图片、合作网站链接及专属营销链接。下架后保留历史统计。</p>
+            <div id="pointsMediaAdminList" class="points-media-admin-list"></div>
+            <div class="export-config-actions"><p id="pointsMediaAdminStatus" class="export-config-status" role="status" aria-live="polite"></p><button id="addPointsMediaButton" class="button ghost" type="button">添加链接 ＋</button><button id="savePointsMediaButton" class="button" type="button">保存媒体配置 →</button></div>
           </section>
         </section>
         <section id="runtimePage" data-view hidden>
@@ -410,7 +436,7 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], users: [], sponsorUsers: [], ipBans: [], exportMethods: { brands: [], methods: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
+      const state = { token: "", overview: null, songs: [], buffered: [], users: [], sponsorUsers: [], ipBans: [], exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
@@ -442,6 +468,63 @@
         catch (error) { setExportMethodsStatus(error.message || "保存导出方式配置失败。"); }
         finally { $("#saveExportMethodsButton").disabled = false; }
       }
+      function collectPointsMediaAdmin() {
+        return [...document.querySelectorAll(".points-media-admin-row")].map(row => ({
+          id: Number(row.dataset.mediaId) || null,
+          kind: row.querySelector("[data-media-kind]").value,
+          url: row.querySelector("[data-media-url]").value.trim(),
+          title: row.querySelector("[data-media-title]").value.trim(),
+          headline: row.querySelector("[data-media-headline]").value.trim(),
+          description: row.querySelector("[data-media-description]").value.trim(),
+          promoCopy: row.querySelector("[data-media-promo-copy]").value.trim(),
+          rewardPoints: Number(row.querySelector("[data-media-reward-points]").value),
+          ctaLabel: row.querySelector("[data-media-cta]").value.trim(),
+          embeddedCopy: row.querySelector("[data-media-embedded-copy]").checked,
+          destinationUrl: row.querySelector("[data-media-destination]").value.trim(),
+          manualCoverUrl: row.querySelector("[data-media-cover]").value.trim(),
+          active: row.querySelector("[data-media-active]").checked,
+          coverUrl: row.dataset.coverUrl || "",
+          marketingCode: row.dataset.marketingCode || ""
+        }));
+      }
+      function pointsMediaCoverSrc(url) { return url?.startsWith("./data/") || url?.startsWith("./assets/") ? new URL(`../${url.slice(2)}`, location.href).href : url; }
+      function renderPointsMediaAdmin(items = state.pointsMedia.items || []) {
+        $("#pointsMediaAdminCount").textContent = `${items.length} 条 / 最多 12 条`;
+        $("#pointsMediaAdminList").innerHTML = items.length ? items.map((item, index) => {
+          const stats = state.pointsMediaMetrics?.[item.id] || {};
+          const partnerLink = item.marketingCode ? new URL(`../api/partner/${item.marketingCode}`, location.href).href : "保存后生成";
+          return `<article class="points-media-admin-row" data-media-index="${index}" data-media-id="${item.id || ""}" data-cover-url="${escapeHtml(item.coverUrl || "")}" data-marketing-code="${escapeHtml(item.marketingCode || "")}"><div class="points-media-admin-preview">${item.coverUrl ? `<img src="${escapeHtml(pointsMediaCoverSrc(item.coverUrl))}" alt="" loading="lazy" />` : "NO COVER"}</div><div class="points-media-admin-fields">
+            <label>类型<select data-media-kind><option value="live"${item.kind === "live" ? " selected" : ""}>直播</option><option value="image"${item.kind === "image" ? " selected" : ""}>图片</option></select></label>
+            <label>产品名称<input data-media-title type="text" maxlength="120" value="${escapeHtml(item.title || "")}" /></label>
+            <label>轮播标题文案<input data-media-headline type="text" maxlength="120" value="${escapeHtml(item.headline || "")}" placeholder="留空则显示产品名称" /></label>
+            <label>轮播说明文案<textarea data-media-description maxlength="500" rows="4">${escapeHtml(item.description || "")}</textarea></label>
+            <label>海报下方文案（留空则不显示）<textarea data-media-promo-copy maxlength="500" rows="3">${escapeHtml(item.promoCopy || "")}</textarea></label>
+            <label>首次跳转奖励积分<input data-media-reward-points type="number" min="0" max="10000" step="1" value="${Number(item.rewardPoints) || 0}" /></label>
+            <label>按钮文案<input data-media-cta type="text" maxlength="30" value="${escapeHtml(item.ctaLabel || "了解详情 ↗")}" /></label>
+            <label>合作网站链接<input data-media-destination type="url" value="${escapeHtml(item.destinationUrl || "")}" placeholder="https://partner.example/product" /></label>
+            <label>直播链接（图片类可留空）<input data-media-url type="url" value="${escapeHtml(item.url || "")}" placeholder="https://live.bilibili.com/..." /></label>
+            <label>图片地址或上传结果<input data-media-cover type="text" value="${escapeHtml(item.manualCoverUrl || "")}" placeholder="https://..." /></label>
+            <label>上传图片<input data-media-file type="file" accept="image/png,image/jpeg,image/webp" /></label>
+            <label class="points-media-admin-embedded"><input data-media-embedded-copy type="checkbox"${item.embeddedCopy ? " checked" : ""} /> 图片已包含文案，不叠加页面文案</label>
+            <div class="points-media-admin-stats">外跳 ${stats.outboundClicks || 0} · 回站 ${stats.inboundVisits || 0} / 今日访客 ${stats.inboundDailyVisitors || 0} / 累计访客 ${stats.inboundLifetimeVisitors || 0}<br />注册 ${stats.registrations || 0} / 今日访客 ${stats.registrationDailyVisitors || 0} / 累计访客 ${stats.registrationLifetimeVisitors || 0}<br />营销链接：<code>${escapeHtml(partnerLink)}</code> ${item.marketingCode ? '<button class="button ghost" type="button" data-media-action="copy">复制链接</button>' : ""}</div>
+            <div class="points-media-admin-actions"><label><input data-media-active type="checkbox"${item.active !== false ? " checked" : ""} /> 上架</label><button class="button ghost" type="button" data-media-action="up"${index === 0 ? " disabled" : ""}>上移 ↑</button><button class="button ghost" type="button" data-media-action="down"${index === items.length - 1 ? " disabled" : ""}>下移 ↓</button></div></div></article>`;
+        }).join("") : '<div class="empty">尚无产品。积分页会显示空状态。</div>';
+      }
+      async function loadPointsMediaAdmin() {
+        try { const [media, metrics] = await Promise.all([api("admin/points/media"), api("admin/points/media/metrics")]); state.pointsMedia = media; state.pointsMediaMetrics = metrics.products || {}; renderPointsMediaAdmin(); $("#pointsMediaAdminStatus").textContent = ""; }
+        catch (error) { $("#pointsMediaAdminStatus").textContent = error.message || "无法读取媒体配置。"; }
+      }
+      async function savePointsMediaAdmin() {
+        const items = collectPointsMediaAdmin();
+        $("#savePointsMediaButton").disabled = true;
+        $("#pointsMediaAdminStatus").textContent = "正在保存并读取封面…";
+        try {
+          state.pointsMedia = await api("admin/points/media", { method: "PUT", body: JSON.stringify({ items }) });
+          renderPointsMediaAdmin();
+          $("#pointsMediaAdminStatus").textContent = "媒体配置已保存。";
+        } catch (error) { $("#pointsMediaAdminStatus").textContent = error.message || "保存失败。"; }
+        finally { $("#savePointsMediaButton").disabled = false; }
+      }
       async function api(path, options = {}) {
         const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
         const response = await fetch(`../api/${path}`, { ...options, headers: { Authorization: `Bearer ${state.token}`, Accept: "application/json", ...(!isFormData && options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) }, cache: "no-store" });
@@ -450,11 +533,11 @@
         return body;
       }
       function showPage(page) {
-        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "维护公开社区曲谱，设置推荐或移除不再展示的内容。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用的品牌标签。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
+        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "检查相似谱面，审核后可下架并限制投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理直播、产品图片和合作推广统计。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
-        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "export-methods") loadExportMethods(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
+        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "export-methods") loadExportMethods(); if (page === "points-media") loadPointsMediaAdmin(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
       }
       function renderOverview() {
         const item = state.overview; if (!item) return;
@@ -473,7 +556,11 @@
       }
       function renderLibrary() {
         $("#libraryCount").textContent = `${number.format(state.songs.length)} 首曲目`;
-        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
+        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}${song.similarityReview?.status === "pending" ? `<small class="tag danger">疑似相似 ${Math.round(song.similarityReview.similarity * 100)}% · 参照 ${escapeHtml(state.songs.find(item => item.remixCode === song.similarityReview.reference_code)?.title || song.similarityReview.reference_code)}</small>` : ""}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">移入缓冲区</button>${song.similarityReview?.status === "pending" ? `<button class="button" data-dismiss-review="${index}">排除误报</button><button class="button danger" data-remove-review="${index}">下架并禁传</button>` : ""}</div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
+      }
+      function renderBuffer() {
+        $("#bufferCount").textContent = `${number.format(state.buffered.length)} 首曲目`;
+        $("#bufferTable").innerHTML = state.buffered.length ? `<table><thead><tr><th>曲目</th><th>上传者</th><th>原因</th><th>时间</th><th>操作</th></tr></thead><tbody>${state.buffered.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)} · ${escapeHtml(song.sharedBy)}</small></td><td>${escapeHtml(song.owner)}</td><td>${escapeHtml(song.reason)}${song.recoveredPoints ? `<small>已冲回 ${number.format(song.recoveredPoints)} 作者积分</small>` : ""}</td><td>${formatDate(song.bufferedAt)}</td><td><div class="actions"><button class="button" data-restore-buffer="${index}">恢复</button><button class="button danger" data-delete-buffer="${index}">永久删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">缓冲区为空。</div>';
       }
       function userDirectoryQuery() { return `admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}${state.advanced ? "&advanced=1" : ""}`; }
       function renderAdvancedMode() {
@@ -492,7 +579,7 @@
         if (!$("#userSearch").value.trim()) state.sponsorUsers = state.users.slice();
         const advanced = Boolean(state.advanced);
         $("#userCount").textContent = `${number.format(state.users.length)} 位用户${advanced ? " · 高级" : ""}`;
-        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th>${advanced ? "<th>邮箱（完整）</th>" : ""}<th>角色</th><th>上传</th><th>打赏</th><th>状态</th>${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button></td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th>${advanced ? "<th>邮箱（完整）</th>" : ""}<th>角色</th><th>上传</th><th>打赏</th><th>状态</th>${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}${user.uploadBan?.banned ? `<small class="tag danger">禁传：${escapeHtml(user.uploadBan.reason)} · ${user.uploadBan.expiresAt ? formatDate(new Date(user.uploadBan.expiresAt * 1000).toISOString()) : "永久"}</small>` : ""}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button>${user.uploadBan?.banned ? `<button class="button" type="button" data-unban-upload="${escapeHtml(user.id)}">解除禁传</button>` : ""}</td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
       }
       async function loadIpBans() {
         try { const result = await api("admin/ip-bans"); const bans = result.bans || []; $("#ipBanCount").textContent = `${number.format(bans.length)} 个 IP`; $("#ipBanTable").innerHTML = bans.length ? `<table><thead><tr><th>IP</th><th>原因</th><th>到期</th><th>操作</th></tr></thead><tbody>${bans.map(ban => `<tr><td class="mono">${escapeHtml(ban.ip)}</td><td>${escapeHtml(ban.reason || "—")}</td><td class="mono">${ban.expires_at ? formatDate(new Date(Number(ban.expires_at) * 1000).toISOString()) : "永久"}</td><td><button class="button" type="button" data-unban-ip="${escapeHtml(ban.ip)}">解除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无 IP 封禁。</div>'; } catch (error) { setNotice(error.message); }
@@ -704,9 +791,9 @@
       }
       async function loadAll() {
         setNotice("正在同步…");
-        try { const [overview, library, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
+        try { const [overview, library, buffer, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api("admin/library/buffer"), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.buffered = buffer.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderBuffer(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
       }
-      async function loadLibrary() { try { const result = await api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`); state.songs = result.songs || []; renderLibrary(); } catch (error) { setNotice(error.message); } }
+      async function loadLibrary() { try { const [result, buffer] = await Promise.all([api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`), api("admin/library/buffer")]); state.songs = result.songs || []; state.buffered = buffer.songs || []; renderLibrary(); renderBuffer(); } catch (error) { setNotice(error.message); } }
       async function loadUsers() { try { const result = await api(userDirectoryQuery()); state.users = result.users || []; renderUsers(); renderAdvancedMode(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
       const runtimeState = { timer: 0, busy: false, data: null };
       const runtimeTone = percent => { const value = Number(percent) || 0; return value >= 90 ? "bad" : value >= 75 ? "warn" : ""; };
@@ -829,8 +916,77 @@
       $("#analyticsCompareDates").addEventListener("change", event => { const input = event.target.closest("[data-analytics-day]"); if (!input) return; if (input.checked) state.analyticsSelectedDays.add(input.dataset.analyticsDay); else state.analyticsSelectedDays.delete(input.dataset.analyticsDay); if (state.analytics) renderAnalyticsTrend(state.analytics); });
       $("#librarySearchButton").addEventListener("click", loadLibrary); $("#userSearchButton").addEventListener("click", loadUsers);
       $("#saveExportMethodsButton").addEventListener("click", saveExportMethods);
+      $("#addPointsMediaButton").addEventListener("click", () => {
+        const items = collectPointsMediaAdmin();
+        if (items.length >= 12) { $("#pointsMediaAdminStatus").textContent = "最多添加 12 条媒体。"; return; }
+        items.push({ kind: "image", url: "", title: "", headline: "", description: "", promoCopy: "", rewardPoints: 0, ctaLabel: "了解详情 ↗", embeddedCopy: false, destinationUrl: "", manualCoverUrl: "", coverUrl: "", active: true });
+        renderPointsMediaAdmin(items);
+        $("#pointsMediaAdminList .points-media-admin-row:last-child [data-media-title]")?.focus();
+      });
+      $("#savePointsMediaButton").addEventListener("click", savePointsMediaAdmin);
+      $("#pointsMediaAdminList").addEventListener("click", event => {
+        const action = event.target.closest("[data-media-action]");
+        if (!action) return;
+        const items = collectPointsMediaAdmin();
+        const index = Number(action.closest("[data-media-index]").dataset.mediaIndex);
+        if (action.dataset.mediaAction === "copy") {
+          const link = new URL(`../api/partner/${items[index].marketingCode}`, location.href).href;
+          navigator.clipboard.writeText(link).then(() => { $("#pointsMediaAdminStatus").textContent = "营销链接已复制。"; }).catch(() => { $("#pointsMediaAdminStatus").textContent = link; });
+          return;
+        } else {
+          const other = index + (action.dataset.mediaAction === "up" ? -1 : 1);
+          if (other < 0 || other >= items.length) return;
+          [items[index], items[other]] = [items[other], items[index]];
+        }
+        renderPointsMediaAdmin(items);
+      });
+      $("#pointsMediaAdminList").addEventListener("change", async event => {
+        if (!event.target.matches("[data-media-file]")) return;
+        const file = event.target.files?.[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) { $("#pointsMediaAdminStatus").textContent = "图片不能超过 5 MB。"; return; }
+        try {
+          const result = await api("admin/points/media/image", { method: "POST", body: file, headers: { "Content-Type": file.type } });
+          const row = event.target.closest(".points-media-admin-row");
+          row.querySelector("[data-media-cover]").value = result.url;
+          row.dataset.coverUrl = result.url;
+          row.querySelector(".points-media-admin-preview").innerHTML = `<img src="${escapeHtml(pointsMediaCoverSrc(result.url))}" alt="" />`;
+          $("#pointsMediaAdminStatus").textContent = "图片已上传，点击保存媒体配置后生效。";
+        } catch (error) { $("#pointsMediaAdminStatus").textContent = error.message || "图片上传失败。"; }
+      });
       $("#librarySearch").addEventListener("keydown", event => { if (event.key === "Enter") loadLibrary(); }); $("#userSearch").addEventListener("keydown", event => { if (event.key === "Enter") loadUsers(); });
-      $("#libraryTable").addEventListener("click", async event => { const edit = event.target.closest("[data-edit-index]"), recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(edit?.dataset.editIndex ?? recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (edit) { openAdminSongDialog(song); return; } if (remove && !window.confirm(`确定删除《${song.title}》吗？删除后会立即从公开曲库移除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已删除。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
+      $("#libraryTable").addEventListener("click", async event => { const edit = event.target.closest("[data-edit-index]"), recommend = event.target.closest("[data-recommend-index]"), remove = event.target.closest("[data-delete-index]"); const index = Number(edit?.dataset.editIndex ?? recommend?.dataset.recommendIndex ?? remove?.dataset.deleteIndex); if (!Number.isInteger(index) || !state.songs[index]) return; const song = state.songs[index]; if (edit) { openAdminSongDialog(song); return; } if (remove && !window.confirm(`确定将《${song.title}》移入缓冲区吗？曲谱会立即从公开曲库下架，可稍后恢复或永久删除。`)) return; try { if (recommend) await api("admin/library/recommendation", { method: song.recommended ? "DELETE" : "POST", body: JSON.stringify(song) }); else await api("admin/library/song", { method: "DELETE", body: JSON.stringify(song) }); setNotice(remove ? "曲目已移入缓冲区。" : (song.recommended ? "已取消推荐。" : "已加入推荐。")); await loadAll(); showPage("library"); } catch (error) { setNotice(error.message); } });
+      $("#libraryTable").addEventListener("click", async event => {
+        const dismiss = event.target.closest("[data-dismiss-review]");
+        const remove = event.target.closest("[data-remove-review]");
+        if (!dismiss && !remove) return;
+        const song = state.songs[Number((dismiss || remove).dataset.dismissReview ?? remove?.dataset.removeReview)];
+        if (!song) return;
+        let banDays = null;
+        if (remove) {
+          const answer = window.prompt(`确认《${song.title}》确实二次上传他人谱子后，将移入缓冲区、回收该曲作者积分并封禁 @${song.owner} 上传。请输入封禁天数（1–3650），留空为永久：`, "30");
+          if (answer === null) return;
+          if (answer.trim()) { banDays = Number(answer); if (!Number.isInteger(banDays) || banDays < 1 || banDays > 3650) { setNotice("封禁天数须为 1–3650，留空为永久。"); return; } }
+          if (!window.confirm(`确定下架《${song.title}》并封禁 @${song.owner} 的上传功能吗？`)) return;
+        }
+        try {
+          const result = await api("admin/library/review", { method: "POST", body: JSON.stringify({ remixCode: song.remixCode, action: remove ? "remove" : "dismiss", banDays }) });
+          await loadAll(); showPage("library");
+          setNotice(remove ? `曲谱已移入缓冲区，已冲回 ${result.recoveredPoints} 作者积分并封禁上传。` : "已排除相似误报。");
+        } catch (error) { setNotice(error.message); }
+      });
+      $("#bufferTable").addEventListener("click", async event => {
+        const restore = event.target.closest("[data-restore-buffer]");
+        const remove = event.target.closest("[data-delete-buffer]");
+        if (!restore && !remove) return;
+        const song = state.buffered[Number(restore?.dataset.restoreBuffer ?? remove?.dataset.deleteBuffer)];
+        if (!song) return;
+        if (!window.confirm(restore ? `恢复《${song.title}》到公共曲库吗？已冲回的作者积分会补回。` : `永久删除《${song.title}》吗？删除后无法从缓冲区恢复。`)) return;
+        try {
+          await api("admin/library/buffer", { method: "POST", body: JSON.stringify({ remixCode: song.remixCode, action: restore ? "restore" : "delete" }) });
+          await loadAll(); showPage("library"); setNotice(restore ? "曲谱已恢复。" : "曲谱已永久删除。");
+        } catch (error) { setNotice(error.message); }
+      });
       $("#adminSongSave").addEventListener("click", saveAdminSong);
       $("#ipBanButton").addEventListener("click", async () => {
         const ip = $("#ipBanAddress").value.trim();
@@ -865,6 +1021,13 @@
           const reason = window.prompt(`封禁 IP ${ip}${label ? `（用户 @${label}）` : ""}的原因（可选）：`, "违规使用");
           if (reason === null) return;
           try { await api("admin/ip-ban", { method: "POST", body: JSON.stringify({ ip, reason }) }); await loadUsers(); setNotice(`已封禁 IP：${ip}`); } catch (error) { setNotice(error.message); }
+          return;
+        }
+        const unbanUpload = event.target.closest("[data-unban-upload]");
+        if (unbanUpload) {
+          const user = state.users.find(item => item.id === unbanUpload.dataset.unbanUpload);
+          if (!user || !window.confirm(`解除 @${user.userId} 的投稿封禁吗？`)) return;
+          try { await api("admin/upload-ban", { method: "DELETE", body: JSON.stringify({ accountId: user.id }) }); await loadUsers(); setNotice(`已解除 @${user.userId} 的投稿封禁。`); } catch (error) { setNotice(error.message); }
           return;
         }
         const banButton = event.target.closest("[data-ban-account]");

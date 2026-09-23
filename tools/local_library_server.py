@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+from difflib import SequenceMatcher
 from datetime import date, datetime, timedelta, timezone
 from email import policy
 from email.parser import BytesParser
 from email.utils import parsedate_to_datetime
 import gzip
 import hashlib
+from html.parser import HTMLParser
 import hmac
 import io
 import ipaddress
@@ -41,8 +43,8 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 from urllib.error import HTTPError, URLError
-from urllib.parse import parse_qs, quote, urlencode, urlparse, urlsplit, urlunsplit
-from urllib.request import Request, urlopen
+from urllib.parse import parse_qs, quote, unquote, urlencode, urljoin, urlparse, urlsplit, urlunsplit
+from urllib.request import HTTPRedirectHandler, Request, build_opener, urlopen
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
@@ -126,6 +128,11 @@ POINT_RULES = {"unlock": 10, "register": 30, "daily_login": 20, "github_star": 5
 LEGACY_POINTS_NOTICE_KEY = "legacy-points-grant-v1"
 LEGACY_EXPORT_POINTS_NOTICE_KEY = "legacy-export-points-v1"
 POINTS_NOTICE_KEY = "points-v1"
+POINTS_MEDIA_LIMIT = 12
+PARTNER_COOKIE_NAME = "delta_partner_attribution"
+PARTNER_VISITOR_COOKIE_NAME = "delta_partner_visitor"
+PARTNER_ATTRIBUTION_SECONDS = 7 * 24 * 60 * 60
+POINTS_IMAGE_LIMIT = 5 * 1024 * 1024
 INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 INVITE_CODE_PREFIX = "DH"
 GZIP_MIN_BYTES = 1024
@@ -1199,7 +1206,7 @@ def write_json_atomically(path: Path, value: dict[str, Any]) -> None:
 
 def is_canonical_source(path: Path) -> bool:
     try:
-        path.relative_to(SOURCE_DIRECTORY)
+        path.resolve().relative_to(SOURCE_DIRECTORY.resolve())
         return True
     except ValueError:
         return False
@@ -1296,6 +1303,37 @@ def reset_uploaded_identity(score: dict[str, Any]) -> None:
     score["legacyAdminIds"] = [legacy_admin_id_for_score(score)]
 
 
+def score_notes(score: dict[str, Any]) -> list[str]:
+    """Compare playable tokens, ignoring layout and bar lines."""
+    return [token for token in re.split(r"[\s|]+", score["jianpu"].casefold()) if token]
+
+
+def find_similar_score(score: dict[str, Any], existing_scores: list[tuple[Path, dict[str, Any]]], owner_account_id: str | None) -> tuple[str, float] | None:
+    notes = score_notes(score)
+    if len(notes) < 4:
+        return None
+    best: tuple[str, float] | None = None
+    for path, other in existing_scores:
+        if owner_account_id and score_owner_account_id(path, other) == owner_account_id:
+            continue
+        reference = score_notes(other)
+        if len(reference) < 4 or min(len(notes), len(reference)) / max(len(notes), len(reference)) < .8:
+            continue
+        ratio = SequenceMatcher(None, notes, reference, autojunk=False).ratio()
+        if ratio >= (.85 if min(len(notes), len(reference)) >= 16 else 1.0) and (best is None or ratio > best[1]):
+            best = (other["remixCode"], ratio)
+    return best
+
+
+def upload_ban_for_account(account_id: str) -> dict[str, Any] | None:
+    with AUTH_LOCK, auth_database() as connection:
+        row = connection.execute("SELECT reason, expires_at FROM upload_bans WHERE account_id = ?", (account_id,)).fetchone()
+        if row and row["expires_at"] is not None and int(row["expires_at"]) <= now_timestamp():
+            connection.execute("DELETE FROM upload_bans WHERE account_id = ?", (account_id,))
+            return None
+        return dict(row) if row else None
+
+
 def save_score(
     payload: Any,
     *,
@@ -1308,6 +1346,7 @@ def save_score(
     score = validate_package(payload)
     with LIBRARY_LOCK:
         existing_scores = read_scores()
+        similar = find_similar_score(score, existing_scores, owner_account_id) if owner_account_id else None
         matches = [(path, item) for path, item in existing_scores if item["remixCode"] == score["remixCode"]]
         can_replace = bool(matches and replace_existing and same_score_metadata(score, matches[0][1]))
         stale_code = bool(incoming_code and incoming_code != remix_code_for_score(score))
@@ -1344,6 +1383,14 @@ def save_score(
 
         existing_path = matches[0][0] if matches else None
         existing_score = matches[0][1] if matches else None
+        with AUTH_LOCK, auth_database() as connection:
+            if connection.execute("SELECT 1 FROM buffered_scores WHERE remix_code=?", (score["remixCode"],)).fetchone():
+                raise DuplicateScoreError("这首曲谱正在管理员缓冲区，暂不能重新上传。")
+            if owner_account_id:
+                for row in connection.execute("SELECT package_json FROM buffered_scores"):
+                    buffered = validate_package(json.loads(row["package_json"]))
+                    if score_notes(buffered) == score_notes(score):
+                        raise DuplicateScoreError("相同谱面正在管理员缓冲区，暂不能重新上传。")
         if existing_score:
             score["remixCode"] = existing_score["remixCode"]
             if existing_score.get("analyticsId"):
@@ -1366,6 +1413,14 @@ def save_score(
 
         rebuilt_scores = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, rebuilt_scores)
+        if owner_account_id and similar and not matches:
+            with AUTH_LOCK, auth_database() as connection:
+                connection.execute(
+                    "INSERT INTO score_similarity_reviews(remix_code, reference_code, similarity, created_at) VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(remix_code) DO UPDATE SET reference_code=excluded.reference_code, similarity=excluded.similarity, "
+                    "status='pending', created_at=excluded.created_at, reviewed_at=NULL",
+                    (score["remixCode"], similar[0], similar[1], now_timestamp()),
+                )
         return ("updated" if matches else "created"), rebuilt_scores, destination
 
 
@@ -1409,6 +1464,7 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         if len(matches) > 1:
             raise ValueError("我的曲库中存在多个相同歌名和作者的曲目，请先手动整理源文件。")
         existing_path, existing_score = matches[0]
+        similar = find_similar_score(candidate, [(path, item) for path, item in existing_scores if path != existing_path], account_id)
         candidate["remixCode"] = existing_score["remixCode"]
         if existing_score.get("analyticsId"):
             candidate["analyticsId"] = existing_score["analyticsId"]
@@ -1431,6 +1487,15 @@ def update_owned_score(account_id: str, user_id: str, payload: Any) -> tuple[str
         write_json_atomically(destination, package)
         rebuilt_scores = [item for _, item in read_scores()]
         write_library(LIBRARY_OUTPUT, rebuilt_scores)
+        with AUTH_LOCK, auth_database() as connection:
+            if similar:
+                connection.execute(
+                    "INSERT INTO score_similarity_reviews(remix_code, reference_code, similarity, created_at) VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(remix_code) DO UPDATE SET reference_code=excluded.reference_code, similarity=excluded.similarity, status='pending', created_at=excluded.created_at, reviewed_at=NULL",
+                    (candidate["remixCode"], similar[0], similar[1], now_timestamp()),
+                )
+            else:
+                connection.execute("DELETE FROM score_similarity_reviews WHERE remix_code=? AND status='pending'", (candidate["remixCode"],))
         return "updated", rebuilt_scores, destination
 
 
@@ -1618,6 +1683,31 @@ def _initialize_auth_database_locked() -> None:
                 banned_at INTEGER NOT NULL,
                 expires_at INTEGER
             );
+            CREATE TABLE IF NOT EXISTS upload_bans (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                reason TEXT NOT NULL,
+                banned_at INTEGER NOT NULL,
+                expires_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS score_similarity_reviews (
+                remix_code TEXT PRIMARY KEY,
+                reference_code TEXT NOT NULL,
+                similarity REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                created_at INTEGER NOT NULL,
+                reviewed_at INTEGER
+            );
+            CREATE TABLE IF NOT EXISTS buffered_scores (
+                remix_code TEXT PRIMARY KEY,
+                package_json TEXT NOT NULL,
+                original_path TEXT NOT NULL,
+                owner_id TEXT,
+                reason TEXT NOT NULL,
+                buffered_at INTEGER NOT NULL,
+                reversed_points INTEGER NOT NULL DEFAULT 0,
+                reversal_ref TEXT,
+                ban_set_at INTEGER
+            );
             CREATE TABLE IF NOT EXISTS ip_bans (
                 ip TEXT PRIMARY KEY,
                 reason TEXT NOT NULL DEFAULT '',
@@ -1677,6 +1767,25 @@ def _initialize_auth_database_locked() -> None:
                 brand_id TEXT NOT NULL,
                 PRIMARY KEY(method_id, brand_id)
             );
+            CREATE TABLE IF NOT EXISTS points_media (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL,
+                title TEXT NOT NULL DEFAULT '',
+                cover_url TEXT NOT NULL DEFAULT '',
+                manual_cover_url TEXT NOT NULL DEFAULT '',
+                kind TEXT NOT NULL DEFAULT 'video',
+                active INTEGER NOT NULL DEFAULT 1,
+                sort_order INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE TABLE IF NOT EXISTS partner_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                media_id INTEGER NOT NULL,
+                kind TEXT NOT NULL,
+                visitor_key TEXT NOT NULL DEFAULT '',
+                account_id TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS partner_events_media_kind ON partner_events(media_id, kind, created_at);
             CREATE TABLE IF NOT EXISTS donations (
                 account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
                 amount_cents INTEGER NOT NULL,
@@ -1752,6 +1861,35 @@ def _initialize_auth_database_locked() -> None:
             );
             CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
         """)
+        media_columns = {row[1] for row in connection.execute("PRAGMA table_info(points_media)").fetchall()}
+        for name, definition in {
+            "description": "TEXT NOT NULL DEFAULT ''",
+            "destination_url": "TEXT NOT NULL DEFAULT ''",
+            "marketing_code": "TEXT NOT NULL DEFAULT ''",
+            "headline": "TEXT NOT NULL DEFAULT ''",
+            "cta_label": "TEXT NOT NULL DEFAULT ''",
+            "embedded_copy": "INTEGER NOT NULL DEFAULT 0",
+            "promo_copy": "TEXT NOT NULL DEFAULT ''",
+            "reward_points": "INTEGER NOT NULL DEFAULT 0",
+        }.items():
+            if name not in media_columns:
+                connection.execute(f"ALTER TABLE points_media ADD COLUMN {name} {definition}")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS points_media_marketing_code ON points_media(marketing_code) WHERE marketing_code != ''")
+        if not connection.execute("SELECT 1 FROM points_media LIMIT 1").fetchone():
+            connection.execute(
+                "INSERT INTO points_media(url,title,description,destination_url,manual_cover_url,kind,active,sort_order,marketing_code,headline,cta_label,embedded_copy,promo_copy,reward_points) VALUES ('',?,?,?,?, 'image',1,0,?,?,?,1,?,?)",
+                ("ClassEcho 课堂同传", "课堂实时翻译 · 准确率与延迟 No.1\n上线首月累计翻译 60,000+ 分钟\n分享奖励 ¥88｜推荐新同学首购 ¥399 年套餐，双方各返 ¥30", "https://www.class-echo.com/", "./assets/class-echo-banner.png?v=3", secrets.token_urlsafe(12), "校园人气官招募中", "了解校园人气官计划 ↗", "ClassEcho 是我的另一个项目。输入邀请码 TW7J-AZQ4-F6PT 注册后，领取 100 小时免费时长和 20 积分。", 20),
+            )
+        else:
+            connection.execute("UPDATE points_media SET manual_cover_url='./assets/class-echo-banner.png?v=3', embedded_copy=1 WHERE title='ClassEcho 课堂同传' AND manual_cover_url IN ('./assets/class-echo-banner.png','./assets/class-echo-banner.png?v=2')")
+            connection.execute("UPDATE points_media SET headline='校园人气官招募中' WHERE title='ClassEcho 课堂同传' AND headline='校园大使招募中'")
+            connection.execute("UPDATE points_media SET cta_label='了解校园人气官计划 ↗' WHERE title='ClassEcho 课堂同传' AND cta_label='了解校园大使计划 ↗'")
+            connection.execute("UPDATE points_media SET description=?, cta_label=? WHERE title='ClassEcho 课堂同传' AND description='校园大使招募与课堂实时翻译' AND cta_label='了解活动 ↗'",
+                               ("课堂实时翻译 · 准确率与延迟 No.1\n上线首月累计翻译 60,000+ 分钟\n分享奖励 ¥88｜推荐新同学首购 ¥399 年套餐，双方各返 ¥30", "了解校园人气官计划 ↗"))
+            connection.execute("UPDATE points_media SET destination_url='https://www.class-echo.com/' WHERE title='ClassEcho 课堂同传' AND destination_url='https://class-echo.com/'")
+            if "promo_copy" not in media_columns:
+                connection.execute("UPDATE points_media SET promo_copy=?, reward_points=20 WHERE title='ClassEcho 课堂同传'", ("ClassEcho 是我的另一个项目。输入邀请码 TW7J-AZQ4-F6PT 注册后，领取 100 小时免费时长和 20 积分。",))
+            connection.execute("UPDATE points_media SET promo_copy=? WHERE title='ClassEcho 课堂同传' AND promo_copy=?", ("ClassEcho 是我的另一个项目。输入邀请码 TW7J-AZQ4-F6PT 注册后，领取 100 小时免费时长和 20 积分。", "ClassEcho 是我的另一个项目。输入邀请码 TW7J-AZQ4-F6PT，可领取 100 小时免费时长；登录后首次从本站跳转，还可领取 20 积分。"))
         # 早期本地库可能已经建过没有 created_at 的 donations 表，这里补齐列。
         donation_columns = {row[1] for row in connection.execute("PRAGMA table_info(donations)").fetchall()}
         if "created_at" not in donation_columns:
@@ -2069,6 +2207,7 @@ def account_payload(server: ThreadingHTTPServer, account: sqlite3.Row | dict[str
         "userId": account["user_id"],
         "email": credential,
         "isAdmin": is_admin_account(account),
+        "uploadBan": upload_ban_for_account(str(account["id"])),
         "effectState": account_effect_state(server, account),
         "github": {
             "login": str(github["display_name"] or ""),
@@ -2145,6 +2284,282 @@ def update_export_methods(payload: Any) -> dict[str, Any]:
     return export_methods_payload()
 
 
+def points_media_url(value: Any) -> str:
+    url = str(value or "").strip()
+    parsed = urlsplit(url)
+    host = (parsed.hostname or "").casefold()
+    allowed = host == "b23.tv" or any(
+        host == domain or host.endswith("." + domain)
+        for domain in ("douyin.com", "iesdouyin.com", "bilibili.com")
+    )
+    if len(url) > 600 or parsed.scheme != "https" or not allowed or parsed.username or parsed.password or parsed.port:
+        raise ValueError("媒体链接只支持 HTTPS 抖音或 B 站地址。")
+    return url
+
+
+def partner_destination_url(value: Any) -> str:
+    url = str(value or "").strip()
+    parsed = urlsplit(url)
+    if len(url) > 1200 or parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.port:
+        raise ValueError("合作网站链接必须是 HTTPS 地址。")
+    return url
+
+
+def valid_points_cover_url(url: str) -> bool:
+    if url in {"./assets/class-echo-banner.png", "./assets/class-echo-banner.png?v=2", "./assets/class-echo-banner.png?v=3"}:
+        return True
+    if url.startswith("./data/points-media/"):
+        return bool(re.fullmatch(r"\./data/points-media/[a-f0-9]{32}\.(?:png|jpg|webp)", url))
+    parsed = urlsplit(url)
+    return len(url) <= 1200 and parsed.scheme == "https" and bool(parsed.hostname) and not parsed.username and not parsed.password and not parsed.port
+
+
+def points_image_extension(image: bytes) -> str:
+    if image.startswith(b"\x89PNG\r\n\x1a\n") and len(image) >= 45:
+        if image[8:16] == b"\x00\x00\x00\x0dIHDR" and image[-12:] == b"\x00\x00\x00\x00IEND\xaeB`\x82":
+            width = int.from_bytes(image[16:20], "big")
+            height = int.from_bytes(image[20:24], "big")
+            if 0 < width <= 10000 and 0 < height <= 10000:
+                return "png"
+    if image.startswith(b"RIFF") and image[8:12] == b"WEBP" and len(image) >= 30:
+        if int.from_bytes(image[4:8], "little") + 8 == len(image) and image[12:16] in {b"VP8 ", b"VP8L", b"VP8X"}:
+            return "webp"
+    if image.startswith(b"\xff\xd8\xff") and image.endswith(b"\xff\xd9"):
+        offset = 2
+        while offset + 4 <= len(image) - 2:
+            if image[offset] != 0xff:
+                break
+            marker = image[offset + 1]
+            if marker == 0xda:
+                break
+            size = int.from_bytes(image[offset + 2:offset + 4], "big")
+            if size < 2 or offset + 2 + size > len(image):
+                break
+            if marker in {0xc0, 0xc1, 0xc2, 0xc3} and size >= 7:
+                height = int.from_bytes(image[offset + 5:offset + 7], "big")
+                width = int.from_bytes(image[offset + 7:offset + 9], "big")
+                if 0 < width <= 10000 and 0 < height <= 10000:
+                    return "jpg"
+            offset += 2 + size
+    raise ValueError("仅支持有效的 PNG、JPEG 或 WebP 图片。")
+
+
+class PointsMediaMetadataParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.cover = ""
+        self.title = ""
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "meta":
+            return
+        values = dict(attrs)
+        key = values.get("property") or values.get("name")
+        if key in {"og:image", "twitter:image"} and not self.cover:
+            self.cover = values.get("content") or ""
+        if key in {"og:title", "twitter:title"} and not self.title:
+            self.title = values.get("content") or ""
+
+
+class PointsMediaNoRedirect(HTTPRedirectHandler):
+    def redirect_request(self, request: Request, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> None:
+        return None
+
+
+def resolve_points_media_metadata(source_url: str) -> tuple[str, str]:
+    """Resolve metadata once at admin save time; never fetch media on public reads."""
+    opener = build_opener(PointsMediaNoRedirect)
+    current = source_url
+    for _ in range(5):
+        request = Request(current, headers={"User-Agent": "Mozilla/5.0", "Accept": "text/html"})
+        try:
+            response = opener.open(request, timeout=4)
+        except HTTPError as error:
+            if error.code not in {301, 302, 303, 307, 308}:
+                return "", ""
+            destination = error.headers.get("Location", "")
+            try:
+                current = points_media_url(urljoin(current, destination))
+            except ValueError:
+                return "", ""
+            continue
+        except (URLError, TimeoutError, OSError):
+            return "", ""
+        with response:
+            if "html" not in response.headers.get("Content-Type", "").lower():
+                return "", ""
+            document = response.read(512_000).decode("utf-8", "replace")
+        parser = PointsMediaMetadataParser()
+        parser.feed(document)
+        cover = urljoin(current, parser.cover) if parser.cover else ""
+        if urlsplit(cover).scheme != "https":
+            cover = ""
+        return parser.title.strip()[:120], cover[:1200]
+    return "", ""
+
+
+def points_media_payload(*, include_inactive: bool = False) -> dict[str, Any]:
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT id, url, title, cover_url, manual_cover_url, kind, active, description, destination_url, marketing_code, headline, cta_label, embedded_copy, promo_copy, reward_points FROM points_media "
+            + ("" if include_inactive else "WHERE active = 1 ")
+            + "ORDER BY sort_order, id"
+        ).fetchall()
+    return {"items": [{
+        "id": row["id"], "url": row["url"], "title": row["title"],
+        "coverUrl": row["manual_cover_url"] or row["cover_url"],
+        "autoCoverUrl": row["cover_url"] if include_inactive else None,
+        "manualCoverUrl": row["manual_cover_url"] if include_inactive else None,
+        "kind": row["kind"], "active": bool(row["active"]),
+        "description": row["description"],
+        "promoCopy": row["promo_copy"], "rewardPoints": row["reward_points"],
+        "headline": row["headline"], "ctaLabel": row["cta_label"], "embeddedCopy": bool(row["embedded_copy"]),
+        "destinationUrl": row["destination_url"] if include_inactive else None,
+        "marketingCode": row["marketing_code"] if include_inactive else None,
+        "outboundUrl": f"./api/points/media/{row['id']}/out",
+    } for row in rows]}
+
+
+def record_points_media_outbound(media_id: int, account_id: str | None) -> str:
+    """Record an active product visit and grant its one-time account reward."""
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        item = connection.execute(
+            "SELECT id,destination_url,reward_points FROM points_media WHERE id=? AND active=1", (media_id,)
+        ).fetchone()
+        if not item or not item["destination_url"]:
+            return ""
+        connection.execute(
+            "INSERT INTO partner_events(media_id,kind,created_at) VALUES (?,'outbound',?)",
+            (item["id"], now_timestamp()),
+        )
+        if account_id and item["reward_points"] > 0:
+            award_points(connection, account_id, item["reward_points"], "partner_outbound", str(item["id"]))
+        return str(item["destination_url"])
+
+
+def update_points_media(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("items"), list) or len(payload["items"]) > POINTS_MEDIA_LIMIT:
+        raise ValueError("媒体配置格式无效，最多可设置 12 条。")
+    previous = {item["id"]: item for item in points_media_payload(include_inactive=True)["items"]}
+    cleaned = []
+    seen: set[str] = set()
+    for item in payload["items"]:
+        if not isinstance(item, dict):
+            raise ValueError("媒体配置项无效。")
+        kind = str(item.get("kind") or "image")
+        if kind not in {"live", "image"}:
+            raise ValueError("内容类型必须是直播或图片。")
+        url = points_media_url(item.get("url")) if kind == "live" else ""
+        destination = partner_destination_url(item.get("destinationUrl") or url)
+        key = (kind, url, destination)
+        if key in seen:
+            raise ValueError("同类型的产品链接不能重复。")
+        seen.add(key)
+        manual_cover = str(item.get("manualCoverUrl") or "").strip()
+        if manual_cover and not valid_points_cover_url(manual_cover):
+            raise ValueError("图片必须是 HTTPS 地址或本站已上传的图片。")
+        if kind == "image" and not manual_cover:
+            raise ValueError("图片产品必须配置图片。")
+        title = str(item.get("title") or "").strip()
+        description = str(item.get("description") or "").strip()
+        headline = str(item.get("headline") or "").strip()
+        cta_label = str(item.get("ctaLabel") or "了解详情 ↗").strip()
+        promo_copy = str(item.get("promoCopy") or "").strip()
+        reward_points = item.get("rewardPoints", 0)
+        if isinstance(reward_points, bool) or not isinstance(reward_points, int) or not 0 <= reward_points <= 10000:
+            raise ValueError("首次跳转奖励须为 0 至 10000 的整数。")
+        if not title or len(title) > 120 or len(description) > 500 or len(promo_copy) > 500 or len(headline) > 120 or len(cta_label) > 30:
+            raise ValueError("产品名称必填且不超过 120 字；介绍不超过 500 字。")
+        item_id = item.get("id")
+        old = previous.get(item_id) if isinstance(item_id, int) else None
+        if item_id and not old:
+            raise ValueError("产品标识无效。")
+        cover = old["autoCoverUrl"] if old and old["url"] == url else ""
+        if kind == "live" and not cover:
+            _, cover = resolve_points_media_metadata(url)
+        cleaned.append((item_id, url, title, description, destination, cover, manual_cover, kind, int(bool(item.get("active", True))), old["marketingCode"] if old else secrets.token_urlsafe(12), headline, cta_label, int(bool(item.get("embeddedCopy", False))), promo_copy, reward_points))
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        for index, (item_id, url, title, description, destination, cover, manual_cover, kind, active, code, headline, cta_label, embedded_copy, promo_copy, reward_points) in enumerate(cleaned):
+            if item_id:
+                connection.execute("UPDATE points_media SET url=?, title=?, description=?, destination_url=?, cover_url=?, manual_cover_url=?, kind=?, active=?, sort_order=?, headline=?, cta_label=?, embedded_copy=?, promo_copy=?, reward_points=? WHERE id=?",
+                                   (url, title, description, destination, cover, manual_cover, kind, active, index, headline, cta_label, embedded_copy, promo_copy, reward_points, item_id))
+            else:
+                connection.execute("INSERT INTO points_media(url,title,description,destination_url,cover_url,manual_cover_url,kind,active,sort_order,marketing_code,headline,cta_label,embedded_copy,promo_copy,reward_points) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                                   (url, title, description, destination, cover, manual_cover, kind, active, index, code, headline, cta_label, embedded_copy, promo_copy, reward_points))
+        submitted_ids = {item[0] for item in cleaned if item[0]}
+        for item_id in previous.keys() - submitted_ids:
+            connection.execute("UPDATE points_media SET active=0 WHERE id=?", (item_id,))
+    return points_media_payload(include_inactive=True)
+
+
+def partner_cookie_value(server: ThreadingHTTPServer, visitor: str, media_id: int | None = None, stamp: int | None = None) -> str:
+    message = f"{visitor}:{media_id}:{stamp}" if media_id is not None else visitor
+    secret = (getattr(server, "partner_secret", "") or server.auth_secret).encode()
+    signature = hmac.new(secret, f"partner:{message}".encode(), hashlib.sha256).hexdigest()[:24]
+    return f"{message}:{signature}"
+
+
+def partner_cookie_header(server: ThreadingHTTPServer, name: str, value: str, seconds: int) -> str:
+    parts = [f"{name}={value}", "Path=/", "HttpOnly", "SameSite=Lax", f"Max-Age={seconds}"]
+    if not server.insecure_auth_cookies:
+        parts.append("Secure")
+    return "; ".join(parts)
+
+
+def partner_visitor(server: ThreadingHTTPServer, cookies: SimpleCookie) -> tuple[str, bool]:
+    supplied = cookies.get(PARTNER_VISITOR_COOKIE_NAME)
+    value = supplied.value if supplied else ""
+    match = re.fullmatch(r"([a-f0-9]{32}):([a-f0-9]{24})", value)
+    if match and hmac.compare_digest(value, partner_cookie_value(server, match[1])):
+        return match[1], False
+    return secrets.token_hex(16), True
+
+
+def partner_registration_attribution(server: ThreadingHTTPServer, cookies: SimpleCookie) -> tuple[int, str] | None:
+    supplied = cookies.get(PARTNER_COOKIE_NAME)
+    value = supplied.value if supplied else ""
+    match = re.fullmatch(r"([a-f0-9]{32}):(\d+):(\d+):([a-f0-9]{24})", value)
+    if not match:
+        return None
+    visitor, media_id, stamp = match[1], int(match[2]), int(match[3])
+    if not hmac.compare_digest(value, partner_cookie_value(server, visitor, media_id, stamp)):
+        return None
+    if not 0 <= now_timestamp() - stamp <= PARTNER_ATTRIBUTION_SECONDS:
+        return None
+    return media_id, visitor
+
+
+def record_partner_registration(connection: sqlite3.Connection, attribution: tuple[int, str] | None, account_id: str, created_at: int) -> None:
+    if attribution:
+        connection.execute("INSERT INTO partner_events(media_id,kind,visitor_key,account_id,created_at) VALUES (?,'registration',?,?,?)",
+                           (attribution[0], attribution[1], account_id, created_at))
+
+
+def points_media_metrics() -> dict[int, dict[str, int]]:
+    initialize_auth_database()
+    today = datetime.now(timezone.utc).date().isoformat()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute("SELECT media_id,kind,visitor_key,created_at FROM partner_events").fetchall()
+    grouped: dict[int, dict[str, Any]] = defaultdict(lambda: {"outboundClicks": 0, "inboundVisits": 0, "inboundDailyVisitors": set(), "inboundLifetimeVisitors": set(), "registrations": 0, "registrationDailyVisitors": set(), "registrationLifetimeVisitors": set()})
+    for row in rows:
+        result = grouped[row["media_id"]]
+        kind = row["kind"]
+        if kind == "outbound":
+            result["outboundClicks"] += 1
+        elif kind in {"inbound", "registration"}:
+            prefix = "inbound" if kind == "inbound" else "registration"
+            result["inboundVisits" if kind == "inbound" else "registrations"] += 1
+            visitor = row["visitor_key"]
+            result[f"{prefix}LifetimeVisitors"].add(visitor)
+            day = datetime.fromtimestamp(row["created_at"], timezone.utc).date().isoformat()
+            if day == today:
+                result[f"{prefix}DailyVisitors"].add(visitor)
+    return {media_id: {key: len(value) if isinstance(value, set) else value for key, value in result.items()} for media_id, result in grouped.items()}
+
+
 def recommendation_identity(payload: Any) -> dict[str, str]:
     if not isinstance(payload, dict):
         raise ValueError("推荐曲目请求格式无效。")
@@ -2180,8 +2595,10 @@ def admin_library_catalog() -> list[dict[str, Any]]:
         recommendation_rows = connection.execute(
             "SELECT remix_code FROM recommended_scores"
         ).fetchall()
+        review_rows = connection.execute("SELECT remix_code, reference_code, similarity, status FROM score_similarity_reviews").fetchall()
     owners = {row["remix_code"]: row["user_id"] for row in owner_rows}
     recommendations = {row["remix_code"] for row in recommendation_rows}
+    reviews = {row["remix_code"]: dict(row) for row in review_rows}
     items: list[dict[str, Any]] = []
     for path, score in read_scores():
         items.append({
@@ -2200,10 +2617,33 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "source": score.get("source", "社区投稿"),
             "owner": owners.get(score["remixCode"], "—"),
             "recommended": score["remixCode"] in recommendations,
+            "similarityReview": reviews.get(score["remixCode"]),
             "file": str(path.relative_to(REPOSITORY_ROOT)),
             "updatedAt": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         })
     return items
+
+
+def admin_review_score(payload: Any) -> dict[str, Any]:
+    """Dismiss or buffer a flagged score, reversing its author points when penalized."""
+    if not isinstance(payload, dict):
+        raise ValueError("审核请求格式无效。")
+    code = normalize_remix_code(payload.get("remixCode"))
+    action = payload.get("action")
+    if not code or action not in {"dismiss", "remove"}:
+        raise ValueError("审核操作无效。")
+    with AUTH_LOCK, auth_database() as connection:
+        review = connection.execute("SELECT status FROM score_similarity_reviews WHERE remix_code = ?", (code,)).fetchone()
+        if not review or review["status"] != "pending":
+            raise ValueError("这首曲谱没有待处理的相似提醒。")
+    if action == "dismiss":
+        with AUTH_LOCK, auth_database() as connection:
+            connection.execute("UPDATE score_similarity_reviews SET status='dismissed', reviewed_at=? WHERE remix_code=?", (now_timestamp(), code))
+        return {"action": "dismissed"}
+    days = payload.get("banDays")
+    if days is not None and (type(days) is not int or days < 1 or days > 3650):
+        raise ValueError("封禁天数必须是 1 到 3650 的整数，留空表示永久。")
+    return buffer_score({"remixCode": code}, penalize=True, ban_days=days)
 
 
 def admin_score_by_id(score_id: Any) -> tuple[Path, dict[str, Any]]:
@@ -2360,10 +2800,11 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
         rows = connection.execute(
             "SELECT accounts.id, accounts.email, accounts.user_id, accounts.created_at, accounts.updated_at, "
             "MAX(COALESCE(donations.amount_cents, 0)) AS donation_cents, "
-            "COUNT(DISTINCT score_owners.remix_code) AS uploads, "
+            "COUNT(DISTINCT CASE WHEN buffered_scores.remix_code IS NULL THEN score_owners.remix_code END) AS uploads, "
             "COUNT(DISTINCT CASE WHEN sessions.expires_at > ? THEN sessions.token_hash END) AS active_sessions "
             "FROM accounts "
             "LEFT JOIN score_owners ON score_owners.account_id = accounts.id "
+            "LEFT JOIN buffered_scores ON buffered_scores.remix_code = score_owners.remix_code "
             "LEFT JOIN sessions ON sessions.account_id = accounts.id "
             "LEFT JOIN donations ON donations.account_id = accounts.id "
             "GROUP BY accounts.id ORDER BY accounts.created_at DESC",
@@ -2371,6 +2812,9 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
         ).fetchall()
         bans = {row["account_id"]: dict(row) for row in connection.execute(
             "SELECT account_id, reason, banned_at, expires_at FROM account_bans"
+        ).fetchall()}
+        upload_bans = {row["account_id"]: dict(row) for row in connection.execute(
+            "SELECT account_id, reason, expires_at FROM upload_bans"
         ).fetchall()}
         observed_ips: dict[str, list[dict[str, Any]]] = {}
         if advanced:
@@ -2390,6 +2834,7 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
                 })
         for row in rows:
             current_ban = bans.get(row["id"])
+            current_upload_ban = upload_bans.get(row["id"])
             entry = {
                 "id": row["id"],
                 "userId": row["user_id"],
@@ -2402,6 +2847,11 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
                     "banned": bool(current_ban and (current_ban["expires_at"] is None or int(current_ban["expires_at"]) > now)),
                     "reason": str(current_ban["reason"]) if current_ban else "",
                     "expiresAt": current_ban["expires_at"] if current_ban else None,
+                },
+                "uploadBan": {
+                    "banned": bool(current_upload_ban and (current_upload_ban["expires_at"] is None or int(current_upload_ban["expires_at"]) > now)),
+                    "reason": str(current_upload_ban["reason"]) if current_upload_ban else "",
+                    "expiresAt": current_upload_ban["expires_at"] if current_upload_ban else None,
                 },
                 "registeredAt": iso_timestamp(row["created_at"]),
                 "updatedAt": iso_timestamp(row["updated_at"]),
@@ -2592,24 +3042,125 @@ def mark_effect_notices(server: ThreadingHTTPServer, account: sqlite3.Row | dict
         )
 
 
-def admin_delete_score(payload: Any) -> list[dict[str, Any]]:
-    """Delete one canonical community score and its admin metadata."""
-    existing_path, existing_score = resolve_score_reference(payload)
+def buffer_score(payload: Any, *, penalize: bool = False, ban_days: int | None = None) -> dict[str, Any]:
+    """Hide a score while keeping its source and metadata recoverable in SQLite."""
     with LIBRARY_LOCK:
-        existing_path.unlink()
+        path, score = resolve_score_reference(payload)
+        code = score["remixCode"]
+        package_json = path.read_text(encoding="utf-8")
+        owner_id = score_owner_account_id(path, score)
+        if penalize and not owner_id:
+            raise ValueError("曲谱没有绑定上传账号，无法执行处罚。")
+        now = now_timestamp()
+        reversal_ref = f"{code}:{uuid.uuid4().hex}" if penalize else None
         with AUTH_LOCK, auth_database() as connection:
-            remix_code = existing_score["remixCode"]
-            connection.execute("DELETE FROM score_owners WHERE remix_code = ?", (remix_code,))
-            connection.execute("DELETE FROM recommended_scores WHERE remix_code = ?", (remix_code,))
-            # Remove all account-level metadata tied to the deleted score so it
-            # cannot remain apparently unlocked or count toward author rewards.
-            for table in ("score_unlocks", "author_unlocks"):
-                connection.execute(f"DELETE FROM {table} WHERE remix_code = ?", (remix_code,))
-        if existing_path.exists():
-            raise OSError(f"删除曲谱文件失败：{existing_path}")
-        songs = [item for _, item in read_scores()]
-        write_library(LIBRARY_OUTPUT, songs)
-        return songs
+            if connection.execute("SELECT 1 FROM buffered_scores WHERE remix_code=?", (code,)).fetchone():
+                raise ValueError("曲谱已在缓冲区。")
+            recovered = 0
+            if penalize:
+                original = connection.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id=? AND reason='author' AND reference LIKE ?",
+                    (owner_id, f"%:{code}"),
+                ).fetchone()[0]
+                adjustments = connection.execute(
+                    "SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id=? AND reason IN ('author_reversal', 'author_reinstatement') AND reference LIKE ?",
+                    (owner_id, f"{code}:%"),
+                ).fetchone()[0]
+                recovered = max(0, int(original) + int(adjustments))
+            connection.execute(
+                "INSERT INTO buffered_scores(remix_code, package_json, original_path, owner_id, reason, buffered_at, reversed_points, reversal_ref, ban_set_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (code, package_json, str(path.relative_to(REPOSITORY_ROOT)), owner_id,
+                 "二次上传他人谱子" if penalize else "管理员下架", now, recovered, reversal_ref, now if penalize else None),
+            )
+            if recovered:
+                award_points(connection, owner_id, -recovered, "author_reversal", reversal_ref)
+            if penalize:
+                connection.execute(
+                    "INSERT INTO upload_bans(account_id, reason, banned_at, expires_at) VALUES (?, ?, ?, ?) "
+                    "ON CONFLICT(account_id) DO UPDATE SET reason=excluded.reason, banned_at=excluded.banned_at, expires_at=excluded.expires_at",
+                    (owner_id, "二次上传他人谱子", now, now + ban_days * 86400 if ban_days else None),
+                )
+                connection.execute("UPDATE score_similarity_reviews SET status='buffered', reviewed_at=? WHERE remix_code=?", (now, code))
+            path.unlink()
+        try:
+            write_library(LIBRARY_OUTPUT, [item for _, item in read_scores()])
+        except Exception:
+            # Revert both source and bookkeeping if the public catalogue cannot be rebuilt.
+            write_json_atomically(path, json.loads(package_json))
+            with AUTH_LOCK, auth_database() as connection:
+                connection.execute("DELETE FROM buffered_scores WHERE remix_code=?", (code,))
+                if recovered:
+                    connection.execute("DELETE FROM point_ledger WHERE account_id=? AND reason='author_reversal' AND reference=?", (owner_id, reversal_ref))
+                if penalize:
+                    connection.execute("DELETE FROM upload_bans WHERE account_id=? AND banned_at=?", (owner_id, now))
+                    connection.execute("UPDATE score_similarity_reviews SET status='pending', reviewed_at=NULL WHERE remix_code=?", (code,))
+            raise
+        return {"action": "buffered", "recoveredPoints": recovered}
+
+
+def admin_buffer_catalog() -> list[dict[str, Any]]:
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT buffered_scores.*, accounts.user_id AS owner_name FROM buffered_scores "
+            "LEFT JOIN accounts ON accounts.id=buffered_scores.owner_id ORDER BY buffered_at DESC"
+        ).fetchall()
+    items = []
+    for row in rows:
+        package = validate_package(json.loads(row["package_json"]))
+        items.append({"remixCode": row["remix_code"], "title": package["title"], "artist": package["artist"],
+                      "sharedBy": package["sharedBy"], "owner": row["owner_name"] or "—", "reason": row["reason"],
+                      "bufferedAt": iso_timestamp(row["buffered_at"]), "recoveredPoints": row["reversed_points"]})
+    return items
+
+
+def admin_resolve_buffered_score(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("缓冲区请求格式无效。")
+    code = normalize_remix_code(payload.get("remixCode"))
+    action = payload.get("action")
+    if not code or action not in {"restore", "delete"}:
+        raise ValueError("缓冲区操作无效。")
+    with LIBRARY_LOCK:
+        with AUTH_LOCK, auth_database() as connection:
+            row = connection.execute("SELECT * FROM buffered_scores WHERE remix_code=?", (code,)).fetchone()
+            if not row:
+                raise FileNotFoundError("缓冲区中没有这首曲谱。")
+            entry = dict(row)
+        if action == "restore":
+            path = (REPOSITORY_ROOT / entry["original_path"]).resolve()
+            legacy_source = path.parent == REPOSITORY_ROOT.resolve() and path.name.endswith((".deltamusic", ".harmonica-score.json"))
+            if not (is_canonical_source(path) or legacy_source) or path.exists() or any(item["remixCode"] == code for _, item in read_scores()):
+                raise ValueError("原位置已被占用，无法恢复曲谱。")
+            package = validate_package(json.loads(entry["package_json"]))
+            write_json_atomically(path, canonical_package(package))
+            try:
+                write_library(LIBRARY_OUTPUT, [item for _, item in read_scores()])
+            except Exception:
+                path.unlink(missing_ok=True)
+                raise
+            with AUTH_LOCK, auth_database() as connection:
+                if entry["reversed_points"]:
+                    award_points(connection, entry["owner_id"], entry["reversed_points"], "author_reinstatement", entry["reversal_ref"])
+                if entry["ban_set_at"] and entry["owner_id"]:
+                    connection.execute("DELETE FROM upload_bans WHERE account_id=? AND banned_at=?", (entry["owner_id"], entry["ban_set_at"]))
+                connection.execute("UPDATE score_similarity_reviews SET status='dismissed', reviewed_at=? WHERE remix_code=?", (now_timestamp(), code))
+                connection.execute("DELETE FROM buffered_scores WHERE remix_code=?", (code,))
+            return {"action": "restored", "restoredPoints": entry["reversed_points"]}
+        with AUTH_LOCK, auth_database() as connection:
+            connection.execute("DELETE FROM score_owners WHERE remix_code=?", (code,))
+            connection.execute("DELETE FROM recommended_scores WHERE remix_code=?", (code,))
+            connection.execute("DELETE FROM score_similarity_reviews WHERE remix_code=?", (code,))
+            connection.execute("DELETE FROM score_unlocks WHERE remix_code=?", (code,))
+            connection.execute("DELETE FROM author_unlocks WHERE remix_code=?", (code,))
+            connection.execute("DELETE FROM buffered_scores WHERE remix_code=?", (code,))
+        return {"action": "deleted"}
+
+
+def admin_delete_score(payload: Any) -> list[dict[str, Any]]:
+    """Compatibility entry point: admin deletion now moves a score to the buffer."""
+    buffer_score(payload)
+    return [item for _, item in read_scores()]
 
 
 def add_recommendation(payload: Any) -> list[dict[str, str]]:
@@ -3053,7 +3604,7 @@ def github_login_return_url(server: ThreadingHTTPServer, result: str, reason: st
     return urlunsplit((callback.scheme, callback.netloc, github_app_path(server), urlencode(query), ""))
 
 
-def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str, str], referral: str = "") -> sqlite3.Row:
+def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str, str], referral: str = "", partner_attribution: tuple[int, str] | None = None) -> sqlite3.Row:
     subject = profile["subject"]
     display_name = re.sub(r"[^A-Za-z0-9_]+", "_", profile.get("display_name", "")).strip("_")[:12]
     prefix = "qq" if provider == "qq" else "wx"
@@ -3095,6 +3646,7 @@ def oauth_account(server: ThreadingHTTPServer, provider: str, profile: dict[str,
         if inviter_id and inviter_id != account_id:
             connection.execute("INSERT INTO referrals(invitee_id, inviter_id, created_at) VALUES (?, ?, ?)",
                                (account_id, inviter_id, now))
+        record_partner_registration(connection, partner_attribution, account_id, now)
         return connection.execute("SELECT id, email, user_id FROM accounts WHERE id = ?", (account_id,)).fetchone()
 
 
@@ -3368,7 +3920,7 @@ def daily_login_rewarded(connection: sqlite3.Connection, account_id: str) -> boo
     ).fetchone())
 
 
-def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any, mode: Any = None, referral: Any = None) -> sqlite3.Row:
+def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any, requested_user_id: Any, mode: Any = None, referral: Any = None, partner_attribution: tuple[int, str] | None = None) -> sqlite3.Row:
     value = str(code or "").strip()
     if not re.fullmatch(r"\d{6}", value):
         raise ValueError("请输入 6 位验证码。")
@@ -3411,6 +3963,7 @@ def consume_verification_code(server: ThreadingHTTPServer, email: str, code: Any
             if inviter_id and inviter_id != account_id:
                 connection.execute("INSERT INTO referrals(invitee_id, inviter_id, created_at) VALUES (?, ?, ?)",
                                    (account_id, inviter_id, now))
+            record_partner_registration(connection, partner_attribution, account_id, now)
         elif mode == "register":
             raise ValueError("该邮箱已注册，请切换到登录。")
         if not fixed_test_login:
@@ -3874,6 +4427,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def send_head(self) -> Any:  # noqa: N802
         """Compress text assets for clients that accept gzip; otherwise use the stdlib path."""
+        if urlparse(self.path).path.rstrip("/") in {"/export", "/create", "/points", "/delta/export", "/delta/create", "/delta/points"}:
+            self.path = "/index.html"
         if not self.accepts_gzip():
             return super().send_head()
         path = self.translate_path(self.path)
@@ -4238,6 +4793,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.server.public_uploads[client] = timestamps
         return True
 
+    def private_data_request(self, path: str) -> bool:
+        decoded = unquote(path).casefold()
+        return ".sqlite3" in decoded or "/.score-buffer/" in decoded
+
+    def do_HEAD(self) -> None:  # noqa: N802
+        if self.private_data_request(self.path.split("?", 1)[0]):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
+        super().do_HEAD()
+
     def data_request_is_blocked(self, path: str) -> bool:
         """/data/ 下的曲库数据文件只允许站内页面引用，阻断已知抓取脚本。
 
@@ -4282,10 +4847,44 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.reject_banned_ip():
             return
         path = self.path.split("?", 1)[0]
+        if self.private_data_request(path):
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return
         if self.data_request_is_blocked(path):
             self.send_blocked_library()
             return
         if self.serve_maintenance_if_active(path):
+            return
+        if path == "/api/points/media":
+            self.send_json(HTTPStatus.OK, points_media_payload())
+            return
+        outbound = re.fullmatch(r"/api/points/media/(\d+)/out", path)
+        if outbound:
+            initialize_auth_database()
+            account = authenticate_request(self) if self.server.auth_enabled else None
+            destination = record_points_media_outbound(int(outbound[1]), account["id"] if account else None)
+            if not destination:
+                self.send_error(HTTPStatus.NOT_FOUND)
+            else:
+                self.send_redirect(destination)
+            return
+        inbound = re.fullmatch(r"/api/partner/([A-Za-z0-9_-]{8,40})", path)
+        if inbound:
+            initialize_auth_database()
+            with AUTH_LOCK, auth_database() as connection:
+                item = connection.execute("SELECT id FROM points_media WHERE marketing_code=? AND active=1", (inbound[1],)).fetchone()
+            if not item:
+                self.send_error(HTTPStatus.NOT_FOUND)
+                return
+            visitor, fresh = partner_visitor(self.server, self.cookies())
+            stamp = now_timestamp()
+            with AUTH_LOCK, auth_database() as connection:
+                connection.execute("INSERT INTO partner_events(media_id,kind,visitor_key,created_at) VALUES (?,'inbound',?,?)", (item["id"], visitor, stamp))
+            cookies = [partner_cookie_header(self.server, PARTNER_COOKIE_NAME, partner_cookie_value(self.server, visitor, item["id"], stamp), PARTNER_ATTRIBUTION_SECONDS)]
+            if fresh:
+                cookies.append(partner_cookie_header(self.server, PARTNER_VISITOR_COOKIE_NAME, partner_cookie_value(self.server, visitor), 365 * 86400))
+            home_path = github_app_path(self.server) if self.server.github_oauth else "/"
+            self.send_redirect(home_path, cookies)
             return
         if path in {"/api/points", "/api/points/ledger", "/api/points/github/start",
                     "/api/points/github/callback", "/api/auth/github/start"}:
@@ -4315,7 +4914,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 with AUTH_LOCK, auth_database() as connection:
                     ensure_initial_points(connection, account["id"])
                     rows = connection.execute(
-                        "SELECT amount, reason, reference, created_at FROM point_ledger WHERE account_id = ? ORDER BY created_at DESC, id DESC LIMIT 100",
+                        "SELECT point_ledger.amount, point_ledger.reason, point_ledger.reference, point_ledger.created_at, points_media.title AS product_title "
+                        "FROM point_ledger LEFT JOIN points_media ON point_ledger.reason='partner_outbound' AND point_ledger.reference=CAST(points_media.id AS TEXT) "
+                        "WHERE point_ledger.account_id = ? ORDER BY point_ledger.created_at DESC, point_ledger.id DESC LIMIT 100",
                         (account["id"],),
                     ).fetchall()
                 self.send_json(HTTPStatus.OK, {"entries": [dict(row) for row in rows]})
@@ -4372,7 +4973,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_redirect(oauth_callback_target(self.server, provider, "error", "未获取到授权码，请重试。"), oauth_state_cookie(self, expired=True))
                 return
             try:
-                account = oauth_account(self.server, provider, oauth_profile(self.server, provider, code), pending.get("referral", ""))
+                account = oauth_account(self.server, provider, oauth_profile(self.server, provider, code), pending.get("referral", ""), partner_registration_attribution(self.server, self.cookies()))
                 token = issue_session(self.server, account["id"])
             except (ValueError, OSError, sqlite3.Error) as error:
                 self.send_redirect(oauth_callback_target(self.server, provider, "error", str(error) or "第三方登录失败，请重试。"), oauth_state_cookie(self, expired=True))
@@ -4488,6 +5089,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, export_methods_payload())
             return
+        if path == "/api/admin/points/media":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, points_media_payload(include_inactive=True))
+            return
+        if path == "/api/admin/points/media/metrics":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, {"products": points_media_metrics()})
+            return
         if path == "/api/admin/points":
             if not self.is_admin_console_request():
                 return
@@ -4504,6 +5115,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                     str(item[field]).casefold() for field in ("remixCode", "legacyId", "title", "artist", "sharedBy", "owner")
                 )]
             self.send_json(HTTPStatus.OK, {"songs": items, "total": len(items)})
+            return
+        if path == "/api/admin/library/buffer":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, {"songs": admin_buffer_catalog()})
             return
         if path == "/api/admin/users":
             if not self.is_admin_console_request():
@@ -4588,6 +5204,24 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.reject_banned_ip():
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/points/media/image":
+            if not self.is_admin_console_request():
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 1 <= length <= POINTS_IMAGE_LIMIT:
+                    raise ValueError("图片大小不得超过 5 MB。")
+                image = self.rfile.read(length)
+                extension = points_image_extension(image)
+                folder = DATA_DIRECTORY / "points-media"
+                folder.mkdir(parents=True, exist_ok=True)
+                name = f"{uuid.uuid4().hex}.{extension}"
+                (folder / name).write_bytes(image)
+            except (ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
+                return
+            self.send_json(HTTPStatus.OK, {"url": f"./data/points-media/{name}"})
+            return
         if path == "/api/points/notice":
             if not self.server.auth_enabled or not self.request_is_same_origin():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "请从本站登录后确认积分说明。"})
@@ -4638,6 +5272,29 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法封禁账号。"})
                 return
             self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
+            return
+        if path == "/api/admin/library/review":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_review_score(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法审核曲谱。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
+            return
+        if path == "/api/admin/library/buffer":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_resolve_buffered_score(self.read_payload())
+            except FileNotFoundError as error:
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
+                return
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法处理缓冲区曲谱。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
             return
         if path == "/api/admin/ip-ban":
             if not self.is_admin_console_request():
@@ -4742,7 +5399,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 payload = self.read_payload()
                 if not isinstance(payload, dict):
                     raise ValueError("认证请求格式无效。")
-                account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"), payload.get("mode"), payload.get("referral"))
+                account = consume_verification_code(self.server, normalize_email(payload.get("email")), payload.get("code"), payload.get("userId"), payload.get("mode"), payload.get("referral"), partner_registration_attribution(self.server, self.cookies()))
                 token = issue_session(self.server, account["id"])
             except sqlite3.Error:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
@@ -4837,6 +5494,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not account:
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录后再上传曲谱。"})
                 return
+            upload_ban = upload_ban_for_account(account["id"])
+            if upload_ban:
+                expiry = datetime.fromtimestamp(upload_ban["expires_at"], timezone.utc).strftime("%Y-%m-%d") if upload_ban["expires_at"] else "永久"
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": f"上传功能已被封禁（{expiry}）。原因：{upload_ban['reason']}。", "code": "upload_banned"})
+                return
             # A user may upload directly from the editor without opening
             # “我的曲库” first. Ensure legacy Jiko submissions are owned by
             # this verified account before duplicate/replace checks run.
@@ -4891,6 +5553,21 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.reject_banned_ip():
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/upload-ban":
+            if not self.is_admin_console_request():
+                return
+            try:
+                payload = self.read_payload()
+                account_id = str(payload.get("accountId") or "") if isinstance(payload, dict) else ""
+                if not account_id:
+                    raise ValueError("缺少账号标识。")
+                with AUTH_LOCK, auth_database() as connection:
+                    connection.execute("DELETE FROM upload_bans WHERE account_id=?", (account_id,))
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法解除投稿封禁。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "unbanned"})
+            return
         if path == "/api/admin/account-ban":
             if not self.is_admin_console_request():
                 return
@@ -4919,10 +5596,10 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             except FileNotFoundError as error:
                 self.send_json(HTTPStatus.NOT_FOUND, {"error": str(error)})
                 return
-            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
-                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法删除曲目。"})
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法将曲目移入缓冲区。"})
                 return
-            self.send_json(HTTPStatus.OK, {"action": "deleted", "songs": songs})
+            self.send_json(HTTPStatus.OK, {"action": "buffered", "songs": songs})
             return
         if path == "/api/admin/library/recommendation":
             if not self.is_admin_console_request():
@@ -4995,13 +5672,13 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
-        if path != "/api/admin/export-methods":
+        if path not in {"/api/admin/export-methods", "/api/admin/points/media"}:
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到管理接口。"})
             return
         if not self.is_admin_console_request():
             return
         try:
-            updated = update_export_methods(self.read_payload())
+            updated = update_export_methods(self.read_payload()) if path == "/api/admin/export-methods" else update_points_media(self.read_payload())
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
             self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存导出方式配置。"})
             return
@@ -5040,6 +5717,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             account = authenticate_request(self)
             if not account:
                 self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            upload_ban = upload_ban_for_account(account["id"])
+            if upload_ban:
+                expiry = datetime.fromtimestamp(upload_ban["expires_at"], timezone.utc).strftime("%Y-%m-%d") if upload_ban["expires_at"] else "永久"
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": f"上传功能已被封禁（{expiry}）。原因：{upload_ban['reason']}。", "code": "upload_banned"})
                 return
             try:
                 backfill_legacy_score_owners(account)
@@ -5180,6 +5862,7 @@ def main() -> int:
     server.auth_enabled = auth_requested
     server.email_auth_enabled = email_auth_requested
     server.auth_secret = args.auth_secret
+    server.partner_secret = args.auth_secret or args.analytics_admin_token or secrets.token_urlsafe(32)
     server.smtp_host = args.smtp_host
     server.smtp_port = args.smtp_port
     server.smtp_username = args.smtp_username
