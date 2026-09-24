@@ -308,6 +308,6 @@ python3 tools/local_library_server.py
 
 ### 同步生产投稿
 
-生产环境的公开投稿位于 Docker 卷，不会自动进入 Git。可在服务器上使用 `tools/sync_community_to_github.sh` 同步 `data/community-scores/` 与 `data/community-songs.js`。该脚本只在内容变化时创建 `chore: sync community songs` 提交并推送到 `track` 分支。
+生产环境的投稿保存在 Docker 卷，使用服务器备份保留私有副本。`tools/sync_community_to_github.sh` 已停用：公开仓库的 `track` 分支及其 Git 历史对任何人可见，不能用作私有曲库备份。仅在审核并确认允许公开后，手动导出选定曲谱到公开仓库。
 
-先为仓库配置具有写权限的 Deploy Key，并将私钥保存到 `/root/.ssh/delta_harmonica_github`。维护者审核后手动将 `track` 合并回目标分支。
+已有 `track` 泄漏需要在服务器停用同步定时任务，并从远端删除该分支；删除分支不能撤回已被克隆或缓存的内容。若曲库不能公开，还须检查 `main` 的历史及 `data/community-songs.js`、`data/community-scores/` 和站点接口，并迁移到私有存储。改写公开 Git 历史前先备份并协调所有协作者。
