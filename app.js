@@ -1,5 +1,5 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "4.0.0";
+const WEBSITE_VERSION = "5.0.0";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
@@ -428,7 +428,7 @@ const ANALYTICS_SCORE_ID_PATTERN = /^(?:s[0-9a-f]{8}|[0-9a-f]{21})$/i;
 let recommendedSongIdentities = [];
 let recommendedSongKeys = new Set();
 let publicRankings = { rankingDate: "", uploads: [], contributions: [], yesterdayExports: [], usage: [], usageWindowDays: 0, userEffects: {} };
-let publicDonors = { donors: [] };
+let publicDonors = { donors: [], supporterCount: 0 };
 const LIBRARY_TITLE_COLLATOR = new Intl.Collator("zh-CN", { numeric: true, sensitivity: "base" });
 // The built-in service records only allow-listed product events.
 // Score operations include the current score title/artist for the private analytics console;
@@ -714,6 +714,7 @@ function syncDonationMarquee({ list, stack, track }) {
   stack.classList.remove("is-scrolling");
   stack.style.removeProperty("--donation-scroll-distance");
   stack.style.removeProperty("--donation-scroll-duration");
+  if (!list.getClientRects().length) return;
   if (!track.children.length || track.querySelector(".donation-thanks-empty")) return;
   const singleHeight = track.scrollHeight;
   if (singleHeight <= list.clientHeight + 4) return;
@@ -731,16 +732,18 @@ function syncDonationMarquee({ list, stack, track }) {
 
 function renderDonationThanks() {
   const donors = publicDonors.donors;
+  const supporterCount = Number.isInteger(publicDonors.supporterCount) ? publicDonors.supporterCount : donors.length;
   const views = [
     { list: elements.donationThanksList, stack: elements.donationStack, track: elements.donationTrack, total: elements.donationThanksTotal },
-    { list: elements.pointsDonationThanksList, stack: elements.pointsDonationStack, track: elements.pointsDonationTrack, total: elements.pointsDonationThanksTotal }
+    { list: elements.pointsDonationThanksList, stack: elements.pointsDonationStack, track: elements.pointsDonationTrack, total: elements.pointsDonationThanksTotal },
+    { list: elements.tutorialDonationThanksList, stack: elements.tutorialDonationStack, track: elements.tutorialDonationTrack, total: elements.tutorialDonationThanksTotal }
   ];
   for (const view of views) {
     if (!view.track) continue;
     view.track.innerHTML = donors.length
-      ? donors.map((donor) => `<div class="donation-thanks-row" role="listitem">@${userIdMarkup(donor.userId)}</div>`).join("")
+      ? donors.map((donor) => `<div class="donation-thanks-row" role="listitem"><span class="donation-thanks-name">${donor.isBound === false ? "vx: " : ""}${userIdMarkup(donor.displayName || donor.userId)}</span><strong class="donation-thanks-amount">¥${(Math.max(0, Number(donor.amountCents) || 0) / 100).toFixed(2)}</strong></div>`).join("")
       : '<p class="donation-thanks-empty">还没有打赏记录。感谢每一位支持这个工具的朋友。</p>';
-    if (view.total) view.total.textContent = donors.length ? `${donors.length} 位支持者` : "暂无记录";
+    if (view.total) view.total.textContent = donors.length ? `${supporterCount} 位支持者` : "暂无记录";
     window.requestAnimationFrame(() => syncDonationMarquee(view));
   }
 }
@@ -759,15 +762,17 @@ function scheduleDonationMarqueeSync() {
 async function refreshPublicDonors() {
   if (!elements.donationTrack) return;
   let donors = [];
+  let supporterCount = 0;
   try {
     const response = await fetch("./api/public-donors", { headers: { Accept: "application/json" }, cache: "no-store" });
     const payload = await response.json();
     if (!response.ok || !payload || !Array.isArray(payload.donors)) throw new Error("Public donors request failed");
-    donors = payload.donors.filter((donor) => donor && typeof donor.userId === "string" && donor.userId.trim());
+    donors = payload.donors.filter((donor) => donor && typeof (donor.displayName || donor.userId) === "string" && (donor.displayName || donor.userId).trim());
+    supporterCount = Number.isInteger(payload.supporterCount) ? payload.supporterCount : donors.length;
   } catch { donors = []; }
-  publicDonors = { donors };
+  publicDonors = { donors, supporterCount };
   // 定时刷新时只有名单真的变了才重绘，避免每分钟把滚动动画打断一次。
-  const signature = donors.map((donor) => donor.userId).join("|");
+  const signature = donors.map((donor) => `${donor.isBound === false ? "vx: " : ""}${donor.displayName || donor.userId}:${donor.amountCents || 0}:${donor.createdAt || ""}`).join("|") + `#${supporterCount}`;
   if (signature === donationRenderSignature) return;
   donationRenderSignature = signature;
   renderDonationThanks();
@@ -1053,7 +1058,7 @@ const SECTION_GUIDES = {
   },
   player: {
     windowTitle: "HELP.EXE — PLAYBACK",
-    index: "09 · PLAYBACK STATUS",
+    index: "PLAYBACK STATUS",
     title: "播放器 · 听谱与检查",
     intro: "播放器用于在导出前确认旋律和节奏。它不控制游戏或鼠标软件，只在浏览器内试听当前曲谱。",
     steps: [
@@ -1184,7 +1189,11 @@ Object.assign(elements, {
   pointsDonationThanksTotal: document.querySelector("#pointsDonationThanksTotal"),
   pointsDonationThanksList: document.querySelector("#pointsDonationThanksList"),
   pointsDonationStack: document.querySelector("#pointsDonationStack"),
-  pointsDonationTrack: document.querySelector("#pointsDonationTrack")
+  pointsDonationTrack: document.querySelector("#pointsDonationTrack"),
+  tutorialDonationThanksTotal: document.querySelector("#tutorialCopyDonationThanksTotal"),
+  tutorialDonationThanksList: document.querySelector("#tutorialCopyDonationThanksList"),
+  tutorialDonationStack: document.querySelector("#tutorialCopyDonationStack"),
+  tutorialDonationTrack: document.querySelector("#tutorialCopyDonationTrack")
 });
 
 Object.assign(elements, {
@@ -1252,7 +1261,6 @@ Object.assign(elements, {
   pointsMediaEmpty: document.querySelector("#pointsMediaEmpty"),
   pointsMediaStage: document.querySelector("#pointsMediaStage"),
   pointsMediaFeatured: document.querySelector("#pointsMediaFeatured"),
-  pointsMediaReward: document.querySelector("#pointsMediaReward"),
   pointsMediaCopy: document.querySelector("#pointsMediaCopy"),
   pointsMediaImage: document.querySelector("#pointsMediaImage"),
   pointsMediaFallback: document.querySelector("#pointsMediaFallback"),
@@ -1276,6 +1284,7 @@ Object.assign(elements, {
   pointsTaskAuthor: document.querySelector("#pointsTaskAuthor"),
   pointsTaskStatus: document.querySelector("#pointsTaskStatus"),
   githubStarVerifyButton: document.querySelector("#githubStarVerifyButton"),
+  tutorialGithubStarVerifyButton: document.querySelector("#tutorialCopyGithubStarVerifyButton"),
   copyInviteCodeButton: document.querySelector("#copyInviteCodeButton"),
   copyInviteLinkButton: document.querySelector("#copyInviteLinkButton"),
   inviteCodeDisplay: document.querySelector("#inviteCodeDisplay"),
@@ -2978,6 +2987,11 @@ function songsForLibraryView() {
         || compareLibrarySongs(left, right))
       .slice(0, 10);
   }
+  if (activeLibraryView === "purchased") {
+    const unlockedCodes = new Set(authState.account?.points?.unlocked || []);
+    return SONG_LIBRARY.filter((song) => song.remixCode && unlockedCodes.has(song.remixCode))
+      .sort(compareLibrarySongs);
+  }
   const songs = activeLibraryView === "mine" ? mySongLibrary : SONG_LIBRARY;
   return activeLibraryView === "all"
     ? [...songs].sort(compareLibrarySongsByCreation)
@@ -3029,7 +3043,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const needsPoints = songAnalyticsOrigin(song) === "community" && Boolean(song.remixCode);
   const unlocked = authState.account?.points?.unlocked?.includes(song.remixCode);
   const owned = authState.account?.points?.owned?.includes(song.remixCode);
-  const priceLabel = needsPoints ? (owned ? "我的谱子·免费" : unlocked ? "已解锁" : authState.account?.points?.unlimited ? "无限使用" : "首次 10 积分") : "";
+  const priceLabel = needsPoints ? (owned ? "我的谱子·免费" : unlocked ? "已解锁" : authState.account?.points?.unlimited ? "无限使用" : "") : "";
   // 正在播放器里试听这首曲目时，卡片按钮显示「停止」。
   const previewPlaying = Boolean(playerSongCode) && playerSongCode === (song.remixCode || "") && playerSongPlaying();
   return `
@@ -3065,19 +3079,31 @@ function renderSongLibrary(query = "") {
     elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
     return;
   }
+  if (activeLibraryView === "purchased" && !authState.account) {
+    elements.songGrid.innerHTML = '<p class="library-empty">登录后查看已购买的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
+    return;
+  }
   if (songs.length) {
     elements.songGrid.innerHTML = songs.map((song) => renderSongCard(song)).join("");
     return;
   }
   if (normalizedQuery) {
+    if (activeLibraryView === "purchased") {
+      elements.songGrid.innerHTML = '<p class="library-empty library-empty--search">没有找到匹配的已购买曲目。</p>';
+      return;
+    }
     elements.songGrid.innerHTML = '<p class="library-empty library-empty--search">没有找到匹配的曲目。<span>你可以成为第一个上传人。</span><button class="library-empty-action" data-library-upload type="button">去编辑器上传</button></p>';
+    return;
+  }
+  if (activeLibraryView === "purchased") {
+    elements.songGrid.innerHTML = '<p class="library-empty">还没有已购买的曲目。</p>';
     return;
   }
   elements.songGrid.innerHTML = '<p class="library-empty">当前分类暂无曲目。</p>';
 }
 
 // 推荐板块：第一排从管理员推荐名单中随机抽取，第二排从全部曲库中随机抽取且不与第一排重复。
-const RECOMMENDATION_BOARD_MAX_PICKS = 4;
+const RECOMMENDATION_BOARD_MAX_PICKS = 5;
 const RECOMMENDATION_BOARD_CARD_MIN_WIDTH = 232;
 const RECOMMENDATION_BOARD_CARD_GAP = 10;
 let recommendationBoardRowSize = 0;
@@ -3118,7 +3144,9 @@ function sampleSongs(songs, count, excludedKeys = new Set()) {
 
 // 每排展示数量跟随 .recommendation-row 的 auto-fill 列数，避免卡片折行。
 function recommendationBoardPickCount() {
-  const width = elements.recommendationPrimaryRow?.clientWidth || elements.recommendationSecondaryRow?.clientWidth || window.innerWidth;
+  if (window.matchMedia("(max-width: 590px)").matches) return 1;
+  const width = elements.recommendationPrimaryRow?.clientWidth || elements.recommendationSecondaryRow?.clientWidth;
+  if (!width) return recommendationBoardRowSize || 1;
   return Math.max(1, Math.min(RECOMMENDATION_BOARD_MAX_PICKS, Math.floor((width + RECOMMENDATION_BOARD_CARD_GAP) / (RECOMMENDATION_BOARD_CARD_MIN_WIDTH + RECOMMENDATION_BOARD_CARD_GAP))));
 }
 
@@ -3643,6 +3671,7 @@ function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
   if (!sequence) return;
   const index = timelineNoteIndexAt(sequence, positionMs);
   setTimelinePlaybackPosition(sequence, index, { scroll });
+  if (activePreview) highlightEditorPlaybackNote(sequence, index);
 }
 
 function timelineNoteIndexAt(sequence, positionMs) {
@@ -3784,7 +3813,7 @@ function openSectionGuide(key) {
   const guide = SECTION_GUIDES[key];
   if (!guide) return;
   elements.sectionGuideWindowTitle.textContent = guide.windowTitle;
-  elements.sectionGuideIndex.textContent = guide.index;
+  elements.sectionGuideIndex.textContent = document.querySelector(`[data-section-index="${key}"]`)?.textContent || guide.index;
   elements.sectionGuideHeading.textContent = guide.title;
   elements.sectionGuideIntro.textContent = guide.intro;
   elements.sectionGuideSteps.innerHTML = guide.steps.map(([number, title, copy]) => `
@@ -4208,6 +4237,71 @@ function clearTimelinePlayback() {
   });
 }
 
+let playbackEditorOverlay = null;
+
+function clearEditorPlaybackHighlight() {
+  if (!playbackEditorOverlay) return;
+  playbackEditorOverlay.editor.classList.remove("playback-highlight-active");
+  playbackEditorOverlay.host.classList.remove("playback-highlight-active");
+  playbackEditorOverlay = null;
+}
+
+function editorPlaybackRange(item, source) {
+  let start = Number.isInteger(item.start) ? item.start : -1;
+  if (start < 0 && Number.isInteger(item.line)) {
+    const lines = source.split("\n");
+    start = lines.slice(0, item.line - 1).reduce((length, line) => length + line.length + 1, 0) + Math.max(0, (item.column || 1) - 1);
+  }
+  if (start < 0 || start >= source.length) return null;
+  const end = source.indexOf("\n", start);
+  if (inputMode === "keyboard") return { start, end: end < 0 ? source.length : end };
+  const tokenEnd = source.slice(start, end < 0 ? source.length : end).search(/\s/);
+  return { start, end: tokenEnd < 0 ? (end < 0 ? source.length : end) : start + tokenEnd };
+}
+
+function highlightEditorPlaybackNote(sequence, index) {
+  if (playerSongSequence || sequence !== currentSequence) { clearEditorPlaybackHighlight(); return; }
+  const editor = editorForMode();
+  const item = sequence?.notes[index];
+  const range = item && editorPlaybackRange(item, editor.value);
+  if (!range || range.end <= range.start) { clearEditorPlaybackHighlight(); return; }
+  if (playbackEditorOverlay?.editor !== editor) {
+    clearEditorPlaybackHighlight();
+    let host = editor.parentElement;
+    if (!host.classList.contains("playback-highlight-host")) {
+      host = document.createElement("div");
+      host.className = "playback-highlight-host";
+      editor.parentNode.insertBefore(host, editor);
+      host.append(editor);
+    }
+    let overlay = host.querySelector(".playback-highlight-overlay");
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.className = "playback-highlight-overlay";
+      overlay.setAttribute("aria-hidden", "true");
+      host.prepend(overlay);
+      editor.addEventListener("scroll", () => { overlay.scrollTop = editor.scrollTop; overlay.scrollLeft = editor.scrollLeft; });
+    }
+    playbackEditorOverlay = { editor, host, overlay };
+  }
+  const { host, overlay } = playbackEditorOverlay;
+  overlay.replaceChildren(
+    document.createTextNode(editor.value.slice(0, range.start)),
+    Object.assign(document.createElement("mark"), { textContent: editor.value.slice(range.start, range.end) }),
+    document.createTextNode(editor.value.slice(range.end))
+  );
+  host.classList.add("playback-highlight-active");
+  editor.classList.add("playback-highlight-active");
+  const line = editor.value.slice(0, range.start).split("\n").length - 1;
+  const lineHeight = Number.parseFloat(getComputedStyle(editor).lineHeight) || 24;
+  const lineTop = line * lineHeight;
+  if (lineTop < editor.scrollTop || lineTop + lineHeight > editor.scrollTop + editor.clientHeight) {
+    editor.scrollTop = Math.max(0, lineTop - (editor.clientHeight - lineHeight) / 2);
+  }
+  overlay.scrollTop = editor.scrollTop;
+  overlay.scrollLeft = editor.scrollLeft;
+}
+
 function setTimelinePlaybackPosition(sequence, index, { scroll = false } = {}) {
   const note = sequence?.notes[index];
   clearTimelinePlayback();
@@ -4266,6 +4360,7 @@ function clearPreviewScheduler(preview) {
 
 function stopPreview({ resetProgress = true } = {}) {
   previewProgressSeeking = false;
+  clearEditorPlaybackHighlight();
   if (!activePreview) return;
   stopPreviewNodes(activePreview);
   clearPreviewTimers(activePreview);
@@ -4295,6 +4390,7 @@ function updatePreviewTimeline(preview, positionMs) {
   }
   if (index < 0 || index === preview.timelineIndex) return;
   if (setTimelinePlaybackPosition(preview.sequence, index, { scroll: true })) preview.timelineIndex = index;
+  highlightEditorPlaybackNote(preview.sequence, index);
 }
 
 function registerPreviewNodes(preview, nodes) {
@@ -5378,7 +5474,7 @@ function replaceCommunitySongs(songs) {
 }
 
 function setLibraryView(view = "recommended") {
-  const selectedView = ["all", "recommended", "hot", "mine"].includes(view) ? view : "recommended";
+  const selectedView = ["all", "recommended", "hot", "purchased", "mine"].includes(view) ? view : "recommended";
   activeLibraryView = selectedView;
   elements.libraryTabs.forEach((tab) => {
     const selected = tab.dataset.libraryView === selectedView;
@@ -5736,6 +5832,8 @@ function setSignedInAccount(account) {
   renderIdEffectPicker();
   schedulePointsNotice();
   scheduleEffectUnlockNotice();
+  if (currentTaskRoute() === "cooperate") void loadCooperationDashboard();
+  else if (currentTaskRoute() === "points") void refreshCooperationRedeemQuota();
 }
 
 let pointsNoticeTimer = null;
@@ -5761,7 +5859,7 @@ document.querySelector("#pointsNoticeDialog").addEventListener("close", () => {
   flushPendingPointsTask();
 });
 
-const POINT_REASON_LABELS = { register: "注册奖励", legacy_grant: "版本更新补偿", legacy_export: "历史导出结算", daily_login: "每日登录", github_star: "GitHub Star", first_upload: "首次投稿", referral: "邀请好友", author: "作品被使用", unlock: "解锁曲谱", partner_outbound: "合作产品跳转" };
+const POINT_REASON_LABELS = { register: "注册奖励", legacy_grant: "版本更新补偿", legacy_export: "历史导出结算", daily_login: "每日登录", github_star: "GitHub Star", first_upload: "首次投稿", referral: "邀请好友", author: "作品被使用", unlock: "解锁曲谱", partner_outbound: "合作跳转历史奖励", streamer_code: "主播兑换码" };
 
 // 只有能帮用户看懂来源的参考信息才展示；注册/投稿/邀请的参考值是内部账号 ID，
 // 既不直观也不该暴露，所以不显示。
@@ -5797,8 +5895,9 @@ function renderPointsLedger(entries = []) {
     const label = POINT_REASON_LABELS[entry.reason] || entry.reason || "积分变动";
     const date = new Date((Number(entry.created_at) || 0) * 1000);
     const when = Number.isNaN(date.getTime()) ? "" : date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-    const note = entry.reason === "partner_outbound" ? (entry.product_title || "合作产品") : (POINT_REFERENCE_NOTES[entry.reason]?.(String(entry.reference ?? "")) || "");
-    const meta = [when, note].filter(Boolean).join(" · ");
+  const note = entry.reason === "partner_outbound" ? (entry.product_title || "合作产品") : (POINT_REFERENCE_NOTES[entry.reason]?.(String(entry.reference ?? "")) || "");
+    const ledgerNote = entry.reason === "streamer_code" ? (entry.streamer_user_id ? `主播 @${entry.streamer_user_id}` : "主播兑换码") : note;
+    const meta = [when, ledgerNote].filter(Boolean).join(" · ");
     return `<div class="points-ledger-entry"><span><b>${escapeHtml(label)}</b><small>${escapeHtml(meta)}</small></span><strong class="${amount >= 0 ? "positive" : "negative"}">${amount >= 0 ? "+" : ""}${amount}</strong></div>`;
   }).join("");
 }
@@ -5832,15 +5931,18 @@ function renderPointsUi() {
   elements.copyInviteLinkButton.disabled = false;
 
   const githubReady = Boolean(points?.githubStarAvailable);
-  elements.githubStarVerifyButton.disabled = signedIn && (!githubReady || Boolean(points?.githubStarRewarded));
-  elements.githubStarVerifyButton.textContent = !signedIn
-    ? "登录后验证 Star · +500"
-    : points?.githubStarRewarded
-      ? "已验证 Star · +500"
-      : githubReady
-        ? "验证 Star · 领取 500 积分"
-        : "Star 验证暂不可用";
-  elements.githubStarVerifyButton.title = !signedIn ? "登录后即可验证 GitHub Star" : githubReady ? "通过 GitHub 授权验证 Star" : "当前站点尚未配置 GitHub Star 验证";
+  for (const button of [elements.githubStarVerifyButton, elements.tutorialGithubStarVerifyButton]) {
+    if (!button) continue;
+    button.disabled = signedIn && (!githubReady || Boolean(points?.githubStarRewarded));
+    button.textContent = !signedIn
+      ? "登录后验证 Star · +500"
+      : points?.githubStarRewarded
+        ? "已验证 Star · +500"
+        : githubReady
+          ? "验证 Star · 领取 500 积分"
+          : "Star 验证暂不可用";
+    button.title = !signedIn ? "登录后即可验证 GitHub Star" : githubReady ? "通过 GitHub 授权验证 Star" : "当前站点尚未配置 GitHub Star 验证";
+  }
 }
 
 async function refreshPointsUi() {
@@ -6915,12 +7017,14 @@ async function copyInviteValue(kind) {
 }
 elements.copyInviteCodeButton.addEventListener("click", () => copyInviteValue("code"));
 elements.copyInviteLinkButton.addEventListener("click", () => copyInviteValue("link"));
-elements.githubStarVerifyButton.addEventListener("click", () => {
+function verifyGithubStarReward() {
   if (requirePointsTaskLogin("github")) return;
   if (authState.account?.points?.githubStarAvailable && !authState.account.points.githubStarRewarded) {
     window.location.assign("./api/points/github/start");
   }
-});
+}
+elements.githubStarVerifyButton.addEventListener("click", verifyGithubStarReward);
+elements.tutorialGithubStarVerifyButton?.addEventListener("click", verifyGithubStarReward);
 const invitation = new URLSearchParams(window.location.search).get("ref");
 if (invitation && /^[\p{L}\p{N}_]{3,24}$/u.test(invitation)) document.querySelector("#authReferral").value = invitation;
 const starReturn = new URLSearchParams(window.location.search).get("github-star");
@@ -7215,7 +7319,15 @@ elements.directoryButtons.forEach((button) => button.addEventListener("click", (
     elements.jianpuScore.focus({ preventScroll: true });
   }
 }));
-elements.tourStartButtons.forEach((button) => button.addEventListener("click", () => startTour(button.dataset.tourStart, button)));
+elements.tourStartButtons.forEach((button) => button.addEventListener("click", () => {
+  if (currentTaskRoute() === "tutorial") {
+    const route = button.dataset.tourStart === "library" ? "export" : "create";
+    navigateTask(route);
+    startTour(button.dataset.tourStart, document.querySelector(`[data-task-route="${route}"]`));
+    return;
+  }
+  startTour(button.dataset.tourStart, button);
+}));
 elements.tourPrevious.addEventListener("click", () => moveTour(-1));
 elements.tourNext.addEventListener("click", () => {
   if (!activeTour) return;
@@ -7568,8 +7680,6 @@ function renderPointsMedia() {
   pointsMediaIndex = (pointsMediaIndex + count) % count;
   const item = items[pointsMediaIndex];
   elements.pointsMediaFeatured.href = item.outboundUrl;
-  elements.pointsMediaReward.hidden = !(item.rewardPoints > 0);
-  elements.pointsMediaReward.textContent = item.rewardPoints > 0 ? `+${item.rewardPoints} 积分` : "";
   elements.pointsMediaCopy.hidden = false;
   elements.pointsMediaCopy.classList.toggle("is-empty", !item.promoCopy);
   elements.pointsMediaCopy.setAttribute("aria-hidden", String(!item.promoCopy));
@@ -7656,32 +7766,185 @@ function renderPointsReturnLink() {
 }
 
 const TASK_DRAFT_KEY = "delta-create-draft-v1";
+function cooperationSetMessage(id, message, error = false) {
+  const node = document.getElementById(id);
+  if (!node) return;
+  node.textContent = message || "";
+  node.classList.toggle("is-error", Boolean(error));
+}
+function cooperationRenderCards(catalog) {
+  const streamerRoot = document.querySelector("#cooperateStreamers");
+  streamerRoot.replaceChildren();
+  if (!catalog.streamers?.length) streamerRoot.innerHTML = '<div class="cooperate-empty">暂无认证主播。你可以提交申请，审核通过后在这里展示。</div>';
+  for (const item of catalog.streamers || []) {
+    const card = document.createElement("a");
+    card.className = "cooperate-streamer-card"; card.href = item.streamUrl; card.target = "_blank"; card.rel = "noopener noreferrer";
+    const image = document.createElement(item.coverUrl ? "img" : "div");
+    image.className = `cooperate-card-image${item.coverUrl ? "" : " cooperate-card-image--empty"}`;
+    if (item.coverUrl) { image.src = new URL(item.coverUrl, document.baseURI).href; image.alt = `${item.userId} 的主播封面`; image.loading = "lazy"; }
+    else image.textContent = "LIVE PARTNER";
+    const badge = document.createElement("span"); badge.className = `cooperate-live-badge${item.isLive ? " is-live" : ""}`; badge.textContent = item.isLive ? "● 正在直播" : "认证主播";
+    const copy = document.createElement("span"); copy.className = "cooperate-card-copy";
+    const heading = document.createElement("strong"); heading.textContent = item.headline || `@${item.userId}`;
+    const body = document.createElement("p"); body.textContent = item.description || "合作主播";
+    copy.append(heading,body); card.append(image,badge,copy); streamerRoot.append(card);
+  }
+  const adRoot = document.querySelector("#cooperateAds"); adRoot.replaceChildren();
+  if (!catalog.ads?.length) adRoot.innerHTML = '<div class="cooperate-empty">暂无上架广告，欢迎提交合作意向。</div>';
+  for (const item of catalog.ads || []) {
+    const card = document.createElement("a"); card.className = "cooperate-ad-card"; card.href = item.url; card.target = "_blank"; card.rel = "noopener noreferrer";
+    if (item.coverUrl) { const image = document.createElement("img"); image.className = "cooperate-card-image"; image.src = new URL(item.coverUrl,document.baseURI).href; image.alt = item.title || "合作广告"; image.loading = "lazy"; card.append(image); }
+    const copy=document.createElement("span");copy.className="cooperate-card-copy";
+    const title=document.createElement("strong");title.textContent=item.headline||item.title||"合作推荐";
+    const description=document.createElement("p");description.textContent=item.description||"";
+    const cta=document.createElement("span");cta.textContent=item.ctaLabel||"了解详情 ↗";copy.append(title,description,cta);card.append(copy);adRoot.append(card);
+  }
+}
+function cooperationRenderDashboard(data) {
+  const dashboard=document.querySelector("#cooperateDashboard"); dashboard.hidden=false;
+  const profile=data.profile;
+  const apps=data.applications||[];
+  const streamerApplication=apps.find(item=>item.kind==="streamer");
+  const advertiserApplication=apps.find(item=>item.kind==="advertiser");
+  const advertiserStatus=document.querySelector("#cooperateAdApplicationStatus");
+  advertiserStatus.hidden=!advertiserApplication||advertiserApplication.status==="rejected";
+  advertiserStatus.textContent=advertiserApplication?.status==="pending"?"广告合作申请已提交，管理员审核后会按申请联系方式联系你。":advertiserApplication?.status==="approved"?"广告合作申请已通过，请留意预留联系方式。":"";
+  const isStreamer=Boolean(profile);
+  document.querySelector("#cooperateStreamerForm").hidden=isStreamer||streamerApplication?.status==="pending";
+  document.querySelector("#cooperatePendingState").hidden=isStreamer||!streamerApplication;
+  document.querySelector("#cooperatePendingState").textContent=streamerApplication?.status==="pending"?"主播认证申请正在审核中。":streamerApplication?.status==="rejected"?"上次主播申请未通过，可修改资料后重新申请。":"";
+  document.querySelector("#cooperateStreamerTools").hidden=!isStreamer;
+  document.querySelector("#cooperateDashboardStatus").textContent=isStreamer?"已认证主播":"";
+  const profileForm=document.querySelector("#cooperateProfileForm");
+  if(profile){profileForm.elements.streamUrl.value=profile.streamUrl||"";profileForm.elements.headline.value=profile.headline||"";profileForm.elements.description.value=profile.description||"";profileForm.dataset.coverUrl=profile.coverUrl||"";
+    const preview=document.querySelector("#cooperateCoverPreview");preview.replaceChildren();if(profile.coverUrl){const image=document.createElement("img");image.src=new URL(profile.coverUrl,document.baseURI).href;image.alt="主播封面预览";preview.append(image);}else preview.textContent="封面预览";}
+  document.querySelector("#cooperateDailyCode").textContent=data.dailyCode||"尚未领取";
+  document.querySelector("#cooperateRedeemQuota").textContent=`本周期已兑换 ${data.redeemedStreamers}/3 位主播`;
+  document.querySelector("#cooperateResetTime").textContent=`每日北京时间 05:00 刷新${data.resetsAt?` · 下次 ${new Date(data.resetsAt*1000).toLocaleString("zh-CN")}`:""}`;
+  const devices=document.querySelector("#cooperateDevices");devices.replaceChildren();
+  for(const item of data.devices||[]){const row=document.createElement("div");row.className="cooperate-device-row";const label=document.createElement("span");label.textContent=`${item.label} · #${item.id}`;const button=document.createElement("button");button.type="button";button.className="text-button";button.textContent="撤销";button.addEventListener("click",async()=>{try{await authRequest("./api/cooperate/device/revoke",{method:"POST",body:{id:item.id}});await loadCooperationDashboard();cooperationSetMessage("cooperateDashboardStatus","设备令牌已撤销。");}catch(error){cooperationSetMessage("cooperateDashboardStatus",error.message,true);}});row.append(label,button);devices.append(row);}
+}
+async function loadCooperationDashboard() {
+  const dashboard=document.querySelector("#cooperateDashboard");
+  if(!authState.account){dashboard.hidden=true;return;}
+  try{cooperationRenderDashboard(await authRequest("./api/cooperate/dashboard"));}catch(error){dashboard.hidden=true;if(error.status!==401)cooperationSetMessage("cooperatePageStatus",error.message,true);}
+}
+async function refreshCooperationRedeemQuota() {
+  const quota = document.querySelector("#cooperateRedeemQuota");
+  if (!quota) return;
+  if (!authState.account) { quota.textContent = "本周期最多兑换 3 位主播"; return; }
+  try {
+    const data = await authRequest("./api/cooperate/dashboard");
+    quota.textContent = `本周期已兑换 ${data.redeemedStreamers}/3 位主播`;
+  } catch (error) {
+    if (error.status === 401) quota.textContent = "登录后查看本周期兑换进度";
+  }
+}
+async function loadCooperationPage() {
+  try{cooperationRenderCards(await authRequest("./api/cooperate"));}catch(error){cooperationSetMessage("cooperatePageStatus",error.message,true);}
+  await loadCooperationDashboard();
+}
+let cooperationCatalogTimer = null;
+async function refreshCooperationCatalog() {
+  try { cooperationRenderCards(await authRequest("./api/cooperate")); } catch (error) { cooperationSetMessage("cooperatePageStatus",error.message,true); }
+}
+document.querySelector("#cooperateStreamerForm")?.addEventListener("submit",async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  try{await authRequest("./api/cooperate/application",{method:"POST",body:{kind:"streamer",streamUrl:form.elements.streamUrl.value.trim(),description:form.elements.description.value.trim()}});cooperationSetMessage("cooperatePageStatus","主播认证申请已提交，等待管理员审核。");form.reset();await loadCooperationDashboard();}
+  catch(error){if(error.status===401)showAuthDialog();cooperationSetMessage("cooperatePageStatus",error.message,true);}
+});
+document.querySelector("#cooperateAdvertiserForm")?.addEventListener("submit",async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  try{await authRequest("./api/cooperate/application",{method:"POST",body:{kind:"advertiser",contact:form.elements.contact.value.trim(),description:form.elements.description.value.trim()}});cooperationSetMessage("cooperatePageStatus","广告合作申请已提交，等待管理员联系。");form.reset();await loadCooperationDashboard();}
+  catch(error){if(error.status===401)showAuthDialog();cooperationSetMessage("cooperatePageStatus",error.message,true);}
+});
+document.querySelector("#cooperateProfileForm")?.addEventListener("submit",async event=>{
+  event.preventDefault();const form=event.currentTarget;
+  try{await authRequest("./api/cooperate/profile",{method:"POST",body:{streamUrl:form.elements.streamUrl.value.trim(),headline:form.elements.headline.value.trim(),description:form.elements.description.value.trim(),coverUrl:form.dataset.coverUrl||""}});cooperationSetMessage("cooperateDashboardStatus","主播资料已保存。");await loadCooperationPage();}
+  catch(error){cooperationSetMessage("cooperateDashboardStatus",error.message,true);}
+});
+document.querySelector("#cooperateCoverFile")?.addEventListener("change",async event=>{
+  const file=event.currentTarget.files?.[0];if(!file)return;
+  if(file.type!=="image/webp"||file.size>3*1024*1024){cooperationSetMessage("cooperateDashboardStatus","封面须为 3 MB 以内的 WebP 图片。",true);event.currentTarget.value="";return;}
+  try{const response=await fetch("./api/cooperate/profile/image",{method:"POST",headers:{"Content-Type":"image/webp"},body:file,credentials:"same-origin"});const data=await response.json();if(!response.ok)throw new Error(data.error||"封面上传失败。");const form=document.querySelector("#cooperateProfileForm");form.dataset.coverUrl=data.url;const image=document.createElement("img");image.src=new URL(data.url,document.baseURI).href;image.alt="主播封面预览";document.querySelector("#cooperateCoverPreview").replaceChildren(image);cooperationSetMessage("cooperateDashboardStatus","WebP 封面已上传，保存资料后生效。");}
+  catch(error){cooperationSetMessage("cooperateDashboardStatus",error.message,true);}
+});
+document.querySelector("#cooperateClaimCode")?.addEventListener("click",async()=>{try{const result=await authRequest("./api/cooperate/code",{method:"POST",body:{}});document.querySelector("#cooperateDailyCode").textContent=result.code;document.querySelector("#cooperateResetTime").textContent=`每日北京时间 05:00 刷新 · 下次 ${new Date(result.resetsAt*1000).toLocaleString("zh-CN")}`;}catch(error){cooperationSetMessage("cooperateDashboardStatus",error.message,true);}});
+document.querySelector("#cooperateCreateDevice")?.addEventListener("click",async()=>{try{const result=await authRequest("./api/cooperate/device",{method:"POST",body:{}});const token=document.querySelector("#cooperateNewDeviceToken");token.hidden=false;token.textContent=`设备令牌（仅显示本次，请复制到本机 OBS 监听软件）：${result.token}`;await loadCooperationDashboard();}catch(error){cooperationSetMessage("cooperateDashboardStatus",error.message,true);}});
+document.querySelector("#cooperateRedeemForm")?.addEventListener("submit",async event=>{event.preventDefault();const form=event.currentTarget;const status=document.querySelector("#cooperateRedeemStatus");try{const result=await authRequest("./api/cooperate/redeem",{method:"POST",body:{code:form.elements.code.value.trim()}});status.classList.remove("is-error");status.textContent=`已获得 ${result.awarded} 积分（主播 @${result.streamer}），余额 ${result.balance}。`;form.reset();await refreshPointsUi();await refreshPointsLedger();await refreshCooperationRedeemQuota();}catch(error){if(error.status===401)showAuthDialog();status.classList.add("is-error");status.textContent=error.message;}});
 function currentTaskRoute() {
   if (/\/export\/?$/.test(location.pathname)) return "export";
   if (/\/create\/?$/.test(location.pathname)) return "create";
+  if (/\/tutorial\/?$/.test(location.pathname)) return "tutorial";
   if (/\/points\/?$/.test(location.pathname)) return "points";
+  if (/\/cooperate\/?$/.test(location.pathname)) return "cooperate";
   return "home";
+}
+const PAGE_SECTION_NUMBERS = {
+  home: { tutorial: "01", directory: "02", donations: "03", rankings: "04", safety: "05", about: "06" },
+  export: { donations: "01", rankings: "02", recommendations: "03", library: "04", export: "05" },
+  create: { library: "01", editor: "02", export: "03" }
+};
+const PAGE_SEO = {
+  home: { title: "三角洲行动口琴宏生成器｜简谱、MIDI 转宏", description: "在线制作三角洲行动口琴宏：支持数字简谱转宏、MIDI 转口琴宏、试听与多种鼠标宏格式导出。", robots: "index,follow,max-image-preview:large" },
+  export: { title: "三角洲口琴曲库｜简谱试听与口琴宏导出", description: "浏览三角洲口琴曲谱，搜索歌曲与作者，试听旋律并将简谱导出为 Logitech、Razer、MCHOSE、ROG 等格式的口琴宏。", robots: "index,follow,max-image-preview:large" },
+  create: { title: "三角洲口琴谱制作｜简谱编辑与 MIDI 转宏", description: "手动编辑数字简谱或导入 MIDI 文件，选择音轨、试听旋律并制作可导出的三角洲口琴宏。", robots: "index,follow,max-image-preview:large" },
+  tutorial: { title: "三角洲口琴宏教程｜简谱制作、MIDI 导入与导出", description: "查看三角洲口琴宏制作教程：学习数字简谱编辑、MIDI 音轨导入、鼠标宏格式选择与常见问题处理。", robots: "index,follow,max-image-preview:large" },
+  points: { title: "积分任务｜三角洲口琴演奏家", description: "查看账号积分、任务和兑换记录。", robots: "noindex,follow" },
+  cooperate: { title: "直播与广告合作｜三角洲口琴演奏家", description: "了解直播合作方式、认证主播展示和广告合作申请。主播分享积分兑换码，双方互相提供流量。", robots: "index,follow,max-image-preview:large" }
+};
+function applyPageSeo(route) {
+  const seo = PAGE_SEO[route] || PAGE_SEO.home;
+  const canonical = new URL(route === "home" ? "./" : `./${route}/`, document.querySelector("base").href).href;
+  document.title = seo.title;
+  document.querySelector('meta[name="description"]').content = seo.description;
+  document.querySelector('meta[name="robots"]').content = seo.robots;
+  document.querySelector('link[rel="canonical"]').href = canonical;
+  document.querySelector('meta[property="og:title"]').content = seo.title;
+  document.querySelector('meta[property="og:description"]').content = seo.description;
+  document.querySelector('meta[property="og:url"]').content = canonical;
+  document.querySelector('meta[name="twitter:title"]').content = seo.title;
+  document.querySelector('meta[name="twitter:description"]').content = seo.description;
+}
+function updatePageSectionNumbers(route) {
+  const numbers = PAGE_SECTION_NUMBERS[route] || {};
+  document.querySelectorAll("[data-section-index]").forEach((label) => {
+    const number = numbers[label.dataset.sectionIndex];
+    if (number) label.textContent = `${number} · ${label.textContent.replace(/^\d+\s*·\s*/, "")}`;
+  });
 }
 function applyTaskRoute() {
   const route = currentTaskRoute();
   document.body.dataset.taskRoute = route;
+  updatePageSectionNumbers(route);
+  if (route === "export") scheduleRecommendationBoardReflow();
+  document.querySelector("#exportRouteIntro").hidden = route !== "export";
+  document.querySelector("#createRouteIntro").hidden = route !== "create";
+  document.querySelector("#cooperatePage").hidden = route !== "cooperate";
+  document.querySelector("#tutorialPage").hidden = route !== "tutorial";
+  document.querySelector("#pointsPage").hidden = route !== "points";
+  if (["home", "points", "tutorial"].includes(route)) renderDonationThanks();
   document.querySelectorAll("[data-task-route]").forEach((link) => {
     if (link.dataset.taskRoute === route) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
-  document.title = ({ export: "曲库", create: "自制", points: "积分", home: "三角洲口琴演奏家" }[route]) + "｜三角洲口琴演奏家";
-  const canonicalPath = route === "home" ? "" : `${route}/`;
-  document.querySelector('link[rel="canonical"]').href = `https://jiko-official.top/delta/${canonicalPath}`;
-  document.querySelector('meta[property="og:url"]').content = `https://jiko-official.top/delta/${canonicalPath}`;
+  applyPageSeo(route);
   if (route === "home" || route === "points") { stopPreview(); document.body.classList.remove("player-visible", "player-collapsed"); }
   if (route === "points") {
     renderPointsReturnLink();
     void refreshPointsUi();
     void refreshPointsLedger();
+    void refreshCooperationRedeemQuota();
     void loadPointsMedia();
   } else {
     window.clearInterval(pointsMediaTimer);
     pointsMediaTimer = null;
+  }
+  window.clearInterval(cooperationCatalogTimer);
+  cooperationCatalogTimer = null;
+  if (route === "cooperate") {
+    void loadCooperationPage();
+    cooperationCatalogTimer = window.setInterval(refreshCooperationCatalog, 25000);
   }
 }
 function navigateTask(route, { song = "" } = {}) {
@@ -7694,6 +7957,10 @@ function navigateTask(route, { song = "" } = {}) {
   if (location.pathname + location.search !== next) history.pushState({}, "", next);
   applyTaskRoute();
   if (route === "export") setLibraryView("all");
+  if (route === "create" && previousRoute !== "create") {
+    elements.songSearch.value = "";
+    setLibraryView("mine");
+  }
   if (route === "create" && previousRoute !== "create" && !song) restoreTaskDraft();
   window.scrollTo({ top: 0, behavior: "instant" });
 }
@@ -7752,7 +8019,7 @@ initializeMchoseOperationsPerFileSetting();
 initializeRogOperationsPerFileSetting();
 initializeMacroExportSpeedSetting();
 loadRecordingHelperManifest();
-setLibraryView(currentTaskRoute() === "export" ? "all" : "recommended");
+setLibraryView(currentTaskRoute() === "export" ? "all" : currentTaskRoute() === "create" ? "mine" : "recommended");
 renderSupportNotePreview();
 authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();

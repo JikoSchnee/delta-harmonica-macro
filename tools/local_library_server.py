@@ -16,6 +16,7 @@ from datetime import date, datetime, timedelta, timezone
 from email import policy
 from email.parser import BytesParser
 from email.utils import parsedate_to_datetime
+from html import escape
 import gzip
 import hashlib
 from html.parser import HTMLParser
@@ -23,6 +24,7 @@ import hmac
 import io
 import ipaddress
 import json
+import math
 import os
 import queue
 import re
@@ -112,6 +114,35 @@ AUTH_MAIL_TICKET_TTL_SECONDS = 15 * 60
 AUTH_MAIL_TICKET_LIMIT = 256
 REQUEST_SOCKET_TIMEOUT_SECONDS = 30
 MAX_REQUEST_THREADS = 128
+# Keep these route descriptions aligned with PAGE_SEO in app.js; they are sent in the first HTML response for crawlers.
+SEO_ROUTE_METADATA: dict[str, dict[str, str]] = {
+    "export": {
+        "title": "三角洲口琴曲库｜简谱试听与口琴宏导出",
+        "description": "浏览三角洲口琴曲谱，搜索歌曲与作者，试听旋律并将简谱导出为 Logitech、Razer、MCHOSE、ROG 等格式的口琴宏。",
+        "robots": "index,follow,max-image-preview:large",
+    },
+    "create": {
+        "title": "三角洲口琴谱制作｜简谱编辑与 MIDI 转宏",
+        "description": "手动编辑数字简谱或导入 MIDI 文件，选择音轨、试听旋律并制作可导出的三角洲口琴宏。",
+        "robots": "index,follow,max-image-preview:large",
+    },
+    "tutorial": {
+        "title": "三角洲口琴宏教程｜简谱制作、MIDI 导入与导出",
+        "description": "查看三角洲口琴宏制作教程：学习数字简谱编辑、MIDI 音轨导入、鼠标宏格式选择与常见问题处理。",
+        "robots": "index,follow,max-image-preview:large",
+    },
+    "points": {
+        "title": "积分任务｜三角洲口琴演奏家",
+        "description": "查看账号积分、任务和兑换记录。",
+        "robots": "noindex,follow",
+    },
+    "cooperate": {
+        "title": "直播与广告合作｜三角洲口琴演奏家",
+        "description": "了解直播合作方式、认证主播展示和广告合作申请。主播分享积分兑换码，双方互相提供流量。",
+        "robots": "index,follow,max-image-preview:large",
+    },
+}
+SEO_ROUTE_PATH_PATTERN = re.compile(r"^/(?:delta/)?(export|create|tutorial|points|cooperate)/?$")
 OAUTH_STATE_TTL_SECONDS = 10 * 60
 OAUTH_HTTP_TIMEOUT_SECONDS = 15
 # GitHub Star verification: retry once so a single slow/timed-out call does not
@@ -1792,6 +1823,21 @@ def _initialize_auth_database_locked() -> None:
                 created_at INTEGER NOT NULL,
                 updated_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS donation_entries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+                created_at INTEGER NOT NULL,
+                legacy_key TEXT UNIQUE
+            );
+            CREATE INDEX IF NOT EXISTS donation_entries_account_created ON donation_entries(account_id, created_at, id);
+            CREATE TABLE IF NOT EXISTS unbound_donations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                display_name TEXT NOT NULL,
+                amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS donor_entitlements (
                 account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
                 granted_at INTEGER NOT NULL
@@ -1804,6 +1850,55 @@ def _initialize_auth_database_locked() -> None:
                 reference TEXT NOT NULL,
                 created_at INTEGER NOT NULL,
                 UNIQUE(account_id, reason, reference)
+            );
+            CREATE TABLE IF NOT EXISTS cooperation_applications (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                kind TEXT NOT NULL CHECK(kind IN ('streamer','advertiser')),
+                status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected')),
+                stream_url TEXT NOT NULL DEFAULT '',
+                description TEXT NOT NULL DEFAULT '',
+                contact TEXT NOT NULL DEFAULT '',
+                created_at INTEGER NOT NULL,
+                reviewed_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS cooperation_app_status ON cooperation_applications(kind,status,created_at);
+            CREATE UNIQUE INDEX IF NOT EXISTS cooperation_pending_application ON cooperation_applications(account_id,kind) WHERE status='pending';
+            CREATE TABLE IF NOT EXISTS streamer_profiles (
+                account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
+                stream_url TEXT NOT NULL,
+                description TEXT NOT NULL DEFAULT '',
+                headline TEXT NOT NULL DEFAULT '',
+                cover_url TEXT NOT NULL DEFAULT '',
+                active INTEGER NOT NULL DEFAULT 1,
+                is_live INTEGER NOT NULL DEFAULT 0,
+                last_seen INTEGER NOT NULL DEFAULT 0,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS streamer_daily_codes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                cycle TEXT NOT NULL,
+                code TEXT NOT NULL UNIQUE,
+                created_at INTEGER NOT NULL,
+                UNIQUE(account_id,cycle)
+            );
+            CREATE TABLE IF NOT EXISTS streamer_redemptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                streamer_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                cycle TEXT NOT NULL,
+                code TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                UNIQUE(account_id,streamer_id,cycle)
+            );
+            CREATE TABLE IF NOT EXISTS streamer_obs_devices (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+                token_hash TEXT NOT NULL UNIQUE,
+                label TEXT NOT NULL DEFAULT 'OBS 客户端',
+                created_at INTEGER NOT NULL,
+                revoked_at INTEGER
             );
             CREATE INDEX IF NOT EXISTS point_ledger_account ON point_ledger(account_id);
             CREATE TABLE IF NOT EXISTS score_unlocks (
@@ -1894,6 +1989,14 @@ def _initialize_auth_database_locked() -> None:
         donation_columns = {row[1] for row in connection.execute("PRAGMA table_info(donations)").fetchall()}
         if "created_at" not in donation_columns:
             connection.execute("ALTER TABLE donations ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0")
+        # Older versions stored one cumulative total per account. Preserve that total
+        # as one historical entry; new admin submissions are stored as separate rows.
+        connection.execute(
+            "INSERT OR IGNORE INTO donation_entries(account_id, amount_cents, created_at, legacy_key) "
+            "SELECT account_id, amount_cents, COALESCE(NULLIF(created_at, 0), NULLIF(updated_at, 0), ?), 'legacy:' || account_id "
+            "FROM donations WHERE amount_cents > 0",
+            (now_timestamp(),),
+        )
         connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) "
                            "SELECT account_id, COALESCE(NULLIF(created_at, 0), ?) FROM donations WHERE amount_cents > 0",
                            (now_timestamp(),))
@@ -1955,6 +2058,195 @@ def migrate_identity_tables() -> None:
 
 def now_timestamp() -> int:
     return int(time.time())
+
+
+COOPERATION_TZ = timezone(timedelta(hours=8))
+
+
+def cooperation_cycle(stamp: int | None = None) -> tuple[str, int]:
+    """Return the Beijing 05:00 cycle key and its next reset timestamp."""
+    current = datetime.fromtimestamp(stamp or now_timestamp(), COOPERATION_TZ)
+    cycle_date = (current - timedelta(hours=5)).date()
+    next_boundary = datetime.combine(cycle_date + timedelta(days=1), datetime.min.time(), COOPERATION_TZ) + timedelta(hours=5)
+    return cycle_date.isoformat(), int(next_boundary.timestamp())
+
+
+def cooperation_catalog() -> dict[str, Any]:
+    initialize_auth_database()
+    stamp = now_timestamp()
+    with AUTH_LOCK, auth_database() as connection:
+        streamers = connection.execute(
+            "SELECT a.user_id,p.stream_url,p.description,p.headline,p.cover_url,p.is_live,p.last_seen "
+            "FROM streamer_profiles p JOIN accounts a ON a.id=p.account_id WHERE p.active=1 "
+            "ORDER BY (p.is_live=1 AND p.last_seen>=?) DESC,p.updated_at DESC", (stamp - 90,)
+        ).fetchall()
+        ads = connection.execute(
+            "SELECT id,title,description,cover_url,headline,cta_label,destination_url "
+            "FROM points_media WHERE active=1 AND kind='image' ORDER BY sort_order,id"
+        ).fetchall()
+    return {
+        "streamers": [{"userId": row["user_id"], "streamUrl": row["stream_url"], "description": row["description"],
+                       "headline": row["headline"], "coverUrl": row["cover_url"],
+                       "isLive": bool(row["is_live"] and row["last_seen"] >= stamp - 90)} for row in streamers],
+        "ads": [{"id": row["id"], "title": row["title"], "description": row["description"],
+                 "coverUrl": row["cover_url"], "headline": row["headline"], "ctaLabel": row["cta_label"],
+                 "url": f"./api/points/media/{row['id']}/out"} for row in ads],
+    }
+
+
+def cooperation_dashboard(account_id: str) -> dict[str, Any]:
+    initialize_auth_database()
+    cycle, reset_at = cooperation_cycle()
+    with AUTH_LOCK, auth_database() as connection:
+        app_rows = connection.execute(
+            "SELECT kind,status,stream_url,description,contact,created_at FROM cooperation_applications "
+            "WHERE account_id=? ORDER BY created_at DESC", (account_id,)
+        ).fetchall()
+        profile = connection.execute("SELECT * FROM streamer_profiles WHERE account_id=?", (account_id,)).fetchone()
+        code = connection.execute("SELECT code FROM streamer_daily_codes WHERE account_id=? AND cycle=?", (account_id, cycle)).fetchone()
+        redemptions = connection.execute("SELECT COUNT(*) FROM streamer_redemptions WHERE account_id=? AND cycle=?", (account_id, cycle)).fetchone()[0]
+        devices = connection.execute("SELECT id,label,created_at FROM streamer_obs_devices WHERE account_id=? AND revoked_at IS NULL ORDER BY id DESC", (account_id,)).fetchall()
+    return {"applications": [dict(row) for row in app_rows],
+            "profile": {"streamUrl": profile["stream_url"], "description": profile["description"], "headline": profile["headline"], "coverUrl": profile["cover_url"], "isLive": bool(profile["is_live"] and profile["last_seen"] >= now_timestamp()-90)} if profile else None,
+            "dailyCode": code["code"] if code else None, "cycle": cycle, "resetsAt": reset_at,
+            "redeemedStreamers": int(redemptions), "devices": [dict(row) for row in devices]}
+
+
+def submit_cooperation_application(account_id: str, payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict) or payload.get("kind") not in {"streamer", "advertiser"}:
+        raise ValueError("合作申请类型无效。")
+    kind = payload["kind"]
+    stream_url = str(payload.get("streamUrl", "")).strip()
+    description = str(payload.get("description", "")).strip()
+    contact = str(payload.get("contact", "")).strip()
+    if kind == "streamer":
+        parsed = urlsplit(stream_url)
+        if parsed.scheme != "https" or not parsed.hostname or len(stream_url) > 1200:
+            raise ValueError("请填写有效的 HTTPS 直播间链接。")
+        if not description or len(description) > 800:
+            raise ValueError("请填写 1 至 800 字的主播简介。")
+    else:
+        if not contact or len(contact) > 200 or not description or len(description) > 1200:
+            raise ValueError("请填写联系方式和合作意向（最多 1200 字）。")
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        approved = connection.execute("SELECT 1 FROM cooperation_applications WHERE account_id=? AND kind='streamer' AND status='approved'", (account_id,)).fetchone()
+        if kind == "streamer" and approved:
+            raise ValueError("该账号已经是认证主播。")
+        try:
+            cursor = connection.execute("INSERT INTO cooperation_applications(account_id,kind,stream_url,description,contact,created_at) VALUES (?,?,?,?,?,?)",
+                                        (account_id,kind,stream_url,description,contact,now_timestamp()))
+        except sqlite3.IntegrityError as error:
+            raise ValueError("已有待审核申请，请等待管理员处理。") from error
+    return {"id": cursor.lastrowid, "status": "pending"}
+
+
+def update_streamer_profile(account_id: str, payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict): raise ValueError("资料格式无效。")
+    url = str(payload.get("streamUrl", "")).strip()
+    parsed = urlsplit(url)
+    headline = str(payload.get("headline", "")).strip()
+    description = str(payload.get("description", "")).strip()
+    cover = str(payload.get("coverUrl", "")).strip()
+    if parsed.scheme != "https" or not parsed.hostname or len(url)>1200: raise ValueError("直播间链接必须是有效 HTTPS 地址。")
+    if len(headline)>100 or len(description)>800: raise ValueError("标题最多 100 字，简介最多 800 字。")
+    if cover and not re.fullmatch(r"\./data/streamers/[a-f0-9]{32}\.webp", cover): raise ValueError("封面地址无效。")
+    with AUTH_LOCK, auth_database() as connection:
+        cursor = connection.execute("UPDATE streamer_profiles SET stream_url=?,headline=?,description=?,cover_url=?,updated_at=? WHERE account_id=? AND active=1",
+                                    (url,headline,description,cover,now_timestamp(),account_id))
+        if cursor.rowcount != 1: raise ValueError("账号尚未认证为主播。")
+    return {"ok": True}
+
+
+def claim_streamer_daily_code(account_id: str) -> dict[str, Any]:
+    initialize_auth_database()
+    cycle, reset_at = cooperation_cycle()
+    with AUTH_LOCK, auth_database() as connection:
+        if not connection.execute("SELECT 1 FROM streamer_profiles WHERE account_id=? AND active=1", (account_id,)).fetchone():
+            raise ValueError("仅认证主播可以领取兑换码。")
+        row = connection.execute("SELECT code FROM streamer_daily_codes WHERE account_id=? AND cycle=?", (account_id,cycle)).fetchone()
+        for _ in range(8):
+            if row: break
+            code = secrets.token_hex(4).upper()
+            connection.execute("INSERT OR IGNORE INTO streamer_daily_codes(account_id,cycle,code,created_at) VALUES (?,?,?,?)", (account_id,cycle,code,now_timestamp()))
+            row = connection.execute("SELECT code FROM streamer_daily_codes WHERE account_id=? AND cycle=?", (account_id,cycle)).fetchone()
+        if not row: raise RuntimeError("无法生成唯一兑换码，请重试。")
+    return {"code": row["code"], "cycle": cycle, "resetsAt": reset_at}
+
+
+def redeem_streamer_code(account_id: str, payload: Any) -> dict[str, Any]:
+    code = str(payload.get("code", "") if isinstance(payload,dict) else "").strip().upper()
+    if not re.fullmatch(r"[A-F0-9]{8}", code): raise ValueError("兑换码格式无效。")
+    initialize_auth_database()
+    cycle, reset_at = cooperation_cycle()
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute("SELECT c.account_id,a.user_id FROM streamer_daily_codes c JOIN accounts a ON a.id=c.account_id WHERE c.code=? AND c.cycle=?", (code,cycle)).fetchone()
+        if not row: raise ValueError("兑换码无效或已过期。")
+        if row["account_id"] == account_id: raise ValueError("不能使用自己的兑换码。")
+        try:
+            count = connection.execute("SELECT COUNT(*) FROM streamer_redemptions WHERE account_id=? AND cycle=?", (account_id,cycle)).fetchone()[0]
+            if count >= 3: raise ValueError("每个周期最多使用三位不同主播的兑换码。")
+            connection.execute("INSERT INTO streamer_redemptions(account_id,streamer_id,cycle,code,created_at) VALUES (?,?,?,?,?)", (account_id,row["account_id"],cycle,code,now_timestamp()))
+        except sqlite3.IntegrityError as error:
+            raise ValueError("本周期已使用过该主播的兑换码。") from error
+        award_points(connection, account_id, 20, "streamer_code", f"{row['user_id']}:{cycle}")
+        balance = point_balance(connection,account_id)
+    return {"awarded": 20, "balance": balance, "streamer": row["user_id"], "resetsAt": reset_at}
+
+
+def create_obs_device(account_id: str) -> dict[str, Any]:
+    initialize_auth_database()
+    raw = secrets.token_urlsafe(32)
+    digest = hashlib.sha256(raw.encode()).hexdigest()
+    with AUTH_LOCK, auth_database() as connection:
+        if not connection.execute("SELECT 1 FROM streamer_profiles WHERE account_id=? AND active=1", (account_id,)).fetchone(): raise ValueError("仅认证主播可以连接 OBS 客户端。")
+        connection.execute("INSERT INTO streamer_obs_devices(account_id,token_hash,created_at) VALUES (?,?,?)", (account_id,digest,now_timestamp()))
+        device_id = connection.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return {"id": device_id, "token": raw}
+
+
+def admin_cooperation_applications() -> dict[str, Any]:
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute("SELECT c.id,c.kind,c.status,c.stream_url,c.description,c.contact,c.created_at,c.reviewed_at,a.user_id "
+                                  "FROM cooperation_applications c JOIN accounts a ON a.id=c.account_id ORDER BY (c.status='pending') DESC,c.created_at DESC").fetchall()
+    return {"applications": [{"id":r["id"],"kind":r["kind"],"status":r["status"],"streamUrl":r["stream_url"],"description":r["description"],"contact":r["contact"],"createdAt":r["created_at"]*1000,"reviewedAt":r["reviewed_at"]*1000 if r["reviewed_at"] else None,"userId":r["user_id"]} for r in rows]}
+
+
+def review_cooperation_application(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload,dict) or isinstance(payload.get("id"),bool) or not isinstance(payload.get("id"),int) or payload.get("decision") not in {"approve","reject"}:
+        raise ValueError("审核请求无效。")
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        row=connection.execute("SELECT * FROM cooperation_applications WHERE id=?",(payload["id"],)).fetchone()
+        if not row: raise ValueError("申请不存在。")
+        if row["status"]!="pending": raise ValueError("该申请已处理。")
+        status="approved" if payload["decision"]=="approve" else "rejected"
+        connection.execute("UPDATE cooperation_applications SET status=?,reviewed_at=? WHERE id=?",(status,now_timestamp(),row["id"]))
+        if status=="approved" and row["kind"]=="streamer":
+            connection.execute("INSERT INTO streamer_profiles(account_id,stream_url,description,updated_at) VALUES (?,?,?,?) "
+                               "ON CONFLICT(account_id) DO UPDATE SET stream_url=excluded.stream_url,description=excluded.description,active=1,updated_at=excluded.updated_at",
+                               (row["account_id"],row["stream_url"],row["description"],now_timestamp()))
+    return {"id":payload["id"],"status":status}
+
+
+def report_obs_state(handler: Any, payload: Any) -> dict[str, Any] | None:
+    authorization=handler.headers.get("Authorization","")
+    token=authorization.removeprefix("Streamer ") if authorization.startswith("Streamer ") else ""
+    if len(token)<32 or not isinstance(payload,dict) or not isinstance(payload.get("isLive"),bool): return None
+    digest=hashlib.sha256(token.encode()).hexdigest()
+    stamp=now_timestamp()
+    with AUTH_LOCK, auth_database() as connection:
+        device=connection.execute("SELECT account_id FROM streamer_obs_devices WHERE token_hash=? AND revoked_at IS NULL",(digest,)).fetchone()
+        if not device:return None
+        account_id=device["account_id"]
+        changed=connection.execute("UPDATE streamer_profiles SET is_live=?,last_seen=? WHERE account_id=? AND active=1",(int(payload["isLive"]),stamp,account_id))
+        if not changed.rowcount:return None
+    result={"ok":True,"isLive":payload["isLive"],"receivedAt":stamp}
+    if payload["isLive"]:
+        result.update(claim_streamer_daily_code(account_id))
+    return result
 
 
 def now_iso_timestamp() -> str:
@@ -2413,7 +2705,7 @@ def points_media_payload(*, include_inactive: bool = False) -> dict[str, Any]:
         "manualCoverUrl": row["manual_cover_url"] if include_inactive else None,
         "kind": row["kind"], "active": bool(row["active"]),
         "description": row["description"],
-        "promoCopy": row["promo_copy"], "rewardPoints": row["reward_points"],
+        "promoCopy": row["promo_copy"],
         "headline": row["headline"], "ctaLabel": row["cta_label"], "embeddedCopy": bool(row["embedded_copy"]),
         "destinationUrl": row["destination_url"] if include_inactive else None,
         "marketingCode": row["marketing_code"] if include_inactive else None,
@@ -2422,11 +2714,11 @@ def points_media_payload(*, include_inactive: bool = False) -> dict[str, Any]:
 
 
 def record_points_media_outbound(media_id: int, account_id: str | None) -> str:
-    """Record an active product visit and grant its one-time account reward."""
+    """Record an active product visit without changing the visitor's points."""
     initialize_auth_database()
     with AUTH_LOCK, auth_database() as connection:
         item = connection.execute(
-            "SELECT id,destination_url,reward_points FROM points_media WHERE id=? AND active=1", (media_id,)
+            "SELECT id,destination_url FROM points_media WHERE id=? AND active=1", (media_id,)
         ).fetchone()
         if not item or not item["destination_url"]:
             return ""
@@ -2434,8 +2726,6 @@ def record_points_media_outbound(media_id: int, account_id: str | None) -> str:
             "INSERT INTO partner_events(media_id,kind,created_at) VALUES (?,'outbound',?)",
             (item["id"], now_timestamp()),
         )
-        if account_id and item["reward_points"] > 0:
-            award_points(connection, account_id, item["reward_points"], "partner_outbound", str(item["id"]))
         return str(item["destination_url"])
 
 
@@ -2760,6 +3050,29 @@ def admin_unban_account(payload: Any) -> None:
         clear_account_ban(connection, str(payload["accountId"]).strip())
 
 
+def admin_ban_upload(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("禁传请求格式无效。")
+    account_id = str(payload.get("accountId") or "").strip()
+    reason = str(payload.get("reason") or "").strip()[:200]
+    ban_days = payload.get("banDays")
+    if not account_id or not reason:
+        raise ValueError("缺少账号标识或禁传原因。")
+    if ban_days is not None and (type(ban_days) is not int or not 1 <= ban_days <= 3650):
+        raise ValueError("禁传天数须为 1–3650，留空为永久。")
+    now = now_timestamp()
+    expires_at = now + ban_days * 86400 if ban_days is not None else None
+    with AUTH_LOCK, auth_database() as connection:
+        if not connection.execute("SELECT 1 FROM accounts WHERE id=?", (account_id,)).fetchone():
+            raise ValueError("账号不存在。")
+        connection.execute(
+            "INSERT INTO upload_bans(account_id, reason, banned_at, expires_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(account_id) DO UPDATE SET reason=excluded.reason, banned_at=excluded.banned_at, expires_at=excluded.expires_at",
+            (account_id, reason, now, expires_at),
+        )
+    return {"reason": reason, "expiresAt": expires_at}
+
+
 def admin_ban_ip(payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ValueError("封禁请求格式无效。")
@@ -2864,61 +3177,167 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
 
 
 def public_donor_list() -> list[dict[str, Any]]:
-    """Return the supporter wall: user IDs only, never amounts or emails."""
+    """Return one public row per donation entry, without account emails."""
     if not AUTH_DATABASE.exists():
         return []
     try:
         with AUTH_LOCK, auth_database() as connection:
             rows = connection.execute(
-                "SELECT accounts.user_id AS user_id "
-                "FROM donations JOIN accounts ON accounts.id = donations.account_id "
-                "WHERE donations.amount_cents > 0 "
-                "ORDER BY donations.created_at ASC, donations.updated_at ASC, accounts.user_id COLLATE NOCASE ASC",
+                "SELECT accounts.user_id AS display_name, 1 AS is_bound, entries.amount_cents, entries.created_at, entries.id AS entry_id "
+                "FROM donation_entries AS entries JOIN accounts ON accounts.id = entries.account_id WHERE entries.amount_cents > 0 "
+                "UNION ALL "
+                "SELECT display_name, 0 AS is_bound, amount_cents, created_at, id AS entry_id FROM unbound_donations WHERE amount_cents > 0 "
+                "ORDER BY created_at ASC, entry_id ASC, display_name COLLATE NOCASE ASC",
             ).fetchall()
     except sqlite3.OperationalError:
         # 认证库存在但没有 donations 表（旧库尚未迁移）时，空名单好过整站报错。
         return []
-    return [{"userId": str(row["user_id"])} for row in rows]
+    return [{"displayName": str(row["display_name"]), "isBound": bool(row["is_bound"]),
+             "amountCents": int(row["amount_cents"]), "createdAt": iso_timestamp(row["created_at"])}
+            for row in rows]
 
 
 def build_public_donors() -> dict[str, Any]:
     """Serve the cached supporter wall so concurrent tabs share one query."""
     donors = PUBLIC_DONORS_CACHE.value("public-donors", PUBLIC_DONORS_CACHE_SECONDS, public_donor_list)
-    return {"donors": donors, "total": len(donors)}
+    supporters = {(bool(donor["isBound"]), donor["displayName"].strip().casefold()) for donor in donors}
+    return {"donors": donors, "total": len(donors), "supporterCount": len(supporters)}
 
 
 MAX_DONATION_CENTS = 10_000_000
 
 
-def admin_set_donation(payload: Any) -> dict[str, Any]:
-    """Record (or clear) one supporter donation total. Admin console only."""
+def validated_donation_amount_cents(value: Any, *, allow_zero: bool) -> int:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("打赏金额无效。")
+    try:
+        amount = float(value)
+    except (OverflowError, ValueError) as error:
+        raise ValueError("打赏金额无效。") from error
+    if not math.isfinite(amount):
+        raise ValueError("打赏金额无效。")
+    amount_cents = int(round(amount))
+    minimum = 0 if allow_zero else 1
+    if amount_cents < minimum or amount_cents > MAX_DONATION_CENTS:
+        if allow_zero:
+            raise ValueError("打赏金额需要在 0 元到 10 万元之间。")
+        raise ValueError("打赏金额需要大于 0 元且不超过 10 万元。")
+    return amount_cents
+
+
+def admin_donation_catalog() -> dict[str, list[dict[str, Any]]]:
+    """Return each donation entry without exposing account emails."""
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        linked = connection.execute(
+            "SELECT entries.id, accounts.id AS account_id, accounts.user_id, entries.amount_cents, entries.created_at "
+            "FROM donation_entries AS entries JOIN accounts ON accounts.id=entries.account_id WHERE entries.amount_cents > 0 "
+            "ORDER BY entries.created_at DESC, entries.id DESC, accounts.user_id COLLATE NOCASE ASC"
+        ).fetchall()
+        unbound = connection.execute(
+            "SELECT id, display_name, amount_cents, created_at, updated_at FROM unbound_donations "
+            "ORDER BY created_at DESC, id DESC"
+        ).fetchall()
+    return {
+        "linked": [{"id": int(row["id"]), "accountId": row["account_id"], "userId": row["user_id"],
+                    "amountCents": int(row["amount_cents"]),
+                    "createdAt": iso_timestamp(row["created_at"])}
+                   for row in linked],
+        "unbound": [{"id": int(row["id"]), "displayName": row["display_name"],
+                     "amountCents": int(row["amount_cents"]),
+                     "createdAt": iso_timestamp(row["created_at"]), "updatedAt": iso_timestamp(row["updated_at"])}
+                    for row in unbound],
+    }
+
+
+def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
+    """Add one separate donation entry for a registered account."""
     if not isinstance(payload, dict):
         raise ValueError("请求内容无效。")
-    account_id = str(payload.get("accountId") or "").strip()
-    if not account_id:
-        raise ValueError("缺少账号标识。")
-    raw_amount = payload.get("amountCents")
-    if isinstance(raw_amount, bool) or not isinstance(raw_amount, (int, float)):
-        raise ValueError("打赏金额无效。")
-    amount_cents = int(round(float(raw_amount)))
-    if amount_cents < 0 or amount_cents > MAX_DONATION_CENTS:
-        raise ValueError("打赏金额需要在 0 元到 10 万元之间。")
+    user_id = str(payload.get("userId") or "").strip()
+    amount_cents = validated_donation_amount_cents(payload.get("amountCents"), allow_zero=False)
+    if not user_id:
+        raise ValueError("请填写站点用户 ID。")
+    now = now_timestamp()
     with AUTH_LOCK, auth_database() as connection:
-        if not connection.execute("SELECT 1 FROM accounts WHERE id = ?", (account_id,)).fetchone():
-            raise ValueError("账号不存在。")
-        if amount_cents == 0:
-            connection.execute("DELETE FROM donations WHERE account_id = ?", (account_id,))
-        else:
-            now = now_timestamp()
-            connection.execute(
-                "INSERT INTO donations(account_id, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?) "
-                "ON CONFLICT(account_id) DO UPDATE SET amount_cents=excluded.amount_cents, updated_at=excluded.updated_at",
-                (account_id, amount_cents, now, now),
-            )
-            connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) VALUES (?, ?)", (account_id, now))
+        account = connection.execute("SELECT id, user_id FROM accounts WHERE user_id=? COLLATE NOCASE", (user_id,)).fetchone()
+        if not account:
+            raise ValueError("没有找到这个站点账号，请检查用户 ID；未绑定账号请使用未绑定打赏录入。")
+        account_id = str(account["id"])
+        user_id = str(account["user_id"])
+        cursor = connection.execute(
+            "INSERT INTO donation_entries(account_id, amount_cents, created_at) VALUES (?, ?, ?)",
+            (account_id, amount_cents, now),
+        )
+        total = int(connection.execute(
+            "SELECT COALESCE(SUM(amount_cents), 0) FROM donation_entries WHERE account_id=?", (account_id,)
+        ).fetchone()[0])
+        connection.execute(
+            "INSERT INTO donations(account_id, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(account_id) DO UPDATE SET amount_cents=excluded.amount_cents, updated_at=excluded.updated_at",
+            (account_id, total, now, now),
+        )
+        connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) VALUES (?, ?)", (account_id, now))
     PUBLIC_DONORS_CACHE.invalidate()
     PUBLIC_RANKINGS_CACHE.invalidate()
-    return {"accountId": account_id, "amountCents": amount_cents}
+    return {"id": int(cursor.lastrowid), "accountId": account_id, "userId": user_id,
+            "amountCents": amount_cents, "createdAt": iso_timestamp(now)}
+
+
+def admin_delete_linked_donation(payload: Any) -> None:
+    """Delete one donation entry and refresh the legacy aggregate total."""
+    if not isinstance(payload, dict):
+        raise ValueError("请求内容无效。")
+    donation_id = payload.get("id")
+    if isinstance(donation_id, bool) or not isinstance(donation_id, int) or donation_id < 1:
+        raise ValueError("打赏记录编号无效。")
+    with AUTH_LOCK, auth_database() as connection:
+        entry = connection.execute("SELECT account_id FROM donation_entries WHERE id=?", (donation_id,)).fetchone()
+        if not entry:
+            raise ValueError("未找到这条绑定账号打赏记录。")
+        account_id = str(entry["account_id"])
+        connection.execute("DELETE FROM donation_entries WHERE id=?", (donation_id,))
+        total = int(connection.execute(
+            "SELECT COALESCE(SUM(amount_cents), 0) FROM donation_entries WHERE account_id=?", (account_id,)
+        ).fetchone()[0])
+        if total:
+            connection.execute("UPDATE donations SET amount_cents=?, updated_at=? WHERE account_id=?",
+                               (total, now_timestamp(), account_id))
+        else:
+            connection.execute("DELETE FROM donations WHERE account_id=?", (account_id,))
+    PUBLIC_DONORS_CACHE.invalidate()
+    PUBLIC_RANKINGS_CACHE.invalidate()
+
+
+def admin_add_unbound_donation(payload: Any) -> dict[str, Any]:
+    """Add a public supporter entry when no site account can be linked."""
+    if not isinstance(payload, dict):
+        raise ValueError("请求内容无效。")
+    display_name = " ".join(str(payload.get("displayName") or "").split())
+    if not display_name or len(display_name) > 80:
+        raise ValueError("请填写 1 到 80 个字符的打赏显示名称。")
+    amount_cents = validated_donation_amount_cents(payload.get("amountCents"), allow_zero=False)
+    now = now_timestamp()
+    with AUTH_LOCK, auth_database() as connection:
+        cursor = connection.execute(
+            "INSERT INTO unbound_donations(display_name, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?)",
+            (display_name, amount_cents, now, now),
+        )
+    PUBLIC_DONORS_CACHE.invalidate()
+    return {"id": int(cursor.lastrowid), "displayName": display_name, "amountCents": amount_cents}
+
+
+def admin_delete_unbound_donation(payload: Any) -> None:
+    if not isinstance(payload, dict):
+        raise ValueError("请求内容无效。")
+    donation_id = payload.get("id")
+    if isinstance(donation_id, bool) or not isinstance(donation_id, int) or donation_id < 1:
+        raise ValueError("打赏记录编号无效。")
+    with AUTH_LOCK, auth_database() as connection:
+        changed = connection.execute("DELETE FROM unbound_donations WHERE id=?", (donation_id,))
+    if not changed.rowcount:
+        raise ValueError("未找到这条未绑定打赏记录。")
+    PUBLIC_DONORS_CACHE.invalidate()
 
 
 def account_effect_value(connection: sqlite3.Connection, account_id: str) -> str:
@@ -4425,9 +4844,73 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.wfile.write(body)
         return True
 
+    def send_seo_route_shell(self, route: str) -> Any:
+        """Serve the SPA shell with route-specific metadata and its main content visible."""
+        metadata = SEO_ROUTE_METADATA[route]
+        shell_path = REPOSITORY_ROOT / "index.html"
+        try:
+            document = shell_path.read_text(encoding="utf-8")
+            modified_at = shell_path.stat().st_mtime
+        except OSError:
+            self.send_error(HTTPStatus.NOT_FOUND)
+            return None
+
+        title = escape(metadata["title"], quote=True)
+        description = escape(metadata["description"], quote=True)
+        robots = escape(metadata["robots"], quote=True)
+        canonical = escape(f"https://jiko-official.top/delta/{route}/", quote=True)
+
+        def replace_content(pattern: str, value: str) -> None:
+            nonlocal document
+            document, count = re.subn(
+                pattern,
+                lambda match: f"{match.group(1)}{value}{match.group(2)}",
+                document,
+                count=1,
+            )
+            if count != 1:
+                raise ValueError(f"SEO shell is missing expected metadata: {pattern}")
+
+        replace_content(r'(<title>).*?(</title>)', title)
+        for selector in ("name=description", "property=og:description", "name=twitter:description"):
+            attribute, name = selector.split("=", 1)
+            replace_content(rf'(<meta\s+{attribute}="{re.escape(name)}"\s+content=")[^"]*("\s*/?>)', description)
+        for selector in ("property=og:title", "name=twitter:title"):
+            attribute, name = selector.split("=", 1)
+            replace_content(rf'(<meta\s+{attribute}="{re.escape(name)}"\s+content=")[^"]*("\s*/?>)', title)
+        replace_content(r'(<meta\s+name="robots"\s+content=")[^"]*("\s*/?>)', robots)
+        replace_content(r'(<link\s+rel="canonical"\s+href=")[^"]*("\s*/?>)', canonical)
+        replace_content(r'(<meta\s+property="og:url"\s+content=")[^"]*("\s*/?>)', canonical)
+        document, count = re.subn(r"<body\s*>", f'<body data-task-route="{route}">', document, count=1)
+        if count != 1:
+            raise ValueError("SEO shell is missing its body element")
+        if route in {"export", "create"}:
+            document = document.replace(f'id="{route}RouteIntro" hidden', f'id="{route}RouteIntro"', 1)
+        body, compressed = self.encode_response_body(document.encode("utf-8"))
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Last-Modified", self.date_time_string(modified_at))
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
+        if route == "points":
+            self.send_header("X-Robots-Tag", "noindex, follow")
+        self.end_headers()
+        return io.BytesIO(body)
+
     def send_head(self) -> Any:  # noqa: N802
         """Compress text assets for clients that accept gzip; otherwise use the stdlib path."""
-        if urlparse(self.path).path.rstrip("/") in {"/export", "/create", "/points", "/delta/export", "/delta/create", "/delta/points"}:
+        route_match = SEO_ROUTE_PATH_PATTERN.fullmatch(urlparse(self.path).path)
+        if route_match:
+            request_url = urlsplit(self.path)
+            if not request_url.path.endswith("/"):
+                self.send_response(HTTPStatus.PERMANENT_REDIRECT)
+                self.send_header("Location", urlunsplit(("", "", request_url.path + "/", request_url.query, request_url.fragment)))
+                self.end_headers()
+                return None
+            return self.send_seo_route_shell(route_match[1])
+        if urlparse(self.path).path.rstrip("/") in {"/export", "/create", "/tutorial", "/points", "/cooperate", "/delta/export", "/delta/create", "/delta/tutorial", "/delta/points", "/delta/cooperate"}:
             self.path = "/index.html"
         if not self.accepts_gzip():
             return super().send_head()
@@ -4855,6 +5338,20 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return
         if self.serve_maintenance_if_active(path):
             return
+        if path == "/api/cooperate":
+            self.send_json(HTTPStatus.OK, cooperation_catalog())
+            return
+        if path == "/api/cooperate/dashboard":
+            account = authenticate_request(self) if self.server.auth_enabled else None
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            self.send_json(HTTPStatus.OK, cooperation_dashboard(account["id"]))
+            return
+        if path == "/api/admin/cooperation":
+            if not self.is_admin_console_request(): return
+            self.send_json(HTTPStatus.OK, admin_cooperation_applications())
+            return
         if path == "/api/points/media":
             self.send_json(HTTPStatus.OK, points_media_payload())
             return
@@ -4914,8 +5411,9 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 with AUTH_LOCK, auth_database() as connection:
                     ensure_initial_points(connection, account["id"])
                     rows = connection.execute(
-                        "SELECT point_ledger.amount, point_ledger.reason, point_ledger.reference, point_ledger.created_at, points_media.title AS product_title "
+                        "SELECT point_ledger.amount, point_ledger.reason, point_ledger.reference, point_ledger.created_at, points_media.title AS product_title, streamer_accounts.user_id AS streamer_user_id "
                         "FROM point_ledger LEFT JOIN points_media ON point_ledger.reason='partner_outbound' AND point_ledger.reference=CAST(points_media.id AS TEXT) "
+                        "LEFT JOIN accounts AS streamer_accounts ON point_ledger.reason='streamer_code' AND streamer_accounts.user_id=substr(point_ledger.reference,1,instr(point_ledger.reference,':')-1) "
                         "WHERE point_ledger.account_id = ? ORDER BY point_ledger.created_at DESC, point_ledger.id DESC LIMIT 100",
                         (account["id"],),
                     ).fetchall()
@@ -5099,6 +5597,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"products": points_media_metrics()})
             return
+        if path == "/api/admin/donations":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, admin_donation_catalog())
+            return
         if path == "/api/admin/points":
             if not self.is_admin_console_request():
                 return
@@ -5204,6 +5707,53 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.reject_banned_ip():
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/cooperate/obs/pulse":
+            try:
+                payload = self.read_payload()
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": "状态报告格式无效。"}); return
+            try:
+                result=report_obs_state(self,payload)
+            except (ValueError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "主播兑换码同步失败。"}); return
+            if result is None:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "设备凭据无效或已撤销。"}); return
+            self.send_json(HTTPStatus.OK, result); return
+        if path == "/api/admin/cooperation/review":
+            if not self.is_admin_console_request(): return
+            try: result=review_cooperation_application(self.read_payload())
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "审核失败。"}); return
+            self.send_json(HTTPStatus.OK,result); return
+        if path.startswith("/api/cooperate/") and path != "/api/cooperate/profile/image":
+            if not self.server.auth_enabled or not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "请从本站登录后操作。"}); return
+            account=authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"}); return
+            try:
+                if path == "/api/cooperate/application":
+                    result=submit_cooperation_application(account["id"],self.read_payload())
+                elif path == "/api/cooperate/profile":
+                    result=update_streamer_profile(account["id"],self.read_payload())
+                elif path == "/api/cooperate/code":
+                    result=claim_streamer_daily_code(account["id"])
+                elif path == "/api/cooperate/redeem":
+                    result=redeem_streamer_code(account["id"],self.read_payload())
+                elif path == "/api/cooperate/device":
+                    result=create_obs_device(account["id"])
+                elif path == "/api/cooperate/device/revoke":
+                    payload=self.read_payload(); device_id=payload.get("id") if isinstance(payload,dict) else None
+                    if isinstance(device_id,bool) or not isinstance(device_id,int): raise ValueError("设备编号无效。")
+                    with AUTH_LOCK,auth_database() as connection:
+                        changed=connection.execute("UPDATE streamer_obs_devices SET revoked_at=? WHERE id=? AND account_id=? AND revoked_at IS NULL",(now_timestamp(),device_id,account["id"]))
+                    if not changed.rowcount: raise ValueError("设备不存在或已撤销。")
+                    result={"ok":True}
+                else:
+                    self.send_error(HTTPStatus.NOT_FOUND); return
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST,{"error":str(error) or "操作失败。"}); return
+            self.send_json(HTTPStatus.OK,result); return
         if path == "/api/admin/points/media/image":
             if not self.is_admin_console_request():
                 return
@@ -5222,6 +5772,24 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"url": f"./data/points-media/{name}"})
             return
+        if path == "/api/cooperate/profile/image":
+            if not self.server.auth_enabled or not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN,{"error":"请从本站登录后上传。"});return
+            account=authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED,{"error":"请先登录。"});return
+            try:
+                length=int(self.headers.get("Content-Length","0"))
+                if not 1 <= length <= 3*1024*1024: raise ValueError("WebP 封面不得超过 3 MB。")
+                image=self.rfile.read(length)
+                if points_image_extension(image)!="webp": raise ValueError("只支持有效的 WebP 图片。")
+                with AUTH_LOCK,auth_database() as connection:
+                    if not connection.execute("SELECT 1 FROM streamer_profiles WHERE account_id=? AND active=1",(account["id"],)).fetchone(): raise ValueError("仅认证主播可以上传封面。")
+                folder=DATA_DIRECTORY/"streamers";folder.mkdir(parents=True,exist_ok=True)
+                name=f"{uuid.uuid4().hex}.webp";(folder/name).write_bytes(image)
+            except (ValueError,OSError,sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST,{"error":str(error) or "封面上传失败。"});return
+            self.send_json(HTTPStatus.OK,{"url":f"./data/streamers/{name}"});return
         if path == "/api/points/notice":
             if not self.server.auth_enabled or not self.request_is_same_origin():
                 self.send_json(HTTPStatus.FORBIDDEN, {"error": "请从本站登录后确认积分说明。"})
@@ -5273,6 +5841,16 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
             return
+        if path == "/api/admin/upload-ban":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_ban_upload(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法禁止上传。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
+            return
         if path == "/api/admin/library/review":
             if not self.is_admin_console_request():
                 return
@@ -5306,12 +5884,13 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
             return
-        if path == "/api/admin/donations":
+        if path in {"/api/admin/donations", "/api/admin/donations/unbound"}:
             if not self.is_admin_console_request():
                 return
             try:
-                result = admin_set_donation(self.read_payload())
-            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError) as error:
+                payload = self.read_payload()
+                result = admin_add_unbound_donation(payload) if path.endswith("/unbound") else admin_add_linked_donation(payload)
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存打赏金额。"})
                 return
             self.send_json(HTTPStatus.OK, result)
@@ -5587,6 +6166,20 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法解除 IP 封禁。"})
                 return
             self.send_json(HTTPStatus.OK, {"action": "unbanned"})
+            return
+        if path in {"/api/admin/donations", "/api/admin/donations/unbound"}:
+            if not self.is_admin_console_request():
+                return
+            try:
+                payload = self.read_payload()
+                if path.endswith("/unbound"):
+                    admin_delete_unbound_donation(payload)
+                else:
+                    admin_delete_linked_donation(payload)
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法删除打赏记录。"})
+                return
+            self.send_json(HTTPStatus.OK, {"action": "deleted"})
             return
         if path == "/api/admin/library/song":
             if not self.is_admin_console_request():

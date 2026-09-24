@@ -2,11 +2,22 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://jiko-official.top/delta/</loc>
-    <lastmod>2026-09-22</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
+    <lastmod>2026-09-24</lastmod>
   </url>
-  <url><loc>https://jiko-official.top/delta/export/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://jiko-official.top/delta/create/</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>
-  <url><loc>https://jiko-official.top/delta/points/</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url>
+    <loc>https://jiko-official.top/delta/export/</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://jiko-official.top/delta/create/</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://jiko-official.top/delta/tutorial/</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
+  <url>
+    <loc>https://jiko-official.top/delta/cooperate/</loc>
+    <lastmod>2026-09-24</lastmod>
+  </url>
 </urlset>

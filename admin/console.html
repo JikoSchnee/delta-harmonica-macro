@@ -85,9 +85,11 @@
       .tag.muted { color: var(--dim); border-color: rgba(122,168,151,.3); }
       .actions { display: flex; justify-content: flex-end; gap: 7px; }
       .actions .button { min-height: 30px; padding: 0 9px; font-size: 12px; }
-      .donation-cell { display: flex; align-items: center; gap: 8px; }
-      .donation-cell input { width: 88px; min-height: 30px; padding: 0 8px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; font: 12px "JetBrains Mono", monospace; }
-      .donation-cell .button { min-height: 30px; padding: 0 9px; font-size: 12px; }
+      .donation-entry-form { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, .6fr) auto; align-items: end; gap: 12px; margin: 12px 0 18px; }
+      .donation-entry-form label { display: grid; gap: 6px; color: var(--dim); font: 11px "JetBrains Mono", monospace; }
+      .donation-entry-form input { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
+      .donation-entry-form input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
+      .donation-entry-form .button { min-height: 40px; }
       .empty { padding: 25px 8px; color: var(--dim); text-align: center; }
       .notice { min-height: 24px; margin-top: 11px; color: var(--pink); }
       .admin-song-dialog { width: min(760px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--ink); border: 2px solid var(--line); background: var(--paper); box-shadow: 7px 7px 0 var(--shadow); }
@@ -133,6 +135,9 @@
       .points-media-admin-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; grid-column: 1 / -1; }
       .points-media-admin-actions .button { min-height: 30px; padding: 0 8px; font-size: 11px; }
       .points-media-admin-actions label { display: inline-flex; align-items: center; gap: 5px; margin-right: auto; }
+      .cooperation-review-card { display:grid; gap:8px; margin:10px 0; padding:14px; border:1px solid var(--line); background:#0a201c; }
+      .cooperation-review-card p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
+      .cooperation-review-card small { color:var(--dim); }
       @media (max-width: 720px) { .points-media-admin-row { grid-template-columns: 1fr; } .points-media-admin-fields { grid-template-columns: 1fr; } }
       .export-config-row h4 { margin: 0; color: var(--ink); font-size: 15px; }
       .export-config-row p { margin: 4px 0 13px; color: var(--dim); font-size: 11px; }
@@ -284,6 +289,7 @@
         .searchbar input, .searchbar .button { flex: 1 1 100%; }
         .actions { justify-content: flex-start; flex-wrap: wrap; }
         .admin-song-grid, .admin-song-binding { grid-template-columns: 1fr; }
+        .donation-entry-form { grid-template-columns: 1fr; }
         .admin-song-binding-title, .admin-song-wide { grid-column: 1; }
         .admin-song-body { padding: 14px; }
         .admin-song-heading, .analytics-heading { align-items: flex-start; flex-direction: column; }
@@ -324,8 +330,10 @@
           <button data-page="users"><b>03</b><span>用户管理</span></button>
           <button data-page="export-methods"><b>04</b><span>导出方式</span></button>
           <button data-page="points-media"><b>05</b><span>积分媒体</span></button>
-          <button data-page="runtime"><b>06</b><span>运行时状态</span></button>
-          <button data-page="analytics"><b>07</b><span>数据分析</span></button>
+          <button data-page="cooperation"><b>06</b><span>合作申请</span></button>
+          <button data-page="runtime"><b>07</b><span>运行时状态</span></button>
+          <button data-page="analytics"><b>08</b><span>数据分析</span></button>
+          <button data-page="donations"><b>09</b><span>打赏管理</span></button>
         </nav>
         <div class="rail-foot"><span></span>TOKEN LINKED<br /><small>private / no-store</small></div>
       </aside>
@@ -343,6 +351,12 @@
             <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT PULSE</div><h3>最近加入</h3></div><a href="#users" data-jump="users">查看用户 →</a></div><div id="userPreview"></div></section>
           </div>
         </section>
+        <section id="cooperationPage" data-view hidden>
+          <div class="section-heading"><div><div class="eyebrow">PARTNER APPLICATIONS / REVIEW</div><h3>合作申请</h3></div><span id="cooperationApplicationCount" class="tag">0 条</span></div>
+          <p class="admin-song-description">审核主播认证与广告合作意向。批准的广告申请由管理员在积分媒体中配置素材并上架。</p>
+          <div id="cooperationApplicationList" class="admin-song-list"></div>
+          <div class="export-config-actions"><p id="cooperationAdminStatus" class="export-config-status" role="status" aria-live="polite"></p><button id="refreshCooperationButton" class="button ghost" type="button">刷新申请</button></div>
+        </section>
 
         <section id="libraryPage" data-view hidden>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><span id="libraryCount" class="tag">—</span></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><div id="libraryTable"></div></section>
@@ -352,6 +366,30 @@
         <section id="usersPage" data-view hidden>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><div class="heading-actions"><button id="advancedModeButton" class="button ghost" type="button" aria-pressed="false">高级模式</button><span id="advancedModeState" class="tag amber" hidden>高级模式</span><span id="userCount" class="tag">—</span></div></div><div id="advancedBar" class="advanced-bar" hidden>高级模式已开启：本页会显示账号完整邮箱与最近使用的 IP，并可直接封禁 IP。服务端会为每次高级读取写一条审计日志。<button id="advancedModeClear" class="advanced-clear" type="button">退出高级模式</button></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID、邮箱或 IP…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">NETWORK ACCESS CONTROL</div><h3>IP 封禁</h3></div><span id="ipBanCount" class="tag">—</span></div><div class="searchbar"><input id="ipBanAddress" type="text" inputmode="url" placeholder="IPv4 / IPv6 地址" /><input id="ipBanReason" type="text" maxlength="200" placeholder="封禁原因（可选）" /><button id="ipBanButton" class="button danger" type="button">封禁 IP</button></div><div id="ipBanTable"></div></section>
+        </section>
+        <section id="donationsPage" data-view hidden>
+          <section class="window panel">
+            <div class="section-heading"><div><div class="eyebrow">ACCOUNT SUPPORT / LINKED</div><h3>绑定账号的打赏</h3></div><span id="linkedDonationCount" class="tag">0 笔</span></div>
+            <p class="admin-song-description">录入站点用户 ID 后，打赏会绑定到对应账号并开放永久无限导出。每次录入都会新增一笔记录，榜单按单展示。</p>
+            <form id="linkedDonationForm" class="donation-entry-form">
+              <label>站点用户 ID<input name="userId" list="donationAccountOptions" required maxlength="24" autocomplete="off" placeholder="输入已注册的用户 ID" /></label>
+              <label>本笔金额（元）<input name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required placeholder="0.00" /></label>
+              <button class="button" type="submit">录入绑定打赏</button>
+              <datalist id="donationAccountOptions"></datalist>
+            </form>
+            <div id="linkedDonationList"></div>
+          </section>
+          <section class="window panel">
+            <div class="section-heading"><div><div class="eyebrow">MANUAL SUPPORT / UNLINKED</div><h3>未绑定账号的打赏</h3></div><span id="unboundDonationCount" class="tag">0 笔</span></div>
+            <p class="admin-song-description">填写打赏者在榜单上显示的名称。该记录会以「vx: 名称」公开展示，不关联账号，也不会开通无限导出。</p>
+            <form id="unboundDonationForm" class="donation-entry-form">
+              <label>打赏显示名称<input name="displayName" required maxlength="80" autocomplete="off" placeholder="微信昵称或打赏备注" /></label>
+              <label>打赏金额（元）<input name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required placeholder="0.00" /></label>
+              <button class="button" type="submit">录入未绑定打赏</button>
+            </form>
+            <div id="unboundDonationList"></div>
+          </section>
+          <p id="donationAdminStatus" class="notice" role="status" aria-live="polite"></p>
         </section>
         <section id="export-methodsPage" data-view hidden>
           <section class="window panel">
@@ -364,7 +402,7 @@
         <section id="points-mediaPage" data-view hidden>
           <section class="window panel">
             <div class="section-heading"><div><div class="eyebrow">POINTS.TV / PARTNER CONTENT</div><h3>直播与产品图片</h3></div><span id="pointsMediaAdminCount" class="tag">0 条</span></div>
-            <p class="admin-song-description">配置直播或图片、合作网站链接及专属营销链接。下架后保留历史统计。</p>
+            <p class="admin-song-description">管理合作广告、合作网站链接及专属营销链接。外跳只记录数据，不发放积分；下架后保留历史统计。</p>
             <div id="pointsMediaAdminList" class="points-media-admin-list"></div>
             <div class="export-config-actions"><p id="pointsMediaAdminStatus" class="export-config-status" role="status" aria-live="polite"></p><button id="addPointsMediaButton" class="button ghost" type="button">添加链接 ＋</button><button id="savePointsMediaButton" class="button" type="button">保存媒体配置 →</button></div>
           </section>
@@ -436,7 +474,7 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], buffered: [], users: [], sponsorUsers: [], ipBans: [], exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
+      const state = { token: "", overview: null, songs: [], buffered: [], users: [], sponsorUsers: [], ipBans: [], cooperationApplications: [], donations: { linked: [], unbound: [] }, exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
@@ -477,7 +515,6 @@
           headline: row.querySelector("[data-media-headline]").value.trim(),
           description: row.querySelector("[data-media-description]").value.trim(),
           promoCopy: row.querySelector("[data-media-promo-copy]").value.trim(),
-          rewardPoints: Number(row.querySelector("[data-media-reward-points]").value),
           ctaLabel: row.querySelector("[data-media-cta]").value.trim(),
           embeddedCopy: row.querySelector("[data-media-embedded-copy]").checked,
           destinationUrl: row.querySelector("[data-media-destination]").value.trim(),
@@ -499,7 +536,6 @@
             <label>轮播标题文案<input data-media-headline type="text" maxlength="120" value="${escapeHtml(item.headline || "")}" placeholder="留空则显示产品名称" /></label>
             <label>轮播说明文案<textarea data-media-description maxlength="500" rows="4">${escapeHtml(item.description || "")}</textarea></label>
             <label>海报下方文案（留空则不显示）<textarea data-media-promo-copy maxlength="500" rows="3">${escapeHtml(item.promoCopy || "")}</textarea></label>
-            <label>首次跳转奖励积分<input data-media-reward-points type="number" min="0" max="10000" step="1" value="${Number(item.rewardPoints) || 0}" /></label>
             <label>按钮文案<input data-media-cta type="text" maxlength="30" value="${escapeHtml(item.ctaLabel || "了解详情 ↗")}" /></label>
             <label>合作网站链接<input data-media-destination type="url" value="${escapeHtml(item.destinationUrl || "")}" placeholder="https://partner.example/product" /></label>
             <label>直播链接（图片类可留空）<input data-media-url type="url" value="${escapeHtml(item.url || "")}" placeholder="https://live.bilibili.com/..." /></label>
@@ -533,11 +569,20 @@
         return body;
       }
       function showPage(page) {
-        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "检查相似谱面，审核后可下架并限制投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理直播、产品图片和合作推广统计。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
+        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "检查相似谱面，审核后可下架并限制投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], donations:["SUPPORTER RECORDS / DONATIONS", "打赏管理", "维护账号打赏记录，并录入未绑定账号的打赏。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理合作广告和推广统计；外跳仅记录统计，不产生积分。"], cooperation:["PARTNER APPLICATIONS / REVIEW", "合作申请", "审核主播认证与广告合作意向。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
-        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "export-methods") loadExportMethods(); if (page === "points-media") loadPointsMediaAdmin(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
+        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "donations") loadDonationsAdmin(); if (page === "export-methods") loadExportMethods(); if (page === "points-media") loadPointsMediaAdmin(); if (page === "cooperation") loadCooperationApplications(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
+      }
+      function renderCooperationApplications() {
+        const items=state.cooperationApplications||[];
+        $("#cooperationApplicationCount").textContent=`${items.length} 条 · ${items.filter(item=>item.status==="pending").length} 条待审`;
+        $("#cooperationApplicationList").innerHTML=items.length?items.map(item=>`<article class="cooperation-review-card"><div class="section-heading"><div><div class="eyebrow">${item.kind==="streamer"?"STREAMER APPLICATION":"ADVERTISING APPLICATION"} · #${item.id}</div><h3>@${escapeHtml(item.userId)}</h3></div><span class="tag ${item.status==="pending"?"amber":""}">${item.status==="pending"?"待审核":item.status==="approved"?"已通过":"未通过"}</span></div>${item.streamUrl?`<p><a href="${escapeHtml(item.streamUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(item.streamUrl)}</a></p>`:""}<p>${escapeHtml(item.description)}</p>${item.contact?`<p>联系方式：${escapeHtml(item.contact)}</p>`:""}<small>提交时间：${formatDate(item.createdAt)}</small>${item.status==="pending"?`<div class="actions"><button class="button" data-cooperation-review="approve" data-id="${item.id}">批准</button><button class="button danger" data-cooperation-review="reject" data-id="${item.id}">拒绝</button></div>`:""}</article>`).join(""):'<div class="empty">暂无合作申请。</div>';
+      }
+      async function loadCooperationApplications() {
+        try{const result=await api("admin/cooperation");state.cooperationApplications=result.applications||[];renderCooperationApplications();$("#cooperationAdminStatus").textContent="";}
+        catch(error){$("#cooperationAdminStatus").textContent=error.message||"无法读取合作申请。";}
       }
       function renderOverview() {
         const item = state.overview; if (!item) return;
@@ -579,10 +624,27 @@
         if (!$("#userSearch").value.trim()) state.sponsorUsers = state.users.slice();
         const advanced = Boolean(state.advanced);
         $("#userCount").textContent = `${number.format(state.users.length)} 位用户${advanced ? " · 高级" : ""}`;
-        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th>${advanced ? "<th>邮箱（完整）</th>" : ""}<th>角色</th><th>上传</th><th>打赏</th><th>状态</th>${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td><div class="donation-cell"><input type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" aria-label="打赏金额（元）" value="${user.donationCents ? (user.donationCents / 100).toFixed(2) : ""}" data-donation-input /><button class="button ghost" type="button" data-save-donation="${escapeHtml(user.id)}">保存</button></div></td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}${user.uploadBan?.banned ? `<small class="tag danger">禁传：${escapeHtml(user.uploadBan.reason)} · ${user.uploadBan.expiresAt ? formatDate(new Date(user.uploadBan.expiresAt * 1000).toISOString()) : "永久"}</small>` : ""}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button>${user.uploadBan?.banned ? `<button class="button" type="button" data-unban-upload="${escapeHtml(user.id)}">解除禁传</button>` : ""}</td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th>${advanced ? "<th>邮箱（完整）</th>" : ""}<th>角色</th><th>上传</th><th>状态</th>${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}${user.uploadBan?.banned ? `<small class="tag danger">禁传：${escapeHtml(user.uploadBan.reason)} · ${user.uploadBan.expiresAt ? formatDate(new Date(user.uploadBan.expiresAt * 1000).toISOString()) : "永久"}</small>` : ""}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button>${user.uploadBan?.banned ? `<button class="button" type="button" data-unban-upload="${escapeHtml(user.id)}">解除禁传</button>` : `<button class="button danger" type="button" data-ban-upload="${escapeHtml(user.id)}">禁止上传</button>`}</td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
       }
       async function loadIpBans() {
         try { const result = await api("admin/ip-bans"); const bans = result.bans || []; $("#ipBanCount").textContent = `${number.format(bans.length)} 个 IP`; $("#ipBanTable").innerHTML = bans.length ? `<table><thead><tr><th>IP</th><th>原因</th><th>到期</th><th>操作</th></tr></thead><tbody>${bans.map(ban => `<tr><td class="mono">${escapeHtml(ban.ip)}</td><td>${escapeHtml(ban.reason || "—")}</td><td class="mono">${ban.expires_at ? formatDate(new Date(Number(ban.expires_at) * 1000).toISOString()) : "永久"}</td><td><button class="button" type="button" data-unban-ip="${escapeHtml(ban.ip)}">解除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无 IP 封禁。</div>'; } catch (error) { setNotice(error.message); }
+      }
+      function renderDonationsAdmin() {
+        const linked = state.donations.linked || [];
+        const unbound = state.donations.unbound || [];
+        $("#linkedDonationCount").textContent = `${number.format(linked.length)} 笔`;
+        $("#unboundDonationCount").textContent = `${number.format(unbound.length)} 笔`;
+        $("#donationAccountOptions").innerHTML = state.users.map(user => `<option value="${escapeHtml(user.userId)}"></option>`).join("");
+        $("#linkedDonationList").innerHTML = linked.length ? `<table><thead><tr><th>站点用户 ID</th><th>本笔金额</th><th>录入时间</th><th>操作</th></tr></thead><tbody>${linked.map(item => `<tr><td>${escapeHtml(item.userId)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td><button class="button danger" type="button" data-delete-linked-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无绑定账号的打赏记录。</div>';
+        $("#unboundDonationList").innerHTML = unbound.length ? `<table><thead><tr><th>榜单显示</th><th>金额（元）</th><th>录入时间</th><th>操作</th></tr></thead><tbody>${unbound.map(item => `<tr><td>vx: ${escapeHtml(item.displayName)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td><button class="button danger" type="button" data-delete-unbound-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无未绑定账号的打赏记录。</div>';
+      }
+      async function loadDonationsAdmin() {
+        try {
+          const result = await api("admin/donations");
+          state.donations = { linked: result.linked || [], unbound: result.unbound || [] };
+          renderDonationsAdmin();
+          $("#donationAdminStatus").textContent = "";
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "无法读取打赏记录。"; }
       }
       const analyticsLabels = { page_view:"访问页面", directory_selected:"选择入口", library_search:"搜索曲库", song_loaded:"载入曲目", input_mode_selected:"切换输入模式", midi_import_opened:"打开 MIDI", midi_selection_applied:"生成 MIDI 谱", score_imported:"导入谱子", preview_started:"开始试听", macro_section_opened:"前往导出", export_mode_selected:"切换导出板块", score_downloaded:"下载谱子", community_upload_succeeded:"上传曲库", macro_downloaded:"下载宏", macro_exported:"完成宏导出", lua_copied:"复制 Lua", score_edit_opened:"打开编辑", score_edit_saved:"保存编辑", tour_started:"打开教程", points_insufficient:"积分不足" };
       const analyticsNumber = value => number.format(Number(value) || 0);
@@ -904,8 +966,10 @@
       async function connect(token) { state.token = token.trim(); if (!state.token) return; sessionStorage.setItem("delta-admin-token", state.token); await loadAll(); if (state.overview) { $("#loginScreen").hidden = true; $("#app").hidden = false; } }
       $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginNotice").textContent = "正在验证…"; try { await connect($("#token").value); if (!state.overview) $("#loginNotice").textContent = "无法连接控制台。"; } catch (error) { $("#loginNotice").textContent = error.message; } });
       document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => showPage(button.dataset.page)));
+      $("#refreshCooperationButton").addEventListener("click",loadCooperationApplications);
+      $("#cooperationApplicationList").addEventListener("click",async event=>{const button=event.target.closest("[data-cooperation-review]");if(!button)return;button.disabled=true;try{await api("admin/cooperation/review",{method:"POST",body:JSON.stringify({id:Number(button.dataset.id),decision:button.dataset.cooperationReview})});$("#cooperationAdminStatus").textContent=button.dataset.cooperationReview==="approve"?"申请已批准。":"申请已拒绝。";await loadCooperationApplications();}catch(error){$("#cooperationAdminStatus").textContent=error.message||"审核失败。";button.disabled=false;}});
       document.querySelectorAll("[data-jump]").forEach(link => link.addEventListener("click", event => { event.preventDefault(); showPage(link.dataset.jump); }));
-      $("#refreshButton").addEventListener("click", () => { loadAll(); if (!$("#runtimePage").hidden) loadRuntime(); }); $("#logoutButton").addEventListener("click", () => { stopRuntimePolling(); state.token = ""; state.advanced = false; sessionStorage.removeItem("delta-admin-token"); sessionStorage.removeItem("delta-admin-advanced"); renderAdvancedMode(); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
+      $("#refreshButton").addEventListener("click", () => { loadAll(); if (!$("#runtimePage").hidden) loadRuntime(); if (!$("#donationsPage").hidden) loadDonationsAdmin(); }); $("#logoutButton").addEventListener("click", () => { stopRuntimePolling(); state.token = ""; state.advanced = false; sessionStorage.removeItem("delta-admin-token"); sessionStorage.removeItem("delta-admin-advanced"); renderAdvancedMode(); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
       $("#runtimeButton").addEventListener("click", () => showPage("runtime"));
       $("#runtimeRefreshButton").addEventListener("click", loadRuntime);
       $("#runtimePollButton").addEventListener("click", toggleRuntimePolling);
@@ -919,7 +983,7 @@
       $("#addPointsMediaButton").addEventListener("click", () => {
         const items = collectPointsMediaAdmin();
         if (items.length >= 12) { $("#pointsMediaAdminStatus").textContent = "最多添加 12 条媒体。"; return; }
-        items.push({ kind: "image", url: "", title: "", headline: "", description: "", promoCopy: "", rewardPoints: 0, ctaLabel: "了解详情 ↗", embeddedCopy: false, destinationUrl: "", manualCoverUrl: "", coverUrl: "", active: true });
+        items.push({ kind: "image", url: "", title: "", headline: "", description: "", promoCopy: "", ctaLabel: "了解详情 ↗", embeddedCopy: false, destinationUrl: "", manualCoverUrl: "", coverUrl: "", active: true });
         renderPointsMediaAdmin(items);
         $("#pointsMediaAdminList .points-media-admin-row:last-child [data-media-title]")?.focus();
       });
@@ -1023,6 +1087,21 @@
           try { await api("admin/ip-ban", { method: "POST", body: JSON.stringify({ ip, reason }) }); await loadUsers(); setNotice(`已封禁 IP：${ip}`); } catch (error) { setNotice(error.message); }
           return;
         }
+        const banUpload = event.target.closest("[data-ban-upload]");
+        if (banUpload) {
+          const user = state.users.find(item => item.id === banUpload.dataset.banUpload);
+          if (!user) return;
+          const reason = window.prompt(`禁止 @${user.userId} 上传的原因：`, "违规上传");
+          if (reason === null) return;
+          if (!reason.trim()) { setNotice("请填写禁止上传的原因。"); return; }
+          const answer = window.prompt("请输入禁止上传的天数（1–3650），留空为永久：", "30");
+          if (answer === null) return;
+          const banDays = answer.trim() ? Number(answer.trim()) : null;
+          if (banDays !== null && (!Number.isInteger(banDays) || banDays < 1 || banDays > 3650)) { setNotice("天数须为 1–3650，留空为永久。"); return; }
+          if (!window.confirm(`确定禁止 @${user.userId} 上传${banDays === null ? "（永久）" : `（${banDays} 天）`}吗？`)) return;
+          try { await api("admin/upload-ban", { method: "POST", body: JSON.stringify({ accountId: user.id, reason: reason.trim(), banDays }) }); await loadUsers(); setNotice(`已禁止 @${user.userId} 上传。`); } catch (error) { setNotice(error.message); }
+          return;
+        }
         const unbanUpload = event.target.closest("[data-unban-upload]");
         if (unbanUpload) {
           const user = state.users.find(item => item.id === unbanUpload.dataset.unbanUpload);
@@ -1047,22 +1126,58 @@
           } catch (error) { setNotice(error.message); }
           return;
         }
-        const button = event.target.closest("[data-save-donation]");
-        if (!button) return;
-        const accountId = button.dataset.saveDonation;
-        const input = button.closest("tr")?.querySelector("[data-donation-input]");
-        const raw = (input?.value || "").trim();
-        const yuan = raw === "" ? 0 : Number(raw);
-        if (!Number.isFinite(yuan) || yuan < 0) { setNotice("打赏金额需要是不小于 0 的数字。"); return; }
-        const amountCents = Math.round(yuan * 100);
+      });
+      $("#linkedDonationForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const button = form.querySelector("button[type=submit]");
+        const amount = Number(form.elements.amount.value);
+        if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
         button.disabled = true;
         try {
-          await api("admin/donations", { method: "POST", body: JSON.stringify({ accountId, amountCents }) });
-          const user = state.users.find(item => item.id === accountId);
-          if (user) user.donationCents = amountCents;
-          renderUsers();
-          setNotice(amountCents > 0 ? `已记录打赏 ¥${(amountCents / 100).toFixed(2)}。` : "已清除这位用户的打赏记录。");
-        } catch (error) { setNotice(error.message); button.disabled = false; }
+          const result = await api("admin/donations", { method: "POST", body: JSON.stringify({ userId: form.elements.userId.value.trim(), amountCents: Math.round(amount * 100) }) });
+          form.reset();
+          await loadDonationsAdmin();
+          $("#donationAdminStatus").textContent = `已录入 ${result.userId} 的 ¥${(result.amountCents / 100).toFixed(2)} 打赏。`;
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "保存失败。"; }
+        finally { button.disabled = false; }
+      });
+      $("#unboundDonationForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const button = form.querySelector("button[type=submit]");
+        const amount = Number(form.elements.amount.value);
+        if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
+        button.disabled = true;
+        try {
+          const result = await api("admin/donations/unbound", { method: "POST", body: JSON.stringify({ displayName: form.elements.displayName.value.trim(), amountCents: Math.round(amount * 100) }) });
+          form.reset();
+          await loadDonationsAdmin();
+          $("#donationAdminStatus").textContent = `已录入 vx: ${result.displayName} 的未绑定打赏。`;
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "录入失败。"; }
+        finally { button.disabled = false; }
+      });
+      $("#linkedDonationList").addEventListener("click", async event => {
+        const button = event.target.closest("[data-delete-linked-donation]");
+        if (!button) return;
+        if (!window.confirm("删除这笔绑定账号打赏吗？它会从公开打赏榜移除。")) return;
+        button.disabled = true;
+        try {
+          await api("admin/donations", { method: "DELETE", body: JSON.stringify({ id: Number(button.dataset.deleteLinkedDonation) }) });
+          await loadDonationsAdmin();
+          $("#donationAdminStatus").textContent = "绑定账号打赏记录已删除。";
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "删除失败。"; button.disabled = false; }
+      });
+      $("#unboundDonationList").addEventListener("click", async event => {
+        const button = event.target.closest("[data-delete-unbound-donation]");
+        if (!button) return;
+        if (!window.confirm("删除这条未绑定打赏记录吗？它会从公开打赏榜移除。")) return;
+        button.disabled = true;
+        try {
+          await api("admin/donations/unbound", { method: "DELETE", body: JSON.stringify({ id: Number(button.dataset.deleteUnboundDonation) }) });
+          await loadDonationsAdmin();
+          $("#donationAdminStatus").textContent = "未绑定打赏记录已删除。";
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "删除失败。"; button.disabled = false; }
       });
       $("#adminSongFile").addEventListener("change", () => { const file = $("#adminSongFile").files[0]; $("#adminSongFileHint").textContent = file ? "已选择：" + file.name + "（" + number.format(file.size) + " 字节）" : "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。"; });
       $("#adminSongDialog").addEventListener("close", () => { pendingAdminSong = null; $("#adminSongFile").value = ""; setAdminSongStatus(); $("#adminSongSave").disabled = false; });
