@@ -1,5 +1,5 @@
 {
-  "version": "2.3.0",
+  "version": "2.3.1",
   "compatibleHelperPrefixes": [
     "1.1",
     "2.0",
@@ -10,9 +10,9 @@
     "1.1.x",
     "2.0.x"
   ],
-  "releaseTag": "helper-v2.3.0",
-  "downloadUrl": "https://github.com/JikoSchnee/delta-harmonica-macro/releases/download/helper-v2.3.0/2.3.0-HarmonicaRecorder-win-x64.zip",
-  "githubDownloadUrl": "https://github.com/JikoSchnee/delta-harmonica-macro/releases/download/helper-v2.3.0/2.3.0-HarmonicaRecorder-win-x64.zip",
-  "serverDownloadUrl": "https://jiko-official.top/delta/downloads/2.3.0-HarmonicaRecorder-win-x64.zip",
-  "sha256": "e750f786659ab4162f17daa2c322af48ad4e73c634e1fe9c3c81aff18d2f98d1"
+  "releaseTag": "helper-v2.3.1",
+  "downloadUrl": "https://github.com/JikoSchnee/delta-harmonica-macro/releases/download/helper-v2.3.1/2.3.1-HarmonicaRecorder-win-x64.zip",
+  "githubDownloadUrl": "https://github.com/JikoSchnee/delta-harmonica-macro/releases/download/helper-v2.3.1/2.3.1-HarmonicaRecorder-win-x64.zip",
+  "serverDownloadUrl": "https://jiko-official.top/delta/downloads/2.3.1-HarmonicaRecorder-win-x64.zip",
+  "sha256": "7f119939456c3ac3e5dcca8fd28bb81c38db641fc75e290f519b8444fbb5e625"
 }
