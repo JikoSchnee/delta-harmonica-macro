@@ -1747,7 +1747,14 @@
       <section class="exports" id="macro-export" aria-labelledby="exportTitle">
         <div class="window-titlebar"><span>EXPORT_MANAGER.EXE — DRIVER FILES</span><button class="panel-guide-button" data-guide="export" type="button" aria-label="查看导出帮助" aria-haspopup="dialog">?</button></div>
         <div class="section-heading">
-          <div><span class="index">10 · DRIVER FILES</span><h2 id="exportTitle">导出为宏</h2></div>
+          <div><span class="index" data-section-index="export">05 · DRIVER FILES</span><h2 id="exportTitle">导出为宏</h2></div>
+        </div>
+        <p class="export-intro">所有导出方式按使用顺序排列；每个方法下方会显示当前管理员配置的适用品牌。导出速度只改变生成宏的节奏，不影响曲谱、编辑器或试听。</p>
+        <div class="export-card-setting macro-export-settings">
+          <label for="macroExportSpeed"><span>导出速度</span><span class="export-speed-control"><input id="macroExportSpeed" type="range" min="50" max="200" step="5" value="100" aria-describedby="macroExportSpeedHint" /><output id="macroExportSpeedValue" for="macroExportSpeed">100% · 1.00×</output></span></label>
+          <p id="macroExportSpeedHint">100% 为曲谱原速；调整后只改变此处生成的宏节奏，不影响编辑器、曲谱数据或试听。</p>
+          <label class="export-card-setting-toggle" for="macroTimingTestMode"><span>测试模式 · 提前准备升降音</span><span class="export-card-setting-control"><input id="macroTimingTestMode" type="checkbox" /><span class="toggle-indicator" aria-hidden="true"></span><b>关闭</b></span></label>
+          <p>默认关闭，沿用原来的宏时序。打开后仅影响此处导出的宏：利用上一音符释放后的气口提前按下变调键，供快节奏曲目测试。</p>
         </div>
         <p class="export-intro">所有导出方式按使用顺序排列；每个方法下方会显示当前管理员配置的适用品牌。</p>
         <div class="export-brand-filter" aria-label="按支持品牌筛选导出方式">
