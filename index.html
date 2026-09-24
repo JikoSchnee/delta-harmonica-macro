@@ -3614,6 +3614,27 @@
           <p id="macroExportSpeedHint">100% 为曲谱原速；调整后只改变此处生成的宏节奏，不影响编辑器、曲谱数据或试听。</p>
           <label class="export-card-setting-toggle" for="macroTimingTestMode"><span>测试模式 · 提前准备升降音</span><span class="export-card-setting-control"><input id="macroTimingTestMode" type="checkbox" /><span class="toggle-indicator" aria-hidden="true"></span><b>关闭</b></span></label>
           <p>默认关闭，沿用原来的宏时序。打开后仅影响此处导出的宏：利用上一音符释放后的气口提前按下变调键，供快节奏曲目测试。</p>
+          <section class="macro-export-range" aria-labelledby="macroExportRangeTitle">
+            <div class="macro-export-range-heading">
+              <div><span class="index">TEMPORARY CUT</span><strong id="macroExportRangeTitle">临时导出范围</strong></div>
+              <label class="export-card-setting-toggle" for="macroExportRangeEnabled"><span>只导出选中范围</span><span class="export-card-setting-control"><input id="macroExportRangeEnabled" type="checkbox" aria-describedby="macroExportRangeHint" /><span class="toggle-indicator" aria-hidden="true"></span><b id="macroExportRangeState">关闭</b></span></label>
+            </div>
+            <p id="macroExportRangeHint">截取范围按导出速度计算，适用于所有宏格式；不修改曲谱或试听。选择预设后自动启用。</p>
+            <div class="macro-export-range-presets" role="group" aria-label="快速选择导出范围">
+              <button type="button" data-export-range-preset="all" aria-pressed="true">整段</button>
+              <button type="button" data-export-range-preset="10000" aria-pressed="false">前 10 秒</button>
+              <button type="button" data-export-range-preset="30000" aria-pressed="false">前 30 秒</button>
+              <button type="button" data-export-range-preset="60000" aria-pressed="false">前 60 秒</button>
+            </div>
+            <div class="macro-export-range-editor">
+              <div class="macro-export-range-labels"><span id="macroExportRangeStartLabel">开始 00:00.000</span><strong id="macroExportRangeSummary">导出整段</strong><span id="macroExportRangeEndLabel">结束 --:--.---</span></div>
+              <div class="macro-export-range-sliders" id="macroExportRangeSliders">
+                <input id="macroExportRangeStart" type="range" min="0" max="0" value="0" step="1" aria-label="导出范围开始时间" disabled />
+                <input id="macroExportRangeEnd" type="range" min="0" max="0" value="0" step="1" aria-label="导出范围结束时间" disabled />
+                <span class="macro-export-range-window" id="macroExportRangeWindow" aria-hidden="true"></span>
+              </div>
+            </div>
+          </section>
         </div>
         <div class="export-brand-filter" aria-label="按支持品牌筛选导出方式">
           <div class="export-brand-filter-heading"><span>FILTER BY BRAND</span><small id="exportBrandFilterHint">显示全部导出方式</small></div>

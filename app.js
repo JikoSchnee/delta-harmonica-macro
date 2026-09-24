@@ -1107,7 +1107,7 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), macroTimingTestMode: document.querySelector("#macroTimingTestMode"), macroExportSpeed: document.querySelector("#macroExportSpeed"), macroExportSpeedValue: document.querySelector("#macroExportSpeedValue"), mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportBrandFilter: document.querySelector("#exportBrandFilter"), exportBrandFilterHint: document.querySelector("#exportBrandFilterHint"), exportBrandTargets: [...document.querySelectorAll("[data-export-brands]")],
+  jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), macroTimingTestMode: document.querySelector("#macroTimingTestMode"), macroExportSpeed: document.querySelector("#macroExportSpeed"), macroExportSpeedValue: document.querySelector("#macroExportSpeedValue"), macroExportRangeEnabled: document.querySelector("#macroExportRangeEnabled"), macroExportRangeState: document.querySelector("#macroExportRangeState"), macroExportRangeStart: document.querySelector("#macroExportRangeStart"), macroExportRangeEnd: document.querySelector("#macroExportRangeEnd"), macroExportRangeStartLabel: document.querySelector("#macroExportRangeStartLabel"), macroExportRangeEndLabel: document.querySelector("#macroExportRangeEndLabel"), macroExportRangeSummary: document.querySelector("#macroExportRangeSummary"), macroExportRangeSliders: document.querySelector("#macroExportRangeSliders"), macroExportRangeWindow: document.querySelector("#macroExportRangeWindow"), macroExportRangePresets: [...document.querySelectorAll("[data-export-range-preset]")], mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportBrandFilter: document.querySelector("#exportBrandFilter"), exportBrandFilterHint: document.querySelector("#exportBrandFilterHint"), exportBrandTargets: [...document.querySelectorAll("[data-export-brands]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"), pageLayout: document.querySelector(".page-layout"), sectionSidebar: document.querySelector("#sectionSidebar"), sectionSidebarBody: document.querySelector("#sectionSidebarBody"), sectionSidebarToggle: document.querySelector("#sectionSidebarToggle"), sectionSidebarOpen: document.querySelector("#sectionSidebarOpen"), sectionNavLinks: [...document.querySelectorAll("[data-section-nav-target]")],
   convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), jianpuPreviewButton: document.querySelector("#jianpuPreviewButton"), jianpuPreviewDialog: document.querySelector("#jianpuPreviewDialog"), jianpuPreviewTitle: document.querySelector("#jianpuPreviewTitle"), jianpuPreviewMeta: document.querySelector("#jianpuPreviewMeta"), jianpuPreviewMeasures: document.querySelector("#jianpuPreviewMeasures"), jianpuPreviewHint: document.querySelector("#jianpuPreviewHint"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiMultiSelectToggle: document.querySelector("#midiMultiSelectToggle"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
@@ -1866,6 +1866,146 @@ function initializeMacroExportSpeedSetting() {
   syncMacroExportSpeedSetting();
 }
 
+let macroExportRangeStartMs = 0;
+let macroExportRangeEndMs = 0;
+
+function macroExportDurationMs(sequence = currentSequence) {
+  if (!sequence) return 0;
+  return Math.max(1, Math.round(sequence.totalMs * 100 / syncMacroExportSpeedSetting()));
+}
+
+function updateMacroExportRangeControls(sequence = currentSequence, activeHandle = "") {
+  const durationMs = macroExportDurationMs(sequence);
+  let startMs = durationMs ? Math.max(0, Math.min(durationMs, macroExportRangeStartMs)) : 0;
+  let endMs = durationMs ? Math.max(0, Math.min(durationMs, macroExportRangeEndMs || durationMs)) : 0;
+  if (durationMs && endMs <= startMs) {
+    if (activeHandle === "start") {
+      startMs = Math.min(startMs, durationMs - 1);
+      endMs = startMs + 1;
+    } else {
+      endMs = Math.max(1, endMs);
+      startMs = endMs - 1;
+    }
+  }
+  if (durationMs) {
+    macroExportRangeStartMs = startMs;
+    macroExportRangeEndMs = endMs;
+  }
+  [elements.macroExportRangeStart, elements.macroExportRangeEnd].forEach((input) => {
+    if (!input) return;
+    input.max = String(durationMs);
+    input.disabled = !durationMs;
+  });
+  if (elements.macroExportRangeStart) elements.macroExportRangeStart.value = String(startMs);
+  if (elements.macroExportRangeEnd) elements.macroExportRangeEnd.value = String(endMs);
+  if (elements.macroExportRangeEnabled) elements.macroExportRangeEnabled.disabled = !durationMs;
+  if (elements.macroExportRangeState) elements.macroExportRangeState.textContent = elements.macroExportRangeEnabled?.checked ? "开启" : "关闭";
+  if (elements.macroExportRangeStartLabel) elements.macroExportRangeStartLabel.textContent = `开始 ${formatTime(startMs)}`;
+  if (elements.macroExportRangeEndLabel) elements.macroExportRangeEndLabel.textContent = `结束 ${durationMs ? formatTime(endMs) : "--:--.---"}`;
+  if (elements.macroExportRangeSummary) {
+    elements.macroExportRangeSummary.textContent = elements.macroExportRangeEnabled?.checked
+      ? `${formatTime(startMs)} – ${formatTime(endMs)} · ${formatTime(endMs - startMs)}`
+      : `导出整段 · ${durationMs ? formatTime(durationMs) : "等待曲谱"}`;
+  }
+  if (elements.macroExportRangeWindow) {
+    const left = durationMs ? startMs / durationMs * 100 : 0;
+    const width = durationMs ? (endMs - startMs) / durationMs * 100 : 100;
+    elements.macroExportRangeWindow.style.left = `${left}%`;
+    elements.macroExportRangeWindow.style.width = `${width}%`;
+  }
+  const firstMatchingPreset = durationMs && elements.macroExportRangeEnabled?.checked && startMs === 0
+    ? elements.macroExportRangePresets.find((button) => button.dataset.exportRangePreset !== "all" && Math.min(durationMs, Number(button.dataset.exportRangePreset)) === endMs)?.dataset.exportRangePreset
+    : "";
+  elements.macroExportRangePresets.forEach((button) => {
+    const preset = button.dataset.exportRangePreset;
+    const selected = preset === "all"
+      ? !elements.macroExportRangeEnabled?.checked
+      : Boolean(preset === firstMatchingPreset);
+    button.setAttribute("aria-pressed", String(selected));
+    button.disabled = !durationMs;
+  });
+  return { startMs, endMs, durationMs };
+}
+
+function applyMacroExportRangePreset(preset) {
+  const { durationMs } = updateMacroExportRangeControls(currentSequence);
+  if (!durationMs) return;
+  if (preset === "all") {
+    elements.macroExportRangeEnabled.checked = false;
+    macroExportRangeStartMs = 0;
+    macroExportRangeEndMs = durationMs;
+  } else {
+    elements.macroExportRangeEnabled.checked = true;
+    macroExportRangeStartMs = 0;
+    macroExportRangeEndMs = Math.min(durationMs, Number(preset));
+  }
+  updateMacroExportRangeControls(currentSequence);
+}
+
+function trimMacroExportSequence(sequence) {
+  if (!sequence || !elements.macroExportRangeEnabled?.checked) return sequence;
+  const durationMs = Math.max(1, Math.round(sequence.totalMs));
+  const startMs = Math.max(0, Math.min(durationMs - 1, macroExportRangeStartMs));
+  const endMs = Math.max(startMs + 1, Math.min(durationMs, macroExportRangeEndMs || durationMs));
+  if (!durationMs || endMs <= startMs) return sequence;
+  const beatMs = sequence.beatMs || 60000 / Number(elements.bpm.value);
+  const notes = [];
+  sequence.notes.forEach((item) => {
+    const originalStart = item.timeMs;
+    const scheduledDuration = item.isRest ? item.durationMs : (item.pressMs || 0) + (item.waitMs || 0);
+    const originalEnd = Math.min(sequence.totalMs, originalStart + scheduledDuration);
+    const clippedStart = Math.max(startMs, originalStart);
+    const clippedEnd = Math.min(endMs, originalEnd);
+    if (clippedEnd <= clippedStart) return;
+    const relativeStart = clippedStart - startMs;
+    const clippedDuration = clippedEnd - clippedStart;
+    const clippedItem = {
+      ...item,
+      timeMs: relativeStart,
+      durationMs: clippedDuration,
+      beats: clippedDuration / beatMs,
+      index: notes.length
+    };
+    if (item.isRest) {
+      clippedItem.pressMs = 0;
+      clippedItem.waitMs = clippedDuration;
+      clippedItem.inputLeadMs = 0;
+      clippedItem.eventCount = 0;
+      notes.push(clippedItem);
+      return;
+    }
+
+    const keyDownAt = originalStart + (item.inputLeadMs || 0);
+    const keyUpAt = originalStart + item.pressMs;
+    if (clippedEnd <= keyDownAt || clippedStart >= keyUpAt) {
+      notes.push({
+        ...clippedItem,
+        note: "0",
+        key: null,
+        modifier: "",
+        sourcePitch: "0",
+        isRest: true,
+        pressMs: 0,
+        waitMs: clippedDuration,
+        inputLeadMs: 0,
+        eventCount: 0
+      });
+      return;
+    }
+    clippedItem.inputLeadMs = Math.max(0, keyDownAt - clippedStart);
+    clippedItem.pressMs = Math.max(0, Math.min(clippedEnd, keyUpAt) - clippedStart);
+    clippedItem.waitMs = Math.max(0, clippedDuration - clippedItem.pressMs);
+    notes.push(clippedItem);
+  });
+  return {
+    ...sequence,
+    notes,
+    events: notes.reduce((sum, item) => sum + (item.eventCount || 0), 0),
+    totalMs: endMs - startMs,
+    exportRangeMs: { start: startMs, end: endMs }
+  };
+}
+
 function sequenceForMacroExport(sequence) {
   if (!sequence) return sequence;
   let exportSequence = sequence;
@@ -1885,26 +2025,28 @@ function sequenceForMacroExport(sequence) {
   }
 
   const speed = syncMacroExportSpeedSetting();
-  if (speed === 100) return exportSequence;
-  const scale = 100 / speed;
-  const scaleTime = (value, minimum = 0) => Number(value) > 0
-    ? Math.max(minimum, Math.round(Number(value) * scale))
-    : 0;
-  const notes = exportSequence.notes.map((item) => ({
-    ...item,
-    timeMs: scaleTime(item.timeMs),
-    durationMs: scaleTime(item.durationMs, 1),
-    pressMs: scaleTime(item.pressMs),
-    waitMs: scaleTime(item.waitMs),
-    inputLeadMs: scaleTime(item.inputLeadMs)
-  }));
-  return {
-    ...exportSequence,
-    notes,
-    beatMs: scaleTime(exportSequence.beatMs, 1),
-    totalMs: scaleTime(exportSequence.totalMs, 1),
-    exportSpeedPercent: speed
-  };
+  if (speed !== 100) {
+    const scale = 100 / speed;
+    const scaleTime = (value, minimum = 0) => Number(value) > 0
+      ? Math.max(minimum, Math.round(Number(value) * scale))
+      : 0;
+    const notes = exportSequence.notes.map((item) => ({
+      ...item,
+      timeMs: scaleTime(item.timeMs),
+      durationMs: scaleTime(item.durationMs, 1),
+      pressMs: scaleTime(item.pressMs),
+      waitMs: scaleTime(item.waitMs),
+      inputLeadMs: scaleTime(item.inputLeadMs)
+    }));
+    exportSequence = {
+      ...exportSequence,
+      notes,
+      beatMs: scaleTime(exportSequence.beatMs, 1),
+      totalMs: scaleTime(exportSequence.totalMs, 1),
+      exportSpeedPercent: speed
+    };
+  }
+  return trimMacroExportSequence(exportSequence);
 }
 
 function macroMidi(item) {
@@ -3723,12 +3865,14 @@ function convert() {
     currentSequence = null;
     updateMonitor(null);
     updateTransposeControls(null);
+    updateMacroExportRangeControls(null);
     elements.status.textContent = `错误 · ${sequence.error.line}:${sequence.error.column}`;
     setValidation(`第 ${sequence.error.line} 行，第 ${sequence.error.column} 列：${sequence.error.message}`, "error");
     return null;
   }
   sequence.notes.forEach((item, index) => { item.index = index; });
   currentSequence = sequence;
+  updateMacroExportRangeControls(sequence);
   updateMonitor(sequence);
   updateTransposeControls(sequence);
   elements.status.textContent = "序列已就绪";
@@ -7422,9 +7566,28 @@ elements.macroTriggerButton.addEventListener("input", clearMacroTriggerValidatio
 elements.macroStopButton.addEventListener("change", clearMacroTriggerValidation);
 elements.macroTimingTestMode.addEventListener("change", () => {
   elements.macroTimingTestMode.closest("label").querySelector(".export-card-setting-control b").textContent = elements.macroTimingTestMode.checked ? "开启" : "关闭";
+  updateMacroExportRangeControls(currentSequence);
 });
-elements.macroExportSpeed.addEventListener("input", () => syncMacroExportSpeedSetting());
-elements.macroExportSpeed.addEventListener("change", () => syncMacroExportSpeedSetting({ persist: true }));
+elements.macroExportSpeed.addEventListener("input", () => {
+  syncMacroExportSpeedSetting();
+  updateMacroExportRangeControls(currentSequence);
+});
+elements.macroExportSpeed.addEventListener("change", () => {
+  syncMacroExportSpeedSetting({ persist: true });
+  updateMacroExportRangeControls(currentSequence);
+});
+elements.macroExportRangeEnabled.addEventListener("change", () => updateMacroExportRangeControls(currentSequence));
+elements.macroExportRangeStart.addEventListener("input", () => {
+  elements.macroExportRangeEnabled.checked = true;
+  macroExportRangeStartMs = Number(elements.macroExportRangeStart.value) || 0;
+  updateMacroExportRangeControls(currentSequence, "start");
+});
+elements.macroExportRangeEnd.addEventListener("input", () => {
+  elements.macroExportRangeEnabled.checked = true;
+  macroExportRangeEndMs = Number(elements.macroExportRangeEnd.value) || 0;
+  updateMacroExportRangeControls(currentSequence, "end");
+});
+elements.macroExportRangePresets.forEach((button) => button.addEventListener("click", () => applyMacroExportRangePreset(button.dataset.exportRangePreset)));
 elements.mchoseOperationsPerFile.addEventListener("change", () => syncMchoseOperationsPerFileSetting({ persist: true }));
 elements.mchoseSplitEnabled.addEventListener("change", () => syncMchoseOperationsPerFileSetting({ persist: true }));
 elements.rogOperationsPerFile.addEventListener("change", () => syncRogOperationsPerFileSetting({ persist: true }));
@@ -8202,6 +8365,7 @@ authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
 initializeBlankEditor();
+updateMacroExportRangeControls(currentSequence);
 restoreTaskDraft();
 void refreshLibraryViews().then(() => {
   applyRemixCodeFromUrl();
