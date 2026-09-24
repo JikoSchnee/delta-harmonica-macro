@@ -1,5 +1,12 @@
 const NOTE_KEYS = { "1": "z", "2": "x", "3": "c", "4": "v", "5": "b", "6": "n", "7": "m", "1'": "," };
-const WEBSITE_VERSION = "5.0.0";
+// Close titlebar buttons directly so form validation cannot block dismissing a dialog.
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("dialog .dialog-close");
+  if (!button) return;
+  event.preventDefault();
+  button.closest("dialog")?.close("cancel");
+});
+const WEBSITE_VERSION = "5.0.7";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
@@ -123,7 +130,7 @@ const KEYBOARD_LABEL_TO_MODIFIER = Object.fromEntries(Object.entries(KEYBOARD_MO
 const RECORD_BEATS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4];
 const DIATONIC_MIDI = { "1": 60, "2": 62, "3": 64, "4": 65, "5": 67, "6": 69, "7": 71 };
 const BUILTIN_SONG_LIBRARY = [
- { title: "口琴按键映射测试", detail: "1=C · 4/4 · 72 BPM · 低八度 → 高八度 · 含升调 · 去除交界重复音 · 共 44 音", artist: "HARMONICA DECK", sharedBy: "内置测试", key: "1=C", meter: "4/4", bpm: 72, inputMode: "precise", score: `L1/0.5 L2/0.5 L3/0.5 L4/0.5 L5/0.5 L6/0.5 L7/0.5 |
+ { title: "口琴按键映射测试", detail: "1=C · 4/4 · 72 BPM · 低八度 → 高八度 · 含升调 · 去除交界重复音 · 共 44 音", artist: "HARMONICA DECK", sharedBy: "内置测试", key: "1=C", meter: "4/4", bpm: 72, inputMode: "record", score: `L1/0.5 L2/0.5 L3/0.5 L4/0.5 L5/0.5 L6/0.5 L7/0.5 |
 1/0.5 2/0.5 3/0.5 4/0.5 5/0.5 6/0.5 7/0.5 |
 R1/0.5 R2/0.5 R3/0.5 R4/0.5 R5/0.5 R6/0.5 R7/0.5 R1'/0.5 |
 LM1/0.5 LM2/0.5 LM3/0.5 LM4/0.5 LM5/0.5 LM6/0.5 LM7/0.5 |
@@ -819,9 +826,11 @@ function recommendationIdentityForSong(song) {
 }
 
 function setRecommendedSongIdentities(items) {
-  recommendedSongIdentities = Array.isArray(items)
+  const nextIdentities = Array.isArray(items)
     ? items.filter((item) => item && (normalizeStoredRemixCode(item.remixCode) || (typeof item.title === "string" && typeof item.artist === "string" && typeof item.sharedBy === "string")))
     : [];
+  if (JSON.stringify(nextIdentities) === JSON.stringify(recommendedSongIdentities)) return;
+  recommendedSongIdentities = nextIdentities;
   recommendedSongKeys = new Set(recommendedSongIdentities.map(recommendationKey));
   renderSongLibrary(elements.songSearch?.value || "");
   renderRecommendationBoard();
@@ -1045,15 +1054,14 @@ const SECTION_GUIDES = {
     title: "编辑器 · 输入与校验",
     intro: "编辑器会把不同写法统一为同一套按键事件。每次输入后会校验，并同步播放器与导出数据。",
     steps: [
-      ["01", "导入来源与流畅演奏", "「导入 MIDI」会先显示每条音轨和截取范围，可勾选多条器乐轨并使用统一移调；确认后才写入曲谱。「导入 .deltamusic」恢复已保存的曲谱；流畅演奏会连接 MIDI 的短断音。"],
-      ["02", "简谱模式", "适合日常打谱：数字为音级，<code>0</code> 为休止，<code>-</code> 延长一拍，<code>_</code> 为半拍，<code>.</code> 为附点；可写升降号与高低音。"],
+      ["01", "导入来源与流畅演奏", "「导入 MIDI」会先显示每条音轨和截取范围，默认选择一条主旋律轨；开启「多选音轨」后可勾选多条器乐轨并统一移调。确认后才写入曲谱。「导入 .deltamusic」恢复已保存的曲谱；流畅演奏会连接 MIDI 的短断音。"],
+      ["02", "简谱模式", "适合日常打谱：数字为音级，<code>0</code> 为休止，<code>-</code> 延长一拍，<code>_</code> 为半拍，<code>.</code> 为附点，<code>5:1.25</code> 可指定精确拍数；可写升降号与高低音。"],
       ["03", "录制模式", "点击开始录制后，使用 Z–M、逗号或页面琴键实时弹奏；松开按键结束当前音，录制结果会量化到当前 BPM。"],
-      ["04", "精确模式", "使用 <code>音符/拍数</code> 逐音控制时值，例如 <code>L4/0.5</code>。L、M、R 分别代表左键降调、中键半音、右键升调，可组合使用。"],
-      ["05", "三角洲键盘模式", "每行输入一个「按键 / 毫秒」事件，例如 <code>左键 + Z / 250ms</code> 或 <code>等待 / 500ms</code>，方便对照第三方宏工具。"],
-      ["06", "曲目信息与编辑区", "歌名、作者、调号、拍号和 BPM 会随导出保存。编辑区左侧行号与下方语法提示用于定位和修正输入。"],
-      ["07", "校验、试听与分享", "底部校验会给出错误行列或预计时长；「试听」播放当前序列，「分享 .deltamusic」保存曲谱，「导出为宏」前往导出区。"],
-      ["08", "播放器", "总时长、音符与事件统计用于核对；试听、从头播放、停止、音量与进度控制只影响浏览器试听。事件时间线可点击跳转到指定时刻。"],
-      ["09", "导出目标", "导出区按顺序展示 Logitech G HUB Lua、Razer Synapse 3/4 XML、迈从 MCHOSE JSON、ROG Armoury Crate GMAC、录制助手和手动键盘谱；请按适用品牌与软件版本选择，并确认使用环境允许宏。"]
+      ["04", "三角洲键盘模式", "每行输入一个「按键 / 毫秒」事件，例如 <code>左键 + Z / 250ms</code> 或 <code>等待 / 500ms</code>，方便对照第三方宏工具。"],
+      ["05", "曲目信息与编辑区", "歌名、作者、调号、拍号和 BPM 会随导出保存。编辑区左侧行号与下方语法提示用于定位和修正输入。"],
+      ["06", "校验、试听与分享", "底部校验会给出错误行列或预计时长；「试听」播放当前序列，「分享 .deltamusic」保存曲谱，「导出为宏」前往导出区。"],
+      ["07", "播放器", "总时长、音符与事件统计用于核对；试听、从头播放、停止、音量与进度控制只影响浏览器试听。事件时间线可点击跳转到指定时刻。"],
+      ["08", "导出目标", "导出区按顺序展示 Logitech G HUB Lua、Razer Synapse 3/4 XML、迈从 MCHOSE JSON、ROG Armoury Crate GMAC、录制助手和手动键盘谱；请按适用品牌与软件版本选择，并确认使用环境允许宏。"]
     ]
   },
   player: {
@@ -1099,10 +1107,10 @@ const SECTION_GUIDES = {
 };
 
 const elements = {
-  score: document.querySelector("#score"), jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), macroTimingTestMode: document.querySelector("#macroTimingTestMode"), macroExportSpeed: document.querySelector("#macroExportSpeed"), macroExportSpeedValue: document.querySelector("#macroExportSpeedValue"), mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportBrandFilter: document.querySelector("#exportBrandFilter"), exportBrandFilterHint: document.querySelector("#exportBrandFilterHint"), exportBrandTargets: [...document.querySelectorAll("[data-export-brands]")],
+  jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), macroTimingTestMode: document.querySelector("#macroTimingTestMode"), macroExportSpeed: document.querySelector("#macroExportSpeed"), macroExportSpeedValue: document.querySelector("#macroExportSpeedValue"), mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportBrandFilter: document.querySelector("#exportBrandFilter"), exportBrandFilterHint: document.querySelector("#exportBrandFilterHint"), exportBrandTargets: [...document.querySelectorAll("[data-export-brands]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"), pageLayout: document.querySelector(".page-layout"), sectionSidebar: document.querySelector("#sectionSidebar"), sectionSidebarBody: document.querySelector("#sectionSidebarBody"), sectionSidebarToggle: document.querySelector("#sectionSidebarToggle"), sectionSidebarOpen: document.querySelector("#sectionSidebarOpen"), sectionNavLinks: [...document.querySelectorAll("[data-section-nav-target]")],
-  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
-  lineNumbers: document.querySelector("#lineNumbers"), jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
+  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), jianpuPreviewButton: document.querySelector("#jianpuPreviewButton"), jianpuPreviewDialog: document.querySelector("#jianpuPreviewDialog"), jianpuPreviewTitle: document.querySelector("#jianpuPreviewTitle"), jianpuPreviewMeta: document.querySelector("#jianpuPreviewMeta"), jianpuPreviewMeasures: document.querySelector("#jianpuPreviewMeasures"), jianpuPreviewHint: document.querySelector("#jianpuPreviewHint"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiMultiSelectToggle: document.querySelector("#midiMultiSelectToggle"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
@@ -1263,6 +1271,7 @@ Object.assign(elements, {
   pointsMediaFeatured: document.querySelector("#pointsMediaFeatured"),
   pointsMediaCopy: document.querySelector("#pointsMediaCopy"),
   pointsMediaImage: document.querySelector("#pointsMediaImage"),
+  pointsMediaReward: document.querySelector("#pointsMediaReward"),
   pointsMediaFallback: document.querySelector("#pointsMediaFallback"),
   pointsMediaName: document.querySelector("#pointsMediaName"),
   pointsMediaDescription: document.querySelector("#pointsMediaDescription"),
@@ -1337,7 +1346,6 @@ let authMailWatch = null;
 const editJianpuModifierState = { octave: "", duration: "", dot: "", accidental: "" };
 const scoreEditorEntries = [
   ["jianpu", elements.jianpuScore],
-  ["precise", elements.score],
   ["record", elements.recordedScore],
   ["keyboard", elements.keyboardScore]
 ];
@@ -1507,26 +1515,25 @@ const TOUR_FLOWS = {
   ],
   midi: [
     { index: "MIDI 教程 · 01", target: "#importMidiButton", title: "导入你的 MIDI", copy: "点击「导入 MIDI」并选择本地 .mid 或 .midi 文件。为保护本地文件权限，只有你能在系统文件选择器中选择文件。", action: "midi-file", status: "等待你选择 MIDI 文件。取消后可再次点击导入。" },
-    { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择器乐音轨并截取", copy: "默认会勾选全部可演奏器乐轨；点击音轨可增删导入轨，所有勾选轨共用一个统一移调值。需要逐音决定时，可点击音轨右侧「精确选中」打开钢琴卷帘；同一和弦组只能保留一个音。完成后点击「导入勾选音轨并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「导入勾选音轨并生成谱子」。" },
+    { index: "MIDI 教程 · 02", target: "#midiTrackPicker", title: "选择器乐音轨并截取", copy: "默认单选识别出的主旋律轨；点击其他音轨可替换。需要合并时开启「多选音轨」，再勾选其他器乐轨。所有选中轨共用一个统一移调值。需要逐音决定时，可点击音轨右侧「精确选中」打开钢琴卷帘；同一和弦组只能保留一个音。完成后点击「导入勾选音轨并生成谱子」。", action: "midi-confirm", status: "等待你选择音轨、截取片段，并点击「导入勾选音轨并生成谱子」。" },
     { index: "MIDI 教程 · 03", target: ".editor-actions", title: "查看谱子、试播和导出", copy: "生成的简谱会同步显示在编辑器中。可先点击「试听」检查效果；准备好后点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
     { index: "MIDI 教程 · 04", target: "#macro-export", title: "选择导出方式", copy: "导出方式现在按顺序排列；每张卡片顶部的品牌标签表示当前方法适用的设备品牌，请先用短谱验证测试中的格式。", terminal: true }
   ],
   manual: [
-    { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的四种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
+    { index: "打谱教程 · 01", target: ".editor-panel", title: "打谱从编辑器开始", copy: "编辑器中的三种写法共享一首曲谱；切换模式时旋律和时值会自动同步。" },
     { index: "打谱教程 · 02", target: "[data-input-mode='jianpu']", title: "简谱模式", copy: "适合日常打谱。数字代表音级；0 为休止，- 延长一拍，_ 为半拍，. 为附点，可加入升降号和高低音。" },
     { index: "打谱教程 · 03", target: "[data-input-mode='record']", title: "录制模式", copy: "适合边弹边记。开始录制后使用 Z–M、逗号或页面琴键演奏，松开按键结束当前音；结果按 BPM 量化。" },
-    { index: "打谱教程 · 04", target: "[data-input-mode='precise']", title: "精确模式", copy: "适合校谱和微调时值。以「音符/拍数」输入，例如 L4/0.5；L、M、R 分别代表左、中、右鼠标变调键。" },
-    { index: "打谱教程 · 05", target: "[data-input-mode='keyboard']", title: "三角洲键盘模式", copy: "适合对照第三方宏工具。每行写一个「按键 / 毫秒」事件，例如「左键 + Z / 250ms」或「等待 / 500ms」。" },
-    { index: "打谱教程 · 06", target: ".editor-panel .panel-guide-button", title: "完整打谱文档", copy: "右上角问号会打开完整参考，包含四种模式的语法、导入与截取、编辑器、播放器和导出功能。" },
-    { index: "打谱教程 · 07", target: ".source-import-panel", title: "导入与演奏设置", copy: "可导入 MIDI 或 .deltamusic；MIDI 会先让你勾选器乐音轨和片段，所有勾选轨统一移调。「流畅演奏」会自动连接短断音。" },
-    { index: "打谱教程 · 08", target: ".controls-grid", title: "曲目信息与移调", copy: "歌名、作者、调号、拍号和 BPM 会跟随当前曲谱。下方「全谱移调」可逐半音升降整首谱子；到达口琴可演奏的最高或最低音时，对应按钮会自动停用。" },
-    { index: "打谱教程 · 09", target: ".input-pane:not([hidden])", title: "当前编辑区", copy: "在这里输入或微调曲谱；左侧行号和下方语法说明帮助定位格式问题。切换模式不会改变同一旋律的实际时值。" },
-    { index: "打谱教程 · 10", target: ".editor-actions", title: "校验、试听与导出", copy: "「试听」播放当前序列；下方校验提示错误位置或预计时长。「分享」保存 .deltamusic；导出为宏会带你到最终导出区。" },
-    { index: "打谱教程 · 11", target: ".meter-grid", title: "播放器统计", copy: "总时长、音符数和输入事件数随曲谱更新，可帮助发现意外休止、重复或时值问题。" },
-    { index: "打谱教程 · 12", target: ".preview-console", title: "播放器控制", copy: "这里可以试听、从头播放、停止、调节音量和拖动播放进度。这些控制只影响浏览器试听，不会修改导出的宏。" },
-    { index: "打谱教程 · 13", target: "#timeline", title: "事件时间线", copy: "每一行显示一个按键时刻、变调键、按住时长与气口。点击任意一行可从该位置开始试听。" },
-    { index: "打谱教程 · 14", target: "#macroExportButton", title: "进入导出", copy: "完成打谱和试听后，点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
-    { index: "打谱教程 · 15", target: "#macro-export", title: "选择导出方式", copy: "导出方式现在按顺序排列；每张卡片顶部的品牌标签表示当前方法适用的设备品牌，请先用短谱验证测试中的格式。", terminal: true }
+    { index: "打谱教程 · 04", target: "[data-input-mode='keyboard']", title: "三角洲键盘模式", copy: "适合对照第三方宏工具。每行写一个「按键 / 毫秒」事件，例如「左键 + Z / 250ms」或「等待 / 500ms」。" },
+    { index: "打谱教程 · 05", target: ".editor-panel .panel-guide-button", title: "完整打谱文档", copy: "右上角问号会打开完整参考，包含三种模式的语法、导入与截取、编辑器、播放器和导出功能。" },
+    { index: "打谱教程 · 06", target: ".source-import-panel", title: "导入与演奏设置", copy: "可导入 MIDI 或 .deltamusic；MIDI 会先让你勾选器乐音轨和片段，所有勾选轨统一移调。「流畅演奏」会自动连接短断音。" },
+    { index: "打谱教程 · 07", target: ".controls-grid", title: "曲目信息与移调", copy: "歌名、作者、调号、拍号和 BPM 会跟随当前曲谱。下方「全谱移调」可逐半音升降整首谱子；到达口琴可演奏的最高或最低音时，对应按钮会自动停用。" },
+    { index: "打谱教程 · 08", target: ".input-pane:not([hidden])", title: "当前编辑区", copy: "在这里输入或微调曲谱；左侧行号和下方语法说明帮助定位格式问题。切换模式不会改变同一旋律的实际时值。" },
+    { index: "打谱教程 · 09", target: ".editor-actions", title: "校验、试听与导出", copy: "「试听」播放当前序列；下方校验提示错误位置或预计时长。「分享」保存 .deltamusic；导出为宏会带你到最终导出区。" },
+    { index: "打谱教程 · 10", target: ".meter-grid", title: "播放器统计", copy: "总时长、音符数和输入事件数随曲谱更新，可帮助发现意外休止、重复或时值问题。" },
+    { index: "打谱教程 · 11", target: ".preview-console", title: "播放器控制", copy: "这里可以试听、从头播放、停止、调节音量和拖动播放进度。这些控制只影响浏览器试听，不会修改导出的宏。" },
+    { index: "打谱教程 · 12", target: "#timeline", title: "事件时间线", copy: "每一行显示一个按键时刻、变调键、按住时长与气口。点击任意一行可从该位置开始试听。" },
+    { index: "打谱教程 · 13", target: "#macroExportButton", title: "进入导出", copy: "完成打谱和试听后，点击「导出为宏」进入最后一步。", action: "macro-export", status: "等待你点击「导出为宏」。" },
+    { index: "打谱教程 · 14", target: "#macro-export", title: "选择导出方式", copy: "导出方式现在按顺序排列；每张卡片顶部的品牌标签表示当前方法适用的设备品牌，请先用短谱验证测试中的格式。", terminal: true }
   ]
 };
 
@@ -2280,7 +2287,7 @@ function collapseMidiChords(notes, division) {
   return { notes: melody, collapsedNotes: Math.max(0, notes.length - melody.length) };
 }
 
-function midiToSequence(parsed, { trackIndex = null, trackIndexes = null, startTick = 0, endTick = null, selectedNoteIds = null, transposeOverride = null } = {}) {
+function midiToSequence(parsed, { trackIndex = null, trackIndexes = null, startTick = 0, endTick = null, selectedNoteIdsByTrack = {}, transposeOverride = null } = {}) {
   const candidates = midiTrackCandidates(parsed.tracks);
   if (!candidates.length) throw new Error("MIDI 中没有可演奏的非打击乐音符。");
   const indexes = [...new Set((Array.isArray(trackIndexes) ? trackIndexes : [trackIndex === null ? selectMidiMelodyTrack(parsed.tracks).index : trackIndex]).map(Number))].filter((index) => candidates.some((candidate) => candidate.index === index));
@@ -2288,11 +2295,10 @@ function midiToSequence(parsed, { trackIndex = null, trackIndexes = null, startT
   const durationTicks = midiDurationTicks(parsed);
   const from = Math.max(0, Math.min(durationTicks - 1, Math.round(startTick)));
   const to = Math.max(from + 1, Math.min(durationTicks, Math.round(endTick ?? durationTicks)));
-  const hasPreciseSelection = indexes.length === 1 && selectedNoteIds !== null && selectedNoteIds !== undefined;
-  const selectedIds = hasPreciseSelection ? new Set(selectedNoteIds) : null;
+  const hasPreciseSelection = indexes.some((index) => Array.isArray(selectedNoteIdsByTrack[index]));
   const sourceNotes = indexes.flatMap((index) => {
     const track = parsed.tracks[index];
-    const trackSelectedIds = index === indexes[0] ? selectedIds : null;
+    const trackSelectedIds = Array.isArray(selectedNoteIdsByTrack[index]) ? new Set(selectedNoteIdsByTrack[index]) : null;
     return (track?.notes || []).filter((note) => note.channel !== 9 && note.end > from && note.start < to && (!trackSelectedIds || trackSelectedIds.has(note.id))).map((note) => ({
       ...note,
       trackIndex: index,
@@ -2301,7 +2307,9 @@ function midiToSequence(parsed, { trackIndex = null, trackIndexes = null, startT
     }));
   });
   if (!sourceNotes.length) throw new Error(hasPreciseSelection ? "精确选择中没有可转换的音符。" : "所选音轨在这个截取范围内没有可转换的音符。");
-  const collapsed = hasPreciseSelection ? { notes: [...sourceNotes].sort((left, right) => left.start - right.start || right.midi - left.midi || right.end - left.end), collapsedNotes: 0 } : collapseMidiChords(sourceNotes, parsed.division);
+  const collapsed = hasPreciseSelection && indexes.length === 1
+    ? { notes: [...sourceNotes].sort((left, right) => left.start - right.start || right.midi - left.midi || right.end - left.end), collapsedNotes: 0 }
+    : collapseMidiChords(sourceNotes, parsed.division);
   const melody = collapsed.notes;
   const transpose = Number.isFinite(transposeOverride) ? transposeOverride : chooseMidiTransposeForTracks(parsed, indexes);
   const notes = [];
@@ -2440,7 +2448,7 @@ function updateMidiRangeUi() {
 
 function renderMidiTrackPicker() {
   if (!midiImportState) return;
-  const { parsed, selectedTrackIndex, selectedTrackIndexes, durationTicks } = midiImportState;
+  const { parsed, selectedTrackIndex, selectedTrackIndexes, durationTicks, multiSelect } = midiImportState;
   const playableTracks = midiTrackCandidates(parsed.tracks);
   const tracks = parsed.tracks.map((track, index) => ({ ...track, index, playableNotes: track.notes.filter((note) => note.channel !== 9) }));
   const pitches = tracks.flatMap((track) => track.notes.map((note) => note.midi));
@@ -2452,6 +2460,9 @@ function renderMidiTrackPicker() {
   const sharedTranspose = chooseMidiTransposeForTracks(parsed, selectedTrackIndexes);
   const transposeHint = sharedTranspose ? ` · 统一移调 ${sharedTranspose > 0 ? "+" : ""}${sharedTranspose}` : " · 保持原调高";
   elements.midiPickerStatus.textContent = `${tracks.length} 条音轨 · ${playableTracks.length} 条可转换 · 已选 ${selectedTrackIndexes.length} 条${transposeHint} · ${rangeHint}`;
+  elements.midiMultiSelectToggle.setAttribute("aria-pressed", String(multiSelect));
+  elements.midiMultiSelectToggle.textContent = `多选音轨：${multiSelect ? "开启" : "关闭"}`;
+  elements.midiTrackList.setAttribute("role", multiSelect ? "group" : "radiogroup");
   elements.midiTrackList.innerHTML = tracks.map((track) => {
     const noteBars = track.notes.map((note) => {
       const left = (note.start / durationTicks) * 100;
@@ -2466,7 +2477,7 @@ function renderMidiTrackPicker() {
     const preciseSelection = midiImportState.preciseSelections?.[track.index];
     const preciseCount = Array.isArray(preciseSelection) ? preciseSelection.length : null;
     const noteDescription = selectable ? `${track.playableNotes.length} 个可转换音符${preciseCount !== null ? ` · 已精确选 ${preciseCount} 音` : ""}` : track.notes.length ? "仅打击乐，无法转换" : "无音符";
-    return `<div class="midi-track-row"><button class="midi-track${selected ? " selected" : ""}" data-midi-track-select-index="${track.index}" type="button" role="checkbox" aria-checked="${selected}" aria-label="${selected ? "取消导入" : "导入"}${escapeHtml(label)}，${noteDescription}"${selectable ? "" : " disabled"}><span class="midi-track-index">${selected ? "✓" : String(track.index + 1).padStart(2, "0")}</span><span class="midi-track-name">${escapeHtml(label)}${focused ? " <em>当前</em>" : ""}<small>${noteDescription}</small></span><span class="midi-track-bar" aria-hidden="true"><b>${midiPitchLabel(highestPitch)}</b>${noteBars}<b>${midiPitchLabel(lowestPitch)}</b></span><span class="midi-track-count">${track.notes.length} NOTES</span></button><button class="midi-track-precise" data-midi-track-precise-index="${track.index}" type="button" aria-haspopup="dialog" aria-label="精确选择 ${escapeHtml(label)} 的音符"${selectable ? "" : " disabled"}><span>精确选中</span><b>⌖</b></button></div>`;
+    return `<div class="midi-track-row"><button class="midi-track${selected ? " selected" : ""}" data-midi-track-select-index="${track.index}" type="button" role="${multiSelect ? "checkbox" : "radio"}" aria-checked="${selected}" aria-label="${multiSelect && selected ? "取消导入" : "导入"}${escapeHtml(label)}，${noteDescription}" tabindex="${multiSelect || selected ? 0 : -1}"${selectable ? "" : " disabled"}><span class="midi-track-index">${selected ? "✓" : String(track.index + 1).padStart(2, "0")}</span><span class="midi-track-name">${escapeHtml(label)}${focused ? " <em>当前</em>" : ""}<small>${noteDescription}</small></span><span class="midi-track-bar" aria-hidden="true"><b>${midiPitchLabel(highestPitch)}</b>${noteBars}<b>${midiPitchLabel(lowestPitch)}</b></span><span class="midi-track-count">${track.notes.length} NOTES</span></button><button class="midi-track-precise" data-midi-track-precise-index="${track.index}" type="button" aria-haspopup="dialog" aria-label="精确选择 ${escapeHtml(label)} 的音符"${selectable ? "" : " disabled"}><span>精确选中</span><b>⌖</b></button></div>`;
   }).join("");
   [elements.midiRangeStartInput, elements.midiRangeEndInput].forEach((input) => {
     input.max = durationTicks;
@@ -2478,13 +2489,12 @@ function renderMidiTrackPicker() {
 function openMidiTrackPicker(file, parsed) {
   const defaultTrack = selectMidiMelodyTrack(parsed.tracks);
   const durationTicks = midiDurationTicks(parsed);
-  const playableTrackIndexes = midiTrackCandidates(parsed.tracks).map((track) => track.index);
-  const selectedTrackIndexes = playableTrackIndexes.length > 1 ? playableTrackIndexes : [defaultTrack.index];
+  const selectedTrackIndexes = [defaultTrack.index];
   const bounds = midiSelectionBounds(parsed, selectedTrackIndexes, durationTicks);
-  midiImportState = { file, parsed, title: file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目", selectedTrackIndex: defaultTrack.index, selectedTrackIndexes, durationTicks, preciseSelections: {}, ...bounds, rangeAutoTrimmed: true };
+  midiImportState = { file, parsed, title: file.name.replace(/\.(?:mid|midi)$/i, "").trim() || "MIDI 导入曲目", selectedTrackIndex: defaultTrack.index, selectedTrackIndexes, multiSelect: false, durationTicks, preciseSelections: {}, ...bounds, rangeAutoTrimmed: true };
   renderMidiTrackPicker();
   elements.midiTrackPicker.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  toast("请选择需要转换的音轨与片段，然后点击“确定并生成谱子”。");
+  toast("请选择需要转换的音轨与片段，然后点击「导入勾选音轨并生成谱子」。");
 }
 
 function midiTrackLabel(trackIndex) {
@@ -2643,7 +2653,7 @@ function applyMidiNotePickerSelection() {
   if (!selection.size) { toast("请至少保留一个音符后再应用。 "); return; }
   midiImportState.preciseSelections[trackIndex] = [...selection];
   midiImportState.selectedTrackIndex = trackIndex;
-  const selectedTrackIndexes = new Set(midiImportState.selectedTrackIndexes || []);
+  const selectedTrackIndexes = new Set(midiImportState.multiSelect ? midiImportState.selectedTrackIndexes : []);
   selectedTrackIndexes.add(trackIndex);
   midiImportState.selectedTrackIndexes = [...selectedTrackIndexes].sort((left, right) => left - right);
   Object.assign(midiImportState, midiSelectionBounds(midiImportState.parsed, midiImportState.selectedTrackIndexes, midiImportState.durationTicks));
@@ -2662,7 +2672,6 @@ function formatTime(milliseconds) {
 }
 
 const editorLineNumberPairs = [
-  [elements.score, elements.lineNumbers],
   [elements.jianpuScore, elements.jianpuLineNumbers],
   [elements.keyboardScore, elements.keyboardLineNumbers]
 ];
@@ -3076,30 +3085,40 @@ function renderSongLibrary(query = "") {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   const songs = sourceSongs.map((song) => ({ ...song, index: songLibraryIndex(song), exportCount: scoreExportCount(song), actionCount: songActionCount(song) })).filter((song) => `${song.title} ${song.artist} ${song.sharedBy} ${song.sponsor || ""} ${song.key} ${song.meter} ${song.bpm} ${song.actionCount} ${song.remixCode || ""}`.toLocaleLowerCase().includes(normalizedQuery));
   if (activeLibraryView === "mine" && !authState.account) {
-    elements.songGrid.innerHTML = '<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
+    updateSongGrid('<p class="library-empty">登录后查看当前账号上传的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>');
     return;
   }
   if (activeLibraryView === "purchased" && !authState.account) {
-    elements.songGrid.innerHTML = '<p class="library-empty">登录后查看已购买的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>';
+    updateSongGrid('<p class="library-empty">登录后查看已购买的曲目。<button class="library-empty-action" data-library-login type="button">登录</button></p>');
     return;
   }
   if (songs.length) {
-    elements.songGrid.innerHTML = songs.map((song) => renderSongCard(song)).join("");
+    updateSongGrid(songs.map((song) => renderSongCard(song)).join(""));
     return;
   }
   if (normalizedQuery) {
     if (activeLibraryView === "purchased") {
-      elements.songGrid.innerHTML = '<p class="library-empty library-empty--search">没有找到匹配的已购买曲目。</p>';
+      updateSongGrid('<p class="library-empty library-empty--search">没有找到匹配的已购买曲目。</p>');
       return;
     }
-    elements.songGrid.innerHTML = '<p class="library-empty library-empty--search">没有找到匹配的曲目。<span>你可以成为第一个上传人。</span><button class="library-empty-action" data-library-upload type="button">去编辑器上传</button></p>';
+    updateSongGrid('<p class="library-empty library-empty--search">没有找到匹配的曲目。<span>你可以成为第一个上传人。</span><button class="library-empty-action" data-library-upload type="button">去编辑器上传</button></p>');
     return;
   }
   if (activeLibraryView === "purchased") {
-    elements.songGrid.innerHTML = '<p class="library-empty">还没有已购买的曲目。</p>';
+    updateSongGrid('<p class="library-empty">还没有已购买的曲目。</p>');
     return;
   }
-  elements.songGrid.innerHTML = '<p class="library-empty">当前分类暂无曲目。</p>';
+  updateSongGrid('<p class="library-empty">当前分类暂无曲目。</p>');
+}
+
+let renderedSongGridMarkup = null;
+function updateSongGrid(markup) {
+  if (markup === renderedSongGridMarkup) return;
+  const scrollTop = window.scrollY;
+  elements.songGrid.innerHTML = markup;
+  renderedSongGridMarkup = markup;
+  // Replacing the cards removes Safari's scroll anchor; keep the viewport in place.
+  if (window.scrollY !== scrollTop) document.documentElement.scrollTop = scrollTop;
 }
 
 // 推荐板块：第一排从管理员推荐名单中随机抽取，第二排从全部曲库中随机抽取且不与第一排重复。
@@ -3207,20 +3226,6 @@ function jianpuPitch(note, modifier) {
   return modifier === "LM" || modifier === "ML" ? `#,${note}` : modifier === "RM" || modifier === "MR" ? `#${note}'` : modifier === "M" ? `#${note}` : modifier === "L" ? `,${note}` : modifier === "R" ? `${note}'` : note;
 }
 
-function preciseToJianpu(source) {
-  return source.split("\n").map((line) => line.split(/\s+/).filter(Boolean).map((token) => {
-    if (token === "|") return token;
-    const found = token.match(/^([LMR]{0,2})(0|1'|[1-7])\/(\d+(?:\.\d+)?)$/i);
-    if (!found) return token;
-    const modifier = found[1].toUpperCase();
-    const note = found[2];
-    const beats = Number(found[3]);
-    const pitch = jianpuPitch(note, modifier);
-    const rhythm = beatsToJianpu(beats);
-    return `${pitch}${rhythm}`;
-  }).join(" ")).join("\n");
-}
-
 function serializeSequence(sequence, formatItem) {
   const lines = [];
   sequence.notes.forEach((item) => {
@@ -3277,7 +3282,6 @@ function editorForMode(mode = inputMode) {
   return {
     jianpu: elements.jianpuScore,
     record: elements.recordedScore,
-    precise: elements.score,
     keyboard: elements.keyboardScore
   }[mode] || null;
 }
@@ -3305,7 +3309,7 @@ function isIgnorableMixedToken(token, isLinePrefix = false) {
 }
 
 function parseMixedFragment(fragment, start, line, column, bpm, preferredMode) {
-  const modes = [preferredMode, "jianpu", "record", "precise", "keyboard"].filter((mode, index, all) => all.indexOf(mode) === index);
+  const modes = [preferredMode, "jianpu", "record", "keyboard"].filter((mode, index, all) => all.indexOf(mode) === index);
   for (const mode of modes) {
     const parsed = parseEditorSource(fragment, bpm, mode);
     if (parsed.error || !parsed.notes?.length) continue;
@@ -3382,7 +3386,7 @@ function setRepairValidation(sequence, invalid = []) {
   const messages = [invalidMessage, compatibilityMessage].filter(Boolean);
   setValidation(messages.length
     ? `试验性修复完成 · ${messages.join(" ")}`
-    : `试验性修复完成 · 已按${MODE_LABELS[inputMode]}同步四种谱子。`, messages.length ? "warning" : "success");
+    : `试验性修复完成 · 已按${MODE_LABELS[inputMode]}同步三种谱子。`, messages.length ? "warning" : "success");
   return messages.length;
 }
 
@@ -3428,7 +3432,6 @@ function sequenceToKeyboard(sequence) {
 function syncSequenceToEditors(sequence, { except = null, sourceMode = null, sourceText = "" } = {}) {
   if (except !== "jianpu") elements.jianpuScore.value = sourceMode === "jianpu" ? sourceText : sequenceToJianpu(sequence);
   const precise = sequenceToPrecise(sequence);
-  if (except !== "precise") elements.score.value = sourceMode === "precise" ? sourceText : precise;
   if (except !== "record") elements.recordedScore.value = sourceMode === "precise" ? sourceText : precise;
   if (except !== "keyboard") elements.keyboardScore.value = sequenceToKeyboard(sequence);
   updateLineNumbers();
@@ -3466,11 +3469,11 @@ function loadSong(song, { destination = "editor", scroll = true, focusEditor = t
   }
   sequence.notes.forEach((item, index) => { item.index = index; });
   syncSequenceToEditors(sequence, { sourceMode, sourceText });
-  [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
+  [elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
   elements.jianpuLineNumbers.scrollTop = 0;
-  elements.lineNumbers.scrollTop = 0;
   elements.keyboardLineNumbers.scrollTop = 0;
-  setInputMode(song.inputMode || "jianpu", { force: true, silent: true });
+  const targetMode = song.inputMode === "precise" ? "record" : song.inputMode || (sourceMode === "precise" ? "record" : "jianpu");
+  setInputMode(targetMode, { force: true, silent: true });
   if (focusEditor && destination !== "export") elements.jianpuScore.focus({ preventScroll: !scroll });
   syncLineNumbers(elements.jianpuScore, elements.jianpuLineNumbers);
   if (destination === "export") navigateTask("export", { song: song.remixCode || "" });
@@ -3500,7 +3503,7 @@ function initializeBlankEditor() {
   elements.keySignature.value = "1=C";
   elements.timeSignature.value = "4/4";
   elements.bpm.value = "120";
-  [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => {
+  [elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((editor) => {
     editor.value = "";
     editor.scrollTop = 0;
   });
@@ -3512,7 +3515,7 @@ function initializeBlankEditor() {
   resetScoreHistory();
 }
 
-const MODE_LABELS = { jianpu: "简谱模式", record: "录制模式", precise: "精确模式", keyboard: "三角洲键盘模式" };
+const MODE_LABELS = { jianpu: "简谱模式", record: "录制模式", keyboard: "三角洲键盘模式" };
 
 function setInputMode(mode, { force = false, silent = false } = {}) {
   if (!MODE_LABELS[mode]) return false;
@@ -3529,7 +3532,7 @@ function setInputMode(mode, { force = false, silent = false } = {}) {
     syncSequenceToEditors(sequence, { except: inputMode });
   } else if (!force && currentSourceIsEmpty) {
     clearPlayerSong();
-    [elements.jianpuScore, elements.recordedScore, elements.score, elements.keyboardScore].forEach((editor) => { editor.value = ""; });
+    [elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.value = ""; });
     currentSequence = null;
     updateLineNumbers();
     resetScoreHistory();
@@ -3715,7 +3718,7 @@ function convert() {
     ? parseJianpu(elements.jianpuScore.value, bpm)
     : inputMode === "keyboard"
       ? parseKeyboardScore(elements.keyboardScore.value, bpm)
-      : parseScore(inputMode === "record" ? elements.recordedScore.value : elements.score.value, bpm);
+      : parseScore(elements.recordedScore.value, bpm);
   if (sequence.error) {
     currentSequence = null;
     updateMonitor(null);
@@ -3734,6 +3737,97 @@ function convert() {
     ? `校验提醒 · 第 ${uploadIssue.line} 行，第 ${uploadIssue.column} 列：${uploadIssue.message}`
     : `校验通过 · ${sequence.notes.length} 个音符，预计播放 ${formatTime(sequence.totalMs)}。`, uploadIssue ? "warning" : "success");
   return sequence;
+}
+
+const JIANPU_PREVIEW_DURATIONS = new Map([
+  [0.125, { underscores: 3 }], [0.25, { underscores: 2 }], [0.375, { underscores: 2, dots: 1 }],
+  [0.5, { underscores: 1 }], [0.75, { underscores: 1, dots: 1 }], [1, {}],
+  [1.5, { dots: 1 }], [1.75, { dots: 2 }], [2, { dashes: 1 }], [2.5, { dots: 1, dashes: 1 }],
+  [3, { dashes: 2 }], [3.5, { dots: 1, dashes: 2 }], [4, { dashes: 3 }]
+]);
+
+function jianpuPreviewMeter(value) {
+  const match = String(value).trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return null;
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+  const beats = numerator * 4 / denominator;
+  return numerator > 0 && denominator > 0 && Number.isFinite(beats) && beats > 0 ? beats : null;
+}
+
+function splitJianpuPreviewMeasures(notes, measureBeats) {
+  const measures = [[]];
+  let usedBeats = 0;
+  const epsilon = 1e-8;
+  notes.forEach((item) => {
+    let remaining = item.beats;
+    let isContinuation = false;
+    while (remaining > epsilon) {
+      if (measureBeats - usedBeats <= epsilon) {
+        measures.push([]);
+        usedBeats = 0;
+      }
+      const segmentBeats = Math.min(remaining, measureBeats - usedBeats);
+      remaining = Math.max(0, remaining - segmentBeats);
+      measures.at(-1).push({ item, beats: segmentBeats, tieIn: isContinuation, tieOut: remaining > epsilon });
+      usedBeats += segmentBeats;
+      isContinuation = true;
+    }
+  });
+  return measures;
+}
+
+function jianpuPreviewPitchMarkup(item) {
+  const pitch = item.sourcePitch || standardJianpuPitch(item);
+  const match = String(pitch).match(/^([#b♯♭]?)(,{0,2})([1-7])('{0,2})$/);
+  if (!match) return `<span class="jianpu-note-core">${escapeHtml(pitch)}</span>`;
+  const [, accidental, lowMarks, digit, highMarks] = match;
+  const octaveDots = (count, placement) => count ? `<span class="jianpu-octave-dots ${placement}" aria-hidden="true">${"•".repeat(count)}</span>` : "";
+  return `${octaveDots(highMarks.length, "high")}<span class="jianpu-note-core">${accidental ? `<span class="jianpu-accidental">${escapeHtml(accidental)}</span>` : ""}${digit}</span>${octaveDots(lowMarks.length, "low")}`;
+}
+
+function jianpuPreviewSegmentMarkup(segment) {
+  const { item, beats, tieIn } = segment;
+  const note = jianpuPreviewPitchMarkup(item);
+  const duration = JIANPU_PREVIEW_DURATIONS.get(Number(beats.toFixed(6)));
+  const rest = item.isRest || item.note === "0";
+  const durationMarkup = duration
+    ? `${duration.dots ? `<span class="jianpu-duration-dots" aria-hidden="true">${"•".repeat(duration.dots)}</span>` : ""}${duration.dashes ? `<span class="jianpu-duration-dashes" aria-hidden="true">${"—".repeat(duration.dashes)}</span>` : ""}`
+    : `<span class="jianpu-duration-value">${escapeHtml(formatRecordedBeat(beats))}拍</span>`;
+  const underlines = duration?.underscores || 0;
+  const label = rest ? `休止 ${formatRecordedBeat(beats)} 拍` : `${item.sourcePitch || standardJianpuPitch(item)} ${formatRecordedBeat(beats)} 拍`;
+  return `<span class="jianpu-preview-note${rest ? " is-rest" : ""}${tieIn && !rest ? " is-tied" : ""}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${tieIn && !rest ? '<span class="jianpu-tie-mark" aria-hidden="true">⌒</span>' : ""}${rest ? '<span class="jianpu-note-core">0</span>' : note}${durationMarkup}${underlines ? `<span class="jianpu-underlines" aria-hidden="true" style="--jianpu-underlines:${underlines}"></span>` : ""}</span>`;
+}
+
+function renderJianpuPreview(sequence, meter, key, beatsPerMeasure) {
+  const measures = splitJianpuPreviewMeasures(sequence.notes, beatsPerMeasure);
+  elements.jianpuPreviewTitle.textContent = elements.macroName.value.trim() || "简谱预览";
+  elements.jianpuPreviewMeta.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · ${sequence.notes.length} 个音符`;
+  elements.jianpuPreviewMeasures.innerHTML = measures.map((measure, index) =>
+    `<div class="jianpu-preview-measure" aria-label="第 ${index + 1} 小节"><span class="jianpu-measure-number" aria-hidden="true">${index + 1}</span>${measure.map(jianpuPreviewSegmentMarkup).join("")}</div>`
+  ).join("");
+  const hasCustomDuration = measures.some((measure) => measure.some((segment) => !JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6)))));
+  elements.jianpuPreviewHint.hidden = !hasCustomDuration;
+  elements.jianpuPreviewHint.textContent = hasCustomDuration ? "带“拍”标记的音符使用精确拍数显示；其时值无法用常规简谱符号准确表示。" : "";
+  elements.jianpuPreviewDialog.showModal();
+}
+
+function openJianpuPreview() {
+  const source = editorForMode(inputMode)?.value || "";
+  const bpm = Number(elements.bpm.value);
+  const sequence = parseEditorSource(source, bpm, inputMode);
+  if (sequence.error) {
+    toast(`第 ${sequence.error.line} 行，第 ${sequence.error.column} 列：${sequence.error.message}`);
+    return;
+  }
+  const key = String(elements.keySignature.value).trim();
+  const meter = String(elements.timeSignature.value).trim();
+  const beatsPerMeasure = jianpuPreviewMeter(meter);
+  if (!/^(?:1=)?[A-G](?:[#b♯♭])?$/i.test(key) || !beatsPerMeasure) {
+    toast("请先填写正确的调号与拍号，再预览简谱。");
+    return;
+  }
+  renderJianpuPreview(sequence, meter, key, beatsPerMeasure);
 }
 
 function openKeyboardMacroDialog() {
@@ -3801,6 +3895,18 @@ function syncRecordingHelperVersionBoards() {
     if (url) link.href = url;
     else link.removeAttribute("href");
   });
+  const protocolTestLink = document.querySelector("#recorderProtocolTestLink");
+  if (protocolTestLink) {
+    protocolTestLink.hidden = !recorderHelperManifest;
+    if (recorderHelperManifest) {
+      const payload = {
+        v: 1, wv: WEBSITE_VERSION, title: "助手连接测试",
+        events: [{ k: "z", m: "", l: 0, h: 100, w: 100 }],
+        hc: recorderHelperCompatibility.prefixes
+      };
+      protocolTestLink.href = `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
+    }
+  }
 }
 
 function openRecordingHelperDialog() {
@@ -5473,7 +5579,9 @@ function replaceCommunitySongs(songs) {
   void refreshLibraryViews();
 }
 
-function setLibraryView(view = "recommended") {
+function setLibraryView(view = "recommended", { preserveScroll = false } = {}) {
+  const tabs = elements.libraryTabs[0]?.parentElement;
+  const tabsTop = preserveScroll ? tabs?.getBoundingClientRect().top : null;
   const selectedView = ["all", "recommended", "hot", "purchased", "mine"].includes(view) ? view : "recommended";
   activeLibraryView = selectedView;
   elements.libraryTabs.forEach((tab) => {
@@ -5483,6 +5591,9 @@ function setLibraryView(view = "recommended") {
     tab.tabIndex = selected ? 0 : -1;
   });
   renderSongLibrary(elements.songSearch.value);
+  if (tabsTop !== null && tabsTop !== undefined) {
+    window.scrollBy({ top: tabs.getBoundingClientRect().top - tabsTop, behavior: "instant" });
+  }
 }
 
 async function updateSongRecommendation(song, shouldRecommend, button) {
@@ -6690,13 +6801,12 @@ async function importMidiFile(file, { refreshed = false } = {}) {
   }
 }
 
-function applyMidiSelection() {
+function applyMidiSelection({ focusEditor = true } = {}) {
   if (!midiImportState) return;
   try {
     const selection = midiImportState;
-    const preciseNoteIds = selection.preciseSelections?.[selection.selectedTrackIndex];
     const selectedTrackIndexes = selection.selectedTrackIndexes?.length ? selection.selectedTrackIndexes : [selection.selectedTrackIndex];
-    const converted = midiToSequence(selection.parsed, { trackIndex: selection.selectedTrackIndex, trackIndexes: selectedTrackIndexes, startTick: selection.startTick, endTick: selection.endTick, selectedNoteIds: Array.isArray(preciseNoteIds) ? preciseNoteIds : null, transposeOverride: chooseMidiTransposeForTracks(selection.parsed, selectedTrackIndexes) });
+    const converted = midiToSequence(selection.parsed, { trackIndex: selection.selectedTrackIndex, trackIndexes: selectedTrackIndexes, startTick: selection.startTick, endTick: selection.endTick, selectedNoteIdsByTrack: selection.preciseSelections, transposeOverride: chooseMidiTransposeForTracks(selection.parsed, selectedTrackIndexes) });
     const smoothing = elements.midiSmoothing.checked ? smoothMidiSequence(converted.sequence, converted.bpm) : { sequence: converted.sequence, connectedGaps: 0 };
     converted.sequence = smoothing.sequence;
     stopPreview();
@@ -6713,12 +6823,11 @@ function applyMidiSelection() {
     activeAnalyticsScoreId = analyticsScoreId({ origin: "midi", title: selection.title });
     converted.sequence.notes.forEach((item, index) => { item.index = index; });
     syncSequenceToEditors(converted.sequence);
-    [elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
+    [elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((editor) => { editor.scrollTop = 0; });
     elements.jianpuLineNumbers.scrollTop = 0;
-    elements.lineNumbers.scrollTop = 0;
     elements.keyboardLineNumbers.scrollTop = 0;
     setInputMode("jianpu", { force: true, silent: true });
-    elements.jianpuScore.focus();
+    if (focusEditor) elements.jianpuScore.focus();
     const trackMessage = selectedTrackIndexes.length > 1 ? ` · 合并 ${selectedTrackIndexes.length} 条器乐音轨（和弦取最高音）` : ` · 已选音轨 ${String(selection.selectedTrackIndex + 1).padStart(2, "0")}`;
     const transposeMessage = converted.transpose ? ` · 所有音轨统一移调 ${converted.transpose > 0 ? "+" : ""}${converted.transpose} 半音以适配口琴音域` : " · 所有音轨保持原调高";
     const tempoWarning = converted.hasTempoChanges ? " · 原文件含变速，已采用起始 BPM" : "";
@@ -6825,7 +6934,7 @@ function insertJianpuSoftKey(key, baseOctave = "") {
   editor.focus({ preventScroll: true });
 }
 
-[elements.score, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => {
+[elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((textarea) => textarea.addEventListener("input", () => {
   recordScoreHistory();
   handleScoreInput();
 }));
@@ -6870,16 +6979,47 @@ elements.bpm.addEventListener("input", handleBpmChange);
 elements.transposeDown.addEventListener("click", () => transposeCurrentScore(-1));
 elements.transposeUp.addEventListener("click", () => transposeCurrentScore(1));
 elements.convertButton.addEventListener("click", playPreview);
+// Keep older cached HTML usable while index.html and app.js roll out at different times.
+elements.jianpuPreviewButton?.addEventListener("click", openJianpuPreview);
 elements.repairCurrentModeButton.addEventListener("click", repairCurrentMode);
+function openLocalFilePicker(input) {
+  if (!input) return;
+  // showPicker is the browser's native file-picker API; retain click() for older browsers.
+  if (typeof input.showPicker === "function") {
+    try {
+      input.showPicker();
+      return;
+    } catch {
+      // Some browsers reject showPicker for hidden inputs; use the legacy activation path.
+    }
+  }
+  input.click();
+}
 elements.importMidiButton.addEventListener("click", () => {
   if (activeTour?.steps[activeTour.stepIndex]?.action === "midi-file") setTourStatus("系统文件选择器已打开；请选择 MIDI 文件。若取消，可再次点击导入。");
-  elements.importMidiInput.click();
+  openLocalFilePicker(elements.importMidiInput);
 });
 elements.importMidiInput.addEventListener("change", () => importMidiFile(elements.importMidiInput.files?.[0]));
 elements.midiSmoothing.addEventListener("change", () => {
-  if (midiImportState?.applied) applyMidiSelection();
+  if (midiImportState?.applied) applyMidiSelection({ focusEditor: false });
   else if (midiImportState) toast("流畅演奏设置将在确认选定音轨与片段时生效。 ");
   else toast("流畅演奏设置将在下次导入 MIDI 时生效。 ");
+});
+elements.midiMultiSelectToggle.addEventListener("click", () => {
+  if (!midiImportState) return;
+  midiImportState.multiSelect = !midiImportState.multiSelect;
+  if (!midiImportState.multiSelect) {
+    const retainedTrack = midiImportState.selectedTrackIndexes.includes(midiImportState.selectedTrackIndex)
+      ? midiImportState.selectedTrackIndex : midiImportState.selectedTrackIndexes[0];
+    if (midiImportState.selectedTrackIndexes.length > 1) {
+      midiImportState.selectedTrackIndexes = [retainedTrack];
+      Object.assign(midiImportState, midiSelectionBounds(midiImportState.parsed, midiImportState.selectedTrackIndexes, midiImportState.durationTicks));
+      midiImportState.rangeAutoTrimmed = true;
+      midiImportState.applied = false;
+    }
+    midiImportState.selectedTrackIndex = retainedTrack;
+  }
+  renderMidiTrackPicker();
 });
 elements.midiTrackList.addEventListener("click", (event) => {
   const preciseButton = event.target.closest("[data-midi-track-precise-index]");
@@ -6890,22 +7030,36 @@ elements.midiTrackList.addEventListener("click", (event) => {
   const track = event.target.closest("[data-midi-track-select-index]");
   if (!track || !midiImportState) return;
   const trackIndex = Number(track.dataset.midiTrackSelectIndex);
-  const selected = new Set(midiImportState.selectedTrackIndexes || [midiImportState.selectedTrackIndex]);
-  if (selected.has(trackIndex)) {
-    if (selected.size === 1) {
-      toast("至少保留一条可演奏音轨。 ");
-      return;
-    }
+  const selected = new Set(midiImportState.selectedTrackIndexes);
+  if (!midiImportState.multiSelect) {
+    if (selected.has(trackIndex)) return;
+    selected.clear();
+    selected.add(trackIndex);
+  } else if (selected.has(trackIndex)) {
+    if (selected.size === 1) { toast("至少保留一条可演奏音轨。 "); return; }
     selected.delete(trackIndex);
   } else {
     selected.add(trackIndex);
   }
-  midiImportState.selectedTrackIndex = trackIndex;
+  midiImportState.selectedTrackIndex = selected.has(trackIndex) ? trackIndex : [...selected][0];
   midiImportState.selectedTrackIndexes = [...selected].sort((left, right) => left - right);
   Object.assign(midiImportState, midiSelectionBounds(midiImportState.parsed, midiImportState.selectedTrackIndexes, midiImportState.durationTicks));
   midiImportState.rangeAutoTrimmed = true;
   midiImportState.applied = false;
   renderMidiTrackPicker();
+  elements.midiTrackList.querySelector(`[data-midi-track-select-index="${midiImportState.selectedTrackIndex}"]`)?.focus({ preventScroll: true });
+});
+elements.midiTrackList.addEventListener("keydown", (event) => {
+  if (!midiImportState || midiImportState.multiSelect) return;
+  const track = event.target.closest("[data-midi-track-select-index]");
+  if (!track || !["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+  const tracks = [...elements.midiTrackList.querySelectorAll("[data-midi-track-select-index]:not(:disabled)")];
+  const currentIndex = tracks.indexOf(track);
+  if (currentIndex < 0 || !tracks.length) return;
+  event.preventDefault();
+  const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? tracks.length - 1
+    : (currentIndex + (["ArrowDown", "ArrowRight"].includes(event.key) ? 1 : -1) + tracks.length) % tracks.length;
+  tracks[nextIndex].click();
 });
 elements.midiNoteRoll.addEventListener("click", (event) => {
   const note = event.target.closest("[data-midi-note-id]");
@@ -6952,7 +7106,7 @@ elements.confirmMidiSelection.addEventListener("click", () => {
   applyMidiSelection();
   completeTourAction("midi-confirm", "谱子已生成，接下来前往宏导出。");
 });
-elements.importScoreButton.addEventListener("click", () => elements.importScoreInput.click());
+elements.importScoreButton.addEventListener("click", () => openLocalFilePicker(elements.importScoreInput));
 elements.aiScoreButton.addEventListener("click", openAiScoreDialog);
 elements.copyAiScorePrompt.addEventListener("click", copyAiScorePrompt);
 elements.importScoreInput.addEventListener("change", () => importScorePackage(elements.importScoreInput.files?.[0]));
@@ -6965,7 +7119,6 @@ elements.exportScoreButton.addEventListener("click", openScoreExportDialog);
 elements.communityUploadButton.addEventListener("click", () => openScoreExportDialog("community-upload"));
 elements.accountButton.addEventListener("click", openAccountDialog);
 elements.pointsTaskButton.addEventListener("click", () => navigateTask("points"));
-elements.scoreUnlockClose.addEventListener("click", () => elements.scoreUnlockDialog.close());
 elements.scoreUnlockDialog.addEventListener("close", () => {
   pendingUnlockRequest = null;
   refreshCardPreviewButtons();
@@ -7084,7 +7237,6 @@ if (githubLoginReturn) {
     } catch {}
   }, 300);
 }
-elements.authDialogClose.addEventListener("click", () => elements.authDialog.close());
 elements.authDialog.addEventListener("close", stopAuthMailWatch);
 elements.authModeTabs.forEach((tab) => tab.addEventListener("click", () => {
   if (authState.mode === tab.dataset.authMode) return;
@@ -7349,7 +7501,7 @@ elements.songSearch.addEventListener("input", () => {
   const queryLength = elements.songSearch.value.trim().length;
   if (queryLength) librarySearchAnalyticsTimer = window.setTimeout(() => trackAnalytics("library_search", { query_length: queryLength }), 650);
 });
-elements.libraryTabs.forEach((tab) => tab.addEventListener("click", () => setLibraryView(tab.dataset.libraryView)));
+elements.libraryTabs.forEach((tab) => tab.addEventListener("click", () => setLibraryView(tab.dataset.libraryView, { preserveScroll: true })));
 function handleSongCardClick(event) {
   if (event.target.closest("[data-library-login]")) {
     showAuthDialog();
@@ -7563,6 +7715,10 @@ elements.usageNoticeConfirm?.addEventListener("click", () => {
   const trigger = pendingUsageNoticeTrigger;
   pendingUsageNoticeTrigger = null;
   if (trigger) {
+    if (trigger.dataset.action === "launch-independent-recorder") {
+      toast("已确认使用须知，请再次点击「导出到宏录制助手」。 ");
+      return;
+    }
     trigger.click();
     return;
   }
@@ -7679,7 +7835,9 @@ function renderPointsMedia() {
   if (!count) return;
   pointsMediaIndex = (pointsMediaIndex + count) % count;
   const item = items[pointsMediaIndex];
-  elements.pointsMediaFeatured.href = item.outboundUrl;
+  elements.pointsMediaFeatured.href = item.destinationUrl;
+  elements.pointsMediaReward.hidden = !(item.rewardPoints > 0);
+  elements.pointsMediaReward.textContent = item.rewardClaimed ? "已领取" : `+${item.rewardPoints} 积分`;
   elements.pointsMediaCopy.hidden = false;
   elements.pointsMediaCopy.classList.toggle("is-empty", !item.promoCopy);
   elements.pointsMediaCopy.setAttribute("aria-hidden", String(!item.promoCopy));
@@ -7738,7 +7896,7 @@ async function loadPointsMedia() {
     const response = await fetch("./api/points/media", { cache: "no-store" });
     if (!response.ok) throw new Error("媒体列表不可用");
     const data = await response.json();
-    items = Array.isArray(data.items) ? data.items.filter(item => item && item.outboundUrl && ["live", "image"].includes(item.kind)) : [];
+    items = Array.isArray(data.items) ? data.items.filter(item => item && /^https:\/\//i.test(item.destinationUrl || "") && item.outboundUrl && ["live", "image"].includes(item.kind)) : [];
   } catch { items = []; }
   if (request !== pointsMediaRequest || currentTaskRoute() !== "points") return;
   pointsMediaItems = items;
@@ -7747,8 +7905,22 @@ async function loadPointsMedia() {
   startPointsMediaTimer();
 }
 elements.pointsMediaImage.addEventListener("error", () => { elements.pointsMediaImage.hidden = true; elements.pointsMediaFallback.hidden = false; });
+elements.pointsMediaFeatured.addEventListener("click", async event => {
+  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  const item = pointsMediaItems[pointsMediaIndex];
+  if (!item?.destinationUrl) return;
+  event.preventDefault();
+  try {
+    await Promise.race([
+      fetch(item.outboundUrl, { redirect: "manual", credentials: "same-origin", cache: "no-store" }),
+      new Promise(resolve => setTimeout(resolve, 1200))
+    ]);
+  } catch { /* The ad remains reachable even if visit tracking fails. */ }
+  window.location.assign(item.destinationUrl);
+});
 elements.pointsMediaPrevious.addEventListener("click", () => setPointsMediaIndex(pointsMediaIndex - 1));
 elements.pointsMediaNext.addEventListener("click", () => setPointsMediaIndex(pointsMediaIndex + 1));
+window.addEventListener("pageshow", event => { if (event.persisted && currentTaskRoute() === "points") void loadPointsMedia(); });
 pointsReducedMotion.addEventListener?.("change", startPointsMediaTimer);
 elements.pointsReturnLink.addEventListener("click", () => { try { sessionStorage.removeItem("delta-points-return"); } catch {} });
 function renderPointsReturnLink() {
@@ -7949,11 +8121,12 @@ function applyTaskRoute() {
 }
 function navigateTask(route, { song = "" } = {}) {
   const previousRoute = currentTaskRoute();
-  if (previousRoute !== route) { stopPreview(); document.body.classList.remove("player-visible", "player-collapsed"); }
   const path = route === "home" ? "./" : `./${route}/`;
   const url = new URL(path, document.querySelector("base").href);
   if (song) url.searchParams.set("song", song);
   const next = url.pathname + url.search;
+  if (location.pathname + location.search === next) return;
+  if (previousRoute !== route) { stopPreview(); document.body.classList.remove("player-visible", "player-collapsed"); }
   if (location.pathname + location.search !== next) history.pushState({}, "", next);
   applyTaskRoute();
   if (route === "export") setLibraryView("all");
@@ -7962,9 +8135,9 @@ function navigateTask(route, { song = "" } = {}) {
     setLibraryView("mine");
   }
   if (route === "create" && previousRoute !== "create" && !song) restoreTaskDraft();
-  window.scrollTo({ top: 0, behavior: "instant" });
+  if (previousRoute !== route) window.scrollTo({ top: 0, behavior: "instant" });
 }
-document.querySelectorAll("[data-task-route]").forEach((link) => link.addEventListener("click", (event) => {
+document.querySelectorAll("a[data-task-route]").forEach((link) => link.addEventListener("click", (event) => {
   event.preventDefault();
   navigateTask(link.dataset.taskRoute);
 }));
@@ -7975,7 +8148,7 @@ function saveTaskDraft() {
   if (document.body.dataset.taskRoute !== "create") return;
   if (new URLSearchParams(location.search).has("song")) history.replaceState({}, "", location.pathname);
   const draft = { title: elements.macroName.value, artist: elements.artistName.value, key: elements.keySignature.value, meter: elements.timeSignature.value, bpm: elements.bpm.value, mode: inputMode,
-    jianpu: elements.jianpuScore.value, precise: elements.score.value, record: elements.recordedScore.value, keyboard: elements.keyboardScore.value };
+    jianpu: elements.jianpuScore.value, record: elements.recordedScore.value, keyboard: elements.keyboardScore.value };
   try { localStorage.setItem(TASK_DRAFT_KEY, JSON.stringify(draft)); } catch {}
 }
 function restoreTaskDraft() {
@@ -7988,15 +8161,19 @@ function restoreTaskDraft() {
   elements.keySignature.value = draft.key || "1=C";
   elements.timeSignature.value = draft.meter || "4/4";
   elements.bpm.value = draft.bpm || "120";
-  elements.jianpuScore.value = draft.jianpu || "";
-  elements.score.value = draft.precise || "";
-  elements.recordedScore.value = draft.record || "";
+  const legacyPrecise = typeof draft.precise === "string" ? draft.precise : "";
+  const legacySequence = legacyPrecise ? parseScore(legacyPrecise, Number(elements.bpm.value)) : null;
+  const legacyMode = draft.mode === "precise";
+  const migratedJianpu = legacySequence && !legacySequence.error ? sequenceToJianpu(legacySequence) : "";
+  elements.jianpuScore.value = legacyMode ? (migratedJianpu || draft.jianpu || "") : (draft.jianpu || migratedJianpu);
+  elements.recordedScore.value = legacyMode ? (legacyPrecise || draft.record || "") : (draft.record || legacyPrecise);
   elements.keyboardScore.value = draft.keyboard || "";
-  setInputMode(draft.mode || "jianpu", { force: true, silent: true });
+  const restoredMode = legacyMode ? (legacyPrecise ? "record" : "jianpu") : draft.mode || "jianpu";
+  setInputMode(restoredMode, { force: true, silent: true });
   updateLineNumbers();
-  if (draft.jianpu || draft.precise || draft.record || draft.keyboard) convert();
+  if (elements.jianpuScore.value || elements.recordedScore.value || draft.keyboard) convert();
 }
-[elements.macroName, elements.artistName, elements.keySignature, elements.timeSignature, elements.bpm, elements.jianpuScore, elements.score, elements.recordedScore, elements.keyboardScore].forEach((field) => field.addEventListener("input", saveTaskDraft));
+[elements.macroName, elements.artistName, elements.keySignature, elements.timeSignature, elements.bpm, elements.jianpuScore, elements.recordedScore, elements.keyboardScore].forEach((field) => field.addEventListener("input", saveTaskDraft));
 elements.macroName.addEventListener("input", updatePreviewTitle);
 if (location.hash) {
   const legacyRoute = ["#library", "#recommendations", "#rankings", "#macro-export"].includes(location.hash) ? "export"

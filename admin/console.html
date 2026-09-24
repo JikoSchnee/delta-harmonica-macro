@@ -90,6 +90,13 @@
       .donation-entry-form input { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
       .donation-entry-form input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
       .donation-entry-form .button { min-height: 40px; }
+      .donation-account-picker { position: relative; }
+      .donation-account-results { position: absolute; z-index: 20; top: 100%; right: 0; left: 0; max-height: 240px; overflow: auto; background: #071d19; border: 1px solid var(--aqua); box-shadow: 0 10px 24px #0008; }
+      .donation-account-results[hidden] { display: none; }
+      .donation-account-results button { display: block; width: 100%; padding: 9px 10px; color: var(--ink); background: transparent; border: 0; border-bottom: 1px solid var(--line); text-align: left; cursor: pointer; }
+      .donation-account-results button:hover, .donation-account-results button:focus { background: #17483f; }
+      .donation-account-results small { display: block; margin-top: 3px; color: var(--dim); }
+      .donation-account-results p { margin: 0; padding: 10px; color: var(--dim); }
       .empty { padding: 25px 8px; color: var(--dim); text-align: center; }
       .notice { min-height: 24px; margin-top: 11px; color: var(--pink); }
       .admin-song-dialog { width: min(760px, calc(100vw - 26px)); max-height: calc(100vh - 26px); padding: 0; color: var(--ink); border: 2px solid var(--line); background: var(--paper); box-shadow: 7px 7px 0 var(--shadow); }
@@ -368,14 +375,14 @@
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">NETWORK ACCESS CONTROL</div><h3>IP 封禁</h3></div><span id="ipBanCount" class="tag">—</span></div><div class="searchbar"><input id="ipBanAddress" type="text" inputmode="url" placeholder="IPv4 / IPv6 地址" /><input id="ipBanReason" type="text" maxlength="200" placeholder="封禁原因（可选）" /><button id="ipBanButton" class="button danger" type="button">封禁 IP</button></div><div id="ipBanTable"></div></section>
         </section>
         <section id="donationsPage" data-view hidden>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ALL SUPPORT / TOTAL</div><h3>全部打赏总金额</h3></div><strong id="donationGrandTotal" class="tag">¥0.00</strong></div><p class="admin-song-description" id="donationGrandSummary">包含绑定账号与未绑定账号的全部有效打赏记录。</p></section>
           <section class="window panel">
             <div class="section-heading"><div><div class="eyebrow">ACCOUNT SUPPORT / LINKED</div><h3>绑定账号的打赏</h3></div><span id="linkedDonationCount" class="tag">0 笔</span></div>
             <p class="admin-song-description">录入站点用户 ID 后，打赏会绑定到对应账号并开放永久无限导出。每次录入都会新增一笔记录，榜单按单展示。</p>
             <form id="linkedDonationForm" class="donation-entry-form">
-              <label>站点用户 ID<input name="userId" list="donationAccountOptions" required maxlength="24" autocomplete="off" placeholder="输入已注册的用户 ID" /></label>
+              <div class="donation-account-picker"><label for="donationUserSearch">站点用户 ID</label><input id="donationUserSearch" type="search" autocomplete="off" placeholder="搜索用户 ID，选择账号" aria-controls="donationAccountResults" aria-expanded="false" /><input name="accountId" type="hidden" /><div id="donationAccountResults" class="donation-account-results" hidden></div></div>
               <label>本笔金额（元）<input name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required placeholder="0.00" /></label>
               <button class="button" type="submit">录入绑定打赏</button>
-              <datalist id="donationAccountOptions"></datalist>
             </form>
             <div id="linkedDonationList"></div>
           </section>
@@ -477,6 +484,7 @@
       const state = { token: "", overview: null, songs: [], buffered: [], users: [], sponsorUsers: [], ipBans: [], cooperationApplications: [], donations: { linked: [], unbound: [] }, exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
+      const formatBeijingDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { timeZone:"Asia/Shanghai", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const setNotice = (message, target = "#pageNotice") => { $(target).textContent = message || ""; };
       const brandPresentation = {
         logitech: { label:"LOGITECH", small:"G HUB", className:"admin-export-logo--logitech", src:"../assets/brand-logos/logitech-g.svg" },
@@ -515,6 +523,7 @@
           headline: row.querySelector("[data-media-headline]").value.trim(),
           description: row.querySelector("[data-media-description]").value.trim(),
           promoCopy: row.querySelector("[data-media-promo-copy]").value.trim(),
+          rewardPoints: Number(row.querySelector("[data-media-reward]").value),
           ctaLabel: row.querySelector("[data-media-cta]").value.trim(),
           embeddedCopy: row.querySelector("[data-media-embedded-copy]").checked,
           destinationUrl: row.querySelector("[data-media-destination]").value.trim(),
@@ -536,6 +545,7 @@
             <label>轮播标题文案<input data-media-headline type="text" maxlength="120" value="${escapeHtml(item.headline || "")}" placeholder="留空则显示产品名称" /></label>
             <label>轮播说明文案<textarea data-media-description maxlength="500" rows="4">${escapeHtml(item.description || "")}</textarea></label>
             <label>海报下方文案（留空则不显示）<textarea data-media-promo-copy maxlength="500" rows="3">${escapeHtml(item.promoCopy || "")}</textarea></label>
+            <label>首次跳转奖励（积分）<input data-media-reward type="number" min="0" max="10000" step="1" value="${Number(item.rewardPoints) || 0}" /></label>
             <label>按钮文案<input data-media-cta type="text" maxlength="30" value="${escapeHtml(item.ctaLabel || "了解详情 ↗")}" /></label>
             <label>合作网站链接<input data-media-destination type="url" value="${escapeHtml(item.destinationUrl || "")}" placeholder="https://partner.example/product" /></label>
             <label>直播链接（图片类可留空）<input data-media-url type="url" value="${escapeHtml(item.url || "")}" placeholder="https://live.bilibili.com/..." /></label>
@@ -569,7 +579,7 @@
         return body;
       }
       function showPage(page) {
-        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "检查相似谱面，审核后可下架并限制投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], donations:["SUPPORTER RECORDS / DONATIONS", "打赏管理", "维护账号打赏记录，并录入未绑定账号的打赏。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理合作广告和推广统计；外跳仅记录统计，不产生积分。"], cooperation:["PARTNER APPLICATIONS / REVIEW", "合作申请", "审核主播认证与广告合作意向。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
+        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "检查相似谱面，审核后可下架并限制投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], donations:["SUPPORTER RECORDS / DONATIONS", "打赏管理", "维护账号打赏记录，并录入未绑定账号的打赏。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理合作广告、首次跳转积分与推广统计。"], cooperation:["PARTNER APPLICATIONS / REVIEW", "合作申请", "审核主播认证与广告合作意向。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
@@ -632,9 +642,13 @@
       function renderDonationsAdmin() {
         const linked = state.donations.linked || [];
         const unbound = state.donations.unbound || [];
-        $("#linkedDonationCount").textContent = `${number.format(linked.length)} 笔`;
-        $("#unboundDonationCount").textContent = `${number.format(unbound.length)} 笔`;
-        $("#donationAccountOptions").innerHTML = state.users.map(user => `<option value="${escapeHtml(user.userId)}"></option>`).join("");
+        const linkedSupporters = new Set(linked.map(item => item.accountId)).size;
+        const unboundSupporters = new Set(unbound.map(item => item.displayName.trim().toLocaleLowerCase())).size;
+        const totalCents = [...linked, ...unbound].reduce((sum, item) => sum + item.amountCents, 0);
+        $("#donationGrandTotal").textContent = `¥${(totalCents / 100).toFixed(2)}`;
+        $("#donationGrandSummary").textContent = `包含绑定账号与未绑定账号的 ${number.format(linked.length + unbound.length)} 笔有效打赏记录。`;
+        $("#linkedDonationCount").textContent = `${number.format(linkedSupporters)} 位支持者 · ${number.format(linked.length)} 笔`;
+        $("#unboundDonationCount").textContent = `${number.format(unboundSupporters)} 位支持者 · ${number.format(unbound.length)} 笔`;
         $("#linkedDonationList").innerHTML = linked.length ? `<table><thead><tr><th>站点用户 ID</th><th>本笔金额</th><th>录入时间</th><th>操作</th></tr></thead><tbody>${linked.map(item => `<tr><td>${escapeHtml(item.userId)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td><button class="button danger" type="button" data-delete-linked-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无绑定账号的打赏记录。</div>';
         $("#unboundDonationList").innerHTML = unbound.length ? `<table><thead><tr><th>榜单显示</th><th>金额（元）</th><th>录入时间</th><th>操作</th></tr></thead><tbody>${unbound.map(item => `<tr><td>vx: ${escapeHtml(item.displayName)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td><button class="button danger" type="button" data-delete-unbound-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无未绑定账号的打赏记录。</div>';
       }
@@ -663,7 +677,7 @@
           ["统计事件", range.events, "统计区间 · 不去重", "raw"]
         ];
         $("#analyticsSummary").innerHTML = cards.map(([label, value, hint, kind]) => `<article class="analytics-stat ${kind}"><small>${escapeHtml(hint)}</small><strong>${analyticsNumber(value)}</strong><em>${escapeHtml(label)}</em></article>`).join("");
-        $("#analyticsGeneratedAt").textContent = `生成于 ${formatDate(report.generatedAt)} · ${summary.timezone || "UTC"}`;
+        $("#analyticsGeneratedAt").textContent = `生成于 ${formatBeijingDate(report.generatedAt)} · ${summary.timezone || "北京时间 (UTC+8)"}`;
       }
       function availableAnalyticsDays(report) {
         const timeline = report.timeline || [];
@@ -1127,16 +1141,51 @@
           return;
         }
       });
+      const donationSearch = $("#donationUserSearch");
+      const donationResults = $("#donationAccountResults");
+      let donationSearchRequest = 0;
+      let donationSearchTimer;
+      function hideDonationResults() { donationResults.hidden = true; donationSearch.setAttribute("aria-expanded", "false"); }
+      async function searchDonationAccounts() {
+        const query = donationSearch.value.trim();
+        const request = ++donationSearchRequest;
+        if (!query) { hideDonationResults(); return; }
+        try {
+          const result = await api(`admin/donations/accounts?q=${encodeURIComponent(query)}`);
+          if (request !== donationSearchRequest) return;
+          const accounts = result.accounts || [];
+          donationResults.innerHTML = accounts.length ? accounts.map(account => `<button type="button" data-account-id="${escapeHtml(account.id)}" data-user-id="${escapeHtml(account.userId)}"><b>@${escapeHtml(account.userId)}</b><small>${escapeHtml(account.email)}</small></button>`).join("") : '<p>没有找到匹配的站点账号。</p>';
+          donationResults.hidden = false;
+          donationSearch.setAttribute("aria-expanded", "true");
+        } catch (error) { if (request === donationSearchRequest) { donationResults.innerHTML = `<p>${escapeHtml(error.message || "搜索失败。")}</p>`; donationResults.hidden = false; } }
+      }
+      donationSearch.addEventListener("input", () => {
+        $("#linkedDonationForm").elements.accountId.value = "";
+        clearTimeout(donationSearchTimer);
+        donationSearchTimer = setTimeout(searchDonationAccounts, 180);
+      });
+      donationResults.addEventListener("click", event => {
+        const choice = event.target.closest("[data-account-id]");
+        if (!choice) return;
+        clearTimeout(donationSearchTimer);
+        ++donationSearchRequest;
+        donationSearch.value = `@${choice.dataset.userId}`;
+        $("#linkedDonationForm").elements.accountId.value = choice.dataset.accountId;
+        hideDonationResults();
+      });
+      document.addEventListener("click", event => { if (!event.target.closest(".donation-account-picker")) hideDonationResults(); });
       $("#linkedDonationForm").addEventListener("submit", async event => {
         event.preventDefault();
         const form = event.currentTarget;
         const button = form.querySelector("button[type=submit]");
         const amount = Number(form.elements.amount.value);
+        if (!form.elements.accountId.value) { $("#donationAdminStatus").textContent = "请先搜索并选择一个站点账号。"; donationSearch.focus(); return; }
         if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
         button.disabled = true;
         try {
-          const result = await api("admin/donations", { method: "POST", body: JSON.stringify({ userId: form.elements.userId.value.trim(), amountCents: Math.round(amount * 100) }) });
+          const result = await api("admin/donations", { method: "POST", body: JSON.stringify({ accountId: form.elements.accountId.value, amountCents: Math.round(amount * 100) }) });
           form.reset();
+          hideDonationResults();
           await loadDonationsAdmin();
           $("#donationAdminStatus").textContent = `已录入 ${result.userId} 的 ¥${(result.amountCents / 100).toFixed(2)} 打赏。`;
         } catch (error) { $("#donationAdminStatus").textContent = error.message || "保存失败。"; }

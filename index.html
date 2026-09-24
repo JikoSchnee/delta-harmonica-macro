@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
     <title>三角洲行动口琴宏生成器｜简谱、MIDI 转宏</title>
-    <link rel="icon" href="./favicon.ico?v=5.0.0" sizes="any" />
-    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.0.0" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.0.0" sizes="32x32" />
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.0.0" />
+    <link rel="icon" href="./favicon.ico?v=5.0.7" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.0.7" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.0.7" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.0.7" />
     <meta name="description" content="在线制作三角洲行动口琴宏：支持数字简谱转宏、MIDI 转口琴宏、试听与多种鼠标宏格式导出。" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://jiko-official.top/delta/" />
@@ -2740,7 +2740,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=5.0.0" />
+    <link rel="stylesheet" href="./styles.css?v=5.0.7" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -2751,7 +2751,7 @@
         </a>
         <div class="brand-copy">
           <a class="brand-link" href="#top">三角洲口琴演奏家</a>
-          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.0.0</button>
+          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.0.7</button>
         </div>
       </div>
       <nav class="topbar-actions" aria-label="项目链接">
@@ -3419,7 +3419,8 @@
               <div><span class="index">MIDI ARRANGEMENT</span><h3 id="midiTrackPickerTitle">选择音轨与演奏片段</h3></div>
               <span class="midi-picker-status" id="midiPickerStatus">等待 MIDI 文件</span>
             </div>
-            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。点击音轨可勾选或取消导入，多选即可把不同乐器放进同一时间线；右侧「精确选中」可逐个保留音符。所有勾选音轨共用一个统一移调值，音轨之间的相对音高不变。当前项目输出单声部口琴宏，多轨同时发声时会取最高音。</p>
+            <div class="midi-selection-mode"><span>选择方式</span><button id="midiMultiSelectToggle" type="button" aria-pressed="false">多选音轨：关闭</button><small>默认只导入一条；开启后可勾选多条。</small></div>
+            <p class="midi-picker-copy">每条横条表示一条 MIDI 音轨的音符分布。点击音轨选择导入；右侧「精确选中」可逐个保留音符。多轨共用一个统一移调值，当前项目输出单声部口琴宏，同时发声时会取最高音。</p>
             <div class="midi-track-list" id="midiTrackList" role="radiogroup" aria-label="MIDI 音轨列表"></div>
             <div class="midi-range-editor">
               <div class="midi-range-labels"><span id="midiRangeStart">开始 00:00.000</span><strong id="midiRangeSummary">选中整段</strong><span id="midiRangeEnd">结束 00:00.000</span></div>
@@ -3434,10 +3435,9 @@
           <div class="input-mode-switch" role="tablist" aria-label="谱子输入方式">
             <button class="input-mode active" data-input-mode="jianpu" type="button" role="tab" aria-selected="true"><b>1</b><span>简谱模式<small>常用符号</small></span></button>
             <button class="input-mode" data-input-mode="record" type="button" role="tab" aria-selected="false"><b>2</b><span>录制模式<small>实时弹奏</small></span></button>
-            <button class="input-mode" data-input-mode="precise" type="button" role="tab" aria-selected="false"><b>3</b><span>精确模式<small>音符/拍数</small></span></button>
-            <button class="input-mode" data-input-mode="keyboard" type="button" role="tab" aria-selected="false"><b>4</b><span>三角洲键盘<small>按键/毫秒</small></span></button>
+            <button class="input-mode" data-input-mode="keyboard" type="button" role="tab" aria-selected="false"><b>3</b><span>三角洲键盘<small>按键/毫秒</small></span></button>
           </div>
-          <p class="mode-sync-note"><b>↻</b> 四种模式共享当前曲谱；切换时自动转换为对应写法，旋律与时值保持不变。</p>
+          <p class="mode-sync-note"><b>↻</b> 三种模式共享当前曲谱；切换时自动转换为对应写法，旋律与时值保持不变。</p>
           <a class="editor-tutorial-link" href="https://v.douyin.com/CxDLAfpTU3c/" target="_blank" rel="noopener noreferrer" aria-label="打开简谱编辑器教学抖音教程">
             <b aria-hidden="true">▶</b>
             <span><strong>简谱编辑器教学</strong><small>数字简谱输入与软键盘使用教学</small></span>
@@ -3538,7 +3538,7 @@
               <div class="record-keyboard" id="recordKeyboard" aria-label="录制键盘">
                 <button data-record-note="1" type="button"><kbd>Z</kbd><span>1</span></button><button data-record-note="2" type="button"><kbd>X</kbd><span>2</span></button><button data-record-note="3" type="button"><kbd>C</kbd><span>3</span></button><button data-record-note="4" type="button"><kbd>V</kbd><span>4</span></button><button data-record-note="5" type="button"><kbd>B</kbd><span>5</span></button><button data-record-note="6" type="button"><kbd>N</kbd><span>6</span></button><button data-record-note="7" type="button"><kbd>M</kbd><span>7</span></button><button class="high-note" data-record-note="1'" type="button"><kbd>,</kbd><span>1′</span></button>
               </div>
-              <p>开始后可按住实体键盘 <code>Z–M</code>、<code>,</code>，或页面琴键；松开即结束，直接按下一个音会自动切换。完成后会按当前 BPM 量化，并同步覆盖三种模式的当前曲谱。</p>
+              <p>开始后可按住实体键盘 <code>Z–M</code>、<code>,</code>，或页面琴键；松开即结束，直接按下一个音会自动切换。完成后会按当前 BPM 量化，并同步到其他模式。</p>
             </section>
             <div class="record-result">
               <label for="recordedScore">当前曲谱 · 录制写法 <span>可直接微调精确拍数</span></label>
@@ -3546,18 +3546,6 @@
             </div>
           </section>
 
-          <section class="input-pane" data-input-pane="precise" role="tabpanel" aria-label="精确模式" hidden>
-            <div class="mode-intro"><div><span class="index">EVENT SCORE</span><h3>逐音指定精确拍数</h3></div><p>适合图片校谱与细调宏时值。</p></div>
-            <div class="score-wrap">
-              <div class="line-numbers" id="lineNumbers" aria-hidden="true">1</div>
-              <textarea id="score" spellcheck="false" wrap="off" aria-label="数字简谱输入" placeholder="例如：1/1 M2/0.5 R3/0.5 L4/2 | 5/1 6/1 7/1 1'/2"></textarea>
-            </div>
-            <div class="syntax-note" id="syntax">
-              <span class="bracket">[</span>
-              <p><strong>格式</strong> <code>音符/拍数</code>　·　<code>0/拍数</code> 休止　·　变调前缀 <code>L</code> 左键降调 / <code>M</code> 中键半音 / <code>R</code> 右键升调；可组合为 <code>LM</code> / <code>RM</code>　·　<code>|</code> 小节线</p>
-              <span class="bracket">]</span>
-            </div>
-          </section>
           <section class="input-pane" data-input-pane="keyboard" role="tabpanel" aria-label="三角洲键盘模式" hidden>
             <div class="mode-intro"><div><span class="index">DELTA KEYBOARD</span><h3>按键与时值逐行打谱</h3></div><p>可直接对照录入第三方宏工具；时值按当前 BPM 换算。</p></div>
             <div class="score-wrap">
@@ -3575,7 +3563,8 @@
               <button class="primary-button" id="macroExportButton" type="button" aria-controls="macro-export">导出为宏</button>
               <button class="primary-button" id="communityUploadButton" type="button" hidden><span>上传到曲库</span><b>↑</b></button>
               <button class="primary-button" id="exportScoreButton" type="button">分享 .deltamusic</button>
-              <button class="primary-button repair-button" id="repairCurrentModeButton" type="button" title="试验性：按当前编辑模式修复并同步四种谱子">修复(试验性)</button>
+              <button class="primary-button repair-button" id="repairCurrentModeButton" type="button" title="试验性：按当前编辑模式修复并同步三种谱子">修复(试验性)</button>
+              <button class="primary-button jianpu-preview-button" id="jianpuPreviewButton" type="button" aria-haspopup="dialog" aria-controls="jianpuPreviewDialog">简谱预览(试验性)</button>
             </div>
             <div class="validation" id="validation" role="status" aria-live="polite"></div>
         </div>
@@ -4103,8 +4092,9 @@
           <div class="points-media-heading"><div><span class="index">01 · FEATURED</span><h1 id="pointsPageTitle">积分</h1><p id="pointsMediaTitle">测试中，合作请在q群联系作者</p></div><span class="points-media-signal">ON AIR</span></div>
           <div class="points-media-empty" id="pointsMediaEmpty">暂无合作产品，管理员添加内容后将在这里展示。</div>
           <div class="points-media-stage" id="pointsMediaStage" hidden>
-            <a class="points-media-featured" id="pointsMediaFeatured" href="#" target="_blank" rel="noopener noreferrer" aria-label="打开视频或直播">
+            <a class="points-media-featured" id="pointsMediaFeatured" aria-label="打开合作网站">
               <img id="pointsMediaImage" alt="" loading="lazy" />
+              <span class="points-media-reward" id="pointsMediaReward" hidden></span>
               <span class="points-media-fallback" id="pointsMediaFallback" hidden>LIVE / PRODUCT</span>
               <span class="points-media-overlay"><b id="pointsMediaKind"></b><strong id="pointsMediaName"></strong><small id="pointsMediaDescription"></small><span id="pointsMediaCta">了解详情 ↗</span></span>
             </a>
@@ -4181,7 +4171,7 @@
                   <button class="text-button cooperate-wide" type="submit">保存主播资料</button>
                 </form>
                 <div class="cooperate-code-box"><div><span class="index">DAILY CODE · 05:00 RESET</span><strong id="cooperateDailyCode">尚未领取</strong><small id="cooperateResetTime"></small></div><button id="cooperateClaimCode" class="text-button" type="button">领取今日兑换码</button></div>
-                <div class="cooperate-obs-box"><div><span class="index">OBS WEBSOCKET MONITOR</span><strong>开播自动同步兑换码</strong><small>下载监听软件并填写设备令牌和 OBS 密码；开播后自动领取当前兑换码并显示在 OBS 当前场景，停播时隐藏。</small></div><button id="cooperateCreateDevice" class="text-button" type="button">生成设备令牌</button><a class="text-button" href="./recording-helper/ObsStreamMonitor/ObsStreamMonitor-win-x64.zip?v=5.0.0" download>下载 Windows 软件</a><div class="cooperate-device-list" id="cooperateDevices"></div><code id="cooperateNewDeviceToken" hidden></code></div>
+                <div class="cooperate-obs-box"><div><span class="index">OBS WEBSOCKET MONITOR</span><strong>开播自动同步兑换码</strong><small>下载监听软件并填写设备令牌和 OBS 密码；开播后自动领取当前兑换码并显示在 OBS 当前场景，停播时隐藏。</small></div><button id="cooperateCreateDevice" class="text-button" type="button">生成设备令牌</button><a class="text-button" href="./recording-helper/ObsStreamMonitor/ObsStreamMonitor-win-x64.zip?v=5.0.7" download>下载 Windows 软件</a><div class="cooperate-device-list" id="cooperateDevices"></div><code id="cooperateNewDeviceToken" hidden></code></div>
               </div>
             </section>
           </div>
@@ -4199,7 +4189,7 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v5.0.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v5.0.7</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="usage-notice-dialog" id="usageNoticeDialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeIntro">
       <form class="usage-notice-form" method="dialog">
         <div class="window-titlebar"><span>USAGE_NOTICE.EXE — READ BEFORE USE</span></div>
@@ -4219,7 +4209,7 @@
     </dialog>
     <dialog class="effect-unlock-dialog" id="effectUnlockDialog" aria-labelledby="effectUnlockTitle">
       <form method="dialog" class="effect-unlock-form">
-        <div class="window-titlebar"><span>EFFECT_UNLOCKED.EXE — NEW</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭解锁提示">×</button></div>
+        <div class="window-titlebar"><span>EFFECT_UNLOCKED.EXE — NEW</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭解锁提示">×</button></div>
         <div class="effect-unlock-body">
           <span class="index">USER ID EFFECT · UNLOCKED</span>
           <h2 id="effectUnlockTitle">解锁了新的 ID 特效</h2>
@@ -4231,10 +4221,10 @@
     </dialog>
     <dialog class="changelog-dialog" id="changelogDialog" aria-labelledby="changelogTitle" aria-describedby="changelogDescription">
       <form method="dialog" class="changelog-form">
-        <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭版本更新窗口">×</button></div>
+        <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" id="changelogClose" type="button" aria-label="关闭最近修改窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v5.0.0</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v5.0.7</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待版本信息</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自当前版本 version.json 的发布说明。</p>
@@ -4248,12 +4238,12 @@
     </dialog>
     <dialog class="update-dialog" id="updateDialog" aria-labelledby="updateDialogTitle" aria-describedby="updateDialogDescription">
       <form method="dialog" class="update-form">
-        <div class="window-titlebar"><span>UPDATE_MANAGER.EXE — NEW VERSION</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭更新提示">×</button></div>
+        <div class="window-titlebar"><span>UPDATE_MANAGER.EXE — NEW VERSION</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭更新提示">×</button></div>
         <div class="update-dialog-body">
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v5.0.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v5.0.7</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -4262,18 +4252,18 @@
     </dialog>
     <dialog class="clear-score-dialog" id="clearScoreDialog" aria-labelledby="clearScoreTitle" aria-describedby="clearScoreDescription">
       <form method="dialog" class="clear-score-form">
-        <div class="window-titlebar"><span>SCORE_EDITOR.EXE — CLEAR CONTENT</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭清空确认窗口">×</button></div>
+        <div class="window-titlebar"><span>SCORE_EDITOR.EXE — CLEAR CONTENT</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭清空确认窗口">×</button></div>
         <div class="clear-score-body">
           <span class="index">EDITOR ACTION · CONFIRMATION</span>
           <h2 id="clearScoreTitle">确认清空曲谱？</h2>
-          <p id="clearScoreDescription">这会清空四种输入模式中的当前曲谱内容。清空后仍可使用撤销按钮恢复。</p>
+          <p id="clearScoreDescription">这会清空三种输入模式中的当前曲谱内容。清空后仍可使用撤销按钮恢复。</p>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">取消</button><button class="danger-button" id="confirmClearScore" type="button">确认清空</button></div>
         </div>
       </form>
     </dialog>
     <dialog class="macro-download-dialog" id="macroDownloadDialog" aria-labelledby="macroDownloadTitle">
       <form method="dialog" class="macro-download-form">
-        <div class="window-titlebar"><span>MACRO_DOWNLOAD.EXE — DISCLAIMER</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭宏下载窗口">×</button></div>
+        <div class="window-titlebar"><span>MACRO_DOWNLOAD.EXE — DISCLAIMER</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭宏下载窗口">×</button></div>
         <div class="macro-download-body">
           <span class="index">DRIVER EXPORT · CONFIRMATION</span>
           <h2 id="macroDownloadTitle">下载前请确认</h2>
@@ -4289,7 +4279,7 @@
     </dialog>
     <dialog class="recording-helper-dialog" id="recordingHelperDialog" aria-labelledby="recordingHelperTitle">
       <form method="dialog" class="recording-helper-form">
-        <div class="window-titlebar"><span>REC_HELP.EXE — HOW TO USE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭录制助手使用说明">×</button></div>
+        <div class="window-titlebar"><span>REC_HELP.EXE — HOW TO USE</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭录制助手使用说明">×</button></div>
         <div class="recording-helper-body">
           <span class="index">WINDOWS · QUICK START</span>
           <h2 id="recordingHelperTitle">录制助手使用方法</h2>
@@ -4308,17 +4298,19 @@
           <a class="recording-helper-tutorial-link" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span><strong>通用宏录制导出教程</strong><small>从曲谱导出到目标宏软件的完整流程</small></span><i aria-hidden="true">↗</i></a>
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
+            <a class="helper-download-link" id="recorderProtocolTestLink" hidden><span>测试唤起助手</span><b>↗</b></a>
+            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.0.7" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
             <a class="helper-download-link" data-recording-helper-download="github" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
             <a class="helper-download-link" data-recording-helper-download="server" download><span>服务器下载（备用）</span><b>↓</b></a>
             <button class="helper-download-link" id="recordingHelperQqButton" type="button" aria-controls="communityContact"><span>进 QQ 群下载</span><b>↗</b></button>
-            <small>GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。解压后运行一次 <code>Install.cmd</code>，并将 EXE 设置为始终以管理员身份运行，随后即可从网页直接导入当前曲谱。</small>
+            <small>“测试唤起助手”只发送一条短的连接测试曲谱。若 Windows 提示“需要使用新应用打开 harmonica-recorder 链接”，请下载上方修复脚本，放到当前 <code>HarmonicaRecorder.exe</code> 所在文件夹，替换旧 <code>Install.cmd</code> 后以使用浏览器的同一 Windows 用户运行；脚本会核对注册结果。移动文件夹后也要重跑。GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。</small>
           </section>
         </div>
       </form>
     </dialog>
     <dialog class="score-export-dialog" id="scoreExportDialog" aria-labelledby="scoreExportTitle">
       <form method="dialog" class="score-export-form">
-        <div class="window-titlebar"><span id="scoreExportTitle">DELTA_MUSIC.EXE — SHARE YOUR SCORE</span><button class="dialog-close" value="cancel" type="submit" formnovalidate aria-label="关闭导出窗口">×</button></div>
+        <div class="window-titlebar"><span id="scoreExportTitle">DELTA_MUSIC.EXE — SHARE YOUR SCORE</span><button class="dialog-close" value="cancel" type="button" formnovalidate aria-label="关闭导出窗口">×</button></div>
         <div class="score-export-body">
           <span class="index">COMMUNITY SCORE · JSON EXPORT</span>
           <h2 id="scoreExportHeading">填写共享信息</h2>
@@ -4349,7 +4341,7 @@
     </dialog>
     <dialog class="song-edit-dialog" id="songEditDialog" aria-labelledby="songEditTitle" aria-describedby="songEditDescription">
       <form method="dialog" class="song-edit-form">
-        <div class="window-titlebar"><span>MY_SCORE.EXE — QUICK EDITOR</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭曲目编辑窗口">×</button></div>
+        <div class="window-titlebar"><span>MY_SCORE.EXE — QUICK EDITOR</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭曲目编辑窗口">×</button></div>
         <div class="song-edit-body">
           <div class="song-edit-heading"><div><span class="index">MY LIBRARY · QUICK EDIT</span><h2 id="songEditTitle">编辑曲目</h2></div><span class="song-edit-status" id="songEditStatus" role="status" aria-live="polite">编辑自己的曲目</span></div>
           <p id="songEditDescription" class="song-edit-description">这里只保留常用曲目信息、声明和简谱编辑。修改完成后点击右下角“保存”，谱子会同步更新到我的曲库。</p>
@@ -4442,7 +4434,7 @@
     </dialog>
     <dialog class="auth-dialog" id="accountDialog" aria-labelledby="accountTitle">
       <form method="dialog" class="auth-form">
-        <div class="window-titlebar"><span>ACCOUNT.EXE — PROFILE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭账户窗口">×</button></div>
+        <div class="window-titlebar"><span>ACCOUNT.EXE — PROFILE</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭账户窗口">×</button></div>
         <div class="auth-dialog-body">
           <span class="index">COMMUNITY IDENTITY</span>
           <h2 id="accountTitle">账户资料</h2>
@@ -4495,7 +4487,7 @@
     </dialog>
     <dialog class="keyboard-macro-dialog" id="keyboardMacroDialog" aria-labelledby="keyboardMacroTitle">
       <form method="dialog" class="keyboard-macro-form">
-        <div class="window-titlebar"><span>DELTA_KEYBOARD.EXE — MANUAL MACRO</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭键盘谱">×</button></div>
+        <div class="window-titlebar"><span>DELTA_KEYBOARD.EXE — MANUAL MACRO</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭键盘谱">×</button></div>
         <div class="keyboard-macro-body">
           <span class="index">MANUAL INPUT · KEYBOARD TIMELINE</span>
           <h2 id="keyboardMacroTitle">手动输入宏</h2>
@@ -4507,9 +4499,24 @@
         </div>
       </form>
     </dialog>
+    <dialog class="jianpu-preview-dialog" id="jianpuPreviewDialog" aria-labelledby="jianpuPreviewTitle" aria-describedby="jianpuPreviewMeta">
+      <form method="dialog" class="jianpu-preview-form">
+        <div class="window-titlebar"><span>JIANPU.EXE — EXPERIMENTAL PREVIEW</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭简谱预览">×</button></div>
+        <div class="jianpu-preview-body">
+          <span class="index">NUMBERED NOTATION · EXPERIMENTAL</span>
+          <h2 id="jianpuPreviewTitle">简谱预览</h2>
+          <p id="jianpuPreviewMeta" class="jianpu-preview-meta"></p>
+          <div class="jianpu-preview-scroll" aria-label="当前曲谱的简谱排版预览">
+            <div id="jianpuPreviewMeasures" class="jianpu-preview-measures"></div>
+          </div>
+          <p id="jianpuPreviewHint" class="jianpu-preview-hint" hidden></p>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
+        </div>
+      </form>
+    </dialog>
     <dialog class="midi-note-picker-dialog" id="midiNotePickerDialog" aria-labelledby="midiNotePickerTitle" aria-describedby="midiNotePickerCopy">
       <form method="dialog" class="midi-note-picker-form">
-        <div class="window-titlebar"><span>MIDI_NOTE_PICKER.EXE — PRECISE SELECTION</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭精确选音窗口">×</button></div>
+        <div class="window-titlebar"><span>MIDI_NOTE_PICKER.EXE — PRECISE SELECTION</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭精确选音窗口">×</button></div>
         <div class="midi-note-picker-body">
           <div class="midi-note-picker-heading">
             <div><span class="index">MIDI TRACK · NOTE BY NOTE</span><h2 id="midiNotePickerTitle">精确选择音符</h2></div>
@@ -4536,7 +4543,7 @@
     </dialog>
     <dialog class="section-guide-dialog" id="sectionGuideDialog" aria-labelledby="sectionGuideHeading">
       <form method="dialog" class="section-guide-form">
-        <div class="window-titlebar"><span id="sectionGuideWindowTitle">HELP.EXE — SECTION GUIDE</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭帮助">×</button></div>
+        <div class="window-titlebar"><span id="sectionGuideWindowTitle">HELP.EXE — SECTION GUIDE</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭帮助">×</button></div>
         <div class="section-guide-body">
           <span class="index" id="sectionGuideIndex">SECTION GUIDE</span>
           <h2 id="sectionGuideHeading">板块帮助</h2>
@@ -4548,7 +4555,7 @@
     </dialog>
     <dialog class="ai-score-dialog" id="aiScoreDialog" aria-labelledby="aiScoreTitle" aria-describedby="aiScoreDescription aiScoreWorkflow">
       <form method="dialog" class="ai-score-form">
-        <div class="window-titlebar"><span>AI_NOTATION.EXE — PROMPT KIT</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭 AI 打谱提示词">×</button></div>
+        <div class="window-titlebar"><span>AI_NOTATION.EXE — PROMPT KIT</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭 AI 打谱提示词">×</button></div>
         <div class="ai-score-body">
           <span class="index">EXTERNAL AI · SCORE CONVERSION</span>
           <div class="ai-score-heading"><div><h2 id="aiScoreTitle">AI 打谱提示词</h2><p id="aiScoreDescription">复制这段提示词到 ChatGPT 或其他 AI，再附上你的曲谱材料。本站不会上传内容或调用 AI。</p></div><span>目标：简谱模式</span></div>
@@ -4572,7 +4579,7 @@
     </dialog>
     <dialog class="upload-help-dialog" id="uploadHelpDialog" aria-labelledby="uploadHelpTitle">
       <form method="dialog" class="upload-help-form">
-        <div class="window-titlebar"><span>UPLOAD_PORTAL.EXE — COMMUNITY</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭上传提示">×</button></div>
+        <div class="window-titlebar"><span>UPLOAD_PORTAL.EXE — COMMUNITY</span><button class="dialog-close" value="cancel" type="button" aria-label="关闭上传提示">×</button></div>
         <div class="upload-help-body">
           <span class="index">COMMUNITY UPLOAD</span>
           <h2 id="uploadHelpTitle">上传曲谱</h2>
@@ -4627,7 +4634,7 @@
       </section>
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
-    <script src="./data/community-songs.js?v=5.0.0"></script>
-    <script src="./app.js?v=5.0.0"></script>
+    <script src="./data/community-songs.js?v=5.0.7"></script>
+    <script src="./app.js?v=5.0.8"></script>
   </body>
 </html>

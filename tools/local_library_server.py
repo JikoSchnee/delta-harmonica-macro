@@ -408,6 +408,7 @@ PUBLIC_ANALYTICS_SUMMARY_CACHE = SingleFlightCache()
 PUBLIC_RANKINGS_CACHE = SingleFlightCache()
 PUBLIC_DONORS_CACHE = SingleFlightCache()
 EXPORT_EVENT_COUNT_CACHE = SingleFlightCache()
+ANALYTICS_TIMEZONE = timezone(timedelta(hours=8))
 
 
 def analytics_event_path(day: date) -> Path:
@@ -538,21 +539,29 @@ def analytics_export_key(item: dict[str, Any]) -> tuple[str, str, str]:
 
 
 def build_analytics_report(days: int) -> dict[str, Any]:
-    today = datetime.now(timezone.utc).date()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(ANALYTICS_TIMEZONE)
+    today = now.date()
     start = today - timedelta(days=days - 1)
-    records: list[dict[str, Any]] = []
-    for offset in range(days):
-        path = analytics_event_path(start + timedelta(days=offset))
+    hourly_start = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=23)
+    scanned_records: list[dict[str, Any]] = []
+    first_utc_day = min(
+        datetime.combine(start, datetime.min.time(), tzinfo=ANALYTICS_TIMEZONE).astimezone(timezone.utc).date(),
+        hourly_start.astimezone(timezone.utc).date(),
+    )
+    last_utc_day = now.astimezone(timezone.utc).date()
+    for offset in range((last_utc_day - first_utc_day).days + 1):
+        path = analytics_event_path(first_utc_day + timedelta(days=offset))
         if not path.exists():
             continue
         try:
             for line in path.read_text(encoding="utf-8").splitlines():
                 item = json.loads(line)
-                if isinstance(item, dict) and isinstance(item.get("session"), str) and item.get("event") in ANALYTICS_EVENTS:
-                    records.append(item)
+                recorded_at = analytics_record_time(item) if isinstance(item, dict) else None
+                if recorded_at and isinstance(item.get("session"), str) and item.get("event") in ANALYTICS_EVENTS:
+                    scanned_records.append(item)
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
+    records = [item for item in scanned_records if start <= analytics_record_time(item).astimezone(ANALYTICS_TIMEZONE).date() <= today]
 
     score_aliases = analytics_score_aliases()
 
@@ -574,7 +583,6 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     hourly_views: Counter[str] = Counter()
     hourly_exports: Counter[str] = Counter()
     hourly_export_keys: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
-    hourly_start = now.replace(minute=0, second=0, microsecond=0) - timedelta(hours=23)
     source_counts: Counter[str] = Counter()
     journeys: dict[str, list[dict[str, Any]]] = defaultdict(list)
     score_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
@@ -592,17 +600,19 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     for item in records:
         event_sessions[item["event"]].add(item["session"])
         recorded_at = analytics_record_time(item)
+        if recorded_at:
+            recorded_at = recorded_at.astimezone(ANALYTICS_TIMEZONE)
         day = recorded_at.date().isoformat() if recorded_at else ""
         if recorded_at and recorded_at.date() == today:
             today_events += 1
             if item["event"] == "page_view":
                 today_sessions.add(item["session"])
                 today_page_views += 1
-            if recorded_at > today_latest_seen.get(item["session"], datetime.min.replace(tzinfo=timezone.utc)):
+            if recorded_at > today_latest_seen.get(item["session"], datetime.min.replace(tzinfo=ANALYTICS_TIMEZONE)):
                 today_latest_seen[item["session"]] = recorded_at
         if day:
             daily_sessions[day].add(item["session"])
-            hour = recorded_at.replace(minute=0, second=0, microsecond=0).isoformat().replace("+00:00", "Z") if recorded_at else ""
+            hour = recorded_at.replace(minute=0, second=0, microsecond=0).isoformat() if recorded_at else ""
             if hour:
                 daily_hourly_sessions[day][hour].add(item["session"])
                 if item["event"] == "page_view":
@@ -614,16 +624,6 @@ def build_analytics_report(days: int) -> dict[str, Any]:
                 if export_key not in daily_export_keys[day]:
                     daily_export_keys[day].add(export_key)
                     daily_exports[day] += 1
-        if recorded_at and recorded_at >= hourly_start:
-            hour = recorded_at.replace(minute=0, second=0, microsecond=0).isoformat().replace("+00:00", "Z")
-            hourly_sessions[hour].add(item["session"])
-            if item["event"] == "page_view":
-                hourly_views[hour] += 1
-            if item["event"] in SCORE_EXPORT_EVENTS:
-                export_key = analytics_export_key(item)
-                if export_key not in hourly_export_keys[hour]:
-                    hourly_export_keys[hour].add(export_key)
-                    hourly_exports[hour] += 1
         if item["event"] == "page_view":
             source_counts[(item.get("properties") or {}).get("entry", "direct")] += 1
         journeys[item["session"]].append(item)
@@ -645,6 +645,20 @@ def build_analytics_report(days: int) -> dict[str, Any]:
                     stats["exportActors"].add(actor)
                     format_name = properties.get("format") or item["event"].removesuffix("_downloaded").replace("_", " ")
                     stats["formats"][format_name] += 1
+
+    for item in scanned_records:
+        recorded_at = analytics_record_time(item).astimezone(ANALYTICS_TIMEZONE)
+        if not hourly_start <= recorded_at <= now:
+            continue
+        hour = recorded_at.replace(minute=0, second=0, microsecond=0).isoformat()
+        hourly_sessions[hour].add(item["session"])
+        if item["event"] == "page_view":
+            hourly_views[hour] += 1
+        if item["event"] in SCORE_EXPORT_EVENTS:
+            export_key = analytics_export_key(item)
+            if export_key not in hourly_export_keys[hour]:
+                hourly_export_keys[hour].add(export_key)
+                hourly_exports[hour] += 1
 
     path_counts: Counter[str] = Counter()
     for journey in journeys.values():
@@ -671,15 +685,15 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         timeline.append({"day": day, "sessions": len(daily_sessions[day]), "pageViews": daily_views[day], "scoreExports": daily_exports[day]})
     hourly_timeline = []
     for offset in range(24):
-        hour = (hourly_start + timedelta(hours=offset)).isoformat().replace("+00:00", "Z")
+        hour = (hourly_start + timedelta(hours=offset)).isoformat()
         hourly_timeline.append({"hour": hour, "sessions": len(hourly_sessions[hour]), "pageViews": hourly_views[hour], "scoreExports": hourly_exports[hour]})
     daily_hourly_timeline = []
     for offset in range(days):
         day = (start + timedelta(days=offset)).isoformat()
         hours = []
         for hour_index in range(24):
-            hour = datetime(start.year, start.month, start.day, tzinfo=timezone.utc) + timedelta(days=offset, hours=hour_index)
-            hour_key = hour.isoformat().replace("+00:00", "Z")
+            hour = datetime(start.year, start.month, start.day, tzinfo=ANALYTICS_TIMEZONE) + timedelta(days=offset, hours=hour_index)
+            hour_key = hour.isoformat()
             hours.append({"hour": hour_key, "sessions": len(daily_hourly_sessions[day][hour_key]), "pageViews": daily_hourly_views[day][hour_key]})
         daily_hourly_timeline.append({"day": day, "hours": hours})
     score_operations = []
@@ -707,7 +721,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         "rangeDays": days,
         "generatedAt": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "summary": {
-            "timezone": "UTC",
+            "timezone": "北京时间 (UTC+8)",
             "todayDate": today.isoformat(),
             "today": {
                 "uniqueVisitors": len(today_sessions),
@@ -2690,7 +2704,7 @@ def resolve_points_media_metadata(source_url: str) -> tuple[str, str]:
     return "", ""
 
 
-def points_media_payload(*, include_inactive: bool = False) -> dict[str, Any]:
+def points_media_payload(*, include_inactive: bool = False, account_id: str | None = None) -> dict[str, Any]:
     initialize_auth_database()
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
@@ -2698,6 +2712,9 @@ def points_media_payload(*, include_inactive: bool = False) -> dict[str, Any]:
             + ("" if include_inactive else "WHERE active = 1 ")
             + "ORDER BY sort_order, id"
         ).fetchall()
+        claimed = {row["reference"] for row in connection.execute(
+            "SELECT reference FROM point_ledger WHERE account_id=? AND reason='partner_outbound'", (account_id,)
+        ).fetchall()} if account_id else set()
     return {"items": [{
         "id": row["id"], "url": row["url"], "title": row["title"],
         "coverUrl": row["manual_cover_url"] or row["cover_url"],
@@ -2707,18 +2724,19 @@ def points_media_payload(*, include_inactive: bool = False) -> dict[str, Any]:
         "description": row["description"],
         "promoCopy": row["promo_copy"],
         "headline": row["headline"], "ctaLabel": row["cta_label"], "embeddedCopy": bool(row["embedded_copy"]),
-        "destinationUrl": row["destination_url"] if include_inactive else None,
+        "rewardPoints": int(row["reward_points"]), "rewardClaimed": str(row["id"]) in claimed,
+        "destinationUrl": row["destination_url"],
         "marketingCode": row["marketing_code"] if include_inactive else None,
         "outboundUrl": f"./api/points/media/{row['id']}/out",
     } for row in rows]}
 
 
 def record_points_media_outbound(media_id: int, account_id: str | None) -> str:
-    """Record an active product visit without changing the visitor's points."""
+    """Record an active product visit and grant its one-time reward to signed-in users."""
     initialize_auth_database()
     with AUTH_LOCK, auth_database() as connection:
         item = connection.execute(
-            "SELECT id,destination_url FROM points_media WHERE id=? AND active=1", (media_id,)
+            "SELECT id,destination_url,reward_points FROM points_media WHERE id=? AND active=1", (media_id,)
         ).fetchone()
         if not item or not item["destination_url"]:
             return ""
@@ -2726,6 +2744,8 @@ def record_points_media_outbound(media_id: int, account_id: str | None) -> str:
             "INSERT INTO partner_events(media_id,kind,created_at) VALUES (?,'outbound',?)",
             (item["id"], now_timestamp()),
         )
+        if account_id and int(item["reward_points"]) > 0:
+            award_points(connection, account_id, int(item["reward_points"]), "partner_outbound", str(media_id))
         return str(item["destination_url"])
 
 
@@ -3201,7 +3221,7 @@ def build_public_donors() -> dict[str, Any]:
     """Serve the cached supporter wall so concurrent tabs share one query."""
     donors = PUBLIC_DONORS_CACHE.value("public-donors", PUBLIC_DONORS_CACHE_SECONDS, public_donor_list)
     supporters = {(bool(donor["isBound"]), donor["displayName"].strip().casefold()) for donor in donors}
-    return {"donors": donors, "total": len(donors), "supporterCount": len(supporters)}
+    return {"donors": donors, "total": len(supporters), "supporterCount": len(supporters), "entryCount": len(donors)}
 
 
 MAX_DONATION_CENTS = 10_000_000
@@ -3254,13 +3274,16 @@ def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
     """Add one separate donation entry for a registered account."""
     if not isinstance(payload, dict):
         raise ValueError("请求内容无效。")
+    account_id = str(payload.get("accountId") or "").strip()
     user_id = str(payload.get("userId") or "").strip()
     amount_cents = validated_donation_amount_cents(payload.get("amountCents"), allow_zero=False)
-    if not user_id:
-        raise ValueError("请填写站点用户 ID。")
+    if not account_id and not user_id:
+        raise ValueError("请选择站点账号。")
     now = now_timestamp()
     with AUTH_LOCK, auth_database() as connection:
-        account = connection.execute("SELECT id, user_id FROM accounts WHERE user_id=? COLLATE NOCASE", (user_id,)).fetchone()
+        account = connection.execute("SELECT id, user_id FROM accounts WHERE id=?", (account_id,)).fetchone() if account_id else connection.execute(
+            "SELECT id, user_id FROM accounts WHERE user_id=? COLLATE NOCASE", (user_id,)
+        ).fetchone()
         if not account:
             raise ValueError("没有找到这个站点账号，请检查用户 ID；未绑定账号请使用未绑定打赏录入。")
         account_id = str(account["id"])
@@ -5353,7 +5376,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             self.send_json(HTTPStatus.OK, admin_cooperation_applications())
             return
         if path == "/api/points/media":
-            self.send_json(HTTPStatus.OK, points_media_payload())
+            account = authenticate_request(self) if self.server.auth_enabled else None
+            self.send_json(HTTPStatus.OK, points_media_payload(account_id=account["id"] if account else None))
             return
         outbound = re.fullmatch(r"/api/points/media/(\d+)/out", path)
         if outbound:
@@ -5596,6 +5620,23 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.is_admin_console_request():
                 return
             self.send_json(HTTPStatus.OK, {"products": points_media_metrics()})
+            return
+        if path == "/api/admin/donations/accounts":
+            if not self.is_admin_console_request():
+                return
+            query = parse_qs(urlparse(self.path).query).get("q", [""])[0].strip()[:80]
+            if not query:
+                self.send_json(HTTPStatus.OK, {"accounts": []})
+                return
+            with AUTH_LOCK, auth_database() as connection:
+                rows = connection.execute(
+                    "SELECT id, user_id, email FROM accounts WHERE user_id LIKE ? ESCAPE '\\' COLLATE NOCASE "
+                    "ORDER BY CASE WHEN user_id=? COLLATE NOCASE THEN 0 ELSE 1 END, user_id COLLATE NOCASE LIMIT 20",
+                    ("%" + query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%", query),
+                ).fetchall()
+            self.send_json(HTTPStatus.OK, {"accounts": [
+                {"id": row["id"], "userId": row["user_id"], "email": mask_email(str(row["email"]))} for row in rows
+            ]})
             return
         if path == "/api/admin/donations":
             if not self.is_admin_console_request():
