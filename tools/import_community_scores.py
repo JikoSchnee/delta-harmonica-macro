@@ -13,6 +13,7 @@ import argparse
 import hashlib
 import json
 import re
+import secrets
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -122,22 +123,15 @@ def validate_created_at(value: Any) -> str | None:
 
 
 def remix_code_for_score(score: dict[str, Any]) -> str:
-    """Create the initial code from the score's first saved content."""
-    payload = json.dumps(
-        [
-            str(score.get("title", "")).strip(),
-            str(score.get("artist", "")).strip(),
-            str(score.get("sharedBy", "")).strip(),
-            str(score.get("key", "")).strip(),
-            str(score.get("meter", "")).strip(),
-            int(score.get("bpm", 120)),
-            "jianpu" if score.get("jianpu") else "score",
-            str(score.get("jianpu") or score.get("score") or ""),
-        ],
-        ensure_ascii=False,
-        separators=(",", ":"),
-    )
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:REMIX_CODE_LENGTH].upper()
+    """Create a fresh, unguessable code for a score's first saved content.
+
+    The code must not be derivable from the score's public metadata (title,
+    artist, sharedBy, key, meter, bpm, jianpu), otherwise anyone who knows or
+    guesses that metadata could compute the code and access a private score.
+    It is therefore generated with a CSPRNG instead of hashing the metadata.
+    """
+    del score  # Public metadata must not influence the generated code.
+    return secrets.token_hex((REMIX_CODE_LENGTH + 1) // 2)[:REMIX_CODE_LENGTH].upper()
 
 
 def validate_package(payload: Any) -> dict[str, Any]:
