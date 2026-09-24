@@ -1,7 +1,7 @@
 HARMONICA RECORDER — Windows independent input helper
 
 1. Extract this ZIP to a permanent folder.
-2. Run Install.cmd once. This lets the website open the helper with the current score.
+2. Run Install.cmd once from that permanent folder as the same Windows user who uses the browser. It prints the registered EXE path and reports a failure if registration did not succeed. Re-run it whenever the folder moves.
 3. Right-click HarmonicaRecorder.exe, choose Properties > Compatibility, and enable “Run this program as an administrator”.
 4. Open recording in the target macro software.
 5. Return to the helper, choose the keyboard and mouse methods separately, and click Test Input to verify the selected pair without importing a song.

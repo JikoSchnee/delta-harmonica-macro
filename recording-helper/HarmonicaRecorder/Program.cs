@@ -20,20 +20,29 @@ internal static class Program
         var protocolArgument = args.FirstOrDefault(argument => argument.StartsWith("harmonica-recorder:", StringComparison.OrdinalIgnoreCase));
         if (!createdNew)
         {
-            if (SingleInstanceBridge.TryForward(protocolArgument)) return;
-            // The first instance may still be creating its pipe after taking
-            // the mutex. Give it a short window before treating the launch as
-            // handled; never open a second independent helper window.
-            for (var attempt = 0; attempt < 3 && !SingleInstanceBridge.TryForward(protocolArgument); attempt++) Thread.Sleep(250);
-            return;
+            // The first window may still be starting, so retry the handoff.
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                if (SingleInstanceBridge.TryForward(protocolArgument)) return;
+                if (attempt < 3) Thread.Sleep(250);
+            }
+            // A stale or inaccessible pipe must not silently discard the score.
+            // Open this request in its own window if the handoff cannot complete.
         }
 
         ApplicationConfiguration.Initialize();
         var request = PlaybackRequest.FromProtocolArgument(protocolArgument);
         var updateCompleted = args.Any(argument => string.Equals(argument, "--update-complete", StringComparison.OrdinalIgnoreCase));
         using var form = new RecorderForm(request, updateCompleted);
+        if (!createdNew)
+        {
+            form.ShowForwardingFallbackWarning();
+            Application.Run(form);
+            return;
+        }
         using var bridge = new SingleInstanceBridge(form.ReceiveProtocolArgument);
-        bridge.Start();
+        // Begin accepting forwarded requests only after the form has a UI handle.
+        form.Shown += (_, _) => bridge.Start();
         Application.Run(form);
     }
 }
@@ -90,7 +99,7 @@ internal sealed class SingleInstanceBridge : IDisposable
             PipeDirection.In,
             1,
             PipeTransmissionMode.Byte,
-            PipeOptions.Asynchronous);
+            PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
     }
 
     public void Dispose()
@@ -419,6 +428,12 @@ internal sealed class RecorderForm : Form
         request = incomingRequest;
         ResetPlaybackView();
         UpdateRequestView(showVersionMismatchNotice: true);
+    }
+
+    internal void ShowForwardingFallbackWarning()
+    {
+        Text += " · 独立窗口";
+        statusLabel.Text = "已在新窗口打开本次曲谱。原助手窗口未能接收请求；请关闭旧窗口，避免同时录制。";
     }
 
     private void ActivateWindow()
