@@ -6,7 +6,7 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   button.closest("dialog")?.close("cancel");
 });
-const WEBSITE_VERSION = "5.0.7";
+const WEBSITE_VERSION = "5.2.3";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
@@ -1041,11 +1041,11 @@ const SECTION_GUIDES = {
     intro: "曲库用于快速载入现成曲谱，改曲码可直接定位到某一首。载入会同时刷新歌名、作者、调号、拍号、BPM 和各个输入格式。",
     steps: [
       ["01", "查找曲目", "在搜索框输入曲名、作者、贡献人、改曲码、拍号、调号或速度，可即时筛选曲库。"],
-      ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示前 10 首；「全部」包含内置和社区曲目；登录后可在「我的」查看当前账号的上传记录。"],
+      ["02", "切换曲库分类", "「推荐」由管理员手动维护；「热门」按每日零点生成的导出量榜单展示全部曲目，并按导出量从高到低排序；「全部」包含内置和社区曲目；登录后可在「我的」查看当前账号的上传记录。"],
       ["03", "查看与编辑", "点击「查看」会载入该曲并定位到编辑器；点击卡片主体会直接导出并复制改曲码链接；「我的」中的「编辑」会打开简略编辑器，仅修改自己上传的曲目。"],
       ["04", "使用「导出」", "会先载入当前曲目，再跳转到最后的导出为宏区域，不需要重复选曲。"],
       ["05", "按改曲码定位", "打开包含 <code>?code=</code> 的改曲码分享链接，会自动跳到曲库、切换「全部」并把改曲码填入搜索框；也可以直接在曲库搜索框中输入改曲码。"],
-      ["06", "提交作品", "点击「我要上传」选择 QQ 群或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
+      ["06", "提交作品", "点击「我要上传」选择 KOOK 频道或 GitHub 投稿；共享前建议导出 <code>.deltamusic</code> 以保留曲谱和元信息。"]
     ]
   },
   editor: {
@@ -1109,7 +1109,7 @@ const SECTION_GUIDES = {
 const elements = {
   jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), macroTimingTestMode: document.querySelector("#macroTimingTestMode"), macroExportSpeed: document.querySelector("#macroExportSpeed"), macroExportSpeedValue: document.querySelector("#macroExportSpeedValue"), macroExportRangeEnabled: document.querySelector("#macroExportRangeEnabled"), macroExportRangeState: document.querySelector("#macroExportRangeState"), macroExportRangeStart: document.querySelector("#macroExportRangeStart"), macroExportRangeEnd: document.querySelector("#macroExportRangeEnd"), macroExportRangeStartLabel: document.querySelector("#macroExportRangeStartLabel"), macroExportRangeEndLabel: document.querySelector("#macroExportRangeEndLabel"), macroExportRangeSummary: document.querySelector("#macroExportRangeSummary"), macroExportRangeSliders: document.querySelector("#macroExportRangeSliders"), macroExportRangeWindow: document.querySelector("#macroExportRangeWindow"), macroExportRangePresets: [...document.querySelectorAll("[data-export-range-preset]")], mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportBrandFilter: document.querySelector("#exportBrandFilter"), exportBrandFilterHint: document.querySelector("#exportBrandFilterHint"), exportBrandTargets: [...document.querySelectorAll("[data-export-brands]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"), pageLayout: document.querySelector(".page-layout"), sectionSidebar: document.querySelector("#sectionSidebar"), sectionSidebarBody: document.querySelector("#sectionSidebarBody"), sectionSidebarToggle: document.querySelector("#sectionSidebarToggle"), sectionSidebarOpen: document.querySelector("#sectionSidebarOpen"), sectionNavLinks: [...document.querySelectorAll("[data-section-nav-target]")],
-  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), jianpuPreviewButton: document.querySelector("#jianpuPreviewButton"), jianpuPreviewDialog: document.querySelector("#jianpuPreviewDialog"), jianpuPreviewTitle: document.querySelector("#jianpuPreviewTitle"), jianpuPreviewMeta: document.querySelector("#jianpuPreviewMeta"), jianpuPreviewMeasures: document.querySelector("#jianpuPreviewMeasures"), jianpuPreviewHint: document.querySelector("#jianpuPreviewHint"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiMultiSelectToggle: document.querySelector("#midiMultiSelectToggle"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), jianpuPreviewButton: document.querySelector("#jianpuPreviewButton"), jianpuPreviewDialog: document.querySelector("#jianpuPreviewDialog"), jianpuPreviewTitle: document.querySelector("#jianpuPreviewTitle"), jianpuPreviewMeta: document.querySelector("#jianpuPreviewMeta"), jianpuPageWidth: document.querySelector("#jianpuPageWidth"), jianpuPreviewMeasures: document.querySelector("#jianpuPreviewMeasures"), jianpuPreviewHint: document.querySelector("#jianpuPreviewHint"), jianpuDownloadButton: document.querySelector("#jianpuDownloadButton"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiMultiSelectToggle: document.querySelector("#midiMultiSelectToggle"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
@@ -1117,7 +1117,7 @@ const elements = {
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"), previewSongTitle: document.querySelector("#previewSongTitle"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
-  versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), todayPageViewCount: document.querySelector("#todayPageViewCount"), registeredUserCount: document.querySelector("#registeredUserCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]"),], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperQqButton: document.querySelector("#recordingHelperQqButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportDeclaration: document.querySelector("#exportDeclaration"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
+  versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), todayPageViewCount: document.querySelector("#todayPageViewCount"), registeredUserCount: document.querySelector("#registeredUserCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]"),], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperKookButton: document.querySelector("#recordingHelperKookButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportDeclaration: document.querySelector("#exportDeclaration"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
   tourLayer: document.querySelector("#tourLayer"), tourSpotlight: document.querySelector("#tourSpotlight"), tourPopover: document.querySelector("#tourPopover"), tourIndex: document.querySelector("#tourIndex"), tourTitle: document.querySelector("#tourTitle"), tourCopy: document.querySelector("#tourCopy"), tourStatus: document.querySelector("#tourStatus"), tourProgress: document.querySelector("#tourProgress"), tourPrevious: document.querySelector("#tourPrevious"), tourNext: document.querySelector("#tourNext"), tourSkip: document.querySelector("#tourSkip"), tourClose: document.querySelector("#tourClose")
 };
 
@@ -1249,9 +1249,8 @@ Object.assign(elements, {
   libraryOverwriteTitle: document.querySelector("#libraryOverwriteTitle"),
   libraryOverwriteDescription: document.querySelector("#libraryOverwriteDescription"),
   libraryOverwriteConfirm: document.querySelector("#libraryOverwriteConfirm"),
-  communityContact: document.querySelector("#communityContact"),
-  qqGroupCopyButton: document.querySelector("#qqGroupCopyButton"),
-  qqGroupCopyButton2: document.querySelector("#qqGroupCopyButton2")
+  kookChannelDialog: document.querySelector("#kookChannelDialog"),
+  communityContact: document.querySelector("#communityContact")
 });
 
 Object.assign(elements, {
@@ -1334,7 +1333,8 @@ let previewCursorMs = 0;
 let previewProgressFrame = 0;
 let previewProgressSeeking = false;
 let activeTour = null;
-let authState = { available: false, statusKnown: false, account: null, pendingCommunityUpload: false, pendingPointsTask: "", email: "", mode: "login", providers: [] };
+let authState = { available: false, statusKnown: false, account: null, pendingCommunityUpload: false, pendingPointsTask: "", email: "", mode: "login", providers: [], previewLoginAvailable: false };
+const PREVIEW_AUTO_LOGIN_SKIP_KEY = "delta-preview-auto-login-disabled";
 let pendingLibrarySong = null;
 let pendingSongEdit = null;
 let activeAnalyticsScoreId = "";
@@ -1801,8 +1801,11 @@ function parseJianpu(source, bpm) {
       (Number.isFinite(previous.midi) && Number.isFinite(item.midi) && previous.midi === item.midi) ||
       (previous.note === item.note && previous.modifier === item.modifier)
     );
-    if (tiePending && samePitch) previous.beats += item.beats;
-    else notes.push(item);
+    if (tiePending && samePitch) {
+      previous.tieBoundaries ||= [];
+      previous.tieBoundaries.push(previous.beats);
+      previous.beats += item.beats;
+    } else notes.push(item);
     tiePending = Boolean(tieMark);
   }
   if (tiePending) return { error: { message: "连音线后缺少相同音高的音符。", line: source.split("\n").length, column: source.length - source.lastIndexOf("\n") } };
@@ -3135,8 +3138,7 @@ function songsForLibraryView() {
       .filter((song) => hotScoreRanks.has(analyticsScoreIdForSong(song)))
       .sort((left, right) => (hotScoreRanks.get(analyticsScoreIdForSong(left)) || Number.MAX_SAFE_INTEGER)
         - (hotScoreRanks.get(analyticsScoreIdForSong(right)) || Number.MAX_SAFE_INTEGER)
-        || compareLibrarySongs(left, right))
-      .slice(0, 10);
+        || compareLibrarySongs(left, right));
   }
   if (activeLibraryView === "purchased") {
     const unlockedCodes = new Set(authState.account?.points?.unlocked || []);
@@ -3209,7 +3211,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
       <div class="song-card-footer"><button class="song-share${sharedByEffect === "default" ? "" : ` song-share--${sharedByEffect}`}" data-song-action="search-sharer" type="button" title="在曲库中查看这位共享人的作品" aria-label="在曲库中查看共享人 ${escapeHtml(song.sharedBy)} 的作品">共享：${userIdMarkup(song.sharedBy)}</button>${sponsor ? `<button class="song-share song-sponsor${sponsorEffect === "default" ? "" : ` song-share--${sponsorEffect}`}" data-song-action="search-sponsor" type="button" title="在曲库中查看这位赞助人的作品" aria-label="在曲库中查看赞助人 ${escapeHtml(sponsor)} 的作品">赞助人：${userIdMarkup(sponsor)}</button>` : ""}${song.remixCode ? `<button class="song-remix-code" data-song-action="copy-remix-code" data-remix-code="${escapeHtml(song.remixCode)}" type="button" title="复制改曲码链接" aria-label="复制《${escapeHtml(song.title)}》的改曲码链接"><span>${escapeHtml(song.remixCode)}</span><span class="song-remix-copy-icon" aria-hidden="true">⧉</span></button>` : ""}</div>
       <div class="song-card-actions" aria-label="曲目操作">
         <div class="song-card-actions-main">
-          <button class="song-card-action" data-song-action="view" type="button">修改曲谱</button>
+          <button class="song-card-action" data-song-action="${libraryView === "mine" ? "view" : "view-jianpu"}" type="button">${libraryView === "mine" ? "修改曲谱" : "简谱"}</button>
           ${needsPoints ? `<button class="song-card-action preview${previewPlaying ? " is-playing" : ""}" data-song-action="preview" type="button">${previewPlaying ? "停止" : "试听"}</button>` : ""}
           ${libraryView === "mine" ? '<button class="song-card-action edit" data-song-action="edit" type="button">编辑</button>' : ""}
           <button class="song-card-action export" data-song-action="export" type="button">导出</button>
@@ -3904,56 +3906,409 @@ function splitJianpuPreviewMeasures(notes, measureBeats) {
   let usedBeats = 0;
   const epsilon = 1e-8;
   notes.forEach((item) => {
-    let remaining = item.beats;
-    let isContinuation = false;
-    while (remaining > epsilon) {
-      if (measureBeats - usedBeats <= epsilon) {
-        measures.push([]);
-        usedBeats = 0;
+    const tieBoundaries = [...(item.tieBoundaries || [])].sort((a, b) => a - b);
+    const noteBoundaries = [0, ...tieBoundaries, item.beats];
+    for (let notePart = 0; notePart < noteBoundaries.length - 1; notePart += 1) {
+      let remaining = noteBoundaries[notePart + 1] - noteBoundaries[notePart];
+      let isContinuation = false;
+      while (remaining > epsilon) {
+        if (measureBeats - usedBeats <= epsilon) {
+          measures.push([]);
+          usedBeats = 0;
+        }
+        const segmentBeats = Math.min(remaining, measureBeats - usedBeats);
+        remaining = Math.max(0, remaining - segmentBeats);
+        const isExplicitTiePart = notePart < noteBoundaries.length - 2;
+        measures.at(-1).push({
+          item,
+          beats: segmentBeats,
+          start: usedBeats,
+          end: usedBeats + segmentBeats,
+          tieIn: isContinuation || notePart > 0,
+          tieOut: remaining > epsilon || isExplicitTiePart,
+          explicitTieIn: notePart > 0 && !isContinuation,
+          explicitTieOut: isExplicitTiePart && remaining <= epsilon
+        });
+        usedBeats += segmentBeats;
+        isContinuation = true;
       }
-      const segmentBeats = Math.min(remaining, measureBeats - usedBeats);
-      remaining = Math.max(0, remaining - segmentBeats);
-      measures.at(-1).push({ item, beats: segmentBeats, tieIn: isContinuation, tieOut: remaining > epsilon });
-      usedBeats += segmentBeats;
-      isContinuation = true;
     }
   });
   return measures;
 }
 
-function jianpuPreviewPitchMarkup(item) {
-  const pitch = item.sourcePitch || standardJianpuPitch(item);
-  const match = String(pitch).match(/^([#b♯♭]?)(,{0,2})([1-7])('{0,2})$/);
-  if (!match) return `<span class="jianpu-note-core">${escapeHtml(pitch)}</span>`;
-  const [, accidental, lowMarks, digit, highMarks] = match;
-  const octaveDots = (count, placement) => count ? `<span class="jianpu-octave-dots ${placement}" aria-hidden="true">${"•".repeat(count)}</span>` : "";
-  return `${octaveDots(highMarks.length, "high")}<span class="jianpu-note-core">${accidental ? `<span class="jianpu-accidental">${escapeHtml(accidental)}</span>` : ""}${digit}</span>${octaveDots(lowMarks.length, "low")}`;
+function jianpuPreviewDashCount(segment) {
+  const duration = JIANPU_PREVIEW_DURATIONS.get(Number(segment.beats.toFixed(6)));
+  return duration?.dashes || 0;
 }
 
-function jianpuPreviewSegmentMarkup(segment) {
-  const { item, beats, tieIn } = segment;
-  const note = jianpuPreviewPitchMarkup(item);
-  const duration = JIANPU_PREVIEW_DURATIONS.get(Number(beats.toFixed(6)));
-  const rest = item.isRest || item.note === "0";
-  const durationMarkup = duration
-    ? `${duration.dots ? `<span class="jianpu-duration-dots" aria-hidden="true">${"•".repeat(duration.dots)}</span>` : ""}${duration.dashes ? `<span class="jianpu-duration-dashes" aria-hidden="true">${"—".repeat(duration.dashes)}</span>` : ""}`
-    : `<span class="jianpu-duration-value">${escapeHtml(formatRecordedBeat(beats))}拍</span>`;
-  const underlines = duration?.underscores || 0;
-  const label = rest ? `休止 ${formatRecordedBeat(beats)} 拍` : `${item.sourcePitch || standardJianpuPitch(item)} ${formatRecordedBeat(beats)} 拍`;
-  return `<span class="jianpu-preview-note${rest ? " is-rest" : ""}${tieIn && !rest ? " is-tied" : ""}" aria-label="${escapeHtml(label)}" title="${escapeHtml(label)}">${tieIn && !rest ? '<span class="jianpu-tie-mark" aria-hidden="true">⌒</span>' : ""}${rest ? '<span class="jianpu-note-core">0</span>' : note}${durationMarkup}${underlines ? `<span class="jianpu-underlines" aria-hidden="true" style="--jianpu-underlines:${underlines}"></span>` : ""}</span>`;
+function jianpuPreviewDurationLabel(segment) {
+  return JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6))) ? "" : formatRecordedBeat(segment.beats);
+}
+
+function jianpuPreviewDurationLabelWidth(label) {
+  return [...label].length * 10.2;
+}
+
+function jianpuBeamGroupBeats(meter) {
+  const match = String(meter).trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+  if (!match) return 1;
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+  const denominatorBeat = 4 / denominator;
+  return numerator >= 6 && numerator % 3 === 0 && denominator >= 8 ? denominatorBeat * 3 : denominatorBeat;
+}
+
+function jianpuSegmentBeamCount(segment) {
+  const duration = JIANPU_PREVIEW_DURATIONS.get(Number(segment.beats.toFixed(6)));
+  return !segment.item.isRest && segment.item.note !== "0" ? duration?.underscores || 0 : 0;
+}
+
+function jianpuBeamGroups(positions, meter) {
+  const groups = [];
+  let group = [];
+  positions.forEach((position, index) => {
+    const previous = positions[index - 1];
+    const beatGroup = Math.floor((position.segment.start + 1e-7) / jianpuBeamGroupBeats(meter));
+    const previousBeatGroup = previous ? Math.floor((previous.segment.start + 1e-7) / jianpuBeamGroupBeats(meter)) : null;
+    const canJoin = position.beam > 0 && previous?.beam > 0 && previousBeatGroup === beatGroup
+      && Math.abs(previous.segment.end - position.segment.start) < 1e-7;
+    if (canJoin) group.push(position);
+    else {
+      if (group.length) groups.push(group);
+      group = position.beam ? [position] : [];
+    }
+  });
+  if (group.length) groups.push(group);
+  return groups;
+}
+
+function jianpuBeamLine(startX, endX, y, level) {
+  const lineY = y + level * 4;
+  return `<line class="beam beam-${level ? "secondary" : "primary"}" x1="${startX.toFixed(1)}" y1="${lineY.toFixed(1)}" x2="${endX.toFixed(1)}" y2="${lineY.toFixed(1)}"/>`;
+}
+
+function jianpuBeamMarkup(group, y) {
+  const first = group[0];
+  const last = group.at(-1);
+  const mainStart = group.length > 1 ? first.center - 7 : first.center - 4;
+  const mainEnd = group.length > 1 ? last.center + 7 : last.center + 4;
+  const lines = [jianpuBeamLine(mainStart, mainEnd, y, 0)];
+  const sixteenthRuns = [];
+  let run = [];
+  group.forEach((position) => {
+    if (position.beam >= 2) run.push(position);
+    else if (run.length) {
+      sixteenthRuns.push(run);
+      run = [];
+    }
+  });
+  if (run.length) sixteenthRuns.push(run);
+  sixteenthRuns.forEach((sixteenths) => {
+    if (sixteenths.length > 1) {
+      lines.push(jianpuBeamLine(sixteenths[0].center - 7, sixteenths.at(-1).center + 7, y, 1));
+      return;
+    }
+    if (group.length === 1) {
+      lines.push(jianpuBeamLine(first.center - 4, first.center + 4, y, 1));
+      return;
+    }
+    const note = sixteenths[0];
+    const groupCenter = (first.center + last.center) / 2;
+    const pointsRight = note.center <= groupCenter;
+    lines.push(jianpuBeamLine(pointsRight ? note.center : note.center - 12, pointsRight ? note.center + 12 : note.center, y, 1));
+  });
+  return lines.join("");
+}
+
+function jianpuSvgText(value, x, y, className, anchor = "middle", textLength = null) {
+  const styles = {
+    brand: "font-family:'Noto Sans SC','PingFang SC',sans-serif;font-size:22px;font-weight:700;fill:#008080;opacity:.34",
+    "brand-url": "font-family:'JetBrains Mono',monospace;font-size:14px;fill:#008080;opacity:.3",
+    title: "font-family:'Noto Sans SC','PingFang SC',serif;font-size:28px;font-weight:700;fill:#1c2c27",
+    meta: "font-family:'Noto Sans SC','PingFang SC',sans-serif;font-size:12px;fill:#52615b",
+    "measure-num": "font-family:'JetBrains Mono',monospace;font-size:11px;fill:#849087",
+    note: "font-family:'Noto Serif CJK SC','Songti SC','SimSun',serif;font-size:34px;fill:#172c27",
+    "note-white": "font-family:'Noto Serif CJK SC','Songti SC','SimSun',serif;font-size:34px;fill:#fffef7",
+    "keyboard-note": "font-family:'JetBrains Mono','SFMono-Regular',monospace;font-size:25px;font-weight:700;fill:#172c27",
+    "keyboard-note-white": "font-family:'JetBrains Mono','SFMono-Regular',monospace;font-size:25px;font-weight:700;fill:#fffef7",
+    "accidental-white": "font-family:'Noto Serif CJK SC','Songti SC','SimSun',serif;font-size:22px;fill:#fffef7",
+    rest: "fill:#445952",
+    small: "font-family:'Noto Sans SC','PingFang SC',sans-serif;font-size:16px;fill:#172c27",
+    tiny: "font-family:'JetBrains Mono',monospace;font-size:12px;fill:#654a77",
+    "duration-mark": "font-family:'JetBrains Mono','Noto Sans SC','PingFang SC',monospace;font-size:17px;fill:#654a77",
+    "duration-mark-white": "font-family:'JetBrains Mono','Noto Sans SC','PingFang SC',monospace;font-size:17px;fill:#fffef7",
+    "legend-label": "font-family:'Noto Sans SC','PingFang SC',sans-serif;font-size:13px;font-weight:600;fill:#52615b",
+    footer: "font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;fill:#111"
+  };
+  const style = className.split(/\s+/).map((name) => styles[name]).filter(Boolean).join(";");
+  const exactTextLength = Number.isFinite(textLength) ? ` textLength="${textLength.toFixed(1)}" lengthAdjust="spacingAndGlyphs"` : "";
+  return `<text class="${className}" style="${style}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}"${exactTextLength}>${escapeHtml(value)}</text>`;
+}
+
+function jianpuModifierFill(modifier) {
+  const keys = ["L", "M", "R"].filter((key) => String(modifier || "").includes(key));
+  if (keys.length > 1) return `url(#jianpu-modifier-${keys.join("")})`;
+  return { L: "#c62828", M: "#a87900", R: "#2e7d32" }[keys[0]] || "";
+}
+
+function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 25.4, notationMode = "jianpu") {
+  const pagePadding = 48;
+  const measureGap = 8;
+  const noteGap = 31;
+  const width = Math.max(pagePadding * 2 + 200, Number(pageWidth) || (210 * 96 / 25.4));
+  const durationExtraWidth = (segment) => {
+    const label = jianpuPreviewDurationLabel(segment);
+    if (!label) return 0;
+    return Math.max(0, 12 + jianpuPreviewDurationLabelWidth(label) + 8 - noteGap);
+  };
+  const availableWidth = width - pagePadding * 2;
+  const measureFragments = [];
+  measures.forEach((measure, index) => {
+    let fragment = [];
+    let fragmentWidth = 32;
+    let fragmentIndex = 0;
+    measure.forEach((segment) => {
+      const advance = noteGap * (1 + jianpuPreviewDashCount(segment)) + durationExtraWidth(segment);
+      if (fragment.length && fragmentWidth + advance > availableWidth) {
+        measureFragments.push({ measure: fragment, index, width: fragmentWidth, continued: fragmentIndex > 0, endsMeasure: false });
+        fragment = [];
+        fragmentWidth = 32;
+        fragmentIndex += 1;
+      }
+      fragment.push(segment);
+      fragmentWidth += advance;
+    });
+    if (fragment.length) measureFragments.push({ measure: fragment, index, width: fragmentWidth, continued: fragmentIndex > 0, endsMeasure: true });
+  });
+  const systems = [];
+  let current = [];
+  let currentWidth = 0;
+  measureFragments.forEach((fragment) => {
+    if (current.length && currentWidth + measureGap + fragment.width > availableWidth) {
+      systems.push(current);
+      current = [];
+      currentWidth = 0;
+    }
+    current.push(fragment);
+    currentWidth += fragment.width + (current.length > 1 ? measureGap : 0);
+  });
+  if (current.length) systems.push(current);
+
+  const headerHeight = 184;
+  const systemHeight = 108;
+  const footerHeight = 62;
+  const height = headerHeight + systems.length * systemHeight + footerHeight;
+  const parts = [
+    `<svg xmlns="http://www.w3.org/2000/svg" class="jianpu-score-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)} ${notationMode === "keyboard" ? "键盘模式" : "简谱"}：${escapeHtml(meta)}">`,
+    `<style>.paper{fill:#fffef7}.brand{font:700 22px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.34}.brand-url{font:14px 'JetBrains Mono',monospace;fill:#008080;opacity:.3}.watermark-name{font:700 17px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.105}.watermark-url{font:10px 'JetBrains Mono',monospace;fill:#008080;opacity:.09}.title{font:700 28px 'Noto Sans SC','PingFang SC',serif;fill:#1c2c27}.meta{font:12px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.measure-num{font:11px 'JetBrains Mono',monospace;fill:#849087}.note{font:34px 'Noto Serif CJK SC','Songti SC','SimSun',serif;fill:#172c27}.keyboard-note{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#172c27}.keyboard-note-white{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#fffef7}.rest{fill:#445952}.small{font:16px 'Noto Sans SC','PingFang SC',sans-serif;fill:#172c27}.tiny{font:12px 'JetBrains Mono',monospace;fill:#654a77}.legend-label{font:600 13px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.beam{stroke:#263b34;stroke-width:2.6;stroke-linecap:round}.barline{stroke:#596a61;stroke-width:1.8}.tie{fill:none;stroke:#65517c;stroke-width:1.8}.footer{font:700 16px 'JetBrains Mono',monospace;fill:#111}</style>`,
+    `<defs><linearGradient id="jianpu-modifier-LM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a87900"/><stop offset="50%" stop-color="#a87900"/><stop offset="50%" stop-color="#c62828"/><stop offset="100%" stop-color="#c62828"/></linearGradient><linearGradient id="jianpu-modifier-RM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a87900"/><stop offset="50%" stop-color="#a87900"/><stop offset="50%" stop-color="#2e7d32"/><stop offset="100%" stop-color="#2e7d32"/></linearGradient></defs>`,
+    `<rect class="paper" width="${width}" height="${height}"/>`,
+    systems.map((_, systemIndex) => [pagePadding + 88, width / 2, width - pagePadding - 88].map((x) => {
+      const y = headerHeight + systemIndex * systemHeight + 68;
+      return `<g transform="rotate(-22 ${x} ${y})"><text class="watermark-name" x="${x}" y="${y}" text-anchor="middle">三角洲口琴演奏家</text><text class="watermark-url" x="${x}" y="${y + 17}" text-anchor="middle">https://jiko-official.top/delta/</text></g>`;
+    }).join("")).join(""),
+    `<g transform="translate(${pagePadding} 25)"><rect width="52" height="52" rx="8" fill="#008080"/><g fill="#fff" transform="translate(4 4) scale(.44)"><path d="M0 0h46v30c0 10-6 16-16 16H16C6 46 0 40 0 30v-8h12v8c0 3 1 4 4 4h14c3 0 4-1 4-4V12H0Z"/><path d="M54 0h46v12H83v22h17v12H54V34h17V12H54Z"/><path d="M0 54h12v17l19-17h15L23 77l23 23H30L12 83v17H0Z"/><path fill-rule="evenodd" d="M54 54h46v46H54Zm12 12v22h22V66Z"/><circle cx="77" cy="77" r="5"/><circle cx="23" cy="23" r="5"/></g></g>`,
+    jianpuSvgText("三角洲口琴演奏家", pagePadding + 68, 49, "brand", "start"),
+    jianpuSvgText("https://jiko-official.top/delta/", pagePadding + 68, 72, "brand-url", "start"),
+    jianpuSvgText(title, width / 2, 104, "title", "middle"),
+    jianpuSvgText(meta, width / 2, 134, "meta", "middle"),
+    jianpuSvgText("按键说明：", width / 2 - 150, 163, "legend-label", "start"),
+    ...[
+      { modifier: "L", label: "左键", x: width / 2 - 68, color: "#c62828" },
+      { modifier: "M", label: "中键", x: width / 2 + 10, color: "#a87900" },
+      { modifier: "R", label: "右键", x: width / 2 + 88, color: "#2e7d32" }
+    ].flatMap(({ modifier, label, x, color }) => [
+      `<circle cx="${x.toFixed(1)}" cy="159" r="5" fill="${color}"/>`,
+      jianpuSvgText(label, x + 9, 164, "legend-label", "start")
+    ])
+  ];
+
+  let pendingTie = null;
+  systems.forEach((system, systemIndex) => {
+    let x = pagePadding;
+    const systemTop = headerHeight + systemIndex * systemHeight;
+    system.forEach(({ measure, index, width: measureWidth, continued, endsMeasure }) => {
+      const contentLeft = x + 13;
+      const positions = [];
+      let notationOffset = 0;
+      measure.forEach((segment, segmentIndex) => {
+        const center = contentLeft + 20 + notationOffset;
+        const dashCount = jianpuPreviewDashCount(segment);
+        const dashCenters = Array.from({ length: dashCount }, (_, dashIndex) => center + (dashIndex + 1) * noteGap);
+        positions.push({ segment, center, dashCenters, index: segmentIndex, beam: jianpuSegmentBeamCount(segment) });
+        notationOffset += noteGap * (1 + dashCount) + durationExtraWidth(segment);
+      });
+      if (!continued) parts.push(jianpuSvgText(String(index + 1), x + 3, systemTop + 19, "measure-num", "start"));
+      jianpuBeamGroups(positions, meter).forEach((beamGroup) => {
+        parts.push(jianpuBeamMarkup(beamGroup, systemTop + 67));
+      });
+
+      positions.forEach(({ segment, center, dashCenters }) => {
+        const { item, beats } = segment;
+        const rest = item.isRest || item.note === "0";
+        const duration = JIANPU_PREVIEW_DURATIONS.get(Number(beats.toFixed(6)));
+        const durationLabel = jianpuPreviewDurationLabel(segment);
+        const durationLabelWidth = jianpuPreviewDurationLabelWidth(durationLabel);
+        const pitch = String(item.sourcePitch || standardJianpuPitch(item));
+        const match = pitch.match(/^([#b♯♭]?)(,{0,2})([1-7])('{0,2})$/);
+        const note = rest ? "0" : notationMode === "keyboard"
+          ? String(item.key || NOTE_KEYS[item.note] || "?").toUpperCase()
+          : (match ? match[3] : pitch);
+        const modifier = !rest ? ["L", "M", "R"].filter((button) => String(item.modifier || "").includes(button)).join("") : "";
+        const accidental = !rest && notationMode !== "keyboard" && match ? match[1] : "";
+        const lowDots = !rest && notationMode !== "keyboard" && match ? match[2].length : 0;
+        const highDots = !rest && notationMode !== "keyboard" && match ? match[4].length : 0;
+        const y = systemTop + 53;
+        if (highDots) parts.push(jianpuSvgText("•".repeat(highDots), center, y - (modifier ? 34 : 25), "small"));
+        const noteBoxLeft = center - (accidental ? 20 : 14);
+        const noteBoxRight = durationLabel ? center + 14 + durationLabelWidth : center + 14;
+        const noteBoxWidth = noteBoxRight - noteBoxLeft;
+        if (modifier) parts.push(`<rect x="${noteBoxLeft.toFixed(1)}" y="${(y - 26).toFixed(1)}" width="${noteBoxWidth.toFixed(1)}" height="36" rx="2" fill="${jianpuModifierFill(modifier)}"/>`);
+        if (accidental) parts.push(jianpuSvgText(accidental, center - (modifier ? 9 : 14), y, modifier ? "accidental-white" : "note"));
+        const noteClass = notationMode === "keyboard" ? modifier ? "keyboard-note-white" : "keyboard-note" : modifier ? "note note-white" : "note";
+        parts.push(jianpuSvgText(note, center, y, rest ? "note rest" : noteClass));
+        if (lowDots) parts.push(jianpuSvgText("•".repeat(lowDots), center, y + 29, "small"));
+        if (duration?.dots) Array.from({ length: duration.dots }, (_, dotIndex) => {
+          const dotX = center + 10 + dotIndex * 4;
+          parts.push(`<circle cx="${dotX.toFixed(1)}" cy="${(y + 6).toFixed(1)}" r="2" fill="${modifier ? "#fffef7" : "#172c27"}"/>`);
+        });
+        dashCenters.forEach((dashCenter) => parts.push(jianpuSvgText("—", dashCenter, y + 1, "small")));
+        if (durationLabel) parts.push(jianpuSvgText(durationLabel, center + 12, y, modifier ? "duration-mark-white" : "duration-mark", "start", durationLabelWidth));
+      });
+      positions.forEach((position) => {
+        const y = systemTop + 53;
+        if (position.segment.tieIn && !position.segment.item.isRest) {
+          if (pendingTie && pendingTie.systemIndex === systemIndex) {
+            const startX = pendingTie.center - 9;
+            const endX = position.center + 9;
+            const span = Math.max(0, endX - startX);
+            parts.push(`<path class="tie" d="M ${startX.toFixed(1)} ${(y - 29).toFixed(1)} Q ${((startX + endX) / 2).toFixed(1)} ${(y - 42 - Math.min(12, span * 0.12)).toFixed(1)} ${endX.toFixed(1)} ${(y - 29).toFixed(1)}"/>`);
+          } else {
+            parts.push(`<path class="tie" d="M ${(position.center - 8).toFixed(1)} ${(y - 30).toFixed(1)} Q ${position.center.toFixed(1)} ${(y - 42).toFixed(1)} ${(position.center + 8).toFixed(1)} ${(y - 30).toFixed(1)}"/>`);
+          }
+          pendingTie = null;
+        }
+        if (position.segment.tieOut && !position.segment.item.isRest) pendingTie = { center: position.center, systemIndex };
+      });
+      if (endsMeasure) parts.push(`<line class="barline" x1="${(x + measureWidth - 3).toFixed(1)}" y1="${(systemTop + 28).toFixed(1)}" x2="${(x + measureWidth - 3).toFixed(1)}" y2="${(systemTop + 78).toFixed(1)}"/>`);
+      x += measureWidth + measureGap;
+    });
+  });
+  parts.push(jianpuSvgText("https://jiko-official.top/delta/", width / 2, height - 25, "footer"));
+  parts.push("</svg>");
+  return parts.join("");
+}
+
+let activeJianpuPreview = null;
+
+function jianpuPreviewPageWidth() {
+  const widthMm = Number(elements.jianpuPageWidth.value);
+  const safeWidthMm = Number.isFinite(widthMm) && widthMm >= 180 && widthMm <= 420 ? widthMm : 210;
+  return safeWidthMm * 96 / 25.4;
+}
+
+function refreshJianpuPreviewLayout() {
+  if (!activeJianpuPreview) return;
+  const { sequence, meter, beatsPerMeasure, title, meta, mode } = activeJianpuPreview;
+  const measures = splitJianpuPreviewMeasures(sequence.notes, beatsPerMeasure);
+  elements.jianpuPreviewMeasures.innerHTML = jianpuPreviewSvg(title, meta, measures, meter, jianpuPreviewPageWidth(), mode);
+}
+
+function presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title, meta, allowDownload = true }) {
+  const measures = splitJianpuPreviewMeasures(sequence.notes, beatsPerMeasure);
+  elements.jianpuPreviewTitle.textContent = title;
+  elements.jianpuPreviewMeta.textContent = meta;
+  elements.jianpuDownloadButton.hidden = !allowDownload;
+  const previewWindowLabel = elements.jianpuPreviewDialog.querySelector(".window-titlebar > span");
+  const previewEyebrow = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-body > .index");
+  if (previewWindowLabel) previewWindowLabel.textContent = allowDownload ? "JIANPU SCORE — PREVIEW & EXPORT" : "JIANPU SCORE — FREE PREVIEW";
+  if (previewEyebrow) previewEyebrow.textContent = allowDownload ? "NUMBERED NOTATION · PNG EXPORT" : "NUMBERED NOTATION · FREE VIEW";
+  activeJianpuPreview = { sequence, meter, key, beatsPerMeasure, title, meta, mode: "jianpu" };
+  elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-preview-mode]").forEach((button) => {
+    const selected = button.dataset.jianpuPreviewMode === "jianpu";
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  refreshJianpuPreviewLayout();
+  const hasCustomDuration = measures.some((measure) => measure.some((segment) => !JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6)))));
+  elements.jianpuPreviewHint.hidden = !hasCustomDuration;
+  elements.jianpuPreviewHint.textContent = hasCustomDuration ? "精确时值以小号数字标注；无法用常规简谱符号准确表示。" : "";
+  elements.jianpuPreviewDialog.showModal();
 }
 
 function renderJianpuPreview(sequence, meter, key, beatsPerMeasure) {
-  const measures = splitJianpuPreviewMeasures(sequence.notes, beatsPerMeasure);
-  elements.jianpuPreviewTitle.textContent = elements.macroName.value.trim() || "简谱预览";
-  elements.jianpuPreviewMeta.textContent = `${key} · ${meter} · ${elements.bpm.value} BPM · ${sequence.notes.length} 个音符`;
-  elements.jianpuPreviewMeasures.innerHTML = measures.map((measure, index) =>
-    `<div class="jianpu-preview-measure" aria-label="第 ${index + 1} 小节"><span class="jianpu-measure-number" aria-hidden="true">${index + 1}</span>${measure.map(jianpuPreviewSegmentMarkup).join("")}</div>`
-  ).join("");
-  const hasCustomDuration = measures.some((measure) => measure.some((segment) => !JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6)))));
-  elements.jianpuPreviewHint.hidden = !hasCustomDuration;
-  elements.jianpuPreviewHint.textContent = hasCustomDuration ? "带“拍”标记的音符使用精确拍数显示；其时值无法用常规简谱符号准确表示。" : "";
-  elements.jianpuPreviewDialog.showModal();
+  const title = elements.macroName.value.trim() || "简谱预览";
+  const artist = elements.artistName.value.trim() || currentScoreCredit.artist || "";
+  const contributor = currentScoreCredit.sharedBy?.trim() || "";
+  const meta = [
+    artist ? `歌手/作者：${artist}` : "",
+    contributor ? `贡献人：${contributor}` : "",
+    key,
+    meter,
+    `${elements.bpm.value} BPM`
+  ].filter(Boolean).join(" · ");
+  presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title, meta });
+}
+
+function openSongJianpuPreview(song) {
+  const bpm = Number(song.bpm) || 120;
+  const hasJianpuSource = Boolean(song.sourceJianpu || song.jianpu);
+  const source = String(song.sourceJianpu || song.jianpu || song.score || "").trim();
+  if (!source) {
+    toast(`《${song.title}》暂时没有可查看的简谱。`);
+    return;
+  }
+  const sequence = hasJianpuSource ? parseJianpu(source, bpm) : parseScore(source, bpm);
+  if (sequence.error) {
+    toast(`《${song.title}》的简谱暂时无法显示：${sequence.error.message}`);
+    return;
+  }
+  sequence.notes.forEach((item, index) => { item.index = index; });
+  const key = String(song.key || "1=C").trim();
+  const meter = String(song.meter || "4/4").trim();
+  const beatsPerMeasure = jianpuPreviewMeter(meter);
+  if (!/^(?:1=)?[A-G](?:[#b♯♭])?$/i.test(key) || !beatsPerMeasure) {
+    toast(`《${song.title}》的调号或拍号格式无效，暂时无法显示简谱。`);
+    return;
+  }
+  const meta = [
+    song.artist ? `歌手/作者：${song.artist}` : "",
+    song.sharedBy ? `贡献人：${song.sharedBy}` : "",
+    key,
+    meter,
+    `${bpm} BPM`
+  ].filter(Boolean).join(" · ");
+  presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title: song.title || "简谱预览", meta });
+}
+
+async function downloadJianpuPreviewPng() {
+  const svg = elements.jianpuPreviewMeasures.querySelector("svg");
+  if (!svg) return;
+  const source = new XMLSerializer().serializeToString(svg);
+  const svgUrl = URL.createObjectURL(new Blob([source], { type: "image/svg+xml;charset=utf-8" }));
+  try {
+    const image = new Image();
+    image.src = svgUrl;
+    await image.decode();
+    const viewBox = svg.viewBox.baseVal;
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewBox.width * scale);
+    canvas.height = Math.ceil(viewBox.height * scale);
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("无法创建图片画布");
+    context.fillStyle = "#fffef7";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise((resolve, reject) => canvas.toBlob((result) => result ? resolve(result) : reject(new Error("PNG 编码失败")), "image/png"));
+    const filename = `${(activeJianpuPreview?.title || elements.macroName.value.trim() || "简谱").replace(/[\\/:*?"<>|]/g, "_")}.png`;
+    downloadBlob(blob, filename);
+  } catch (error) {
+    toast(`PNG 导出失败：${error.message || "请重试。"}`);
+  } finally {
+    URL.revokeObjectURL(svgUrl);
+  }
 }
 
 function openJianpuPreview() {
@@ -6497,6 +6852,9 @@ async function logoutAccount() {
   elements.logoutButton.disabled = true;
   try {
     await authRequest("./api/auth/logout", { method: "POST", body: {} });
+    if (authState.previewLoginAvailable) {
+      try { window.sessionStorage.setItem(PREVIEW_AUTO_LOGIN_SKIP_KEY, "true"); } catch {}
+    }
     setSignedInAccount(null);
     renderSongLibrary(elements.songSearch.value);
     elements.accountDialog.close();
@@ -6510,11 +6868,16 @@ async function logoutAccount() {
 
 async function initializeCommunityAuth(status) {
   authState.available = Boolean(status?.publicLibrary && status?.authAvailable);
+  authState.previewLoginAvailable = Boolean(
+    status?.previewLoginAvailable
+    && ["127.0.0.1", "localhost", "::1"].includes(window.location.hostname.toLowerCase())
+  );
   authState.statusKnown = false;
   setOAuthProviders(status?.authProviders, { github: Boolean(status?.githubLogin) });
   elements.accountButton.hidden = !authState.available;
   elements.pointsTaskButton.hidden = !authState.available;
   if (!authState.available) return;
+  let authError = null;
   try {
     const result = await authRequest("./api/auth/me");
     setSignedInAccount(result.account);
@@ -6522,7 +6885,21 @@ async function initializeCommunityAuth(status) {
   } catch (error) {
     // 401 is the normal anonymous state; network and server failures should
     // leave exports unrestricted until the account state can be checked.
+    authError = error;
     authState.statusKnown = error?.status === 401;
+  }
+  if (!authState.account && authError?.status === 401 && authState.previewLoginAvailable) {
+    let wasManuallyLoggedOut = false;
+    try { wasManuallyLoggedOut = window.sessionStorage.getItem(PREVIEW_AUTO_LOGIN_SKIP_KEY) === "true"; } catch {}
+    if (!wasManuallyLoggedOut) {
+      try {
+        const result = await authRequest("./api/auth/preview-login", { method: "POST", body: {} });
+        setSignedInAccount(result.account);
+        authState.statusKnown = true;
+      } catch {
+        // The local fixed test account may not exist yet; keep preview usable as a guest.
+      }
+    }
   }
   if (authState.account) {
     try { await loadMySongLibrary(); } catch {}
@@ -6641,7 +7018,7 @@ function openScoreExportDialog(mode = "download") {
     ? "将当前谱子写入本地工作区并重建社区曲库。不会自动提交或推送 GitHub。"
     : communityUpload
       ? "将当前谱子直接提交到公共曲库。请只上传你拥有分享权的原创或已获授权谱面；上传成功后会立即公开。"
-      : "导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 QQ 群发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。";
+      : "导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 KOOK 频道发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。";
   elements.confirmScoreExportLabel.textContent = localLibrary ? "收录到本地曲库" : communityUpload ? "上传到曲库" : "下载 .deltamusic";
   elements.confirmScoreExportIcon.textContent = localLibrary ? "+" : communityUpload ? "↑" : "↓";
   elements.scoreExportDialog.showModal();
@@ -6708,7 +7085,7 @@ async function exportScorePackage() {
   download(`${JSON.stringify(packaged.value, null, 2)}\n`, `${safeName().replace(/\s+/g, "-").toLowerCase() || "delta-music"}.deltamusic`, "application/json");
   trackScoreAnalytics("score_downloaded", { format: "deltamusic" });
   elements.scoreExportDialog.close();
-  toast(".deltamusic 文件已下载。点击「我要上传」选择 QQ 群或 GitHub 投稿吧。 ");
+  toast(".deltamusic 文件已下载。点击「我要上传」选择 KOOK 频道或 GitHub 投稿吧。 ");
 }
 
 async function saveScoreToLocalLibrary() {
@@ -7125,6 +7502,27 @@ elements.transposeUp.addEventListener("click", () => transposeCurrentScore(1));
 elements.convertButton.addEventListener("click", playPreview);
 // Keep older cached HTML usable while index.html and app.js roll out at different times.
 elements.jianpuPreviewButton?.addEventListener("click", openJianpuPreview);
+elements.jianpuDownloadButton?.addEventListener("click", downloadJianpuPreviewPng);
+elements.jianpuPageWidth?.addEventListener("input", () => {
+  const widthMm = Number(elements.jianpuPageWidth.value);
+  if (Number.isFinite(widthMm) && widthMm >= 180 && widthMm <= 420) refreshJianpuPreviewLayout();
+});
+elements.jianpuPreviewDialog?.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-jianpu-preview-mode]");
+  if (!button || !activeJianpuPreview) return;
+  activeJianpuPreview.mode = button.dataset.jianpuPreviewMode === "keyboard" ? "keyboard" : "jianpu";
+  elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-preview-mode]").forEach((modeButton) => {
+    const selected = modeButton === button;
+    modeButton.classList.toggle("active", selected);
+    modeButton.setAttribute("aria-pressed", String(selected));
+  });
+  refreshJianpuPreviewLayout();
+});
+elements.jianpuPageWidth?.addEventListener("change", () => {
+  const widthMm = Number(elements.jianpuPageWidth.value);
+  elements.jianpuPageWidth.value = String(Number.isFinite(widthMm) ? Math.min(420, Math.max(180, widthMm || 210)) : 210);
+  refreshJianpuPreviewLayout();
+});
 elements.repairCurrentModeButton.addEventListener("click", repairCurrentMode);
 function openLocalFilePicker(input) {
   if (!input) return;
@@ -7696,6 +8094,10 @@ function handleSongCardClick(event) {
     void toggleSongPreview(song);
     return;
   }
+  if (actionButton?.dataset.songAction === "view-jianpu") {
+    openSongJianpuPreview(song);
+    return;
+  }
   if (actionButton?.dataset.songAction === "search-sponsor") {
     openLibrarySearch(song.sponsor);
     return;
@@ -7761,8 +8163,8 @@ elements.manualMacroButton.addEventListener("click", () => {
   openKeyboardMacroDialog();
 });
 elements.recordingHelperHelpButton.addEventListener("click", openRecordingHelperDialog);
-function setUploadMethod(method = "qq") {
-  const selectedMethod = method === "github" ? "github" : "qq";
+function setUploadMethod(method = "kook") {
+  const selectedMethod = method === "github" ? "github" : "kook";
   elements.uploadMethodTabs.forEach((tab) => {
     const selected = tab.dataset.uploadMethod === selectedMethod;
     tab.classList.toggle("active", selected);
@@ -7772,7 +8174,7 @@ function setUploadMethod(method = "qq") {
   elements.uploadMethodPanels.forEach((panel) => { panel.hidden = panel.dataset.uploadPanel !== selectedMethod; });
 }
 
-function openUploadHelpDialog(status = "", method = "qq") {
+function openUploadHelpDialog(status = "", method = "kook") {
   setUploadMethod(method);
   elements.uploadCopyStatus.textContent = status;
   elements.uploadCopyStatus.hidden = !status;
@@ -7780,7 +8182,7 @@ function openUploadHelpDialog(status = "", method = "qq") {
     elements.uploadHelpDialog.showModal();
     return;
   }
-  toast(status || "请选择 QQ 群或 GitHub Fork 投稿。 ");
+  toast(status || "请选择 KOOK 频道或 GitHub Fork 投稿。 ");
 }
 
 const USAGE_NOTICE_STORAGE_PREFIX = "delta-usage-notice-v1";
@@ -7904,12 +8306,6 @@ function openUploadHelpDialogOnFirstVisit() {
   try { window.localStorage.setItem(storageKey, "1"); } catch {}
 }
 
-function copyQqGroupNumber(number = "1102489399") {
-  const value = String(number);
-  const copyPromise = navigator.clipboard?.writeText(value);
-  copyPromise?.then(() => toast(`QQ群号 ${value} 已复制`)).catch(() => {});
-}
-
 // 赞赏备注里带上站点 ID，才能把打赏对应到账号、发放赞助者标签。
 function supportNoteText() {
   const userId = String(authState.account?.userId || "").trim();
@@ -7932,12 +8328,11 @@ function copySupportNote() {
   copyPromise?.then(() => toast(`已复制「${note}」，粘贴到赞赏留言即可。`)).catch(() => {});
 }
 
-function focusQqGroupContact() {
-  if (elements.recordingHelperDialog?.open) elements.recordingHelperDialog.close();
-  elements.communityContact?.scrollIntoView({ behavior: "smooth", block: "center" });
+function openKookChannelDialog() {
+  if (elements.kookChannelDialog && !elements.kookChannelDialog.open) elements.kookChannelDialog.showModal();
 }
 
-elements.recordingHelperQqButton.addEventListener("click", focusQqGroupContact);
+elements.recordingHelperKookButton.addEventListener("click", openKookChannelDialog);
 elements.versionButton.addEventListener("click", openChangelogDialog);
 elements.updateRefreshButton.addEventListener("click", () => {
   if (pendingWebsiteUpdate) rememberWebsiteUpdate(pendingWebsiteUpdate.version);
@@ -7948,8 +8343,6 @@ elements.updateDialog.addEventListener("close", () => {
   pendingWebsiteUpdate = null;
   deferredWebsiteUpdateDialog = false;
 });
-elements.qqGroupCopyButton.addEventListener("click", () => copyQqGroupNumber(elements.qqGroupCopyButton.dataset.qqGroupNumber));
-elements.qqGroupCopyButton2.addEventListener("click", () => copyQqGroupNumber(elements.qqGroupCopyButton2.dataset.qqGroupNumber));
 elements.supportCopyButton.addEventListener("click", copySupportNote);
 elements.pointsSupportCopyButton?.addEventListener("click", copySupportNote);
 elements.uploadScoreButton.addEventListener("click", () => {

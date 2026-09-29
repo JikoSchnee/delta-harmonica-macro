@@ -229,7 +229,7 @@ internal sealed class PlaybackEvent
 
 internal sealed class RecorderForm : Form
 {
-    private const string QqGroup = "1102489399";
+    private const string KookChannelUrl = "https://kook.vip/jcJIDN";
     private const string UpdateManifestUrl = "https://jiko-official.top/delta/recording-helper/version.json";
     private const int HotKeyId = 1;
     private const int WmHotKey = 0x0312;
@@ -288,7 +288,7 @@ internal sealed class RecorderForm : Form
         ForeColor = Color.FromArgb(216, 255, 255);
         Font = new Font("Microsoft YaHei UI", 10F);
 
-        var banner = new Label { Dock = DockStyle.Top, Height = 39, Text = $"  HARMONICA RECORDER.EXE  ·  v{PlaybackRequest.HelperVersion}  ·  QQ {QqGroup}", BackColor = Color.FromArgb(0, 123, 120), ForeColor = Color.White, Font = new Font("Consolas", 9F, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
+        var banner = new Label { Dock = DockStyle.Top, Height = 39, Text = $"  HARMONICA RECORDER.EXE  ·  v{PlaybackRequest.HelperVersion}  ·  KOOK", BackColor = Color.FromArgb(0, 123, 120), ForeColor = Color.White, Font = new Font("Consolas", 9F, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft };
         titleLabel.SetBounds(22, 58, 466, 31);
         titleLabel.Font = new Font("Microsoft YaHei UI", 16F, FontStyle.Bold);
         detailsLabel.SetBounds(22, 96, 466, 38);
@@ -378,16 +378,16 @@ internal sealed class RecorderForm : Form
         {
             titleLabel.Text = "等待从网页导入曲谱";
             detailsLabel.Text = "可直接点击“测试输入”；导入曲谱请在网站点击“导出到宏录制助手”。";
-            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n建议右键 EXE → 属性 → 兼容性，勾选“以管理员身份运行此程序”。\n紧急停止：{activeHotKey.DisplayName} · 反馈 QQ 群：{QqGroup}";
+            statusLabel.Text = $"首次使用：先运行安装包中的 Install.cmd 注册网页调用权限。\n建议右键 EXE → 属性 → 兼容性，勾选“以管理员身份运行此程序”。\n紧急停止：{activeHotKey.DisplayName} · 反馈 KOOK 频道：{KookChannelUrl}";
             startButton.Enabled = false;
         }
         else if (!request.IsVersionCompatible)
         {
             titleLabel.Text = "网页与助手版本不匹配";
             detailsLabel.Text = $"网页 v{request.WebVersion ?? "未知"} · 本助手 v{PlaybackRequest.HelperVersion}";
-            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；建议将 EXE 设置为始终以管理员身份运行。\n反馈 QQ 群：{QqGroup}";
+            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；建议将 EXE 设置为始终以管理员身份运行。\n反馈 KOOK 频道：{KookChannelUrl}";
             startButton.Enabled = false;
-            Shown += (_, _) => MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n网页兼容范围：{request.CompatibleHelperVersionLabel}\n\n请下载兼容范围内的助手版本，并运行 Install.cmd。\n反馈 QQ 群：{QqGroup}", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Shown += (_, _) => MessageBox.Show(this, $"网页版本：{request.WebVersion ?? "未知"}\n助手版本：{PlaybackRequest.HelperVersion}\n网页兼容范围：{request.CompatibleHelperVersionLabel}\n\n请下载兼容范围内的助手版本，并运行 Install.cmd。\n反馈 KOOK 频道：{KookChannelUrl}", "版本不匹配", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
         else
         {
@@ -466,7 +466,7 @@ internal sealed class RecorderForm : Form
         {
             titleLabel.Text = "网页与助手版本不匹配";
             detailsLabel.Text = $"网页 v{request.WebVersion ?? "未知"} · 本助手 v{PlaybackRequest.HelperVersion}";
-            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；建议将 EXE 设置为始终以管理员身份运行。\n反馈 QQ 群：{QqGroup}";
+            statusLabel.Text = $"本网页声明兼容助手版本：{request.CompatibleHelperVersionLabel}，当前无法导入。\n请下载匹配版本的助手并运行 Install.cmd；建议将 EXE 设置为始终以管理员身份运行。\n反馈 KOOK 频道：{KookChannelUrl}";
             startButton.Enabled = false;
             if (showVersionMismatchNotice)
             {

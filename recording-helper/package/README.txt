@@ -10,7 +10,7 @@ HARMONICA RECORDER — Windows independent input helper
 
 Emergency stop: Ctrl + Alt + End by default. Click the shortcut field and press any key combination to replace it; the setting is saved for later launches.
 
-Version compatibility: the webpage reads the current helper release lines from recording-helper/version.json. Web and helper versions are maintained independently. QQ feedback group: 1102489399.
+Version compatibility: the webpage reads the current helper release lines from recording-helper/version.json. Web and helper versions are maintained independently. KOOK feedback channel: https://kook.vip/jcJIDN.
 The helper checks the update manifest at startup. If a newer version is available, you can confirm the download; the package is hash-checked and the helper restarts after replacing itself.
 
 The helper has separate keyboard and mouse method menus. The keyboard menu contains keybd_event scan code, keybd_event virtual key, SendInput virtual key, and SendInput scan code. The mouse menu contains mouse_event and SendInput. After changing either method, click Test Input first; it sends a short sequence covering normal notes and L/M/R/LM/RM modifier combinations. These are all standard user-mode Windows input APIs; software that uses driver-level interception may still ignore them.

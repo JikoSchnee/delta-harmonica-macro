@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
     <title>三角洲行动口琴宏生成器｜简谱、MIDI 转宏</title>
-    <link rel="icon" href="./favicon.ico?v=5.0.7" sizes="any" />
-    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.0.7" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.0.7" sizes="32x32" />
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.0.7" />
+    <link rel="icon" href="./favicon.ico?v=5.2.3" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.2.3" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.2.3" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.2.3" />
     <meta name="description" content="在线制作三角洲行动口琴宏：支持数字简谱转宏、MIDI 转口琴宏、试听与多种鼠标宏格式导出。" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://jiko-official.top/delta/" />
@@ -2740,7 +2740,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=5.0.7" />
+    <link rel="stylesheet" href="./styles.css?v=5.2.3" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -2751,7 +2751,7 @@
         </a>
         <div class="brand-copy">
           <a class="brand-link" href="#top">三角洲口琴演奏家</a>
-          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.0.7</button>
+          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.2.3</button>
         </div>
       </div>
       <nav class="topbar-actions" aria-label="项目链接">
@@ -2998,26 +2998,17 @@
             <figcaption>放大到 Star 这一行，点一下就点亮啦</figcaption>
           </figure>
         </section>
-        <section class="hero-block hero-contact" id="communityContact" aria-labelledby="qqGroupTitle" aria-describedby="qqGroupDescription">
+        <section class="hero-block hero-contact" id="communityContact" aria-labelledby="kookChannelTitle" aria-describedby="kookChannelDescription">
           <div class="hero-block-main">
             <span class="index">COMMUNITY CONTACT</span>
-            <h2 id="qqGroupTitle">分享曲目、反馈问题</h2>
-            <p id="qqGroupDescription">欢迎加入 QQ 群交流口琴曲谱、宏文件和使用问题。</p>
-            <div class="qq-group-number-list">
-              <button class="qq-group-number" id="qqGroupCopyButton" data-qq-group-number="1102489399" type="button" aria-label="点击复制 QQ 一群群号 1102489399"><span>QQ群 1</span><strong>1102489399</strong></button>
-              <button class="qq-group-number" id="qqGroupCopyButton2" data-qq-group-number="419658256" type="button" aria-label="点击复制 QQ 二群群号 419658256"><span>QQ群 2</span><strong>419658256</strong></button>
-            </div>
+            <h2 id="kookChannelTitle">分享曲目、反馈问题</h2>
+            <p id="kookChannelDescription">欢迎加入 KOOK 频道交流口琴曲谱、宏文件和使用问题。</p>
+            <a class="kook-channel-link" href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>加入 KOOK 频道</span><strong>kook.vip/jcJIDN ↗</strong></a>
           </div>
-          <div class="qq-group-qr-list">
-            <figure class="upload-qr hero-contact-qr">
-              <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
-              <figcaption>QQ群 1 · 扫码加入</figcaption>
-            </figure>
-            <figure class="upload-qr hero-contact-qr">
-              <img src="./assets/qq-group-qr-2.jpg" alt="加入 QQ 群 419658256 的二维码" />
-              <figcaption>QQ群 2 · 扫码加入</figcaption>
-            </figure>
-          </div>
+          <figure class="upload-qr hero-contact-qr">
+            <img src="./assets/kook-channel-qr.png" alt="加入 KOOK 频道的二维码" />
+            <figcaption>KOOK 频道 · 扫码加入</figcaption>
+          </figure>
         </section>
         <section class="hero-block hero-support" id="supportAuthor" aria-labelledby="supportTitle" aria-describedby="supportDescription">
           <div class="hero-block-main">
@@ -3564,7 +3555,7 @@
               <button class="primary-button" id="communityUploadButton" type="button" hidden><span>上传到曲库</span><b>↑</b></button>
               <button class="primary-button" id="exportScoreButton" type="button">分享 .deltamusic</button>
               <button class="primary-button repair-button" id="repairCurrentModeButton" type="button" title="试验性：按当前编辑模式修复并同步三种谱子">修复(试验性)</button>
-              <button class="primary-button jianpu-preview-button" id="jianpuPreviewButton" type="button" aria-haspopup="dialog" aria-controls="jianpuPreviewDialog">简谱预览(试验性)</button>
+              <button class="primary-button jianpu-preview-button" id="jianpuPreviewButton" type="button" aria-haspopup="dialog" aria-controls="jianpuPreviewDialog">简谱预览与下载</button>
             </div>
             <div class="validation" id="validation" role="status" aria-live="polite"></div>
         </div>
@@ -3619,7 +3610,7 @@
               <div><span class="index">TEMPORARY CUT</span><strong id="macroExportRangeTitle">临时导出范围</strong></div>
               <label class="export-card-setting-toggle" for="macroExportRangeEnabled"><span>只导出选中范围</span><span class="export-card-setting-control"><input id="macroExportRangeEnabled" type="checkbox" aria-describedby="macroExportRangeHint" /><span class="toggle-indicator" aria-hidden="true"></span><b id="macroExportRangeState">关闭</b></span></label>
             </div>
-            <p id="macroExportRangeHint">截取范围按导出速度计算，适用于所有宏格式；不修改曲谱或试听。选择预设后自动启用。</p>
+            <p id="macroExportRangeHint">仅截取本次宏导出：可快速选整段或前 10、30、60 秒，也可拖动起止位置精确选择。按当前导出速度计算；关闭开关或选「整段」即可恢复全曲，不改动曲谱和试听。</p>
             <div class="macro-export-range-presets" role="group" aria-label="快速选择导出范围">
               <button type="button" data-export-range-preset="all" aria-pressed="true">整段</button>
               <button type="button" data-export-range-preset="10000" aria-pressed="false">前 10 秒</button>
@@ -4192,7 +4183,7 @@
                   <button class="text-button cooperate-wide" type="submit">保存主播资料</button>
                 </form>
                 <div class="cooperate-code-box"><div><span class="index">DAILY CODE · 05:00 RESET</span><strong id="cooperateDailyCode">尚未领取</strong><small id="cooperateResetTime"></small></div><button id="cooperateClaimCode" class="text-button" type="button">领取今日兑换码</button></div>
-                <div class="cooperate-obs-box"><div><span class="index">OBS WEBSOCKET MONITOR</span><strong>开播自动同步兑换码</strong><small>下载监听软件并填写设备令牌和 OBS 密码；开播后自动领取当前兑换码并显示在 OBS 当前场景，停播时隐藏。</small></div><button id="cooperateCreateDevice" class="text-button" type="button">生成设备令牌</button><a class="text-button" href="./recording-helper/ObsStreamMonitor/ObsStreamMonitor-win-x64.zip?v=5.0.7" download>下载 Windows 软件</a><div class="cooperate-device-list" id="cooperateDevices"></div><code id="cooperateNewDeviceToken" hidden></code></div>
+                <div class="cooperate-obs-box"><div><span class="index">OBS WEBSOCKET MONITOR</span><strong>开播自动同步兑换码</strong><small>下载监听软件并填写设备令牌和 OBS 密码；开播后自动领取当前兑换码并显示在 OBS 当前场景，停播时隐藏。</small></div><button id="cooperateCreateDevice" class="text-button" type="button">生成设备令牌</button><a class="text-button" href="./recording-helper/ObsStreamMonitor/ObsStreamMonitor-win-x64.zip?v=5.2.3" download>下载 Windows 软件</a><div class="cooperate-device-list" id="cooperateDevices"></div><code id="cooperateNewDeviceToken" hidden></code></div>
               </div>
             </section>
           </div>
@@ -4210,7 +4201,7 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v5.0.7</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v5.2.3</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="usage-notice-dialog" id="usageNoticeDialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeIntro">
       <form class="usage-notice-form" method="dialog">
         <div class="window-titlebar"><span>USAGE_NOTICE.EXE — READ BEFORE USE</span></div>
@@ -4245,7 +4236,7 @@
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" id="changelogClose" type="button" aria-label="关闭最近修改窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v5.0.7</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v5.2.3</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待版本信息</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自当前版本 version.json 的发布说明。</p>
@@ -4264,7 +4255,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v5.0.7</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v5.2.3</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -4320,12 +4311,25 @@
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
             <a class="helper-download-link" id="recorderProtocolTestLink" hidden><span>测试唤起助手</span><b>↗</b></a>
-            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.0.7" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
+            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.2.3" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
             <a class="helper-download-link" data-recording-helper-download="github" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
             <a class="helper-download-link" data-recording-helper-download="server" download><span>服务器下载（备用）</span><b>↓</b></a>
-            <button class="helper-download-link" id="recordingHelperQqButton" type="button" aria-controls="communityContact"><span>进 QQ 群下载</span><b>↗</b></button>
-            <small>“测试唤起助手”只发送一条短的连接测试曲谱。若 Windows 提示“需要使用新应用打开 harmonica-recorder 链接”，请下载上方修复脚本，放到当前 <code>HarmonicaRecorder.exe</code> 所在文件夹，替换旧 <code>Install.cmd</code> 后以使用浏览器的同一 Windows 用户运行；脚本会核对注册结果。移动文件夹后也要重跑。GitHub 下载速度更快；如无法下载，可使用服务器下载或进 QQ 群获取助手。</small>
+            <button class="helper-download-link" id="recordingHelperKookButton" type="button" aria-haspopup="dialog" aria-controls="kookChannelDialog"><span>进 KOOK 频道下载</span><b>↗</b></button>
+            <small>“测试唤起助手”只发送一条短的连接测试曲谱。若 Windows 提示“需要使用新应用打开 harmonica-recorder 链接”，请下载上方修复脚本，放到当前 <code>HarmonicaRecorder.exe</code> 所在文件夹，替换旧 <code>Install.cmd</code> 后以使用浏览器的同一 Windows 用户运行；脚本会核对注册结果。移动文件夹后也要重跑。GitHub 下载速度更快；如无法下载，可使用服务器下载或进 KOOK 频道获取助手。</small>
           </section>
+        </div>
+      </form>
+    </dialog>
+    <dialog class="kook-channel-dialog" id="kookChannelDialog" aria-labelledby="kookChannelDialogTitle" aria-describedby="kookChannelDialogDescription">
+      <form method="dialog" class="kook-channel-dialog-form">
+        <div class="window-titlebar"><span>COMMUNITY.EXE — KOOK CHANNEL</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭 KOOK 频道窗口">×</button></div>
+        <div class="kook-channel-dialog-body">
+          <span class="index">COMMUNITY · DOWNLOAD</span>
+          <h2 id="kookChannelDialogTitle">加入 KOOK 频道</h2>
+          <p id="kookChannelDialogDescription">打开频道链接或扫码，获取录制助手并交流使用问题。</p>
+          <a class="kook-channel-link" href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>打开 KOOK 频道</span><strong>kook.vip/jcJIDN ↗</strong></a>
+          <figure class="upload-qr kook-channel-dialog-qr"><img src="./assets/kook-channel-qr.png" alt="加入 KOOK 频道的二维码" /><figcaption>KOOK 频道 · 扫码加入</figcaption></figure>
+          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
       </form>
     </dialog>
@@ -4335,7 +4339,7 @@
         <div class="score-export-body">
           <span class="index">COMMUNITY SCORE · JSON EXPORT</span>
           <h2 id="scoreExportHeading">填写共享信息</h2>
-          <p id="scoreExportDescription">导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 QQ 群发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。</p>
+          <p id="scoreExportDescription">导出为 <code>.deltamusic</code> 后可再次导入本工具。可通过 KOOK 频道发送给维护者，或通过 GitHub Fork 提交投稿；维护者审核后才会公开入库。</p>
           <div class="export-form-grid">
             <label>歌名<input id="exportSongTitle" type="text" maxlength="48" required /></label>
             <label>歌手/作者<input id="exportArtistName" type="text" maxlength="64" required /></label>
@@ -4522,16 +4526,26 @@
     </dialog>
     <dialog class="jianpu-preview-dialog" id="jianpuPreviewDialog" aria-labelledby="jianpuPreviewTitle" aria-describedby="jianpuPreviewMeta">
       <form method="dialog" class="jianpu-preview-form">
-        <div class="window-titlebar"><span>JIANPU.EXE — EXPERIMENTAL PREVIEW</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭简谱预览">×</button></div>
+        <div class="window-titlebar"><span>JIANPU SCORE — PREVIEW & EXPORT</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭简谱预览">×</button></div>
         <div class="jianpu-preview-body">
-          <span class="index">NUMBERED NOTATION · EXPERIMENTAL</span>
+          <span class="index">NUMBERED NOTATION · PNG EXPORT</span>
           <h2 id="jianpuPreviewTitle">简谱预览</h2>
           <p id="jianpuPreviewMeta" class="jianpu-preview-meta"></p>
+          <div class="jianpu-preview-mode" role="group" aria-label="简谱显示模式">
+            <button class="active" type="button" data-jianpu-preview-mode="jianpu" aria-pressed="true">简谱模式</button>
+            <button type="button" data-jianpu-preview-mode="keyboard" aria-pressed="false">键盘模式</button>
+          </div>
+          <div class="jianpu-page-width-control">
+            <label for="jianpuPageWidth">谱面宽度</label>
+            <input id="jianpuPageWidth" type="number" min="180" max="420" step="10" value="210" inputmode="numeric" aria-describedby="jianpuPageWidthHint">
+            <span>mm</span>
+            <small id="jianpuPageWidthHint">默认 210 mm（A4 短边），修改后自动重新排版。</small>
+          </div>
           <div class="jianpu-preview-scroll" aria-label="当前曲谱的简谱排版预览">
             <div id="jianpuPreviewMeasures" class="jianpu-preview-measures"></div>
           </div>
           <p id="jianpuPreviewHint" class="jianpu-preview-hint" hidden></p>
-          <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
+          <div class="dialog-actions"><button class="text-button" id="jianpuDownloadButton" type="button">下载 PNG</button><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
       </form>
     </dialog>
@@ -4606,21 +4620,13 @@
           <h2 id="uploadHelpTitle">上传曲谱</h2>
           <p class="upload-editor-hint"><b>推荐方式</b> 请先在编辑器中完成曲谱，然后点击「上传到曲库」即可上传。</p>
           <div class="upload-method-tabs" role="tablist" aria-label="投稿方式">
-            <button class="upload-method-tab active" id="uploadMethodQq" data-upload-method="qq" type="button" role="tab" aria-selected="true" aria-controls="uploadPanelQq">QQ 群投稿</button>
+            <button class="upload-method-tab active" id="uploadMethodKook" data-upload-method="kook" type="button" role="tab" aria-selected="true" aria-controls="uploadPanelKook">KOOK 频道投稿</button>
             <button class="upload-method-tab" id="uploadMethodGithub" data-upload-method="github" type="button" role="tab" aria-selected="false" aria-controls="uploadPanelGithub">GitHub 投稿</button>
           </div>
-          <section class="upload-method-panel" id="uploadPanelQq" data-upload-panel="qq" role="tabpanel" aria-labelledby="uploadMethodQq">
-            <p>加入 QQ 群 <b>1102489399</b> 或二群 <b>419658256</b>，把导出的 <code>.deltamusic</code> 文件发送给维护者审核入库。</p>
-            <div class="qq-group-qr-list qq-group-qr-list--upload">
-              <figure class="upload-qr">
-                <img src="./assets/qq-group-qr.jpeg" alt="加入 QQ 群 1102489399 的二维码" />
-                <figcaption>QQ群 1 · 扫码加入</figcaption>
-              </figure>
-              <figure class="upload-qr">
-                <img src="./assets/qq-group-qr-2.jpg" alt="加入 QQ 群 419658256 的二维码" />
-                <figcaption>QQ群 2 · 扫码加入</figcaption>
-              </figure>
-            </div>
+          <section class="upload-method-panel" id="uploadPanelKook" data-upload-panel="kook" role="tabpanel" aria-labelledby="uploadMethodKook">
+            <p>加入 KOOK 频道，把导出的 <code>.deltamusic</code> 文件发送给维护者审核入库。</p>
+            <a class="kook-channel-link" href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>打开 KOOK 频道</span><strong>kook.vip/jcJIDN ↗</strong></a>
+            <figure class="upload-qr kook-upload-qr"><img src="./assets/kook-channel-qr.png" alt="加入 KOOK 频道的二维码" /><figcaption>KOOK 频道 · 扫码加入</figcaption></figure>
           </section>
           <section class="upload-method-panel" id="uploadPanelGithub" data-upload-panel="github" role="tabpanel" aria-labelledby="uploadMethodGithub" hidden>
             <p>先下载 <code>.deltamusic</code> 文件，再 Fork 项目，把文件上传到 <code>data/community-scores/</code> 并创建 Pull Request。合并前不会出现在公共曲库。</p>
@@ -4655,7 +4661,7 @@
       </section>
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
-    <script src="./data/community-songs.js?v=5.0.7"></script>
-    <script src="./app.js?v=5.0.8"></script>
+    <script src="./data/community-songs.js?v=5.2.3"></script>
+    <script src="./app.js?v=5.2.3"></script>
   </body>
 </html>

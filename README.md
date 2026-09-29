@@ -10,8 +10,10 @@
 
 - 正式站点：[三角洲口琴演奏家](https://jiko-official.top/delta/)
 - 备用站点（可能需要网络工具）：[GitHub Pages](https://jikoschnee.github.io/delta-harmonica-macro/)
-- 网页版本：`5.0.7`（录制助手启动时会自动检查更新）
-- QQ 群：`1102489399`（[入群二维码](assets/qq-group-qr.jpeg)）
+- 网页版本：`5.2.3`（录制助手启动时会自动检查更新）
+- KOOK 频道：[点击加入](https://kook.vip/jcJIDN)
+
+  ![KOOK 频道二维码](assets/kook-channel-qr.png)
 
 ## 快速开始
 
@@ -69,7 +71,7 @@
 
 「分享 .deltamusic」会导出可再次导入的谱子文件。若正式站点显示「上传到曲库」，登录后可直接投稿；请只上传你拥有分享权的原创或已获授权谱面。
 
-也可以将 `.deltamusic` 文件发送到 QQ 群，或 Fork 本仓库并创建 Pull Request。建议文件名使用 `歌名-作者-你的昵称.deltamusic`。
+也可以将 `.deltamusic` 文件发送到 [KOOK 频道](https://kook.vip/jcJIDN)，或 Fork 本仓库并创建 Pull Request。建议文件名使用 `歌名-作者-你的昵称.deltamusic`。
 
 ## 使用提醒
 
