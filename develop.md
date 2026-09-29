@@ -254,7 +254,7 @@ Docker 方式增加 `-e DELTA_ANALYTICS_ADMIN_TOKEN='请使用随机长令牌'`�
 
 GitHub Star 奖励需要创建 GitHub OAuth App，回调 URL 配为站点的 `/api/points/github/callback`，并设置 `DELTA_GITHUB_CLIENT_ID`、`DELTA_GITHUB_CLIENT_SECRET`、`DELTA_GITHUB_REDIRECT_URI`。默认仓库为 `JikoSchnee/delta-harmonica-macro`，可用 `DELTA_GITHUB_STAR_REPO=owner/repo` 修改。未配置时页面不显示领取按钮。GitHub 授权只验证账号身份和 Star 状态；每个 GitHub 账号、站内账号只能领取一次。同一个 OAuth 应用同时用于「GitHub 快捷登录」与账号绑定，回调地址仍然是 `/api/points/github/callback`，不需要在 GitHub 侧新增回调配置：入口 `/api/auth/github/start` 在已登录时进入绑定流程、未登录时进入登录流程，回调按 state 里记录的用途分发。GitHub 登录只允许进入**已绑定**的站内账号（未绑定会提示先用邮箱验证码登录再到「账户资料」绑定），不会创建新账号；绑定关系双向唯一，一个 GitHub 账号只对应一个站内账号。验证 Star 奖励时会自动绑定并记录 GitHub 账号名，账户资料里也会显示已绑定的 GitHub 账号。打赏金额大于零经后台确认后，永久获得免扣权益；此权益与当前展示的打赏金额分别保存。管理令牌可读取 `GET /api/admin/points` 的近 14 日积分发放、消耗、解锁和邀请汇总；积分不足次数在现有数据分析事件中查看。
 
-本地固定测试登录可在 `--auth-code-log-only` 模式下设置 `DELTA_FIXED_TEST_LOGIN_EMAIL` 和 `DELTA_FIXED_TEST_LOGIN_CODE`。指定账号必须已经存在，登录时可直接填写邮箱和固定 6 位验证码，无需先请求验证码；缺少日志测试模式时服务会拒绝启动，避免正式环境误开固定验证码。
+本地固定测试登录可在 `--auth-code-log-only` 模式下设置 `DELTA_FIXED_TEST_LOGIN_EMAIL` 和 `DELTA_FIXED_TEST_LOGIN_CODE`。指定账号必须已经存在；本地 `preview.sh` 预览会在浏览器未登录时自动尝试该测试账号登录，手动退出后本标签页不再自动登录。其他本地运行方式仍可直接填写邮箱和固定 6 位验证码，无需先请求验证码；缺少日志测试模式时服务会拒绝启动，避免正式环境误开固定验证码。
 
 ### 打赏记录
 

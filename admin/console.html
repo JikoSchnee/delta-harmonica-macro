@@ -372,6 +372,7 @@
 
         <section id="usersPage" data-view hidden>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><div class="heading-actions"><button id="advancedModeButton" class="button ghost" type="button" aria-pressed="false">高级模式</button><span id="advancedModeState" class="tag amber" hidden>高级模式</span><span id="userCount" class="tag">—</span></div></div><div id="advancedBar" class="advanced-bar" hidden>高级模式已开启：本页会显示账号完整邮箱与最近使用的 IP，并可直接封禁 IP。服务端会为每次高级读取写一条审计日志。<button id="advancedModeClear" class="advanced-clear" type="button">退出高级模式</button></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID、邮箱或 IP…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">INVITE REGISTRATIONS</div><h3>邀请码注册记录</h3></div><div class="heading-actions"><span id="referralCount" class="tag">—</span><button id="refreshReferralsButton" class="button ghost" type="button">刷新邀请记录 ⟳</button></div></div><p class="admin-song-description">记录注册时绑定的邀请码关系。邀请人需等新用户首次用积分解锁他人曲谱后，才会获得 +20 积分。</p><div id="referralTable"><div class="empty">正在读取邀请记录…</div></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">NETWORK ACCESS CONTROL</div><h3>IP 封禁</h3></div><span id="ipBanCount" class="tag">—</span></div><div class="searchbar"><input id="ipBanAddress" type="text" inputmode="url" placeholder="IPv4 / IPv6 地址" /><input id="ipBanReason" type="text" maxlength="200" placeholder="封禁原因（可选）" /><button id="ipBanButton" class="button danger" type="button">封禁 IP</button></div><div id="ipBanTable"></div></section>
         </section>
         <section id="donationsPage" data-view hidden>
@@ -481,7 +482,7 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], buffered: [], users: [], sponsorUsers: [], ipBans: [], cooperationApplications: [], donations: { linked: [], unbound: [] }, exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
+      const state = { token: "", overview: null, songs: [], buffered: [], users: [], referrals: [], sponsorUsers: [], ipBans: [], cooperationApplications: [], donations: { linked: [], unbound: [] }, exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const formatBeijingDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { timeZone:"Asia/Shanghai", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
@@ -583,7 +584,7 @@
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
-        if (page === "library") loadLibrary(); if (page === "users") loadUsers(); if (page === "donations") loadDonationsAdmin(); if (page === "export-methods") loadExportMethods(); if (page === "points-media") loadPointsMediaAdmin(); if (page === "cooperation") loadCooperationApplications(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
+        if (page === "library") loadLibrary(); if (page === "users") { loadUsers(); loadReferralsAdmin(); } if (page === "donations") loadDonationsAdmin(); if (page === "export-methods") loadExportMethods(); if (page === "points-media") loadPointsMediaAdmin(); if (page === "cooperation") loadCooperationApplications(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
       }
       function renderCooperationApplications() {
         const items=state.cooperationApplications||[];
@@ -618,6 +619,25 @@
         $("#bufferTable").innerHTML = state.buffered.length ? `<table><thead><tr><th>曲目</th><th>上传者</th><th>原因</th><th>时间</th><th>操作</th></tr></thead><tbody>${state.buffered.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)} · ${escapeHtml(song.sharedBy)}</small></td><td>${escapeHtml(song.owner)}</td><td>${escapeHtml(song.reason)}${song.recoveredPoints ? `<small>已冲回 ${number.format(song.recoveredPoints)} 作者积分</small>` : ""}</td><td>${formatDate(song.bufferedAt)}</td><td><div class="actions"><button class="button" data-restore-buffer="${index}">恢复</button><button class="button danger" data-delete-buffer="${index}">永久删除</button></div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">缓冲区为空。</div>';
       }
       function userDirectoryQuery() { return `admin/users?q=${encodeURIComponent($("#userSearch")?.value || "")}${state.advanced ? "&advanced=1" : ""}`; }
+      function renderReferrals() {
+        const items = state.referrals || [];
+        const rewarded = items.filter(item => item.rewardedAt).length;
+        $("#referralCount").textContent = `${number.format(items.length)} 条注册 · ${number.format(rewarded)} 条已奖励`;
+        $("#referralTable").innerHTML = items.length
+          ? `<table><thead><tr><th>邀请人</th><th>注册用户</th><th>注册时间</th><th>邀请奖励</th></tr></thead><tbody>${items.map(item => `<tr><td>${escapeHtml(item.inviterUserId)}</td><td>${escapeHtml(item.inviteeUserId)}</td><td>${formatDate(item.createdAt)}</td><td>${item.rewardedAt ? `<span class="tag">已发放 +20 · ${formatDate(item.rewardedAt)}</span>` : '<span class="tag muted">未发放</span>'}</td></tr>`).join("")}</tbody></table>`
+          : '<div class="empty">暂无使用邀请码注册的记录。</div>';
+      }
+      async function loadReferralsAdmin() {
+        $("#referralTable").innerHTML = '<div class="empty">正在读取邀请记录…</div>';
+        try {
+          const result = await api("admin/referrals");
+          state.referrals = result.items || [];
+          renderReferrals();
+        } catch (error) {
+          $("#referralCount").textContent = "读取失败";
+          $("#referralTable").innerHTML = `<div class="empty">${escapeHtml(error.message || "无法读取邀请记录。")}</div>`;
+        }
+      }
       function renderAdvancedMode() {
         const on = Boolean(state.advanced);
         $("#advancedModeState").hidden = !on;
@@ -649,8 +669,8 @@
         $("#donationGrandSummary").textContent = `包含绑定账号与未绑定账号的 ${number.format(linked.length + unbound.length)} 笔有效打赏记录。`;
         $("#linkedDonationCount").textContent = `${number.format(linkedSupporters)} 位支持者 · ${number.format(linked.length)} 笔`;
         $("#unboundDonationCount").textContent = `${number.format(unboundSupporters)} 位支持者 · ${number.format(unbound.length)} 笔`;
-        $("#linkedDonationList").innerHTML = linked.length ? `<table><thead><tr><th>站点用户 ID</th><th>本笔金额</th><th>录入时间</th><th>操作</th></tr></thead><tbody>${linked.map(item => `<tr><td>${escapeHtml(item.userId)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td><button class="button danger" type="button" data-delete-linked-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无绑定账号的打赏记录。</div>';
-        $("#unboundDonationList").innerHTML = unbound.length ? `<table><thead><tr><th>榜单显示</th><th>金额（元）</th><th>录入时间</th><th>操作</th></tr></thead><tbody>${unbound.map(item => `<tr><td>vx: ${escapeHtml(item.displayName)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td><button class="button danger" type="button" data-delete-unbound-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无未绑定账号的打赏记录。</div>';
+        $("#linkedDonationList").innerHTML = linked.length ? `<table><thead><tr><th>站点用户 ID</th><th>本笔金额</th><th>录入时间</th><th>记录哈希</th><th>操作</th></tr></thead><tbody>${linked.map(item => `<tr><td>${escapeHtml(item.userId)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td class="mono" title="同一记录的哈希码固定不变">${escapeHtml(item.recordHash || "—")}</td><td><button class="button danger" type="button" data-delete-linked-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无绑定账号的打赏记录。</div>';
+        $("#unboundDonationList").innerHTML = unbound.length ? `<table><thead><tr><th>榜单显示</th><th>金额（元）</th><th>录入时间</th><th>记录哈希</th><th>操作</th></tr></thead><tbody>${unbound.map(item => `<tr><td>vx: ${escapeHtml(item.displayName)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td class="mono" title="同一记录的哈希码固定不变">${escapeHtml(item.recordHash || "—")}</td><td><button class="button danger" type="button" data-delete-unbound-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无未绑定账号的打赏记录。</div>';
       }
       async function loadDonationsAdmin() {
         try {
@@ -984,6 +1004,7 @@
       $("#cooperationApplicationList").addEventListener("click",async event=>{const button=event.target.closest("[data-cooperation-review]");if(!button)return;button.disabled=true;try{await api("admin/cooperation/review",{method:"POST",body:JSON.stringify({id:Number(button.dataset.id),decision:button.dataset.cooperationReview})});$("#cooperationAdminStatus").textContent=button.dataset.cooperationReview==="approve"?"申请已批准。":"申请已拒绝。";await loadCooperationApplications();}catch(error){$("#cooperationAdminStatus").textContent=error.message||"审核失败。";button.disabled=false;}});
       document.querySelectorAll("[data-jump]").forEach(link => link.addEventListener("click", event => { event.preventDefault(); showPage(link.dataset.jump); }));
       $("#refreshButton").addEventListener("click", () => { loadAll(); if (!$("#runtimePage").hidden) loadRuntime(); if (!$("#donationsPage").hidden) loadDonationsAdmin(); }); $("#logoutButton").addEventListener("click", () => { stopRuntimePolling(); state.token = ""; state.advanced = false; sessionStorage.removeItem("delta-admin-token"); sessionStorage.removeItem("delta-admin-advanced"); renderAdvancedMode(); $("#app").hidden = true; $("#loginScreen").hidden = false; $("#token").value = ""; });
+      $("#refreshReferralsButton").addEventListener("click", loadReferralsAdmin);
       $("#runtimeButton").addEventListener("click", () => showPage("runtime"));
       $("#runtimeRefreshButton").addEventListener("click", loadRuntime);
       $("#runtimePollButton").addEventListener("click", toggleRuntimePolling);
@@ -1145,6 +1166,11 @@
       const donationResults = $("#donationAccountResults");
       let donationSearchRequest = 0;
       let donationSearchTimer;
+      let linkedDonationPending = null;
+      let unboundDonationPending = null;
+      function newDonationRequestKey() {
+        return window.crypto?.randomUUID?.() || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}-${Math.random().toString(36).slice(2)}`;
+      }
       function hideDonationResults() { donationResults.hidden = true; donationSearch.setAttribute("aria-expanded", "false"); }
       async function searchDonationAccounts() {
         const query = donationSearch.value.trim();
@@ -1181,9 +1207,15 @@
         const amount = Number(form.elements.amount.value);
         if (!form.elements.accountId.value) { $("#donationAdminStatus").textContent = "请先搜索并选择一个站点账号。"; donationSearch.focus(); return; }
         if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
+        const payload = { accountId: form.elements.accountId.value, amountCents: Math.round(amount * 100) };
+        const signature = JSON.stringify(payload);
+        if (!linkedDonationPending || linkedDonationPending.signature !== signature) {
+          linkedDonationPending = { signature, requestKey: newDonationRequestKey() };
+        }
         button.disabled = true;
         try {
-          const result = await api("admin/donations", { method: "POST", body: JSON.stringify({ accountId: form.elements.accountId.value, amountCents: Math.round(amount * 100) }) });
+          const result = await api("admin/donations", { method: "POST", body: JSON.stringify({ ...payload, requestKey: linkedDonationPending.requestKey }) });
+          linkedDonationPending = null;
           form.reset();
           hideDonationResults();
           await loadDonationsAdmin();
@@ -1197,9 +1229,15 @@
         const button = form.querySelector("button[type=submit]");
         const amount = Number(form.elements.amount.value);
         if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
+        const payload = { displayName: form.elements.displayName.value.trim(), amountCents: Math.round(amount * 100) };
+        const signature = JSON.stringify(payload);
+        if (!unboundDonationPending || unboundDonationPending.signature !== signature) {
+          unboundDonationPending = { signature, requestKey: newDonationRequestKey() };
+        }
         button.disabled = true;
         try {
-          const result = await api("admin/donations/unbound", { method: "POST", body: JSON.stringify({ displayName: form.elements.displayName.value.trim(), amountCents: Math.round(amount * 100) }) });
+          const result = await api("admin/donations/unbound", { method: "POST", body: JSON.stringify({ ...payload, requestKey: unboundDonationPending.requestKey }) });
+          unboundDonationPending = null;
           form.reset();
           await loadDonationsAdmin();
           $("#donationAdminStatus").textContent = `已录入 vx: ${result.displayName} 的未绑定打赏。`;

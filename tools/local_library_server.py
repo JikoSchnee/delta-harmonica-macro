@@ -1842,7 +1842,8 @@ def _initialize_auth_database_locked() -> None:
                 account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
                 amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
                 created_at INTEGER NOT NULL,
-                legacy_key TEXT UNIQUE
+                legacy_key TEXT UNIQUE,
+                request_key TEXT NOT NULL DEFAULT ''
             );
             CREATE INDEX IF NOT EXISTS donation_entries_account_created ON donation_entries(account_id, created_at, id);
             CREATE TABLE IF NOT EXISTS unbound_donations (
@@ -1850,7 +1851,8 @@ def _initialize_auth_database_locked() -> None:
                 display_name TEXT NOT NULL,
                 amount_cents INTEGER NOT NULL CHECK(amount_cents > 0),
                 created_at INTEGER NOT NULL,
-                updated_at INTEGER NOT NULL
+                updated_at INTEGER NOT NULL,
+                request_key TEXT NOT NULL DEFAULT ''
             );
             CREATE TABLE IF NOT EXISTS donor_entitlements (
                 account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
@@ -2003,12 +2005,25 @@ def _initialize_auth_database_locked() -> None:
         donation_columns = {row[1] for row in connection.execute("PRAGMA table_info(donations)").fetchall()}
         if "created_at" not in donation_columns:
             connection.execute("ALTER TABLE donations ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0")
-        # Older versions stored one cumulative total per account. Preserve that total
-        # as one historical entry; new admin submissions are stored as separate rows.
+        donation_entry_columns = {row[1] for row in connection.execute("PRAGMA table_info(donation_entries)").fetchall()}
+        if "request_key" not in donation_entry_columns:
+            connection.execute("ALTER TABLE donation_entries ADD COLUMN request_key TEXT NOT NULL DEFAULT ''")
+        unbound_donation_columns = {row[1] for row in connection.execute("PRAGMA table_info(unbound_donations)").fetchall()}
+        if "request_key" not in unbound_donation_columns:
+            connection.execute("ALTER TABLE unbound_donations ADD COLUMN request_key TEXT NOT NULL DEFAULT ''")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS donation_entries_request_key ON donation_entries(request_key) WHERE request_key != ''")
+        connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS unbound_donations_request_key ON unbound_donations(request_key) WHERE request_key != ''")
+        # Older versions stored one cumulative total per account. Import that legacy
+        # value only when the account has no individual entries yet. Otherwise a new
+        # aggregate created by an admin submission could be re-imported as a second
+        # donation on the next database initialization, resurrecting deleted rows.
         connection.execute(
             "INSERT OR IGNORE INTO donation_entries(account_id, amount_cents, created_at, legacy_key) "
             "SELECT account_id, amount_cents, COALESCE(NULLIF(created_at, 0), NULLIF(updated_at, 0), ?), 'legacy:' || account_id "
-            "FROM donations WHERE amount_cents > 0",
+            "FROM donations AS legacy "
+            "WHERE legacy.amount_cents > 0 AND NOT EXISTS ("
+            "SELECT 1 FROM donation_entries AS entries WHERE entries.account_id=legacy.account_id"
+            ")",
             (now_timestamp(),),
         )
         connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) "
@@ -2458,6 +2473,26 @@ def points_admin_report(days: int = 14) -> dict[str, Any]:
         invites = connection.execute("SELECT COUNT(*) FROM referrals WHERE rewarded_at >= ?", (since,)).fetchone()[0]
     return {"days": days, "unlocks": unlocks, "rewardedInvites": invites,
             "ledger": {row["reason"]: {"events": row["events"], "points": row["points"]} for row in ledger}}
+
+
+def admin_referral_catalog() -> dict[str, list[dict[str, Any]]]:
+    """Return invite registrations to authenticated administrators without emails."""
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT inviter.user_id AS inviter_user_id, invitee.user_id AS invitee_user_id, "
+            "referrals.created_at, referrals.rewarded_at "
+            "FROM referrals "
+            "JOIN accounts AS inviter ON inviter.id=referrals.inviter_id "
+            "JOIN accounts AS invitee ON invitee.id=referrals.invitee_id "
+            "ORDER BY referrals.created_at DESC, invitee.user_id COLLATE NOCASE ASC"
+        ).fetchall()
+    return {"items": [{
+        "inviterUserId": str(row["inviter_user_id"]),
+        "inviteeUserId": str(row["invitee_user_id"]),
+        "createdAt": iso_timestamp(row["created_at"]),
+        "rewardedAt": iso_timestamp(row["rewarded_at"]) if row["rewarded_at"] is not None else None,
+    } for row in rows]}
 
 
 def unlock_public_score(server: ThreadingHTTPServer, account_id: str, remix_code: Any) -> dict[str, Any]:
@@ -3245,6 +3280,13 @@ def validated_donation_amount_cents(value: Any, *, allow_zero: bool) -> int:
     return amount_cents
 
 
+def validated_donation_request_key(value: Any) -> str:
+    request_key = str(value or "").strip()
+    if request_key and (len(request_key) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", request_key)):
+        raise ValueError("打赏请求编号无效，请刷新后台后重试。")
+    return request_key
+
+
 def admin_donation_catalog() -> dict[str, list[dict[str, Any]]]:
     """Return each donation entry without exposing account emails."""
     initialize_auth_database()
@@ -3259,14 +3301,16 @@ def admin_donation_catalog() -> dict[str, list[dict[str, Any]]]:
             "ORDER BY created_at DESC, id DESC"
         ).fetchall()
     return {
-        "linked": [{"id": int(row["id"]), "accountId": row["account_id"], "userId": row["user_id"],
+        "linked": [{"id": int(row["id"]), "recordHash": hashlib.sha256(f"linked:{int(row['id'])}".encode("utf-8")).hexdigest()[:16],
+                    "accountId": row["account_id"], "userId": row["user_id"],
                     "amountCents": int(row["amount_cents"]),
                     "createdAt": iso_timestamp(row["created_at"])}
                    for row in linked],
-        "unbound": [{"id": int(row["id"]), "displayName": row["display_name"],
+        "unbound": [{"id": int(row["id"]), "recordHash": hashlib.sha256(f"unbound:{int(row['id'])}".encode("utf-8")).hexdigest()[:16],
+                     "displayName": row["display_name"],
                      "amountCents": int(row["amount_cents"]),
                      "createdAt": iso_timestamp(row["created_at"]), "updatedAt": iso_timestamp(row["updated_at"])}
-                    for row in unbound],
+                   for row in unbound],
     }
 
 
@@ -3277,6 +3321,7 @@ def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
     account_id = str(payload.get("accountId") or "").strip()
     user_id = str(payload.get("userId") or "").strip()
     amount_cents = validated_donation_amount_cents(payload.get("amountCents"), allow_zero=False)
+    request_key = validated_donation_request_key(payload.get("requestKey"))
     if not account_id and not user_id:
         raise ValueError("请选择站点账号。")
     now = now_timestamp()
@@ -3288,10 +3333,26 @@ def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
             raise ValueError("没有找到这个站点账号，请检查用户 ID；未绑定账号请使用未绑定打赏录入。")
         account_id = str(account["id"])
         user_id = str(account["user_id"])
-        cursor = connection.execute(
-            "INSERT INTO donation_entries(account_id, amount_cents, created_at) VALUES (?, ?, ?)",
-            (account_id, amount_cents, now),
-        )
+        if request_key:
+            connection.execute(
+                "INSERT OR IGNORE INTO donation_entries(account_id, amount_cents, created_at, request_key) VALUES (?, ?, ?, ?)",
+                (account_id, amount_cents, now, request_key),
+            )
+            entry = connection.execute(
+                "SELECT id, account_id, amount_cents, created_at FROM donation_entries WHERE request_key=?",
+                (request_key,),
+            ).fetchone()
+            if entry and (str(entry["account_id"]) != account_id or int(entry["amount_cents"]) != amount_cents):
+                raise ValueError("打赏请求编号已用于另一笔记录，请刷新后台后重试。")
+            entry_id = int(entry["id"])
+            created_at = int(entry["created_at"])
+        else:
+            cursor = connection.execute(
+                "INSERT INTO donation_entries(account_id, amount_cents, created_at) VALUES (?, ?, ?)",
+                (account_id, amount_cents, now),
+            )
+            entry_id = int(cursor.lastrowid)
+            created_at = now
         total = int(connection.execute(
             "SELECT COALESCE(SUM(amount_cents), 0) FROM donation_entries WHERE account_id=?", (account_id,)
         ).fetchone()[0])
@@ -3303,8 +3364,8 @@ def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
         connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) VALUES (?, ?)", (account_id, now))
     PUBLIC_DONORS_CACHE.invalidate()
     PUBLIC_RANKINGS_CACHE.invalidate()
-    return {"id": int(cursor.lastrowid), "accountId": account_id, "userId": user_id,
-            "amountCents": amount_cents, "createdAt": iso_timestamp(now)}
+    return {"id": entry_id, "accountId": account_id, "userId": user_id,
+            "amountCents": amount_cents, "createdAt": iso_timestamp(created_at)}
 
 
 def admin_delete_linked_donation(payload: Any) -> None:
@@ -3340,14 +3401,29 @@ def admin_add_unbound_donation(payload: Any) -> dict[str, Any]:
     if not display_name or len(display_name) > 80:
         raise ValueError("请填写 1 到 80 个字符的打赏显示名称。")
     amount_cents = validated_donation_amount_cents(payload.get("amountCents"), allow_zero=False)
+    request_key = validated_donation_request_key(payload.get("requestKey"))
     now = now_timestamp()
     with AUTH_LOCK, auth_database() as connection:
-        cursor = connection.execute(
-            "INSERT INTO unbound_donations(display_name, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?)",
-            (display_name, amount_cents, now, now),
-        )
+        if request_key:
+            connection.execute(
+                "INSERT OR IGNORE INTO unbound_donations(display_name, amount_cents, created_at, updated_at, request_key) VALUES (?, ?, ?, ?, ?)",
+                (display_name, amount_cents, now, now, request_key),
+            )
+            entry = connection.execute(
+                "SELECT id, display_name, amount_cents, created_at FROM unbound_donations WHERE request_key=?",
+                (request_key,),
+            ).fetchone()
+            if entry and (str(entry["display_name"]) != display_name or int(entry["amount_cents"]) != amount_cents):
+                raise ValueError("打赏请求编号已用于另一笔记录，请刷新后台后重试。")
+            entry_id = int(entry["id"])
+        else:
+            cursor = connection.execute(
+                "INSERT INTO unbound_donations(display_name, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?)",
+                (display_name, amount_cents, now, now),
+            )
+            entry_id = int(cursor.lastrowid)
     PUBLIC_DONORS_CACHE.invalidate()
-    return {"id": int(cursor.lastrowid), "displayName": display_name, "amountCents": amount_cents}
+    return {"id": entry_id, "displayName": display_name, "amountCents": amount_cents}
 
 
 def admin_delete_unbound_donation(payload: Any) -> None:
@@ -5648,6 +5724,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, points_admin_report())
             return
+        if path == "/api/admin/referrals":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, admin_referral_catalog())
+            return
         if path == "/api/admin/library":
             if not self.is_admin_console_request():
                 return
@@ -5710,6 +5791,12 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 "authRequired": True,
                 "authAvailable": self.server.auth_enabled,
                 "authProviders": sorted(self.server.oauth_providers),
+                "previewLoginAvailable": bool(
+                    self.request_is_local()
+                    and self.server.auth_code_log_only
+                    and self.server.fixed_test_login_email
+                    and self.server.fixed_test_login_code
+                ),
                 # GitHub doubles as a login/binding provider next to the Star task.
                 "githubLogin": bool(self.server.github_oauth),
             })
@@ -5748,6 +5835,43 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.reject_banned_ip():
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/auth/preview-login":
+            if not (
+                self.server.auth_enabled
+                and self.server.auth_code_log_only
+                and self.server.fixed_test_login_email
+                and self.server.fixed_test_login_code
+                and self.request_is_local()
+            ):
+                self.send_json(HTTPStatus.NOT_FOUND, {"error": "本地预览自动登录未启用。"})
+                return
+            if not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "只接受本站页面发起的认证请求。"})
+                return
+            if authenticate_request(self):
+                self.send_json(HTTPStatus.CONFLICT, {"error": "当前浏览器已登录其他账号。"})
+                return
+            try:
+                account = consume_verification_code(
+                    self.server,
+                    self.server.fixed_test_login_email,
+                    self.server.fixed_test_login_code,
+                    None,
+                    mode="login",
+                )
+                token = issue_session(self.server, account["id"])
+            except sqlite3.Error:
+                self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账户服务暂时繁忙，请稍后重试。"})
+                return
+            except ValueError as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "本地测试账号登录失败。"})
+                return
+            self.send_json_with_cookie(
+                HTTPStatus.OK,
+                {"account": account_payload(self.server, account)},
+                self.session_cookie(token),
+            )
+            return
         if path == "/api/cooperate/obs/pulse":
             try:
                 payload = self.read_payload()
