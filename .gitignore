@@ -14,3 +14,6 @@ recording-helper/**/obj/
 /downloads/
 /recording-helper/downloads/
 *.bak.*
+*.mid
+Littleroot_Town_按乐器拆分.zip
+Littleroot_Town_按乐器拆分/说明.txt
