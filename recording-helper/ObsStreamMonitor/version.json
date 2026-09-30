@@ -1,7 +1,7 @@
 {
-  "version": "1.0.0",
-  "releaseTag": "obs-monitor-v1.0.0",
-  "githubDownloadUrl": "https://github.com/JikoSchnee/delta-harmonica-macro/releases/download/obs-monitor-v1.0.0/1.0.0-ObsStreamMonitor-win-x64.zip",
-  "serverDownloadUrl": "https://jiko-official.top/delta/downloads/1.0.0-ObsStreamMonitor-win-x64.zip",
-  "sha256": "f9ba02bb711303bc805da6c70707889b55275ae4a62a81becbf05ab3b86cbabf"
+  "version": "1.0.1",
+  "releaseTag": "obs-monitor-v1.0.1",
+  "githubDownloadUrl": "https://github.com/JikoSchnee/delta-harmonica-macro/releases/download/obs-monitor-v1.0.1/1.0.1-ObsStreamMonitor-win-x64.zip",
+  "serverDownloadUrl": "https://jiko-official.top/delta/downloads/1.0.1-ObsStreamMonitor-win-x64.zip",
+  "sha256": "1f707e31a16baa5b4efe65e9166b2aea213d369966316b8eb87b592d5353116b"
 }
