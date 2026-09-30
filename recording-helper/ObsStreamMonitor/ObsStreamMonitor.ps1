@@ -1,3 +1,5 @@
+param([switch]$AutoConnect)
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -52,6 +54,95 @@ $disconnectButton.Text = '断开'; $disconnectButton.Location = New-Object Drawi
 $disconnectButton.Size = New-Object Drawing.Size(110, 40); $disconnectButton.FlatStyle = 'Flat'
 $disconnectButton.BackColor = [Drawing.Color]::FromArgb(54, 68, 59); $disconnectButton.ForeColor = [Drawing.Color]::White
 $form.Controls.Add($disconnectButton)
+$autostartCheck = New-Object Windows.Forms.CheckBox
+$autostartCheck.Text = '登录 Windows 后自动启动并连接监听'
+$autostartCheck.Location = New-Object Drawing.Point(24, 360)
+$autostartCheck.Size = New-Object Drawing.Size(420, 26)
+$autostartCheck.ForeColor = [Drawing.Color]::FromArgb(194, 215, 192)
+$form.Controls.Add($autostartCheck)
+
+$script:startupShortcut = Join-Path ([Environment]::GetFolderPath('Startup')) 'Delta Harmonica OBS Monitor.lnk'
+$script:settingsDirectory = Join-Path $env:LOCALAPPDATA 'DeltaHarmonica\ObsStreamMonitor'
+$script:settingsPath = Join-Path $script:settingsDirectory 'settings.json'
+$script:loadingSettings = $false
+
+function Protect-Setting([string]$value) {
+    if (-not $value) { return '' }
+    $secure = ConvertTo-SecureString $value -AsPlainText -Force
+    return ConvertFrom-SecureString $secure
+}
+function Unprotect-Setting([string]$value) {
+    if (-not $value) { return '' }
+    $secure = ConvertTo-SecureString $value
+    $pointer = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure)
+    try { return [Runtime.InteropServices.Marshal]::PtrToStringBSTR($pointer) }
+    finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer) }
+}
+function Save-MonitorSettings {
+    if (-not (Test-Path $script:settingsDirectory)) { New-Item -ItemType Directory -Path $script:settingsDirectory -Force | Out-Null }
+    $settings = @{
+        site = $siteBox.Text.Trim()
+        token = Protect-Setting $tokenBox.Text.Trim()
+        obs = $obsBox.Text.Trim()
+        password = Protect-Setting $passwordBox.Text
+    }
+    $settings | ConvertTo-Json | Set-Content -LiteralPath $script:settingsPath -Encoding UTF8
+}
+function Load-MonitorSettings {
+    if (-not (Test-Path $script:settingsPath)) { return $false }
+    try {
+        $settings = Get-Content -LiteralPath $script:settingsPath -Raw | ConvertFrom-Json
+        if ($settings.site) { $siteBox.Text = [string]$settings.site }
+        if ($settings.token) { $tokenBox.Text = Unprotect-Setting ([string]$settings.token) }
+        if ($settings.obs) { $obsBox.Text = [string]$settings.obs }
+        if ($settings.password) { $passwordBox.Text = Unprotect-Setting ([string]$settings.password) }
+        return $true
+    } catch {
+        $status.Text = '无法读取本机加密配置，请重新填写令牌和 OBS 密码。'
+        return $false
+    }
+}
+function Enable-MonitorAutostart {
+    $root = $siteBox.Text.Trim().TrimEnd('/')
+    if (-not $root.StartsWith('https://') -and -not $root.StartsWith('http://localhost')) { throw '本站地址须使用 HTTPS。' }
+    if ($tokenBox.Text.Trim().Length -lt 32) { throw '请先填写主播设备令牌，再启用开机自启。' }
+    $scriptPath = Join-Path $PSScriptRoot 'ObsStreamMonitor.ps1'
+    if (-not (Test-Path $scriptPath)) { throw '找不到监听程序，请从解压目录运行 Start.cmd。' }
+    Save-MonitorSettings
+    $shell = New-Object -ComObject WScript.Shell
+    $shortcut = $shell.CreateShortcut($script:startupShortcut)
+    $shortcut.TargetPath = Join-Path $PSHOME 'powershell.exe'
+    $shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -STA -File "' + $scriptPath + '" -AutoConnect'
+    $shortcut.WorkingDirectory = $PSScriptRoot
+    $shortcut.Description = 'Delta Harmonica OBS 开播监听'
+    $shortcut.Save()
+}
+function Disable-MonitorAutostart {
+    if (Test-Path $script:startupShortcut) { Remove-Item -LiteralPath $script:startupShortcut -Force }
+    if (Test-Path $script:settingsPath) { Remove-Item -LiteralPath $script:settingsPath -Force }
+}
+
+$script:loadingSettings = $true
+$settingsLoaded = Load-MonitorSettings
+$autostartCheck.Checked = Test-Path $script:startupShortcut
+$script:loadingSettings = $false
+$autostartCheck.Add_CheckedChanged({
+    if ($script:loadingSettings) { return }
+    try {
+        if ($autostartCheck.Checked) {
+            Enable-MonitorAutostart
+            $status.Text = '已启用开机自启；登录 Windows 后会自动连接监听。'
+        } else {
+            Disable-MonitorAutostart
+            $status.Text = '已关闭开机自启，并清除本机保存的令牌和 OBS 密码。'
+        }
+    } catch {
+        $script:loadingSettings = $true
+        $autostartCheck.Checked = $false
+        $script:loadingSettings = $false
+        $status.Text = $_.Exception.Message
+    }
+})
 
 $script:socket = $null
 $script:lastLive = $null
@@ -59,6 +150,9 @@ $script:lastPulse = [DateTime]::MinValue
 $script:obsCodeSourceName = 'DeltaHarmonicaDailyCode'
 $timer = New-Object Windows.Forms.Timer
 $timer.Interval = 2500
+$retryTimer = New-Object Windows.Forms.Timer
+$retryTimer.Interval = 10000
+$retryTimer.Add_Tick({ if ($connectButton.Enabled -and $null -eq $script:socket) { $connectButton.PerformClick() } })
 
 function Get-ObsTextMessage([Net.WebSockets.ClientWebSocket]$ws) {
     $buffer = New-Object byte[] 8192
@@ -182,14 +276,17 @@ $connectButton.Add_Click({
         $identified = $false
         for ($i = 0; $i -lt 20; $i++) { $message = Get-ObsTextMessage $ws; if ($message.op -eq 2) { $identified = $true; break } }
         if (-not $identified) { throw 'OBS 未完成 WebSocket 认证。' }
+        if ($autostartCheck.Checked) { Save-MonitorSettings }
         $script:socket = $ws
         $script:lastLive = $null
+        $retryTimer.Stop()
         $status.Text = '已连接 OBS，检测到开播后将自动同步每日兑换码。'
         $timer.Start()
     } catch {
         if ($null -ne $ws) { try { $ws.Dispose() } catch { } }
         $status.Text = $_.Exception.Message
         $connectButton.Enabled = $true
+        if ($AutoConnect) { $retryTimer.Start() }
     }
 })
 $timer.Add_Tick({
@@ -210,6 +307,12 @@ $timer.Add_Tick({
         $script:lastLive = $isLive
     } catch { $status.Text = $_.Exception.Message; Stop-Monitor }
 })
-$disconnectButton.Add_Click({ Stop-Monitor })
-$form.Add_FormClosing({ Stop-Monitor })
+$disconnectButton.Add_Click({ $retryTimer.Stop(); Stop-Monitor })
+$form.Add_FormClosing({ $retryTimer.Stop(); Stop-Monitor })
+$form.Add_Shown({
+    if ($AutoConnect) {
+        if ($settingsLoaded) { $retryTimer.Start(); $connectButton.PerformClick() }
+        else { $status.Text = '开机自启配置不可用，请检查设备令牌和 OBS 设置后重新勾选。' }
+    }
+})
 [void]$form.ShowDialog()

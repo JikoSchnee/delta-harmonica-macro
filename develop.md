@@ -65,6 +65,16 @@ HELPER_SERVER_PUBLIC_BASE_URL=https://jiko-official.top/delta/downloads
 
 其中 `HELPER_SERVER_CONTAINER_NAME` 默认是 `delta-harmonica-macro`。正式站点的宿主机项目目录没有挂载为容器静态目录，因此只执行 `scp` 不足以让下载地址生效；发布脚本会额外执行 `docker cp`，将 ZIP 同步到容器内的 `/app/downloads/`。
 
+## 发布 OBS 开播监听助手
+
+OBS PowerShell 助手独立于 .NET 录制助手发布。`release-obs-monitor.sh` 会将脚本、启动器和使用说明打成版本 ZIP，上传到 GitHub Release 和服务器 `/app/downloads/`，校验两份文件的 SHA-256，并更新 `recording-helper/ObsStreamMonitor/version.json`。主播控制台读取该清单并显示 GitHub 与服务器两个下载链接。
+
+```bash
+./release-obs-monitor.sh 1.0.0
+```
+
+完成助手发布后，按「一键部署到正式站点」更新网站版本并执行 `./deploy.sh`，这样正式站点才会提供新清单和两个下载入口。
+
 ### 服务器完整备份
 
 使用项目根目录的 `backup-server.sh` 可以一次性拉取服务器项目文件、Docker 持久化数据、容器下载文件和运行配置：

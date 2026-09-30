@@ -1,25 +1,36 @@
-DELTA HARMONICA OBS STREAM MONITOR — WINDOWS
+Delta Harmonica OBS 开播监听助手（Windows）
 
-Requirements
-- Windows 10 or later with Windows PowerShell 5.1.
-- OBS Studio with WebSocket Server enabled (OBS 28 and later include it).
+一、运行条件
+- Windows 10 或更高版本，内置 Windows PowerShell 5.1。
+- OBS Studio 28 或更高版本，并启用 OBS WebSocket 服务。
+- 电脑登录主播使用的 Windows 账户；开机自启只对当前账户生效。
 
-Start
-1. Extract this ZIP to a folder you control.
-2. Run Start.cmd.
-3. On the website, sign in and open Cooperation > Creator Console > Generate Device Token.
-4. Copy the device token into the monitor. The token is shown only once; create a new token if it is lost.
-5. In OBS, open Tools > WebSocket Server Settings, enable the server, and copy its password. The default address is ws://127.0.0.1:4455.
-6. Enter the OBS password and click Connect.
+二、首次安装与连接
+1. 将下载的 ZIP 解压到一个固定文件夹。启用开机自启后不要移动或删除此文件夹。
+2. 双击 Start.cmd 打开监听助手。
+3. 登录网站，进入「合作 → 主播控制台」，点击「生成设备令牌」。令牌只显示一次，请立即复制到助手的「主播设备令牌」栏。
+4. 在 OBS 打开「工具 → WebSocket 服务器设置」，启用 WebSocket 服务器。默认地址为 ws://127.0.0.1:4455；把 OBS 显示的服务器密码填入助手。
+5. 检查本站地址与 OBS WebSocket 地址，然后点击「连接并开始监听」。看到已连接状态即完成。
 
-When OBS starts streaming, the monitor asks the website for the streamer's code for the current 05:00 Beijing-time cycle. The code is generated automatically if needed and stays the same as the code shown in the creator console. The monitor creates or updates a white text source named "DeltaHarmonicaDailyCode" in the current OBS scene. It checks every 25 seconds, so a new code is synced after the daily 05:00 reset. When streaming stops, the text source is hidden. You can move or resize the source in OBS like any other text source.
+三、启用开机自启
+1. 完成上面的首次填写后，勾选窗口底部「登录 Windows 后自动启动并连接监听」。
+2. 助手会把启动快捷方式放入当前 Windows 账户的启动文件夹。之后登录 Windows 时，助手会自动打开并尝试连接 OBS、开始监听，无需再手动点击连接。
+3. OBS 必须启动且 WebSocket 服务可用。建议在 OBS 的常规设置中同时启用「启动时自动运行 OBS」。如果助手先于 OBS 启动，它会每 10 秒自动重试连接。
+4. 取消勾选即可关闭开机自启，并删除本机保存的设备令牌和 OBS 密码。也可以在 Windows「任务管理器 → 启动应用」中禁用该助手。
 
-The monitor reports stream status to the website every 25 seconds so the cooperation page can mark stale connections offline. Closing the monitor attempts to report offline and hide the code source. Revoke a device token from the signed-in creator console to stop future reports from that installation.
+隐私与安全
+- 为支持自动连接，启用开机自启后，助手会在本机保存本站地址、OBS 地址、设备令牌和 OBS 密码。令牌和密码使用 Windows 当前用户的 DPAPI 加密；其他 Windows 账户或电脑不能直接解密。不要把配置文件或设备令牌分享给他人。
+- 本地配置位于 %LOCALAPPDATA%\DeltaHarmonica\ObsStreamMonitor。取消勾选自启会删除配置文件。
+- 设备令牌仅发送到本站 HTTPS 状态接口。助手不会录制或传输直播画面、声音。
 
-The site address and device token are sent only to the site's HTTPS status endpoint. OBS credentials and device tokens are kept in memory for this session and are not saved in this folder. Never share your device token. The monitor does not record or transmit video or audio.
+监听效果
+- 开播后，助手每 25 秒查询当前周期兑换码，并在 OBS 当前场景创建或更新名为 DeltaHarmonicaDailyCode 的白色文字源。
+- 停播时会隐藏文字源。你可以像调整其他 OBS 文字源一样移动或缩放它。
+- 兑换码按北京时间每日 05:00 更新；监听在线状态也每 25 秒同步到合作主播页面。
+- 关闭助手时会尝试报告离线并隐藏文字源。主播控制台可以撤销设备令牌，阻止该安装继续上报。
 
-Troubleshooting
-- Check OBS WebSocket is enabled and the address/port match OBS.
-- Check the OBS password carefully.
-- Confirm the device token is active in the creator console.
-- Allow outbound HTTPS to the site and local WebSocket access to OBS.
+常见问题
+- 无法连接 OBS：确认 OBS 已启动、WebSocket 服务已启用，地址和端口正确，密码无误。
+- 自动启动后连接失败：确认 OBS 已启动并启用 WebSocket；助手会每 10 秒自动重试，也可手动点击连接。
+- 令牌无效：在主播控制台生成新设备令牌，并在助手中替换。
+- 无法连接网站：确认本站地址使用 HTTPS，并允许电脑访问本站及本机 OBS WebSocket。
