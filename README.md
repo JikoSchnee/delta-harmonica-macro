@@ -10,7 +10,7 @@
 
 - 正式站点：[三角洲口琴演奏家](https://jiko-official.top/delta/)
 - 备用站点（可能需要网络工具）：[GitHub Pages](https://jikoschnee.github.io/delta-harmonica-macro/)
-- 网页版本：`5.2.3`（录制助手启动时会自动检查更新）
+- 网页版本：`5.4.0`（录制助手启动时会自动检查更新）
 - KOOK 频道：[点击加入](https://kook.vip/jcJIDN)
 
   ![KOOK 频道二维码](assets/kook-channel-qr.png)
@@ -44,7 +44,9 @@
 
 ## 试听与曲库
 
-「试听整段」会在浏览器中合成口琴音色、展示时间线，并高亮当前音符，用于检查旋律与节奏。试听音色是近似预览，不是录音采样。
+「试听整段」默认使用 Salamander Grand Piano 钢琴采样，并展示时间线、高亮当前音符，用于检查旋律与节奏。播放器可切换到口琴采样；音源选择会保存在当前浏览器中。钢琴采样覆盖 C3–C6，取每小三度的一个中间力度样本并对中间音高变调播放。
+
+钢琴采样来自 Alexander Holm 的 Salamander Grand Piano v3，经 kinwie 整理为 SFZ 音源；网页内置的 13 个 C3–C6 锚点采样选用 v8 力度层并转为 MP3。音源按 CC BY 3.0 授权使用，完整授权文本和来源说明见 [assets/audio/piano](assets/audio/piano)。
 
 曲库中的《口琴按键映射测试》包含自然音、低音、半音、高音及其组合。首次使用新的鼠标映射时，建议导出并逐组确认后再播放正式曲目。
 

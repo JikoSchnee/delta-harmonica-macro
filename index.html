@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
     <title>三角洲行动口琴宏生成器｜简谱、MIDI 转宏</title>
-    <link rel="icon" href="./favicon.ico?v=5.2.3" sizes="any" />
-    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.2.3" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.2.3" sizes="32x32" />
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.2.3" />
+    <link rel="icon" href="./favicon.ico?v=5.4.0" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.4.0" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.4.0" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.4.0" />
     <meta name="description" content="在线制作三角洲行动口琴宏：支持数字简谱转宏、MIDI 转口琴宏、试听与多种鼠标宏格式导出。" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://jiko-official.top/delta/" />
@@ -2740,7 +2740,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=5.2.3" />
+    <link rel="stylesheet" href="./styles.css?v=5.4.0" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -2751,7 +2751,7 @@
         </a>
         <div class="brand-copy">
           <a class="brand-link" href="#top">三角洲口琴演奏家</a>
-          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.2.3</button>
+          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.4.0</button>
         </div>
       </div>
       <nav class="topbar-actions" aria-label="项目链接">
@@ -3573,6 +3573,10 @@
           </div>
           <div class="preview-console">
             <div class="preview-topline"><span id="previewSongTitle">自定义曲目</span><span id="previewState">READY</span></div>
+            <div class="preview-instrument-switch" role="group" aria-label="试听音源">
+              <button type="button" data-preview-instrument="piano" aria-pressed="true">钢琴</button>
+              <button type="button" data-preview-instrument="harmonica" aria-pressed="false">口琴</button>
+            </div>
             <div class="preview-controls">
               <div class="preview-playback-actions">
                 <button class="preview-button" id="previewButton" type="button" aria-label="试听整段简谱"><b>▶</b><span class="button-label">试听整段</span></button>
@@ -3582,7 +3586,8 @@
               <label class="volume-control" for="volume"><span>VOL</span><input id="volume" type="range" min="0" max="100" value="64" /></label>
             </div>
             <div class="preview-progress"><span id="previewProgressLabel">00:00.000 / --:--.---</span><input id="previewProgress" type="range" min="0" max="0" value="0" step="1" aria-label="播放进度" disabled /></div>
-            <p>口琴音色试听：簧片泛音 + 气流噪声 · L −12 / M +1 / R +12 半音</p>
+            <p id="previewInstrumentHint">钢琴试听 · Salamander Grand Piano 采样 · C3–C6</p>
+            <small class="preview-sample-credit">钢琴采样：Salamander Grand Piano v3，Alexander Holm / kinwie，<a href="https://github.com/sfzinstruments/SalamanderGrandPiano" target="_blank" rel="noopener noreferrer">CC BY 3.0</a></small>
           </div>
           <section class="timeline-details" id="timelineDetails" aria-label="事件时间线">
             <div class="timeline-heading"><span>EVENT TIMELINE</span><span id="beatMs">-- MS / BEAT</span></div>
@@ -4183,7 +4188,7 @@
                   <button class="text-button cooperate-wide" type="submit">保存主播资料</button>
                 </form>
                 <div class="cooperate-code-box"><div><span class="index">DAILY CODE · 05:00 RESET</span><strong id="cooperateDailyCode">尚未领取</strong><small id="cooperateResetTime"></small></div><button id="cooperateClaimCode" class="text-button" type="button">领取今日兑换码</button></div>
-                <div class="cooperate-obs-box"><div><span class="index">OBS WEBSOCKET MONITOR</span><strong>开播自动同步兑换码</strong><small>下载监听软件并填写设备令牌和 OBS 密码；开播后自动领取当前兑换码并显示在 OBS 当前场景，停播时隐藏。</small></div><button id="cooperateCreateDevice" class="text-button" type="button">生成设备令牌</button><a class="text-button" href="./recording-helper/ObsStreamMonitor/ObsStreamMonitor-win-x64.zip?v=5.2.3" download>下载 Windows 软件</a><div class="cooperate-device-list" id="cooperateDevices"></div><code id="cooperateNewDeviceToken" hidden></code></div>
+                <div class="cooperate-obs-box"><div><span class="index">OBS WEBSOCKET MONITOR</span><strong>开播自动同步兑换码</strong><small>下载监听软件并填写设备令牌和 OBS 密码；开播后自动领取当前兑换码并显示在 OBS 当前场景，停播时隐藏。</small></div><button id="cooperateCreateDevice" class="text-button" type="button">生成设备令牌</button><a class="text-button" id="cooperateObsDownloadGithub" hidden target="_blank" rel="noopener noreferrer">GitHub Release 下载</a><a class="text-button" id="cooperateObsDownloadServer" hidden download>服务器备用下载</a><div class="cooperate-device-list" id="cooperateDevices"></div><code id="cooperateNewDeviceToken" hidden></code></div>
               </div>
             </section>
           </div>
@@ -4201,7 +4206,7 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v5.2.3</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v5.4.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="usage-notice-dialog" id="usageNoticeDialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeIntro">
       <form class="usage-notice-form" method="dialog">
         <div class="window-titlebar"><span>USAGE_NOTICE.EXE — READ BEFORE USE</span></div>
@@ -4236,7 +4241,7 @@
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" id="changelogClose" type="button" aria-label="关闭最近修改窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v5.2.3</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v5.4.0</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待版本信息</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自当前版本 version.json 的发布说明。</p>
@@ -4255,7 +4260,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v5.2.3</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v5.4.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -4311,7 +4316,7 @@
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
             <a class="helper-download-link" id="recorderProtocolTestLink" hidden><span>测试唤起助手</span><b>↗</b></a>
-            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.2.3" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
+            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.4.0" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
             <a class="helper-download-link" data-recording-helper-download="github" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
             <a class="helper-download-link" data-recording-helper-download="server" download><span>服务器下载（备用）</span><b>↓</b></a>
             <button class="helper-download-link" id="recordingHelperKookButton" type="button" aria-haspopup="dialog" aria-controls="kookChannelDialog"><span>进 KOOK 频道下载</span><b>↗</b></button>
@@ -4535,11 +4540,34 @@
             <button class="active" type="button" data-jianpu-preview-mode="jianpu" aria-pressed="true">简谱模式</button>
             <button type="button" data-jianpu-preview-mode="keyboard" aria-pressed="false">键盘模式</button>
           </div>
+          <div class="jianpu-layout-mode" role="group" aria-label="节奏与时长排版">
+            <button class="active" type="button" data-jianpu-layout-mode="default" aria-pressed="true">默认模式</button>
+            <button type="button" data-jianpu-layout-mode="no-rhythm" aria-pressed="false">不展示节奏</button>
+            <button type="button" data-jianpu-layout-mode="duration" aria-pressed="false">时长模式</button>
+          </div>
           <div class="jianpu-page-width-control">
             <label for="jianpuPageWidth">谱面宽度</label>
             <input id="jianpuPageWidth" type="number" min="180" max="420" step="10" value="210" inputmode="numeric" aria-describedby="jianpuPageWidthHint">
             <span>mm</span>
             <small id="jianpuPageWidthHint">默认 210 mm（A4 短边），修改后自动重新排版。</small>
+          </div>
+          <div class="jianpu-duration-spacing-control" hidden>
+            <label for="jianpuDurationSpacing">时值格宽</label>
+            <input id="jianpuDurationSpacing" type="range" min="4" max="64" step="1" value="12" aria-describedby="jianpuDurationSpacingHint">
+            <output id="jianpuDurationSpacingValue" for="jianpuDurationSpacing">12 px</output>
+            <small id="jianpuDurationSpacingHint">调整最短音符格宽；字形会随格子缩放，格子连续排列。</small>
+          </div>
+          <div class="jianpu-preview-playback" role="group" aria-label="简谱试听播放器" hidden>
+            <div class="jianpu-preview-transport">
+              <button class="text-button" id="jianpuPreviewPlayButton" type="button">▶ 播放</button>
+              <button class="text-button" id="jianpuPreviewStopButton" type="button" disabled>■ 停止</button>
+              <button class="text-button" id="jianpuPerformanceButton" type="button" aria-pressed="false">演奏模式</button>
+            </div>
+            <div class="jianpu-preview-progress">
+              <output id="jianpuPreviewCurrentTime" for="jianpuPreviewProgress">00:00.000</output>
+              <input id="jianpuPreviewProgress" type="range" min="0" max="0" step="1" value="0" disabled aria-label="简谱播放进度">
+              <output id="jianpuPreviewDuration" for="jianpuPreviewProgress">00:00.000</output>
+            </div>
           </div>
           <div class="jianpu-preview-scroll" aria-label="当前曲谱的简谱排版预览">
             <div id="jianpuPreviewMeasures" class="jianpu-preview-measures"></div>
@@ -4661,7 +4689,7 @@
       </section>
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
-    <script src="./data/community-songs.js?v=5.2.3"></script>
-    <script src="./app.js?v=5.2.3"></script>
+    <script src="./data/community-songs.js?v=5.4.0"></script>
+    <script src="./app.js?v=5.4.0"></script>
   </body>
 </html>

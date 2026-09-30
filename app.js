@@ -6,7 +6,7 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   button.closest("dialog")?.close("cancel");
 });
-const WEBSITE_VERSION = "5.2.3";
+const WEBSITE_VERSION = "5.4.0";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
@@ -36,6 +36,7 @@ let selectedExportBrand = "all";
 // the single canonical manifest. Keep it out of the webpage source so a new
 // helper release cannot leave stale links or compatibility ranges behind.
 const RECORDER_HELPER_MANIFEST_URL = "./recording-helper/version.json";
+const OBS_MONITOR_MANIFEST_URL = "./recording-helper/ObsStreamMonitor/version.json";
 let recorderHelperManifest = null;
 let recorderHelperManifestPromise = null;
 let recorderHelperVersion = "—";
@@ -526,14 +527,19 @@ async function reserveMacroExportSlot() {
 }
 
 function analyticsEntrySource() {
-  if (!document.referrer) return "direct";
+  if (!document.referrer) return { entry: "direct" };
   try {
-    const host = new URL(document.referrer).hostname.toLowerCase();
-    if (host === location.hostname.toLowerCase()) return "internal";
-    if (/(google|bing|baidu|sogou|so\.com|yandex)/.test(host)) return "search";
-    if (/(douyin|bilibili|weibo|qq\.com|weixin|github)/.test(host)) return "social";
-  } catch {}
-  return "referral";
+    const url = new URL(document.referrer);
+    const host = url.hostname.toLowerCase().replace(/\.$/, "");
+    if (!["http:", "https:"].includes(url.protocol) || !host) return { entry: "direct" };
+    if (host === location.hostname.toLowerCase()) return { entry: "internal" };
+    let entry = "referral";
+    if (/(google|bing|baidu|sogou|so\.com|yandex)/.test(host)) entry = "search";
+    else if (/(douyin|bilibili|weibo|qq\.com|weixin|github)/.test(host)) entry = "social";
+    return { entry, referrer_host: host };
+  } catch {
+    return { entry: "direct" };
+  }
 }
 
 function flushAnalytics() {
@@ -1109,12 +1115,13 @@ const SECTION_GUIDES = {
 const elements = {
   jianpuScore: document.querySelector("#jianpuScore"), recordedScore: document.querySelector("#recordedScore"), keyboardScore: document.querySelector("#keyboardScore"), bpm: document.querySelector("#bpm"), macroName: document.querySelector("#macroName"), artistName: document.querySelector("#artistName"), keySignature: document.querySelector("#keySignature"), timeSignature: document.querySelector("#timeSignature"), transposeDown: document.querySelector("#transposeDown"), transposeUp: document.querySelector("#transposeUp"), transposeStatus: document.querySelector("#transposeStatus"), macroTriggerButton: document.querySelector("#macroTriggerButton"), macroStopButton: document.querySelector("#macroStopButton"), macroLowButton: document.querySelector("#macroLowButton"), macroMiddleButton: document.querySelector("#macroMiddleButton"), macroHighButton: document.querySelector("#macroHighButton"), macroSettings: document.querySelector("#macroSettings"), macroTriggerValidation: document.querySelector("#macroTriggerValidation"), macroTimingTestMode: document.querySelector("#macroTimingTestMode"), macroExportSpeed: document.querySelector("#macroExportSpeed"), macroExportSpeedValue: document.querySelector("#macroExportSpeedValue"), macroExportRangeEnabled: document.querySelector("#macroExportRangeEnabled"), macroExportRangeState: document.querySelector("#macroExportRangeState"), macroExportRangeStart: document.querySelector("#macroExportRangeStart"), macroExportRangeEnd: document.querySelector("#macroExportRangeEnd"), macroExportRangeStartLabel: document.querySelector("#macroExportRangeStartLabel"), macroExportRangeEndLabel: document.querySelector("#macroExportRangeEndLabel"), macroExportRangeSummary: document.querySelector("#macroExportRangeSummary"), macroExportRangeSliders: document.querySelector("#macroExportRangeSliders"), macroExportRangeWindow: document.querySelector("#macroExportRangeWindow"), macroExportRangePresets: [...document.querySelectorAll("[data-export-range-preset]")], mchoseProvider: document.querySelector("#mchoseProvider"), mchoseSplitEnabled: document.querySelector("#mchoseSplitEnabled"), mchoseOperationsPerFile: document.querySelector("#mchoseOperationsPerFile"), mchoseSplitStatus: document.querySelector("#mchoseSplitStatus"), mchoseDownloadButton: document.querySelector("#mchoseDownloadButton"), rogProvider: document.querySelector("#rogProvider"), rogSplitEnabled: document.querySelector("#rogSplitEnabled"), rogOperationsPerFile: document.querySelector("#rogOperationsPerFile"), rogSplitStatus: document.querySelector("#rogSplitStatus"), rogDownloadButton: document.querySelector("#rogDownloadButton"), exportBrandFilter: document.querySelector("#exportBrandFilter"), exportBrandFilterHint: document.querySelector("#exportBrandFilterHint"), exportBrandTargets: [...document.querySelectorAll("[data-export-brands]")],
   workbench: document.querySelector(".workbench"), editorPanel: document.querySelector(".editor-panel"), pageLayout: document.querySelector(".page-layout"), sectionSidebar: document.querySelector("#sectionSidebar"), sectionSidebarBody: document.querySelector("#sectionSidebarBody"), sectionSidebarToggle: document.querySelector("#sectionSidebarToggle"), sectionSidebarOpen: document.querySelector("#sectionSidebarOpen"), sectionNavLinks: [...document.querySelectorAll("[data-section-nav-target]")],
-  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), jianpuPreviewButton: document.querySelector("#jianpuPreviewButton"), jianpuPreviewDialog: document.querySelector("#jianpuPreviewDialog"), jianpuPreviewTitle: document.querySelector("#jianpuPreviewTitle"), jianpuPreviewMeta: document.querySelector("#jianpuPreviewMeta"), jianpuPageWidth: document.querySelector("#jianpuPageWidth"), jianpuPreviewMeasures: document.querySelector("#jianpuPreviewMeasures"), jianpuPreviewHint: document.querySelector("#jianpuPreviewHint"), jianpuDownloadButton: document.querySelector("#jianpuDownloadButton"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiMultiSelectToggle: document.querySelector("#midiMultiSelectToggle"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
+  convertButton: document.querySelector("#convertButton"), repairCurrentModeButton: document.querySelector("#repairCurrentModeButton"), jianpuPreviewButton: document.querySelector("#jianpuPreviewButton"), jianpuPreviewDialog: document.querySelector("#jianpuPreviewDialog"), jianpuPreviewTitle: document.querySelector("#jianpuPreviewTitle"), jianpuPreviewMeta: document.querySelector("#jianpuPreviewMeta"), jianpuPageWidth: document.querySelector("#jianpuPageWidth"), jianpuPreviewMeasures: document.querySelector("#jianpuPreviewMeasures"), jianpuPreviewHint: document.querySelector("#jianpuPreviewHint"), jianpuPreviewPlayButton: document.querySelector("#jianpuPreviewPlayButton"), jianpuPreviewStopButton: document.querySelector("#jianpuPreviewStopButton"), jianpuPreviewProgress: document.querySelector("#jianpuPreviewProgress"), jianpuPreviewCurrentTime: document.querySelector("#jianpuPreviewCurrentTime"), jianpuPreviewDuration: document.querySelector("#jianpuPreviewDuration"), jianpuPerformanceButton: document.querySelector("#jianpuPerformanceButton"), jianpuDownloadButton: document.querySelector("#jianpuDownloadButton"), clearButton: document.querySelector("#clearButton"), undoButton: document.querySelector("#undoButton"), redoButton: document.querySelector("#redoButton"), clearScoreDialog: document.querySelector("#clearScoreDialog"), confirmClearScore: document.querySelector("#confirmClearScore"), importMidiButton: document.querySelector("#importMidiButton"), importMidiInput: document.querySelector("#importMidiInput"), midiSmoothing: document.querySelector("#midiSmoothing"), midiTrackPicker: document.querySelector("#midiTrackPicker"), midiMultiSelectToggle: document.querySelector("#midiMultiSelectToggle"), midiTrackList: document.querySelector("#midiTrackList"), midiPickerStatus: document.querySelector("#midiPickerStatus"), midiRangeStart: document.querySelector("#midiRangeStart"), midiRangeEnd: document.querySelector("#midiRangeEnd"), midiRangeSummary: document.querySelector("#midiRangeSummary"), midiRangeSliders: document.querySelector("#midiRangeSliders"), midiRangeStartInput: document.querySelector("#midiRangeStartInput"), midiRangeEndInput: document.querySelector("#midiRangeEndInput"), confirmMidiSelection: document.querySelector("#confirmMidiSelection"), midiNotePickerDialog: document.querySelector("#midiNotePickerDialog"), midiNotePickerTitle: document.querySelector("#midiNotePickerTitle"), midiNotePickerCount: document.querySelector("#midiNotePickerCount"), midiNotePickerCopy: document.querySelector("#midiNotePickerCopy"), midiNoteScroll: document.querySelector("#midiNoteScroll"), midiNoteRuler: document.querySelector("#midiNoteRuler"), midiNoteRoll: document.querySelector("#midiNoteRoll"), resetMidiNoteSelection: document.querySelector("#resetMidiNoteSelection"), applyMidiNoteSelection: document.querySelector("#applyMidiNoteSelection"), midiOverlapMinGap: document.querySelector("#midiOverlapMinGap"), midiOverlapMaxGap: document.querySelector("#midiOverlapMaxGap"), midiOverlapStatus: document.querySelector("#midiOverlapStatus"), importScoreButton: document.querySelector("#importScoreButton"), macroExportButton: document.querySelector("#macroExportButton"), macroExportSection: document.querySelector("#macro-export"), communityUploadButton: document.querySelector("#communityUploadButton"), exportScoreButton: document.querySelector("#exportScoreButton"), importScoreInput: document.querySelector("#importScoreInput"),
   jianpuLineNumbers: document.querySelector("#jianpuLineNumbers"), keyboardLineNumbers: document.querySelector("#keyboardLineNumbers"), validation: document.querySelector("#validation"), status: document.querySelector("#parseStatus"),
   totalTime: document.querySelector("#totalTime"), noteCount: document.querySelector("#noteCount"), eventCount: document.querySelector("#eventCount"), beatMs: document.querySelector("#beatMs"),
   timeline: document.querySelector("#timeline"), toast: document.querySelector("#toast"), exportButtons: [...document.querySelectorAll("[data-action]")],
   jianpuSoftKeyboard: document.querySelector(".jianpu-soft-keyboard"), jianpuModifierChoices: [...document.querySelectorAll("[data-jianpu-modifier]")], jianpuModifierReset: document.querySelector("#jianpuModifierReset"),
   previewButton: document.querySelector("#previewButton"), restartButton: document.querySelector("#restartButton"), stopButton: document.querySelector("#stopButton"), volume: document.querySelector("#volume"), previewState: document.querySelector("#previewState"), previewProgress: document.querySelector("#previewProgress"), previewProgressLabel: document.querySelector("#previewProgressLabel"), previewSongTitle: document.querySelector("#previewSongTitle"),
+  previewInstrumentButtons: [...document.querySelectorAll("[data-preview-instrument]")], previewInstrumentHint: document.querySelector("#previewInstrumentHint"),
   inputModeButtons: [...document.querySelectorAll("[data-input-mode]")], inputPanes: [...document.querySelectorAll("[data-input-pane]")], directoryButtons: [...document.querySelectorAll("[data-directory-action]")], tourStartButtons: [...document.querySelectorAll("[data-tour-start]")], guideButtons: [...document.querySelectorAll("[data-guide]")], sectionGuideDialog: document.querySelector("#sectionGuideDialog"), sectionGuideWindowTitle: document.querySelector("#sectionGuideWindowTitle"), sectionGuideIndex: document.querySelector("#sectionGuideIndex"), sectionGuideHeading: document.querySelector("#sectionGuideHeading"), sectionGuideIntro: document.querySelector("#sectionGuideIntro"), sectionGuideSteps: document.querySelector("#sectionGuideSteps"), songGrid: document.querySelector("#songGrid"), songSearch: document.querySelector("#songSearch"), libraryCount: document.querySelector("#libraryCount"), libraryTabs: [...document.querySelectorAll("[data-library-view]")], uploadScoreButton: document.querySelector("#uploadScoreButton"), uploadHelpDialog: document.querySelector("#uploadHelpDialog"), uploadCopyStatus: document.querySelector("#uploadCopyStatus"), uploadMethodTabs: [...document.querySelectorAll("[data-upload-method]")], uploadMethodPanels: [...document.querySelectorAll("[data-upload-panel]")],
   recordToggle: document.querySelector("#recordToggle"), recordState: document.querySelector("#recordState"), recordCount: document.querySelector("#recordCount"), recordKeyboard: document.querySelector("#recordKeyboard"), modifierChoices: [...document.querySelectorAll("[data-record-modifier]")],
   versionButton: document.querySelector("#versionButton"), changelogDialog: document.querySelector("#changelogDialog"), changelogStatus: document.querySelector("#changelogStatus"), changelogList: document.querySelector("#changelogList"), updateDialog: document.querySelector("#updateDialog"), updateDialogTitle: document.querySelector("#updateDialogTitle"), updateDialogVersion: document.querySelector("#updateDialogVersion"), updateDialogLatestVersion: document.querySelector("#updateDialogLatestVersion"), updateDialogDescription: document.querySelector("#updateDialogDescription"), updateDialogChanges: document.querySelector("#updateDialogChanges"), updateLaterButton: document.querySelector("#updateLaterButton"), updateRefreshButton: document.querySelector("#updateRefreshButton"), publicAnalyticsSummary: document.querySelector("#publicAnalyticsSummary"), todayPageViewCount: document.querySelector("#todayPageViewCount"), registeredUserCount: document.querySelector("#registeredUserCount"), publicRankingsDate: document.querySelector("#publicRankingsDate"), uploadRankingList: document.querySelector("#uploadRankingList"), contributionRankingList: document.querySelector("#contributionRankingList"), exportRankingList: document.querySelector("#exportRankingList"), publicRankingTabs: [...document.querySelectorAll("[data-ranking-view]")], publicRankingPanels: [...document.querySelectorAll("[data-ranking-panel]"),], accountButton: document.querySelector("#accountButton"), accountButtonLabel: document.querySelector("#accountButtonLabel"), authDialog: document.querySelector("#authDialog"), oauthLogin: document.querySelector("#oauthLogin"), oauthLoginButtons: [...document.querySelectorAll("[data-oauth-provider]")], authEmailStep: document.querySelector("#authEmailStep"), authEmail: document.querySelector("#authEmail"), authCode: document.querySelector("#authCode"), authUserId: document.querySelector("#authUserId"), authEmailNote: document.querySelector("#authEmailNote"), authStatus: document.querySelector("#authStatus"), authRequestCode: document.querySelector("#authRequestCode"), authVerifyCode: document.querySelector("#authVerifyCode"), accountDialog: document.querySelector("#accountDialog"), accountEmail: document.querySelector("#accountEmail"), accountUserId: document.querySelector("#accountUserId"), accountStatus: document.querySelector("#accountStatus"), saveAccountButton: document.querySelector("#saveAccountButton"), logoutButton: document.querySelector("#logoutButton"), macroDownloadDialog: document.querySelector("#macroDownloadDialog"), macroDownloadFilename: document.querySelector("#macroDownloadFilename"), macroDownloadProgress: document.querySelector("#macroDownloadProgress"), macroDownloadProgressLabel: document.querySelector("#macroDownloadProgressLabel"), confirmMacroDownload: document.querySelector("#confirmMacroDownload"), recordingHelperHelpButton: document.querySelector("#recordingHelperHelpButton"), recordingHelperKookButton: document.querySelector("#recordingHelperKookButton"), recordingHelperDialog: document.querySelector("#recordingHelperDialog"), recordingHelperVersionBoards: [...document.querySelectorAll("[data-recording-helper-version-board]")], recordingHelperWebVersion: document.querySelector("#recordingHelperWebVersion"), recordingHelperVersion: document.querySelector("#recordingHelperVersion"), recordingHelperDownloadVersion: document.querySelector("#recordingHelperDownloadVersion"), recordingHelperCompatibility: document.querySelector("#recordingHelperCompatibility"), recordingHelperDownloadLinks: [...document.querySelectorAll("[data-recording-helper-download]")], scoreExportDialog: document.querySelector("#scoreExportDialog"), scoreExportTitle: document.querySelector("#scoreExportTitle"), scoreExportHeading: document.querySelector("#scoreExportHeading"), scoreExportDescription: document.querySelector("#scoreExportDescription"), exportSongTitle: document.querySelector("#exportSongTitle"), exportArtistName: document.querySelector("#exportArtistName"), exportSharedBy: document.querySelector("#exportSharedBy"), exportDisplayUrl: document.querySelector("#exportDisplayUrl"), exportDeclaration: document.querySelector("#exportDeclaration"), exportMetaPreview: document.querySelector("#exportMetaPreview"), confirmScoreExport: document.querySelector("#confirmScoreExport"), confirmScoreExportLabel: document.querySelector("#confirmScoreExportLabel"), confirmScoreExportIcon: document.querySelector("#confirmScoreExportIcon"), manualMacroButton: document.querySelector("#manualMacroButton"), keyboardMacroDialog: document.querySelector("#keyboardMacroDialog"), keyboardMacroTitle: document.querySelector("#keyboardMacroTitle"), keyboardMacroMeta: document.querySelector("#keyboardMacroMeta"), keyboardMacroOutput: document.querySelector("#keyboardMacroOutput"),
@@ -1122,6 +1129,11 @@ const elements = {
 };
 
 elements.activeVisitorCount = document.querySelector("#activeVisitorCount");
+Object.assign(elements, {
+  jianpuDurationSpacing: document.querySelector("#jianpuDurationSpacing"),
+  jianpuDurationSpacingValue: document.querySelector("#jianpuDurationSpacingValue"),
+  jianpuDurationSpacingControl: document.querySelector(".jianpu-duration-spacing-control")
+});
 
 Object.assign(elements, {
   aiScoreButton: document.querySelector("#aiScoreButton"),
@@ -1312,12 +1324,17 @@ let masterGain = null;
 const harmonicaWaveCache = new WeakMap();
 const harmonicaNoiseCache = new WeakMap();
 const harmonicaSampleBankCache = new WeakMap();
+const pianoSampleBankCache = new WeakMap();
 const harmonicaSustainWaveCache = new WeakMap();
 const HARMONICA_SAMPLE_ROOT = "./assets/audio/harmonica";
+const PIANO_SAMPLE_ROOT = "./assets/audio/piano";
 // 48.wav/52.wav are source filenames whose actual pitches are C4/E4. Do not
 // treat their filenames as MIDI anchors: doing so puts the low-register
 // wavetable one octave above the requested note.
 const HARMONICA_SAMPLE_ANCHORS = Object.freeze([60, 64, 72, 76, 79, 84]);
+const PIANO_SAMPLE_ANCHORS = Object.freeze([48, 51, 54, 57, 60, 63, 66, 69, 72, 75, 78, 81, 84]);
+const PREVIEW_INSTRUMENT_STORAGE_KEY = "delta-harmonica-preview-instrument";
+let previewInstrument = readPreviewInstrumentPreference();
 let activePreview = null;
 let workbenchHeightSyncFrame = 0;
 let pendingMacroDownload = null;
@@ -3811,6 +3828,10 @@ function setPreviewProgress(positionMs = 0, sequence = playerSourceSequence()) {
   elements.previewProgress.value = safePosition;
   elements.previewProgress.disabled = !totalMs;
   elements.previewProgressLabel.textContent = `${formatTime(safePosition)} / ${totalMs ? formatTime(totalMs) : "--:--.---"}`;
+  if (activeJianpuPreview?.sequence === sequence) {
+    activeJianpuPreview.seekPositionMs = safePosition;
+    syncJianpuPreviewProgress(safePosition, totalMs);
+  }
 }
 
 function highlightTimelinePosition(positionMs, { scroll = false } = {}) {
@@ -3905,9 +3926,10 @@ function splitJianpuPreviewMeasures(notes, measureBeats) {
   const measures = [[]];
   let usedBeats = 0;
   const epsilon = 1e-8;
-  notes.forEach((item) => {
+  notes.forEach((item, noteIndex) => {
     const tieBoundaries = [...(item.tieBoundaries || [])].sort((a, b) => a - b);
     const noteBoundaries = [0, ...tieBoundaries, item.beats];
+    let elapsedBeats = 0;
     for (let notePart = 0; notePart < noteBoundaries.length - 1; notePart += 1) {
       let remaining = noteBoundaries[notePart + 1] - noteBoundaries[notePart];
       let isContinuation = false;
@@ -3921,15 +3943,19 @@ function splitJianpuPreviewMeasures(notes, measureBeats) {
         const isExplicitTiePart = notePart < noteBoundaries.length - 2;
         measures.at(-1).push({
           item,
+          noteIndex,
           beats: segmentBeats,
           start: usedBeats,
           end: usedBeats + segmentBeats,
+          startMs: item.timeMs + (elapsedBeats / item.beats) * item.durationMs,
+          endMs: item.timeMs + ((elapsedBeats + segmentBeats) / item.beats) * item.durationMs,
           tieIn: isContinuation || notePart > 0,
           tieOut: remaining > epsilon || isExplicitTiePart,
           explicitTieIn: notePart > 0 && !isContinuation,
           explicitTieOut: isExplicitTiePart && remaining <= epsilon
         });
         usedBeats += segmentBeats;
+        elapsedBeats += segmentBeats;
         isContinuation = true;
       }
     }
@@ -4052,28 +4078,43 @@ function jianpuModifierFill(modifier) {
   return { L: "#c62828", M: "#a87900", R: "#2e7d32" }[keys[0]] || "";
 }
 
-function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 25.4, notationMode = "jianpu") {
+function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 25.4, notationMode = "jianpu", layoutMode = "default", durationCellWidth = 12) {
   const pagePadding = 48;
-  const measureGap = 8;
   const noteGap = 31;
-  const width = Math.max(pagePadding * 2 + 200, Number(pageWidth) || (210 * 96 / 25.4));
+  const requestedWidth = Math.max(pagePadding * 2 + 200, Number(pageWidth) || (210 * 96 / 25.4));
+  const showRhythm = layoutMode === "default";
+  const durationMode = layoutMode === "duration";
+  const measureGap = durationMode ? 0 : 8;
+  const minimumDurationSlotWidth = 4;
+  const allSegments = measures.flat();
+  const soundingSegments = allSegments.filter((segment) => !segment.item.isRest && String(segment.item.note) !== "0");
+  const scaleReferenceSegments = soundingSegments.length ? soundingSegments : allSegments;
+  // Tiny final fragments can occur when a recorded song is trimmed to its exact
+  // playback endpoint. Keep them proportional, but don't let one fragment set
+  // the width of every ordinary note in the score.
+  const ordinaryDurations = scaleReferenceSegments.map((segment) => segment.beats).filter((beats) => beats >= 0.12);
+  const shortestSegmentBeats = Math.min(...(ordinaryDurations.length ? ordinaryDurations : scaleReferenceSegments.map((segment) => segment.beats).filter((beats) => beats > 0)), 1);
+  const durationScale = Math.max(4, Number(durationCellWidth) || 12) / shortestSegmentBeats;
   const durationExtraWidth = (segment) => {
-    const label = jianpuPreviewDurationLabel(segment);
+    const label = showRhythm ? jianpuPreviewDurationLabel(segment) : "";
     if (!label) return 0;
     return Math.max(0, 12 + jianpuPreviewDurationLabelWidth(label) + 8 - noteGap);
   };
-  const availableWidth = width - pagePadding * 2;
+  const segmentAdvance = (segment) => durationMode
+    ? Math.max(minimumDurationSlotWidth, segment.beats * durationScale)
+    : noteGap * (1 + (showRhythm ? jianpuPreviewDashCount(segment) : 0)) + durationExtraWidth(segment);
+  const availableWidth = requestedWidth - pagePadding * 2;
   const measureFragments = [];
   measures.forEach((measure, index) => {
     let fragment = [];
-    let fragmentWidth = 32;
+    let fragmentWidth = durationMode ? 0 : 32;
     let fragmentIndex = 0;
     measure.forEach((segment) => {
-      const advance = noteGap * (1 + jianpuPreviewDashCount(segment)) + durationExtraWidth(segment);
+      const advance = segmentAdvance(segment);
       if (fragment.length && fragmentWidth + advance > availableWidth) {
         measureFragments.push({ measure: fragment, index, width: fragmentWidth, continued: fragmentIndex > 0, endsMeasure: false });
         fragment = [];
-        fragmentWidth = 32;
+        fragmentWidth = durationMode ? 0 : 32;
         fragmentIndex += 1;
       }
       fragment.push(segment);
@@ -4095,13 +4136,16 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
   });
   if (current.length) systems.push(current);
 
+  const widestSystem = Math.max(0, ...systems.map((system) => system.reduce((sum, fragment, index) => sum + fragment.width + (index ? measureGap : 0), 0)));
+  const width = Math.max(requestedWidth, pagePadding * 2 + widestSystem);
+
   const headerHeight = 184;
   const systemHeight = 108;
   const footerHeight = 62;
   const height = headerHeight + systems.length * systemHeight + footerHeight;
   const parts = [
-    `<svg xmlns="http://www.w3.org/2000/svg" class="jianpu-score-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(title)} ${notationMode === "keyboard" ? "键盘模式" : "简谱"}：${escapeHtml(meta)}">`,
-    `<style>.paper{fill:#fffef7}.brand{font:700 22px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.34}.brand-url{font:14px 'JetBrains Mono',monospace;fill:#008080;opacity:.3}.watermark-name{font:700 17px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.105}.watermark-url{font:10px 'JetBrains Mono',monospace;fill:#008080;opacity:.09}.title{font:700 28px 'Noto Sans SC','PingFang SC',serif;fill:#1c2c27}.meta{font:12px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.measure-num{font:11px 'JetBrains Mono',monospace;fill:#849087}.note{font:34px 'Noto Serif CJK SC','Songti SC','SimSun',serif;fill:#172c27}.keyboard-note{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#172c27}.keyboard-note-white{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#fffef7}.rest{fill:#445952}.small{font:16px 'Noto Sans SC','PingFang SC',sans-serif;fill:#172c27}.tiny{font:12px 'JetBrains Mono',monospace;fill:#654a77}.legend-label{font:600 13px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.beam{stroke:#263b34;stroke-width:2.6;stroke-linecap:round}.barline{stroke:#596a61;stroke-width:1.8}.tie{fill:none;stroke:#65517c;stroke-width:1.8}.footer{font:700 16px 'JetBrains Mono',monospace;fill:#111}</style>`,
+    `<svg xmlns="http://www.w3.org/2000/svg" class="jianpu-score-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-header-height="${headerHeight}" data-system-height="${systemHeight}" data-system-count="${systems.length}" role="img" aria-label="${escapeHtml(title)} ${notationMode === "keyboard" ? "键盘模式" : "简谱"}：${escapeHtml(meta)}">`,
+    `<style>.paper{fill:#fffef7}.brand{font:700 22px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.34}.brand-url{font:14px 'JetBrains Mono',monospace;fill:#008080;opacity:.3}.watermark-name{font:700 17px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.105}.watermark-url{font:10px 'JetBrains Mono',monospace;fill:#008080;opacity:.09}.title{font:700 28px 'Noto Sans SC','PingFang SC',serif;fill:#1c2c27}.meta{font:12px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.measure-num{font:11px 'JetBrains Mono',monospace;fill:#849087}.note{font:34px 'Noto Serif CJK SC','Songti SC','SimSun',serif;fill:#172c27}.keyboard-note{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#172c27}.keyboard-note-white{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#fffef7}.rest{fill:#445952}.small{font:16px 'Noto Sans SC','PingFang SC',sans-serif;fill:#172c27}.tiny{font:12px 'JetBrains Mono',monospace;fill:#654a77}.legend-label{font:600 13px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.beam{stroke:#263b34;stroke-width:2.6;stroke-linecap:round}.barline{stroke:#596a61;stroke-width:1.8}.tie{fill:none;stroke:#65517c;stroke-width:1.8}.score-system-highlight.current{fill:#cee5d8;opacity:.56}.score-system-highlight.next{fill:#e6ecf4;opacity:.5}.score-playhead line{stroke:#c34432;stroke-width:2.5;stroke-linecap:round;opacity:.82}.score-playhead path{fill:#c34432}.footer{font:700 16px 'JetBrains Mono',monospace;fill:#111}</style>`,
     `<defs><linearGradient id="jianpu-modifier-LM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a87900"/><stop offset="50%" stop-color="#a87900"/><stop offset="50%" stop-color="#c62828"/><stop offset="100%" stop-color="#c62828"/></linearGradient><linearGradient id="jianpu-modifier-RM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a87900"/><stop offset="50%" stop-color="#a87900"/><stop offset="50%" stop-color="#2e7d32"/><stop offset="100%" stop-color="#2e7d32"/></linearGradient></defs>`,
     `<rect class="paper" width="${width}" height="${height}"/>`,
     systems.map((_, systemIndex) => [pagePadding + 88, width / 2, width - pagePadding - 88].map((x) => {
@@ -4126,29 +4170,37 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
 
   let pendingTie = null;
   systems.forEach((system, systemIndex) => {
-    let x = pagePadding;
+    const systemWidth = system.reduce((sum, fragment, index) => sum + fragment.width + (index ? measureGap : 0), 0);
+    let x = pagePadding + (durationMode ? Math.max(0, (width - pagePadding * 2 - systemWidth) / 2) - 33 : 0);
     const systemTop = headerHeight + systemIndex * systemHeight;
+    if (durationMode) parts.push(`<rect class="score-system-highlight" data-score-system-highlight="${systemIndex}" x="${pagePadding + 4}" y="${systemTop + 9}" width="${width - pagePadding * 2 - 8}" height="90" rx="5" visibility="hidden"/>`);
+    if (durationMode) parts.push(`<g class="score-playhead" data-score-playhead="${systemIndex}" visibility="hidden"><line x1="0" y1="${systemTop + 28}" x2="0" y2="${systemTop + 81}"/><path d="M -5 ${systemTop + 25} L 5 ${systemTop + 25} L 0 ${systemTop + 32} Z"/></g>`);
     system.forEach(({ measure, index, width: measureWidth, continued, endsMeasure }) => {
       const contentLeft = x + 13;
       const positions = [];
       let notationOffset = 0;
       measure.forEach((segment, segmentIndex) => {
-        const center = contentLeft + 20 + notationOffset;
-        const dashCount = jianpuPreviewDashCount(segment);
+        const slotWidth = segmentAdvance(segment);
+        const slotStart = contentLeft + 20 + notationOffset;
+        const center = slotStart + (durationMode ? slotWidth / 2 : 0);
+        const dashCount = showRhythm ? jianpuPreviewDashCount(segment) : 0;
         const dashCenters = Array.from({ length: dashCount }, (_, dashIndex) => center + (dashIndex + 1) * noteGap);
-        positions.push({ segment, center, dashCenters, index: segmentIndex, beam: jianpuSegmentBeamCount(segment) });
-        notationOffset += noteGap * (1 + dashCount) + durationExtraWidth(segment);
+        positions.push({ segment, center, dashCenters, slotStart, slotWidth, index: segmentIndex, beam: showRhythm ? jianpuSegmentBeamCount(segment) : 0 });
+        notationOffset += slotWidth;
       });
       if (!continued) parts.push(jianpuSvgText(String(index + 1), x + 3, systemTop + 19, "measure-num", "start"));
-      jianpuBeamGroups(positions, meter).forEach((beamGroup) => {
+      if (showRhythm) jianpuBeamGroups(positions, meter).forEach((beamGroup) => {
         parts.push(jianpuBeamMarkup(beamGroup, systemTop + 67));
       });
 
-      positions.forEach(({ segment, center, dashCenters }) => {
+      positions.forEach(({ segment, center, dashCenters, slotStart, slotWidth }) => {
         const { item, beats } = segment;
         const rest = item.isRest || item.note === "0";
+        if (durationMode) {
+          parts.push(`<rect data-playback-slot data-note-index="${segment.noteIndex}" data-start-ms="${segment.startMs.toFixed(3)}" data-end-ms="${segment.endMs.toFixed(3)}" data-slot-start="${slotStart.toFixed(1)}" data-slot-end="${(slotStart + slotWidth).toFixed(1)}" data-playhead-system="${systemIndex}" x="${slotStart.toFixed(1)}" y="${(systemTop + 27).toFixed(1)}" width="${slotWidth.toFixed(1)}" height="54" fill="transparent" stroke="none"/>`);
+        }
         const duration = JIANPU_PREVIEW_DURATIONS.get(Number(beats.toFixed(6)));
-        const durationLabel = jianpuPreviewDurationLabel(segment);
+        const durationLabel = showRhythm ? jianpuPreviewDurationLabel(segment) : "";
         const durationLabelWidth = jianpuPreviewDurationLabelWidth(durationLabel);
         const pitch = String(item.sourcePitch || standardJianpuPitch(item));
         const match = pitch.match(/^([#b♯♭]?)(,{0,2})([1-7])('{0,2})$/);
@@ -4160,23 +4212,26 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
         const lowDots = !rest && notationMode !== "keyboard" && match ? match[2].length : 0;
         const highDots = !rest && notationMode !== "keyboard" && match ? match[4].length : 0;
         const y = systemTop + 53;
-        if (highDots) parts.push(jianpuSvgText("•".repeat(highDots), center, y - (modifier ? 34 : 25), "small"));
-        const noteBoxLeft = center - (accidental ? 20 : 14);
-        const noteBoxRight = durationLabel ? center + 14 + durationLabelWidth : center + 14;
+        const noteBoxLeft = durationMode ? slotStart : center - (accidental ? 20 : 14);
+        const noteBoxRight = durationMode ? slotStart + slotWidth : durationLabel ? center + 14 + durationLabelWidth : center + 14;
         const noteBoxWidth = noteBoxRight - noteBoxLeft;
-        if (modifier) parts.push(`<rect x="${noteBoxLeft.toFixed(1)}" y="${(y - 26).toFixed(1)}" width="${noteBoxWidth.toFixed(1)}" height="36" rx="2" fill="${jianpuModifierFill(modifier)}"/>`);
+        if (modifier || durationMode) parts.push(`<rect x="${noteBoxLeft.toFixed(1)}" y="${(y - 26).toFixed(1)}" width="${noteBoxWidth.toFixed(1)}" height="36" rx="2" fill="${modifier ? jianpuModifierFill(modifier) : "none"}" stroke="${durationMode ? "#87958d" : "none"}" stroke-width="${durationMode ? "1.4" : "0"}"/>`);
+        const noteTextScale = durationMode ? Math.min(1, slotWidth / 44) : 1;
+        if (durationMode) parts.push(`<g transform="translate(${center.toFixed(1)} ${y.toFixed(1)}) scale(${noteTextScale.toFixed(3)}) translate(${(-center).toFixed(1)} ${(-y).toFixed(1)})">`);
+        if (highDots) parts.push(jianpuSvgText("•".repeat(highDots), center, y - (modifier ? 34 : 25), "small"));
         if (accidental) parts.push(jianpuSvgText(accidental, center - (modifier ? 9 : 14), y, modifier ? "accidental-white" : "note"));
         const noteClass = notationMode === "keyboard" ? modifier ? "keyboard-note-white" : "keyboard-note" : modifier ? "note note-white" : "note";
         parts.push(jianpuSvgText(note, center, y, rest ? "note rest" : noteClass));
         if (lowDots) parts.push(jianpuSvgText("•".repeat(lowDots), center, y + 29, "small"));
-        if (duration?.dots) Array.from({ length: duration.dots }, (_, dotIndex) => {
+        if (showRhythm && duration?.dots) Array.from({ length: duration.dots }, (_, dotIndex) => {
           const dotX = center + 10 + dotIndex * 4;
           parts.push(`<circle cx="${dotX.toFixed(1)}" cy="${(y + 6).toFixed(1)}" r="2" fill="${modifier ? "#fffef7" : "#172c27"}"/>`);
         });
         dashCenters.forEach((dashCenter) => parts.push(jianpuSvgText("—", dashCenter, y + 1, "small")));
         if (durationLabel) parts.push(jianpuSvgText(durationLabel, center + 12, y, modifier ? "duration-mark-white" : "duration-mark", "start", durationLabelWidth));
+        if (durationMode) parts.push("</g>");
       });
-      positions.forEach((position) => {
+      if (showRhythm) positions.forEach((position) => {
         const y = systemTop + 53;
         if (position.segment.tieIn && !position.segment.item.isRest) {
           if (pendingTie && pendingTie.systemIndex === systemIndex) {
@@ -4191,7 +4246,10 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
         }
         if (position.segment.tieOut && !position.segment.item.isRest) pendingTie = { center: position.center, systemIndex };
       });
-      if (endsMeasure) parts.push(`<line class="barline" x1="${(x + measureWidth - 3).toFixed(1)}" y1="${(systemTop + 28).toFixed(1)}" x2="${(x + measureWidth - 3).toFixed(1)}" y2="${(systemTop + 78).toFixed(1)}"/>`);
+      if (endsMeasure) {
+        const barlineX = x + measureWidth + (durationMode ? 32 : -3);
+        parts.push(`<line class="barline" x1="${barlineX.toFixed(1)}" y1="${(systemTop + 28).toFixed(1)}" x2="${barlineX.toFixed(1)}" y2="${(systemTop + 78).toFixed(1)}"/>`);
+      }
       x += measureWidth + measureGap;
     });
   });
@@ -4202,6 +4260,126 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
 
 let activeJianpuPreview = null;
 
+function setJianpuPerformanceViewport(preview, firstSystem = 0) {
+  const svg = preview?.svg;
+  const scroll = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-scroll");
+  if (!svg || !scroll) return;
+  if (!preview.performanceMode) {
+    if (preview.performanceFirstSystem === null && !scroll.classList.contains("performance-mode")) return;
+    svg.setAttribute("viewBox", preview.fullViewBox);
+    svg.setAttribute("height", preview.fullHeight);
+    scroll.classList.remove("performance-mode");
+    scroll.style.removeProperty("--jianpu-performance-height");
+    scroll.style.removeProperty("--jianpu-performance-width");
+    preview.performanceFirstSystem = null;
+    preview.systemHighlights?.forEach((highlight) => {
+      highlight.setAttribute("visibility", "hidden");
+      highlight.setAttribute("class", "score-system-highlight");
+    });
+    return;
+  }
+  const systemCount = Number(svg.dataset.systemCount) || 1;
+  const systemHeight = Number(svg.dataset.systemHeight) || 108;
+  const headerHeight = Number(svg.dataset.headerHeight) || 184;
+  const boundedFirst = Math.max(0, Math.min(systemCount - 1, Number(firstSystem) || 0));
+  if (preview.performanceFirstSystem === boundedFirst) return;
+  const visibleRows = Math.min(2, systemCount - boundedFirst);
+  const windowHeight = visibleRows * systemHeight;
+  const viewBox = svg.viewBox.baseVal;
+  svg.setAttribute("viewBox", `0 ${headerHeight + boundedFirst * systemHeight} ${viewBox.width} ${windowHeight}`);
+  svg.setAttribute("height", String(windowHeight));
+  scroll.classList.add("performance-mode");
+  scroll.style.setProperty("--jianpu-performance-width", `${jianpuPreviewPageWidth()}px`);
+  scroll.scrollTop = 0;
+  preview.performanceFirstSystem = boundedFirst;
+}
+
+function updateJianpuPreviewSystemHighlights(preview, currentSystem) {
+  preview.systemHighlights?.forEach((highlight) => {
+    const system = Number(highlight.dataset.scoreSystemHighlight);
+    const isCurrent = preview.performanceMode && system === Number(currentSystem);
+    const isNext = preview.performanceMode && system === Number(currentSystem) + 1;
+    highlight.setAttribute("class", `score-system-highlight${isCurrent ? " current" : isNext ? " next" : ""}`);
+    highlight.setAttribute("visibility", isCurrent || isNext ? "visible" : "hidden");
+  });
+  if (preview.performanceMode) setJianpuPerformanceViewport(preview, currentSystem);
+  else setJianpuPerformanceViewport(preview);
+}
+
+function clearJianpuPreviewPlayhead(preview = activeJianpuPreview) {
+  if (!preview) return;
+  preview.playheads?.forEach((playhead) => playhead.setAttribute("visibility", "hidden"));
+  preview.systemHighlights?.forEach((highlight) => {
+    highlight.setAttribute("visibility", "hidden");
+    highlight.setAttribute("class", "score-system-highlight");
+  });
+  preview.activePlayheadSystem = null;
+}
+
+function updateJianpuPreviewPlayhead(preview, positionMs) {
+  if (!preview || preview.layoutMode !== "duration" || !preview.playbackSlots?.length) return;
+  const slots = preview.playbackSlots;
+  const safePosition = Math.max(0, Number(positionMs) || 0);
+  const slot = slots.find((candidate) => safePosition >= Number(candidate.dataset.startMs) && safePosition < Number(candidate.dataset.endMs))
+    || (safePosition >= Number(slots.at(-1).dataset.endMs) ? slots.at(-1) : slots[0]);
+  if (!slot) return;
+  const startMs = Number(slot.dataset.startMs);
+  const endMs = Number(slot.dataset.endMs);
+  const progress = endMs > startMs ? Math.max(0, Math.min(1, (safePosition - startMs) / (endMs - startMs))) : 0;
+  const startX = Number(slot.dataset.slotStart);
+  const endX = Number(slot.dataset.slotEnd);
+  const x = startX + (endX - startX) * progress;
+  const system = slot.dataset.playheadSystem;
+  preview.playheads?.forEach((playhead) => {
+    if (playhead.dataset.scorePlayhead === system) {
+      playhead.setAttribute("transform", `translate(${x.toFixed(2)} 0)`);
+      playhead.setAttribute("visibility", "visible");
+    } else playhead.setAttribute("visibility", "hidden");
+  });
+  updateJianpuPreviewSystemHighlights(preview, system);
+  const systemChanged = preview.activePlayheadSystem !== system;
+  const scroll = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-scroll");
+  const playhead = preview.playheads?.find((candidate) => candidate.dataset.scorePlayhead === system);
+  if (scroll && playhead) {
+    const scrollRect = scroll.getBoundingClientRect();
+    const playheadRect = playhead.getBoundingClientRect();
+    if (systemChanged && playheadRect.top < scrollRect.top) scroll.scrollTop += playheadRect.top - scrollRect.top - 20;
+    else if (systemChanged && playheadRect.bottom > scrollRect.bottom) scroll.scrollTop += playheadRect.bottom - scrollRect.bottom + 20;
+    if (playheadRect.left < scrollRect.left) scroll.scrollLeft += playheadRect.left - scrollRect.left - 20;
+    else if (playheadRect.right > scrollRect.right) scroll.scrollLeft += playheadRect.right - scrollRect.right + 20;
+  }
+  preview.activePlayheadSystem = system;
+}
+
+function syncJianpuPreviewPlaybackButton() {
+  const button = elements.jianpuPreviewPlayButton;
+  if (!button) return;
+  const preview = activePreview?.jianpuPreview === activeJianpuPreview ? activePreview : null;
+  const visible = activeJianpuPreview?.layoutMode === "duration";
+  button.parentElement.hidden = !visible;
+  button.disabled = !activeJianpuPreview;
+  button.textContent = preview?.state === "playing" ? "Ⅱ 暂停" : preview?.state === "paused" ? "▶ 继续" : "▶ 播放";
+  button.setAttribute("aria-label", preview?.state === "playing" ? "暂停简谱试听" : preview?.state === "paused" ? "继续简谱试听" : "播放简谱");
+  if (elements.jianpuPreviewStopButton) elements.jianpuPreviewStopButton.disabled = !preview || !["playing", "paused"].includes(preview.state);
+  if (activeJianpuPreview) syncJianpuPreviewProgress(activeJianpuPreview.seekPositionMs || 0, activeJianpuPreview.sequence.totalMs);
+  if (elements.jianpuPerformanceButton) {
+    elements.jianpuPerformanceButton.hidden = !visible;
+    elements.jianpuPerformanceButton.textContent = activeJianpuPreview?.performanceMode ? "退出演奏" : "演奏模式";
+    elements.jianpuPerformanceButton.setAttribute("aria-pressed", String(Boolean(activeJianpuPreview?.performanceMode)));
+  }
+}
+
+function syncJianpuPreviewProgress(positionMs = 0, totalMs = activeJianpuPreview?.sequence.totalMs || 0) {
+  const progress = elements.jianpuPreviewProgress;
+  if (!progress) return;
+  const safePosition = Math.max(0, Math.min(totalMs, Math.round(Number(positionMs) || 0)));
+  progress.max = totalMs;
+  progress.value = safePosition;
+  progress.disabled = !totalMs;
+  if (elements.jianpuPreviewCurrentTime) elements.jianpuPreviewCurrentTime.textContent = formatTime(safePosition);
+  if (elements.jianpuPreviewDuration) elements.jianpuPreviewDuration.textContent = totalMs ? formatTime(totalMs) : "0:00.000";
+}
+
 function jianpuPreviewPageWidth() {
   const widthMm = Number(elements.jianpuPageWidth.value);
   const safeWidthMm = Number.isFinite(widthMm) && widthMm >= 180 && widthMm <= 420 ? widthMm : 210;
@@ -4210,9 +4388,34 @@ function jianpuPreviewPageWidth() {
 
 function refreshJianpuPreviewLayout() {
   if (!activeJianpuPreview) return;
-  const { sequence, meter, beatsPerMeasure, title, meta, mode } = activeJianpuPreview;
+  const { sequence, meter, beatsPerMeasure, title, meta, mode, layoutMode, hasCustomDuration } = activeJianpuPreview;
   const measures = splitJianpuPreviewMeasures(sequence.notes, beatsPerMeasure);
-  elements.jianpuPreviewMeasures.innerHTML = jianpuPreviewSvg(title, meta, measures, meter, jianpuPreviewPageWidth(), mode);
+  elements.jianpuPreviewMeasures.dataset.layoutMode = layoutMode;
+  const durationCellWidth = Number(elements.jianpuDurationSpacing?.value) || 36;
+  elements.jianpuPreviewMeasures.innerHTML = jianpuPreviewSvg(title, meta, measures, meter, jianpuPreviewPageWidth(), mode, layoutMode, durationCellWidth);
+  const svg = elements.jianpuPreviewMeasures.querySelector("svg");
+  activeJianpuPreview.svg = svg;
+  activeJianpuPreview.fullViewBox = svg?.getAttribute("viewBox") || "";
+  activeJianpuPreview.fullHeight = svg?.getAttribute("height") || "";
+  activeJianpuPreview.performanceFirstSystem = null;
+  activeJianpuPreview.playbackSlots = [...(svg?.querySelectorAll("[data-playback-slot]") || [])];
+  activeJianpuPreview.playheads = [...(svg?.querySelectorAll("[data-score-playhead]") || [])];
+  activeJianpuPreview.systemHighlights = [...(svg?.querySelectorAll("[data-score-system-highlight]") || [])];
+  activeJianpuPreview.activePlayheadSystem = null;
+  const scroll = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-scroll");
+  scroll?.classList.remove("performance-mode");
+  scroll?.style.removeProperty("--jianpu-performance-height");
+  scroll?.style.removeProperty("--jianpu-performance-width");
+  if (elements.jianpuDurationSpacingControl) elements.jianpuDurationSpacingControl.hidden = layoutMode !== "duration";
+  if (elements.jianpuDurationSpacingValue && elements.jianpuDurationSpacing) elements.jianpuDurationSpacingValue.value = `${elements.jianpuDurationSpacing.value} px`;
+  elements.jianpuPreviewHint.hidden = layoutMode !== "default" || !hasCustomDuration;
+  elements.jianpuPreviewHint.textContent = hasCustomDuration ? "精确时值以小号数字标注；无法用常规简谱符号准确表示。" : "";
+  if (activePreview?.jianpuPreview === activeJianpuPreview && activePreview.state !== "ready") {
+    updateJianpuPreviewPlayhead(activeJianpuPreview, previewPositionMs(activePreview));
+  } else if (layoutMode === "duration" && activeJianpuPreview.performanceMode) {
+    updateJianpuPreviewSystemHighlights(activeJianpuPreview, 0);
+  }
+  syncJianpuPreviewPlaybackButton();
 }
 
 function presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title, meta, allowDownload = true }) {
@@ -4224,16 +4427,20 @@ function presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title, me
   const previewEyebrow = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-body > .index");
   if (previewWindowLabel) previewWindowLabel.textContent = allowDownload ? "JIANPU SCORE — PREVIEW & EXPORT" : "JIANPU SCORE — FREE PREVIEW";
   if (previewEyebrow) previewEyebrow.textContent = allowDownload ? "NUMBERED NOTATION · PNG EXPORT" : "NUMBERED NOTATION · FREE VIEW";
-  activeJianpuPreview = { sequence, meter, key, beatsPerMeasure, title, meta, mode: "jianpu" };
+  const hasCustomDuration = measures.some((measure) => measure.some((segment) => !JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6)))));
+  if (activePreview?.jianpuPreview) stopPreview();
+  activeJianpuPreview = { sequence, meter, key, beatsPerMeasure, title, meta, mode: "jianpu", layoutMode: "default", performanceMode: false, hasCustomDuration, seekPositionMs: 0 };
   elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-preview-mode]").forEach((button) => {
     const selected = button.dataset.jianpuPreviewMode === "jianpu";
     button.classList.toggle("active", selected);
     button.setAttribute("aria-pressed", String(selected));
   });
+  elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-layout-mode]").forEach((button) => {
+    const selected = button.dataset.jianpuLayoutMode === "default";
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
   refreshJianpuPreviewLayout();
-  const hasCustomDuration = measures.some((measure) => measure.some((segment) => !JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6)))));
-  elements.jianpuPreviewHint.hidden = !hasCustomDuration;
-  elements.jianpuPreviewHint.textContent = hasCustomDuration ? "精确时值以小号数字标注；无法用常规简谱符号准确表示。" : "";
   elements.jianpuPreviewDialog.showModal();
 }
 
@@ -4249,6 +4456,83 @@ function renderJianpuPreview(sequence, meter, key, beatsPerMeasure) {
     `${elements.bpm.value} BPM`
   ].filter(Boolean).join(" · ");
   presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title, meta });
+}
+
+function toggleJianpuPreviewPlayback() {
+  if (!activeJianpuPreview || activeJianpuPreview.layoutMode !== "duration") return;
+  if (activePreview?.jianpuPreview === activeJianpuPreview) {
+    togglePreview();
+    return;
+  }
+  playPreview(activeJianpuPreview.seekPositionMs || 0, {
+    analytics: false,
+    title: activeJianpuPreview.title,
+    sequence: activeJianpuPreview.sequence,
+    jianpuPreview: activeJianpuPreview
+  });
+}
+
+function stopJianpuPreviewPlayback() {
+  if (!activeJianpuPreview) return;
+  if (activePreview?.jianpuPreview === activeJianpuPreview) stopPreview();
+  else {
+    activeJianpuPreview.seekPositionMs = 0;
+    syncJianpuPreviewProgress(0, activeJianpuPreview.sequence.totalMs);
+    clearJianpuPreviewPlayhead(activeJianpuPreview);
+    updateJianpuPreviewSystemHighlights(activeJianpuPreview, 0);
+    syncJianpuPreviewPlaybackButton();
+  }
+}
+
+function handleJianpuPreviewSeek(positionMs, { commit = false } = {}) {
+  const preview = activeJianpuPreview;
+  if (!preview || preview.layoutMode !== "duration") return;
+  const position = Math.max(0, Math.min(preview.sequence.totalMs, Number(positionMs) || 0));
+  preview.seekPositionMs = position;
+  syncJianpuPreviewProgress(position, preview.sequence.totalMs);
+  updateJianpuPreviewPlayhead(preview, position);
+
+  const current = activePreview?.jianpuPreview === preview ? activePreview : null;
+  if (!commit) {
+    if (current) previewProgressSeeking = true;
+    return;
+  }
+  previewProgressSeeking = false;
+  if (current?.state === "playing") {
+    playPreview(position, { analytics: false, title: preview.title, sequence: preview.sequence, jianpuPreview: preview });
+    return;
+  }
+  if (current?.state === "paused") {
+    stopPreviewNodes(current);
+    clearPreviewScheduler(current);
+    current.positionMs = position;
+    current.startAt = current.context.currentTime;
+    current.nextNoteIndex = nextPreviewNoteIndex(current.sequence, position);
+    current.timelineIndex = -1;
+    setPreviewProgress(position, current.sequence);
+    updatePreviewTimeline(current, position);
+    setPreviewUi("paused");
+    return;
+  }
+  setPreviewProgress(position, preview.sequence);
+}
+
+function toggleJianpuPerformanceMode() {
+  const preview = activeJianpuPreview;
+  if (!preview || preview.layoutMode !== "duration") return;
+  preview.performanceMode = !preview.performanceMode;
+  if (preview.performanceMode) {
+    const samePreview = activePreview?.jianpuPreview === preview;
+    const positionMs = samePreview ? previewPositionMs(activePreview) : (preview.seekPositionMs || 0);
+    updateJianpuPreviewPlayhead(preview, positionMs);
+    syncJianpuPreviewPlaybackButton();
+    if (!samePreview) {
+      playPreview(preview.seekPositionMs || 0, { analytics: false, title: preview.title, sequence: preview.sequence, jianpuPreview: preview });
+    } else if (activePreview.state === "paused") resumePreview();
+    return;
+  }
+  updateJianpuPreviewSystemHighlights(preview, 0);
+  syncJianpuPreviewPlaybackButton();
 }
 
 function openSongJianpuPreview(song) {
@@ -4283,8 +4567,15 @@ function openSongJianpuPreview(song) {
 }
 
 async function downloadJianpuPreviewPng() {
-  const svg = elements.jianpuPreviewMeasures.querySelector("svg");
-  if (!svg) return;
+  const renderedSvg = elements.jianpuPreviewMeasures.querySelector("svg");
+  if (!renderedSvg) return;
+  const svg = renderedSvg.cloneNode(true);
+  if (activeJianpuPreview) {
+    svg.setAttribute("viewBox", activeJianpuPreview.fullViewBox);
+    svg.setAttribute("height", activeJianpuPreview.fullHeight);
+  }
+  svg.querySelectorAll("[data-score-playhead]").forEach((playhead) => playhead.remove());
+  svg.querySelectorAll("[data-score-system-highlight]").forEach((highlight) => highlight.setAttribute("visibility", "hidden"));
   const source = new XMLSerializer().serializeToString(svg);
   const svgUrl = URL.createObjectURL(new Blob([source], { type: "image/svg+xml;charset=utf-8" }));
   try {
@@ -4549,6 +4840,35 @@ function previewFrequency(item) {
   return 440 * (2 ** ((midi - 69) / 12));
 }
 
+function readPreviewInstrumentPreference() {
+  try {
+    return localStorage.getItem(PREVIEW_INSTRUMENT_STORAGE_KEY) === "harmonica" ? "harmonica" : "piano";
+  } catch {
+    return "piano";
+  }
+}
+
+function updatePreviewInstrumentUi() {
+  elements.previewInstrumentButtons.forEach((button) => {
+    button.setAttribute("aria-pressed", String(button.dataset.previewInstrument === previewInstrument));
+  });
+  if (elements.previewInstrumentHint) {
+    elements.previewInstrumentHint.textContent = previewInstrument === "piano"
+      ? "钢琴试听 · Salamander Grand Piano 采样 · C3–C6"
+      : "口琴试听 · 簧片采样与泛音 · C3–C6";
+  }
+}
+
+function setPreviewInstrument(instrument) {
+  if ((instrument !== "piano" && instrument !== "harmonica") || instrument === previewInstrument) return;
+  previewInstrument = instrument;
+  try { localStorage.setItem(PREVIEW_INSTRUMENT_STORAGE_KEY, instrument); } catch {}
+  if (activePreview) stopPreview({ resetProgress: true });
+  previewCursorMs = 0;
+  if (liveRecordingVoice) releaseLiveRecordingVoice();
+  updatePreviewInstrumentUi();
+}
+
 function closestHarmonicaSample(sampleBank, midi) {
   return HARMONICA_SAMPLE_ANCHORS.reduce((closest, anchor) => {
     if (!closest || Math.abs(anchor - midi) < Math.abs(closest.anchor - midi)) {
@@ -4556,6 +4876,30 @@ function closestHarmonicaSample(sampleBank, midi) {
     }
     return closest;
   }, null);
+}
+
+function closestPianoSample(sampleBank, midi) {
+  return PIANO_SAMPLE_ANCHORS.reduce((closest, anchor) => {
+    if (!closest || Math.abs(anchor - midi) < Math.abs(closest.anchor - midi)) {
+      return { anchor, buffer: sampleBank.get(anchor) };
+    }
+    return closest;
+  }, null);
+}
+
+async function loadPianoSampleBank(context) {
+  if (pianoSampleBankCache.has(context)) return pianoSampleBankCache.get(context);
+  const bankPromise = Promise.all(PIANO_SAMPLE_ANCHORS.map(async (midi) => {
+    const response = await fetch(`${PIANO_SAMPLE_ROOT}/${midi}.mp3`);
+    if (!response.ok) throw new Error(`钢琴采样 ${midi}.mp3 加载失败（${response.status}）。`);
+    const buffer = await context.decodeAudioData(await response.arrayBuffer());
+    return [midi, buffer];
+  })).then((entries) => new Map(entries)).catch((error) => {
+    pianoSampleBankCache.delete(context);
+    throw error;
+  });
+  pianoSampleBankCache.set(context, bankPromise);
+  return bankPromise;
 }
 
 async function loadHarmonicaSampleBank(context) {
@@ -4802,6 +5146,36 @@ function scheduleHarmonicaTone(context, startAt, duration, midi, sampleBank = nu
   return createHarmonicaVoice(context, startAt, duration, frequency).nodes;
 }
 
+function createPianoVoice(context, startAt, duration, midi, sampleBank) {
+  const selected = closestPianoSample(sampleBank, midi);
+  if (!selected?.buffer) return null;
+  const source = context.createBufferSource();
+  const gain = context.createGain();
+  const hasScheduledEnd = Number.isFinite(duration) && duration > 0;
+  const endAt = hasScheduledEnd ? startAt + duration : null;
+  const releaseEndAt = hasScheduledEnd ? endAt + 0.42 : null;
+  source.buffer = selected.buffer;
+  source.playbackRate.setValueAtTime(2 ** ((midi - selected.anchor) / 12), startAt);
+  source.connect(gain).connect(masterGain);
+  gain.gain.setValueAtTime(0.72, startAt);
+  if (hasScheduledEnd) {
+    gain.gain.setValueAtTime(0.72, endAt);
+    gain.gain.exponentialRampToValueAtTime(0.0001, releaseEndAt);
+  }
+  source.start(startAt);
+  if (hasScheduledEnd) source.stop(releaseEndAt);
+  return { context, gain, nodes: [source] };
+}
+
+function schedulePreviewTone(context, startAt, duration, midi, instrument, sampleBank) {
+  if (instrument === "piano") {
+    const voice = createPianoVoice(context, startAt, duration, midi, sampleBank);
+    if (voice) return voice.nodes;
+    throw new Error("钢琴采样没有覆盖当前音高。");
+  }
+  return scheduleHarmonicaTone(context, startAt, duration, midi, sampleBank);
+}
+
 function releaseLiveRecordingVoice() {
   if (!liveRecordingVoice) return;
   const { context, gain, nodes } = liveRecordingVoice;
@@ -4820,14 +5194,20 @@ async function playLiveRecordingNote(note) {
     masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
     const midi = macroMidi({ note, modifier: selectedRecordModifier || null });
     let sampleBank = null;
-    try {
-      sampleBank = await loadHarmonicaSampleBank(context);
-    } catch (error) {
-      console.warn("口琴采样加载失败，录制试听回退到电子音：", error);
+    let voice = null;
+    if (previewInstrument === "piano") {
+      sampleBank = await loadPianoSampleBank(context);
+      voice = createPianoVoice(context, context.currentTime, null, midi, sampleBank);
+    } else {
+      try {
+        sampleBank = await loadHarmonicaSampleBank(context);
+      } catch (error) {
+        console.warn("口琴采样加载失败，录制试听回退到电子音：", error);
+      }
+      voice = sampleBank
+        ? createSampleHarmonicaVoice(context, context.currentTime, null, midi, sampleBank)
+        : createHarmonicaVoice(context, context.currentTime, null, previewFrequency({ note, modifier: selectedRecordModifier || null }));
     }
-    const voice = sampleBank
-      ? createSampleHarmonicaVoice(context, context.currentTime, null, midi, sampleBank)
-      : createHarmonicaVoice(context, context.currentTime, null, previewFrequency({ note, modifier: selectedRecordModifier || null }));
     releaseLiveRecordingVoice();
     liveRecordingVoice = voice;
   } catch (error) {
@@ -4945,6 +5325,7 @@ function setPreviewUi(state = "ready") {
   const tabStatus = document.querySelector("#playerTabStatus");
   if (tabStatus) tabStatus.textContent = isPlaying ? "播放中" : isPaused ? "已暂停" : "待播放";
   refreshCardPreviewButtons();
+  syncJianpuPreviewPlaybackButton();
 }
 
 function clearPreviewTimers(preview) {
@@ -4967,13 +5348,18 @@ function stopPreview({ resetProgress = true } = {}) {
   previewProgressSeeking = false;
   clearEditorPlaybackHighlight();
   if (!activePreview) return;
+  const stoppedSequence = activePreview.sequence;
+  clearJianpuPreviewPlayhead(activePreview.jianpuPreview);
   stopPreviewNodes(activePreview);
   clearPreviewTimers(activePreview);
   clearPreviewScheduler(activePreview);
   activePreview = null;
   window.cancelAnimationFrame(previewProgressFrame);
   clearTimelinePlayback();
-  if (resetProgress) setPreviewProgress(0);
+  if (resetProgress) {
+    setPreviewProgress(0, stoppedSequence);
+    if (activeJianpuPreview?.sequence === stoppedSequence) updateJianpuPreviewPlayhead(activeJianpuPreview, 0);
+  }
   setPreviewUi("ready");
 }
 
@@ -4994,6 +5380,11 @@ function updatePreviewTimeline(preview, positionMs) {
     index = timelineNoteIndexAt(preview.sequence, positionMs);
   }
   if (index < 0 || index === preview.timelineIndex) return;
+  if (preview.jianpuPreview) {
+    preview.timelineIndex = index;
+    updateJianpuPreviewPlayhead(preview.jianpuPreview, positionMs);
+    return;
+  }
   if (setTimelinePlaybackPosition(preview.sequence, index, { scroll: true })) preview.timelineIndex = index;
   highlightEditorPlaybackNote(preview.sequence, index);
 }
@@ -5020,7 +5411,7 @@ function schedulePreviewWindow(preview) {
     const noteLength = Math.max(0.035, (item.pressMs - (item.inputLeadMs || 0) - skippedMs) / 1000);
     const startAt = preview.startAt + Math.max(0, noteStart - preview.positionMs) / 1000;
     const midi = macroMidi(item);
-    registerPreviewNodes(preview, scheduleHarmonicaTone(preview.context, startAt, noteLength, midi, preview.sampleBank));
+    registerPreviewNodes(preview, schedulePreviewTone(preview.context, startAt, noteLength, midi, preview.instrument, preview.sampleBank));
   }
   if (positionMs >= preview.sequence.totalMs) stopPreview();
 }
@@ -5035,6 +5426,7 @@ function refreshPreviewProgress() {
   if (!previewProgressSeeking) {
     const position = previewPositionMs(activePreview);
     setPreviewProgress(position, activePreview.sequence);
+    if (activePreview.jianpuPreview) updateJianpuPreviewPlayhead(activePreview.jianpuPreview, position);
     updatePreviewTimeline(activePreview, position);
   }
   previewProgressFrame = window.requestAnimationFrame(refreshPreviewProgress);
@@ -5044,6 +5436,7 @@ async function pausePreview() {
   if (!activePreview || activePreview.state !== "playing") return;
   const preview = activePreview;
   const positionMs = previewPositionMs(preview);
+  if (preview.jianpuPreview) updateJianpuPreviewPlayhead(preview.jianpuPreview, positionMs);
   stopPreviewNodes(preview);
   clearPreviewScheduler(preview);
   window.cancelAnimationFrame(previewProgressFrame);
@@ -5082,9 +5475,9 @@ function togglePreview() {
   return resumePreview();
 }
 
-async function playPreview(positionMs = 0, { analytics = true, title = "" } = {}) {
+async function playPreview(positionMs = 0, { analytics = true, title = "", sequence: sequenceOverride = null, jianpuPreview = null } = {}) {
   if (recording) { toast("请先完成录制，再播放谱子。 "); return; }
-  const sequence = playerSongSequence || convert();
+  const sequence = sequenceOverride || playerSongSequence || convert();
   if (!sequence) { toast("请先修正谱子错误。 "); return; }
   document.body.classList.add("player-visible");
   setPlayerCollapsed(false);
@@ -5094,17 +5487,23 @@ async function playPreview(positionMs = 0, { analytics = true, title = "" } = {}
   try {
     const context = await wakeAudioEngine();
     masterGain.gain.setTargetAtTime(Number(elements.volume.value) / 100, context.currentTime, 0.01);
+    const instrument = previewInstrument;
     let sampleBank = null;
-    try {
-      sampleBank = await loadHarmonicaSampleBank(context);
-    } catch (error) {
-      console.warn("口琴采样加载失败，播放器试听回退到电子音：", error);
-      toast("口琴采样加载失败，已暂时使用电子音试听。 ");
+    if (instrument === "piano") {
+      sampleBank = await loadPianoSampleBank(context);
+    } else {
+      try {
+        sampleBank = await loadHarmonicaSampleBank(context);
+      } catch (error) {
+        console.warn("口琴采样加载失败，播放器试听回退到电子音：", error);
+        toast("口琴采样加载失败，已暂时使用电子音试听。 ");
+      }
     }
+    if (instrument !== previewInstrument) return;
     const startAt = context.currentTime + 0.045;
     activePreview = {
-      context, sampleBank, nodes: new Set(), timers: [], schedulerTimer: null, sequence, title: previewTitle, startAt, positionMs: startPosition,
-      state: "playing", nextNoteIndex: nextPreviewNoteIndex(sequence, startPosition), timelineIndex: -1
+      context, instrument, sampleBank, nodes: new Set(), timers: [], schedulerTimer: null, sequence, title: previewTitle, startAt, positionMs: startPosition,
+      state: "playing", nextNoteIndex: nextPreviewNoteIndex(sequence, startPosition), timelineIndex: -1, jianpuPreview
     };
     updatePreviewTitle();
     setPreviewProgress(startPosition, sequence);
@@ -7503,20 +7902,50 @@ elements.convertButton.addEventListener("click", playPreview);
 // Keep older cached HTML usable while index.html and app.js roll out at different times.
 elements.jianpuPreviewButton?.addEventListener("click", openJianpuPreview);
 elements.jianpuDownloadButton?.addEventListener("click", downloadJianpuPreviewPng);
+elements.jianpuPreviewPlayButton?.addEventListener("click", toggleJianpuPreviewPlayback);
+elements.jianpuPreviewStopButton?.addEventListener("click", stopJianpuPreviewPlayback);
+elements.jianpuPerformanceButton?.addEventListener("click", toggleJianpuPerformanceMode);
+elements.jianpuPreviewProgress?.addEventListener("input", (event) => handleJianpuPreviewSeek(event.currentTarget.value));
+elements.jianpuPreviewProgress?.addEventListener("change", (event) => handleJianpuPreviewSeek(event.currentTarget.value, { commit: true }));
 elements.jianpuPageWidth?.addEventListener("input", () => {
   const widthMm = Number(elements.jianpuPageWidth.value);
   if (Number.isFinite(widthMm) && widthMm >= 180 && widthMm <= 420) refreshJianpuPreviewLayout();
 });
-elements.jianpuPreviewDialog?.addEventListener("click", (event) => {
-  const button = event.target.closest("[data-jianpu-preview-mode]");
-  if (!button || !activeJianpuPreview) return;
-  activeJianpuPreview.mode = button.dataset.jianpuPreviewMode === "keyboard" ? "keyboard" : "jianpu";
-  elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-preview-mode]").forEach((modeButton) => {
-    const selected = modeButton === button;
-    modeButton.classList.toggle("active", selected);
-    modeButton.setAttribute("aria-pressed", String(selected));
-  });
+elements.jianpuDurationSpacing?.addEventListener("input", () => {
+  if (elements.jianpuDurationSpacingValue) elements.jianpuDurationSpacingValue.value = `${elements.jianpuDurationSpacing.value} px`;
   refreshJianpuPreviewLayout();
+});
+elements.jianpuPreviewDialog?.addEventListener("click", (event) => {
+  const notationButton = event.target.closest("[data-jianpu-preview-mode]");
+  const layoutButton = event.target.closest("[data-jianpu-layout-mode]");
+  if (!activeJianpuPreview) return;
+  if (notationButton) {
+    activeJianpuPreview.mode = notationButton.dataset.jianpuPreviewMode === "keyboard" ? "keyboard" : "jianpu";
+    elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-preview-mode]").forEach((modeButton) => {
+      const selected = modeButton === notationButton;
+      modeButton.classList.toggle("active", selected);
+      modeButton.setAttribute("aria-pressed", String(selected));
+    });
+    refreshJianpuPreviewLayout();
+    return;
+  }
+  if (layoutButton) {
+    const nextMode = layoutButton.dataset.jianpuLayoutMode;
+    if (nextMode !== "duration" && activeJianpuPreview.layoutMode === "duration") {
+      activeJianpuPreview.performanceMode = false;
+      if (activePreview?.jianpuPreview === activeJianpuPreview) stopPreview();
+    }
+    activeJianpuPreview.layoutMode = ["default", "no-rhythm", "duration"].includes(nextMode) ? nextMode : "default";
+    elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-layout-mode]").forEach((modeButton) => {
+      const selected = modeButton === layoutButton;
+      modeButton.classList.toggle("active", selected);
+      modeButton.setAttribute("aria-pressed", String(selected));
+    });
+    refreshJianpuPreviewLayout();
+  }
+});
+elements.jianpuPreviewDialog?.addEventListener("close", () => {
+  if (activePreview?.jianpuPreview === activeJianpuPreview) stopPreview();
 });
 elements.jianpuPageWidth?.addEventListener("change", () => {
   const widthMm = Number(elements.jianpuPageWidth.value);
@@ -7931,6 +8360,10 @@ window.addEventListener("resize", applyPlayerWidth);
 applyPlayerWidth();
 elements.previewButton.addEventListener("click", togglePreview);
 elements.previewButton.addEventListener("pointerdown", prewarmAudioEngine, { passive: true });
+elements.previewInstrumentButtons.forEach((button) => {
+  button.addEventListener("click", () => setPreviewInstrument(button.dataset.previewInstrument));
+});
+updatePreviewInstrumentUi();
 elements.restartButton.addEventListener("click", () => playPreview(0));
 elements.stopButton.addEventListener("click", stopPreview);
 elements.previewProgress.addEventListener("input", () => {
@@ -8572,6 +9005,21 @@ async function loadCooperationPage() {
   try{cooperationRenderCards(await authRequest("./api/cooperate"));}catch(error){cooperationSetMessage("cooperatePageStatus",error.message,true);}
   await loadCooperationDashboard();
 }
+async function loadObsMonitorReleaseLinks() {
+  try {
+    const response = await fetch(`${OBS_MONITOR_MANIFEST_URL}?t=${Date.now()}`, { headers: { Accept: "application/json" }, cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json();
+    for (const [id, url] of [["cooperateObsDownloadGithub", manifest.githubDownloadUrl], ["cooperateObsDownloadServer", manifest.serverDownloadUrl]]) {
+      const link = document.getElementById(id);
+      if (!link || typeof url !== "string" || !url.trim()) continue;
+      link.href = url.trim();
+      link.hidden = false;
+    }
+  } catch (error) {
+    console.warn("OBS 监听助手下载链接暂不可用：", error);
+  }
+}
 let cooperationCatalogTimer = null;
 async function refreshCooperationCatalog() {
   try { cooperationRenderCards(await authRequest("./api/cooperate")); } catch (error) { cooperationSetMessage("cooperatePageStatus",error.message,true); }
@@ -8752,6 +9200,7 @@ initializeMchoseOperationsPerFileSetting();
 initializeRogOperationsPerFileSetting();
 initializeMacroExportSpeedSetting();
 loadRecordingHelperManifest();
+loadObsMonitorReleaseLinks();
 setLibraryView(currentTaskRoute() === "export" ? "all" : currentTaskRoute() === "create" ? "mine" : "recommended");
 renderSupportNotePreview();
 authReadyPromise = enableCommunityUploadEntry();
@@ -8766,7 +9215,7 @@ void refreshLibraryViews().then(() => {
   const song = songCode && remixCodeSong(songCode);
   if (song) loadSong(song, { destination: currentTaskRoute(), scroll: false, analytics: false });
 });
-trackAnalytics("page_view", { entry: analyticsEntrySource() });
+trackAnalytics("page_view", analyticsEntrySource());
 window.setTimeout(refreshPublicData, 1600);
 window.setInterval(() => {
   if (document.visibilityState === "visible") {

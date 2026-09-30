@@ -315,14 +315,14 @@
   <body>
     <section id="loginScreen" class="login-screen">
       <div class="window login">
-        <div class="eyebrow">HARMONICA DECK · PRIVATE CONTROL ROOM</div>
-        <h1>ADMIN://ACCESS</h1>
-        <p>输入站点管理令牌，进入曲库和用户管理。令牌仅保存在当前浏览器会话中。</p>
+        <div class="eyebrow">HARMONICA DECK · CADDY PASSKEY</div>
+        <h1>ADMIN://PASSKEY</h1>
+        <p>后台由 Caddy 验证管理员身份。请使用设备的人脸识别或指纹验证后访问。</p>
         <div class="admin-version" data-site-version>ADMIN v— · WEB SYNC</div>
-        <form id="loginForm">
-          <label for="token">管理令牌 / ADMIN TOKEN</label>
-          <input id="token" type="password" autocomplete="current-password" required placeholder="Bearer token" />
-          <button class="button" type="submit">连接控制台 →</button>
+        <form id="loginForm" hidden>
+          <label for="token">本地开发令牌 / LOCAL PREVIEW ONLY</label>
+          <input id="token" type="password" autocomplete="current-password" placeholder="仅用于本地预览" />
+          <button class="button" type="submit">本地预览连接 →</button>
         </form>
         <div id="loginNotice" class="notice" role="alert"></div>
       </div>
@@ -440,6 +440,7 @@
             <section class="window panel"><div class="section-heading"><div><div class="eyebrow">DAILY TRAFFIC</div><h3>每日访问</h3></div><span class="tag">去重 + 不去重</span></div><div id="analyticsTimeline"></div></section>
             <section class="window panel"><div class="section-heading"><div><div class="eyebrow">CONVERSION FUNNEL</div><h3>使用漏斗</h3></div><span class="tag">按会话去重</span></div><div id="analyticsFunnel"></div></section>
             <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ENTRY SOURCES / ACTIONS</div><h3>来源与操作</h3></div></div><div id="analyticsEvents"></div></section>
+            <section class="window panel"><div class="section-heading"><div><div class="eyebrow">EXTERNAL REFERRER HOSTS</div><h3>来源网站</h3></div></div><p class="analytics-note">按外部来源域名汇总访问，不保存完整链接、路径或查询参数。浏览器未提供来源信息时无法识别。</p><div id="analyticsReferrerHosts"></div></section>
             <section class="window panel"><div class="section-heading"><div><div class="eyebrow">SCORE OPERATIONS</div><h3>谱子操作量</h3></div></div><div id="analyticsScores"></div></section>
             <section class="window panel analytics-wide"><div class="section-heading"><div><div class="eyebrow">TOP JOURNEYS</div><h3>高频使用路径</h3></div><span class="tag">按会话去重</span></div><div id="analyticsPaths"></div></section>
           </div>
@@ -575,6 +576,7 @@
       async function api(path, options = {}) {
         const isFormData = typeof FormData !== "undefined" && options.body instanceof FormData;
         const response = await fetch(`../api/${path}`, { ...options, headers: { Authorization: `Bearer ${state.token}`, Accept: "application/json", ...(!isFormData && options.body ? { "Content-Type": "application/json" } : {}), ...(options.headers || {}) }, cache: "no-store" });
+        if (response.redirected || !/application\/json/i.test(response.headers.get("Content-Type") || "")) throw new Error("请重新打开 /delta/admin/ 并完成 Caddy 人脸识别或指纹验证。若验证已完成，请确认账号具有管理员权限。");
         const body = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(body.error || "后台请求失败。");
         return body;
@@ -770,6 +772,8 @@
         const sources = (report.sources || []).map(item => `<tr><td>来源：${escapeHtml(item.name)}</td><td>${analyticsNumber(item.count)}</td></tr>`);
         const events = (report.events || []).slice(0, 10).map(item => `<tr><td>${escapeHtml(analyticsLabels[item.name] || item.name)}</td><td>${analyticsNumber(item.count)}</td></tr>`);
         $("#analyticsEvents").innerHTML = analyticsTable(["项目", "次数"], [...sources, ...events].slice(0, 14));
+        const referrerHosts = (report.referrerHosts || []).map(item => `<tr><td class="path">${escapeHtml(item.host)}</td><td>${analyticsNumber(item.count)}</td></tr>`);
+        $("#analyticsReferrerHosts").innerHTML = analyticsTable(["来源域名", "访问次数"], referrerHosts, "暂无来源域名数据。新访问中，只有浏览器提供来源地址时才会记录。");
         $("#analyticsScores").innerHTML = analyticsTable(["曲谱", "载入", "编辑", "导出", "总计", "会话"], (report.scoreOperations || []).map(item => `<tr><td class="path">${escapeHtml(item.scoreTitle || item.scoreId || "未命名曲谱")}${item.scoreArtist ? `<small>${escapeHtml(item.scoreArtist)}</small>` : ""}</td><td>${analyticsNumber(item.loaded)}</td><td>${analyticsNumber(item.edits)}</td><td>${analyticsNumber(item.exports)}</td><td>${analyticsNumber(item.operations)}</td><td>${analyticsNumber(item.sessions)}</td></tr>`), "还没有谱子级操作数据");
         $("#analyticsPaths").innerHTML = analyticsTable(["路径", "会话（去重）"], (report.paths || []).map(item => `<tr><td class="path">${escapeHtml(item.path)}</td><td>${analyticsNumber(item.sessions)}</td></tr>`), "还没有形成两步以上的路径");
       }
@@ -887,7 +891,7 @@
       }
       async function loadAll() {
         setNotice("正在同步…");
-        try { const [overview, library, buffer, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api("admin/library/buffer"), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.buffered = buffer.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderBuffer(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (/令牌/.test(error.message)) { sessionStorage.removeItem("delta-admin-token"); $("#app").hidden = true; $("#loginScreen").hidden = false; } }
+        try { const [overview, library, buffer, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api("admin/library/buffer"), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.buffered = buffer.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderBuffer(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (!state.overview) { $("#loginNotice").textContent = error.message; $("#app").hidden = true; $("#loginScreen").hidden = false; } }
       }
       async function loadLibrary() { try { const [result, buffer] = await Promise.all([api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`), api("admin/library/buffer")]); state.songs = result.songs || []; state.buffered = buffer.songs || []; renderLibrary(); renderBuffer(); } catch (error) { setNotice(error.message); } }
       async function loadUsers() { try { const result = await api(userDirectoryQuery()); state.users = result.users || []; renderUsers(); renderAdvancedMode(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
@@ -997,7 +1001,7 @@
           button.disabled = false;
         }
       }
-      async function connect(token) { state.token = token.trim(); if (!state.token) return; sessionStorage.setItem("delta-admin-token", state.token); await loadAll(); if (state.overview) { $("#loginScreen").hidden = true; $("#app").hidden = false; } }
+      async function connect(token = "") { state.token = token.trim(); if (state.token) sessionStorage.setItem("delta-admin-token", state.token); else sessionStorage.removeItem("delta-admin-token"); await loadAll(); if (state.overview) { $("#loginScreen").hidden = true; $("#app").hidden = false; } }
       $("#loginForm").addEventListener("submit", async event => { event.preventDefault(); $("#loginNotice").textContent = "正在验证…"; try { await connect($("#token").value); if (!state.overview) $("#loginNotice").textContent = "无法连接控制台。"; } catch (error) { $("#loginNotice").textContent = error.message; } });
       document.querySelectorAll("[data-page]").forEach(button => button.addEventListener("click", () => showPage(button.dataset.page)));
       $("#refreshCooperationButton").addEventListener("click",loadCooperationApplications);
@@ -1269,7 +1273,13 @@
       $("#adminSongFile").addEventListener("change", () => { const file = $("#adminSongFile").files[0]; $("#adminSongFileHint").textContent = file ? "已选择：" + file.name + "（" + number.format(file.size) + " 字节）" : "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。"; });
       $("#adminSongDialog").addEventListener("close", () => { pendingAdminSong = null; $("#adminSongFile").value = ""; setAdminSongStatus(); $("#adminSongSave").disabled = false; });
       renderAdvancedMode();
-      const savedToken = sessionStorage.getItem("delta-admin-token"); if (savedToken) { $("#token").value = savedToken; connect(savedToken).catch(error => { $("#loginNotice").textContent = error.message; }); }
+      const localAdminPreview = ["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+      if (localAdminPreview) { $("#loginForm").hidden = false; }
+      else sessionStorage.removeItem("delta-admin-token");
+      const savedToken = localAdminPreview ? (sessionStorage.getItem("delta-admin-token") || "") : "";
+      if (savedToken) $("#token").value = savedToken;
+      $("#loginNotice").textContent = "正在验证 Caddy 管理员身份…";
+      connect(savedToken).catch(error => { $("#loginNotice").textContent = error.message; });
     </script>
     <script src="./admin.js"></script>
   </body>

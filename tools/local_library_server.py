@@ -333,6 +333,10 @@ ANALYTICS_ENUMERATIONS = {
     "format": {"lua", "synapse_3", "synapse_4", "rog", "recorder", "deltamusic"},
     "directory": {"library", "midi", "manual"},
 }
+ANALYTICS_REFERRER_HOST_PATTERN = re.compile(
+    r"^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))*$",
+    re.IGNORECASE,
+)
 ANALYTICS_SCORE_ID_PATTERN = re.compile(r"^s[0-9a-f]{8}$")
 LEGACY_ADMIN_ID_PATTERN = re.compile(r"^[0-9a-f]{12}$", re.IGNORECASE)
 SCORE_EXPORT_EVENTS = {"macro_exported", "macro_downloaded", "lua_copied"}
@@ -424,6 +428,11 @@ def clean_analytics_properties(event: str, value: Any) -> dict[str, Any]:
         candidate = value.get(field)
         if candidate in allowed:
             properties[field] = candidate
+    referrer_host = value.get("referrer_host")
+    if event == "page_view" and isinstance(referrer_host, str):
+        referrer_host = referrer_host.strip().lower().rstrip(".")
+        if len(referrer_host) <= 253 and ANALYTICS_REFERRER_HOST_PATTERN.fullmatch(referrer_host):
+            properties["referrer_host"] = referrer_host
     score_id = value.get("score_id")
     if isinstance(score_id, str) and (ANALYTICS_SCORE_ID_PATTERN.fullmatch(score_id) or REMIX_CODE_PATTERN.fullmatch(score_id)):
         properties["score_id"] = score_id.upper() if REMIX_CODE_PATTERN.fullmatch(score_id) else score_id.lower()
@@ -584,6 +593,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
     hourly_exports: Counter[str] = Counter()
     hourly_export_keys: dict[str, set[tuple[str, str, str]]] = defaultdict(set)
     source_counts: Counter[str] = Counter()
+    referrer_host_counts: Counter[str] = Counter()
     journeys: dict[str, list[dict[str, Any]]] = defaultdict(list)
     score_stats: dict[str, dict[str, Any]] = defaultdict(lambda: {
         "sessions": set(),
@@ -625,7 +635,11 @@ def build_analytics_report(days: int) -> dict[str, Any]:
                     daily_export_keys[day].add(export_key)
                     daily_exports[day] += 1
         if item["event"] == "page_view":
-            source_counts[(item.get("properties") or {}).get("entry", "direct")] += 1
+            properties = item.get("properties") or {}
+            source_counts[properties.get("entry", "direct")] += 1
+            referrer_host = properties.get("referrer_host")
+            if isinstance(referrer_host, str) and ANALYTICS_REFERRER_HOST_PATTERN.fullmatch(referrer_host):
+                referrer_host_counts[referrer_host] += 1
         journeys[item["session"]].append(item)
         properties = item.get("properties") or {}
         score_id = canonical_analytics_score_id(properties.get("score_id"), score_aliases)
@@ -745,6 +759,7 @@ def build_analytics_report(days: int) -> dict[str, Any]:
         "hourlyTimeline": hourly_timeline,
         "dailyHourlyTimeline": daily_hourly_timeline,
         "sources": [{"name": name, "count": count} for name, count in source_counts.most_common(8)],
+        "referrerHosts": [{"host": host, "count": count} for host, count in referrer_host_counts.most_common(30)],
         "events": [{"name": name, "count": count, "sessions": len(event_sessions[name])} for name, count in event_counts.most_common()],
         "scoreOperations": score_operations[:100],
         "funnel": funnel,
@@ -5224,18 +5239,27 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         return json.loads(self.rfile.read(length).decode("utf-8"))
 
     def is_analytics_admin(self) -> bool:
+        # In production, Caddy's forward_auth is the sole administrator gate.
+        # The app is not published directly, and Caddy copies this role only
+        # after the passkey service has authenticated an administrator.
+        if self.server.trust_proxy and self.headers.get("X-Authenticated-Role", "") == "admin":
+            return True
+        # Keep the token path for local development only. Production requests
+        # must come through Caddy's face/fingerprint passkey check.
+        if self.server.trust_proxy:
+            return False
         configured = self.server.analytics_admin_token
         header = self.headers.get("Authorization", "")
         supplied = header.removeprefix("Bearer ") if header.startswith("Bearer ") else ""
         return bool(configured) and hmac.compare_digest(supplied, configured)
 
     def is_admin_console_request(self) -> bool:
-        """Use the existing private analytics token for all admin mutations."""
+        """Require the Caddy administrator passkey (or a local dev token)."""
         if not self.server.analytics_enabled:
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "管理后台尚未启用。"})
             return False
         if not self.is_analytics_admin():
-            self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "管理令牌无效。"})
+            self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "需要通过 Caddy 人脸识别或指纹验证管理员身份。"})
             return False
         return True
 

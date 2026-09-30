@@ -13,3 +13,9 @@
 项目内的预览样片来自同一套 VCSL C 调 Hohner Special 20 采样。
 
 来源说明标注为 Creative Commons CC0 1.0。正式集成前仍应保留来源说明，并按实际采样文件清单配置播放器。
+
+## 钢琴试听
+
+`piano/` 存放默认试听所用的 Salamander Grand Piano v3 采样。原始 48 kHz / 24-bit 录音按 SFZ 映射每小三度采样一次；播放器使用 C3、D♯3、F♯3、A3、C4、D♯4、F♯4、A4、C5、D♯5、F♯5、A5、C6 共 13 个中间力度（v8）音符，变调覆盖 C3–C6。采样转为 48 kHz、112 kbps MP3，以便网页快速加载。
+
+来源：Alexander Holm, *Salamander Grand Piano v3*，由 kinwie 整理为 SFZ，<https://github.com/sfzinstruments/SalamanderGrandPiano>。改编：仅保留 v8 力度层采样并转为 MP3，网页按音高变调播放。授权：Creative Commons Attribution 3.0 Unported（CC BY 3.0）；授权全文见 `piano/LICENSE.txt`。
