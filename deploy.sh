@@ -283,6 +283,13 @@ fi
 
 docker run "${run_args[@]}" "$image_name" --public --trust-proxy --port 8765
 
+# `downloads/` is excluded from the deployment archive and .dockerignore, so
+# restore the persistent host copy after every container recreation.
+if [[ -d "$remote_dir/downloads" ]]; then
+  docker exec "$container_name" mkdir -p /app/downloads
+  docker cp "$remote_dir/downloads/." "$container_name:/app/downloads/"
+fi
+
 echo '新容器已启动，正在等待服务就绪…'
 for attempt in {1..30}; do
   if docker exec "$container_name" python3 -c '
