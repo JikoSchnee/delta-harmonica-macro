@@ -1,6 +1,8 @@
 .git
 .pdmx-cache
 data
+SERVER_DEPLOY.md
+MAIL_CONFIG.md
 **/__pycache__
 **/._*
 server-backups

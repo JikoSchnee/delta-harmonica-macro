@@ -17,3 +17,7 @@ recording-helper/**/obj/
 *.mid
 Littleroot_Town_按乐器拆分.zip
 Littleroot_Town_按乐器拆分/说明.txt
+
+# Private server and mail setup notes; keep these local, never commit to GitHub.
+/SERVER_DEPLOY.md
+/MAIL_CONFIG.md
