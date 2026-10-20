@@ -6,7 +6,7 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   button.closest("dialog")?.close("cancel");
 });
-const WEBSITE_VERSION = "5.4.0";
+const WEBSITE_VERSION = "5.5.8";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },
@@ -41,7 +41,9 @@ let recorderHelperManifest = null;
 let recorderHelperManifestPromise = null;
 let recorderHelperVersion = "—";
 let recorderHelperCompatibility = Object.freeze({ label: "加载中", prefixes: Object.freeze([]) });
-const RECORDER_PROTOCOL_MAX_LENGTH = 30000;
+// Keep custom protocol URLs comfortably below Windows ShellExecute's URL
+// command-line ceiling. Larger payloads are gzip-compressed before launch.
+const RECORDER_PROTOCOL_MAX_LENGTH = 1500;
 let recorderCompressionCache = { key: "", payload: null };
 let recorderCompressionPending = { key: "", promise: null };
 // 第三方登录后端已保留；暂时关闭前端入口，恢复时改为 true。
@@ -118,6 +120,8 @@ const MIN_NOTE_HOLD_MS = 24;
 // Give Logitech G HUB a short moment to enter the script callback before the
 // first score event. This only shifts the complete score, not its note spacing.
 const LUA_PLAYBACK_START_GUARD_MS = 50;
+// Keep stop-button polling responsive during long notes and rests.
+const LUA_STOP_POLL_INTERVAL_MS = 10;
 // Give the target macro recorder time to enter its capture state after the
 // helper's Start button is clicked.  This is a silent pre-roll and does not
 // change the score's note timing; without it, the first key events can be
@@ -505,7 +509,8 @@ function reserveMacroExportSlotNow() {
   };
 }
 
-async function reserveMacroExportSlot() {
+async function reserveMacroExportSlot(onProgress) {
+  onProgress?.("正在确认登录状态…");
   await authReadyPromise.catch(() => {});
   if (!currentPublicScoreCode || !authState.available) return { commit() {}, release() {} };
   if (!authState.account) {
@@ -514,6 +519,7 @@ async function reserveMacroExportSlot() {
     return null;
   }
   try {
+    onProgress?.("登录状态已确认，正在请求解锁曲谱…");
     const result = await authRequest("./api/points/unlock", { method: "POST", body: { remixCode: currentPublicScoreCode } });
     authState.account.points = result;
     renderPointsUi();
@@ -725,6 +731,7 @@ function syncDonationMarquee({ list, stack, track }) {
   if (!list || !stack || !track) return;
   stack.querySelectorAll("[data-donation-clone]").forEach((node) => node.remove());
   stack.classList.remove("is-scrolling");
+  stack.style.removeProperty("--donation-scroll-start");
   stack.style.removeProperty("--donation-scroll-distance");
   stack.style.removeProperty("--donation-scroll-duration");
   if (!list.getClientRects().length) return;
@@ -738,6 +745,9 @@ function syncDonationMarquee({ list, stack, track }) {
   stack.append(clone);
   const gap = Number.parseFloat(window.getComputedStyle(stack).rowGap) || 0;
   const distance = singleHeight + gap;
+  const rowOffsets = Array.from(track.children, (row) => row.offsetTop);
+  const randomOffset = rowOffsets[Math.floor(Math.random() * rowOffsets.length)] || 0;
+  stack.style.setProperty("--donation-scroll-start", `${-randomOffset}px`);
   stack.style.setProperty("--donation-scroll-distance", `-${distance}px`);
   stack.style.setProperty("--donation-scroll-duration", `${Math.max(14, Math.round(distance / 22))}s`);
   stack.classList.add("is-scrolling");
@@ -867,6 +877,7 @@ function refreshPublicData({ force = false } = {}) {
     refreshPublicDonors(),
     refreshExportMethodConfig(),
     refreshExportProviders(),
+    refreshCommunityConfig(),
     checkForWebsiteUpdate()
   ]).finally(() => {
     publicDataRefreshInFlight = false;
@@ -1132,7 +1143,16 @@ elements.activeVisitorCount = document.querySelector("#activeVisitorCount");
 Object.assign(elements, {
   jianpuDurationSpacing: document.querySelector("#jianpuDurationSpacing"),
   jianpuDurationSpacingValue: document.querySelector("#jianpuDurationSpacingValue"),
-  jianpuDurationSpacingControl: document.querySelector(".jianpu-duration-spacing-control")
+  jianpuDurationSpacingControl: document.querySelector(".jianpu-duration-spacing-control"),
+  jianpuPerformanceSettingsToggle: document.querySelector("#jianpuPerformanceSettingsToggle"),
+  jianpuPerformanceSettings: document.querySelector("#jianpuPerformanceSettings"),
+  jianpuPerformanceNoteSize: document.querySelector("#jianpuPerformanceNoteSize"),
+  jianpuPerformanceNoteSizeValue: document.querySelector("#jianpuPerformanceNoteSizeValue"),
+  jianpuPerformanceCellWidth: document.querySelector("#jianpuPerformanceCellWidth"),
+  jianpuPerformanceCellWidthValue: document.querySelector("#jianpuPerformanceCellWidthValue"),
+  jianpuPerformanceLineWidth: document.querySelector("#jianpuPerformanceLineWidth"),
+  jianpuPerformanceLineWidthValue: document.querySelector("#jianpuPerformanceLineWidthValue"),
+  jianpuPerformanceFollowPointer: document.querySelector("#jianpuPerformanceFollowPointer")
 });
 
 Object.assign(elements, {
@@ -1159,13 +1179,6 @@ Object.assign(elements, {
   usageNoticeContent: document.querySelector("#usageNoticeContent"),
   usageNoticeProgress: document.querySelector("#usageNoticeProgress"),
   usageNoticeConfirm: document.querySelector("#usageNoticeConfirm")
-});
-
-Object.assign(elements, {
-  supportCopyButton: document.querySelector("#supportCopyButton"),
-  supportNotePreview: document.querySelector("#supportNotePreview"),
-  pointsSupportCopyButton: document.querySelector("#pointsSupportCopyButton"),
-  pointsSupportNotePreview: document.querySelector("#pointsSupportNotePreview")
 });
 
 // Share the homepage Star illustration without maintaining a second SVG copy.
@@ -2990,7 +3003,6 @@ function songUnlockState(song) {
   if (!authState.account && !authState.statusKnown) return "free";
   const points = authState.account?.points;
   if (!authState.account) return "locked";
-  if (points?.unlimited) return "free";
   if (points?.owned?.includes(song.remixCode) || points?.unlocked?.includes(song.remixCode)) return "free";
   return "locked";
 }
@@ -3074,7 +3086,7 @@ function openScoreUnlockDialog(song, { destination = "editor" } = {}) {
   pendingUnlockRequest = { song, destination };
   const points = authState.account?.points;
   const cost = points?.rules?.unlock ?? 10;
-  const balance = points?.unlimited ? "∞" : `${points?.balance ?? 0}`;
+  const balance = `${points?.balance ?? 0}`;
   elements.scoreUnlockTitle.textContent = `解锁《${song.title}》`;
   elements.scoreUnlockCopy.textContent = authState.account
     ? `这是社区曲谱，首次解锁消耗 ${cost} 积分（当前余额 ${balance}）。解锁后可永久载入编辑器与导出宏；解锁前可以先试听整曲。`
@@ -3213,7 +3225,7 @@ function renderSongCard(song, { libraryView = activeLibraryView } = {}) {
   const needsPoints = songAnalyticsOrigin(song) === "community" && Boolean(song.remixCode);
   const unlocked = authState.account?.points?.unlocked?.includes(song.remixCode);
   const owned = authState.account?.points?.owned?.includes(song.remixCode);
-  const priceLabel = needsPoints ? (owned ? "我的谱子·免费" : unlocked ? "已解锁" : authState.account?.points?.unlimited ? "无限使用" : "") : "";
+  const priceLabel = needsPoints ? (owned ? "我的谱子·免费" : unlocked ? "已解锁" : "") : "";
   // 正在播放器里试听这首曲目时，卡片按钮显示「停止」。
   const previewPlaying = Boolean(playerSongCode) && playerSongCode === (song.remixCode || "") && playerSongPlaying();
   return `
@@ -3963,6 +3975,24 @@ function splitJianpuPreviewMeasures(notes, measureBeats) {
   return measures;
 }
 
+function mergeJianpuPreviewTiedSegments(measures) {
+  return measures.map((measure) => measure.reduce((merged, segment) => {
+    const previous = merged.at(-1);
+    const continuesSameNote = previous
+      && previous.noteIndex === segment.noteIndex
+      && previous.item === segment.item
+      && Math.abs(previous.endMs - segment.startMs) < 0.01;
+    if (continuesSameNote) {
+      previous.beats += segment.beats;
+      previous.end = segment.end;
+      previous.endMs = segment.endMs;
+      previous.tieOut = segment.tieOut;
+      previous.explicitTieOut = segment.explicitTieOut;
+    } else merged.push({ ...segment });
+    return merged;
+  }, []));
+}
+
 function jianpuPreviewDashCount(segment) {
   const duration = JIANPU_PREVIEW_DURATIONS.get(Number(segment.beats.toFixed(6)));
   return duration?.dashes || 0;
@@ -4078,34 +4108,41 @@ function jianpuModifierFill(modifier) {
   return { L: "#c62828", M: "#a87900", R: "#2e7d32" }[keys[0]] || "";
 }
 
-function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 25.4, notationMode = "jianpu", layoutMode = "default", durationCellWidth = 12) {
-  const pagePadding = 48;
+function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 25.4, notationMode = "jianpu", layoutMode = "default", durationCellWidth = 12, noteSizeScale = 1, performanceMode = false) {
+  const pagePadding = layoutMode === "duration" && performanceMode ? 16 : 48;
   const noteGap = 31;
-  const requestedWidth = Math.max(pagePadding * 2 + 200, Number(pageWidth) || (210 * 96 / 25.4));
+  const requestedWidth = Math.max(pagePadding * 2 + (performanceMode ? 8 : 200), Number(pageWidth) || (210 * 96 / 25.4));
   const showRhythm = layoutMode === "default";
   const durationMode = layoutMode === "duration";
+  // A tied note is one sustained key press. In duration layout, display its
+  // total span as one cell instead of drawing a separate cell for each tie part.
+  const layoutMeasures = durationMode ? mergeJianpuPreviewTiedSegments(measures) : measures;
   const measureGap = durationMode ? 0 : 8;
   const minimumDurationSlotWidth = 4;
-  const allSegments = measures.flat();
+  const allSegments = layoutMeasures.flat();
   const soundingSegments = allSegments.filter((segment) => !segment.item.isRest && String(segment.item.note) !== "0");
   const scaleReferenceSegments = soundingSegments.length ? soundingSegments : allSegments;
   // Tiny final fragments can occur when a recorded song is trimmed to its exact
   // playback endpoint. Keep them proportional, but don't let one fragment set
   // the width of every ordinary note in the score.
+  const availableWidth = requestedWidth - pagePadding * 2;
   const ordinaryDurations = scaleReferenceSegments.map((segment) => segment.beats).filter((beats) => beats >= 0.12);
   const shortestSegmentBeats = Math.min(...(ordinaryDurations.length ? ordinaryDurations : scaleReferenceSegments.map((segment) => segment.beats).filter((beats) => beats > 0)), 1);
-  const durationScale = Math.max(4, Number(durationCellWidth) || 12) / shortestSegmentBeats;
+  const baseDurationScale = Math.max(4, Number(durationCellWidth) || 12) / shortestSegmentBeats;
+  const longestSegmentBeats = Math.max(0, ...allSegments.map((segment) => segment.beats));
+  const durationScale = durationMode && performanceMode && longestSegmentBeats > 0
+    ? Math.min(baseDurationScale, Math.max(1, availableWidth) / longestSegmentBeats)
+    : baseDurationScale;
   const durationExtraWidth = (segment) => {
     const label = showRhythm ? jianpuPreviewDurationLabel(segment) : "";
     if (!label) return 0;
     return Math.max(0, 12 + jianpuPreviewDurationLabelWidth(label) + 8 - noteGap);
   };
   const segmentAdvance = (segment) => durationMode
-    ? Math.max(minimumDurationSlotWidth, segment.beats * durationScale)
+    ? (performanceMode ? segment.beats * durationScale : Math.max(minimumDurationSlotWidth, segment.beats * durationScale))
     : noteGap * (1 + (showRhythm ? jianpuPreviewDashCount(segment) : 0)) + durationExtraWidth(segment);
-  const availableWidth = requestedWidth - pagePadding * 2;
   const measureFragments = [];
-  measures.forEach((measure, index) => {
+  layoutMeasures.forEach((measure, index) => {
     let fragment = [];
     let fragmentWidth = durationMode ? 0 : 32;
     let fragmentIndex = 0;
@@ -4145,7 +4182,7 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
   const height = headerHeight + systems.length * systemHeight + footerHeight;
   const parts = [
     `<svg xmlns="http://www.w3.org/2000/svg" class="jianpu-score-svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-header-height="${headerHeight}" data-system-height="${systemHeight}" data-system-count="${systems.length}" role="img" aria-label="${escapeHtml(title)} ${notationMode === "keyboard" ? "键盘模式" : "简谱"}：${escapeHtml(meta)}">`,
-    `<style>.paper{fill:#fffef7}.brand{font:700 22px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.34}.brand-url{font:14px 'JetBrains Mono',monospace;fill:#008080;opacity:.3}.watermark-name{font:700 17px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.105}.watermark-url{font:10px 'JetBrains Mono',monospace;fill:#008080;opacity:.09}.title{font:700 28px 'Noto Sans SC','PingFang SC',serif;fill:#1c2c27}.meta{font:12px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.measure-num{font:11px 'JetBrains Mono',monospace;fill:#849087}.note{font:34px 'Noto Serif CJK SC','Songti SC','SimSun',serif;fill:#172c27}.keyboard-note{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#172c27}.keyboard-note-white{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#fffef7}.rest{fill:#445952}.small{font:16px 'Noto Sans SC','PingFang SC',sans-serif;fill:#172c27}.tiny{font:12px 'JetBrains Mono',monospace;fill:#654a77}.legend-label{font:600 13px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.beam{stroke:#263b34;stroke-width:2.6;stroke-linecap:round}.barline{stroke:#596a61;stroke-width:1.8}.tie{fill:none;stroke:#65517c;stroke-width:1.8}.score-system-highlight.current{fill:#cee5d8;opacity:.56}.score-system-highlight.next{fill:#e6ecf4;opacity:.5}.score-playhead line{stroke:#c34432;stroke-width:2.5;stroke-linecap:round;opacity:.82}.score-playhead path{fill:#c34432}.footer{font:700 16px 'JetBrains Mono',monospace;fill:#111}</style>`,
+    `<style>.paper{fill:#fffef7}.brand{font:700 22px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.34}.brand-url{font:14px 'JetBrains Mono',monospace;fill:#008080;opacity:.3}.watermark-name{font:700 17px 'Noto Sans SC','PingFang SC',sans-serif;fill:#008080;opacity:.105}.watermark-url{font:10px 'JetBrains Mono',monospace;fill:#008080;opacity:.09}.title{font:700 28px 'Noto Sans SC','PingFang SC',serif;fill:#1c2c27}.meta{font:12px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.measure-num{font:11px 'JetBrains Mono',monospace;fill:#849087}.note{font:34px 'Noto Serif CJK SC','Songti SC','SimSun',serif;fill:#172c27}.keyboard-note{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#172c27}.keyboard-note-white{font:700 25px 'JetBrains Mono','SFMono-Regular',monospace;fill:#fffef7}.rest{fill:#445952}.small{font:16px 'Noto Sans SC','PingFang SC',sans-serif;fill:#172c27}.tiny{font:12px 'JetBrains Mono',monospace;fill:#654a77}.legend-label{font:600 13px 'Noto Sans SC','PingFang SC',sans-serif;fill:#52615b}.beam{stroke:#263b34;stroke-width:2.6;stroke-linecap:round}.barline{stroke:#596a61;stroke-width:1.8}.tie{fill:none;stroke:#65517c;stroke-width:1.8}.score-system-highlight.current{fill:#cee5d8;opacity:.56}.score-system-highlight.next{fill:#e6ecf4;opacity:.5}.score-playhead line{stroke:#65517c;stroke-width:2.5;stroke-linecap:round;opacity:.95}.score-playhead path{fill:#65517c}.footer{font:700 16px 'JetBrains Mono',monospace;fill:#111}</style>`,
     `<defs><linearGradient id="jianpu-modifier-LM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a87900"/><stop offset="50%" stop-color="#a87900"/><stop offset="50%" stop-color="#c62828"/><stop offset="100%" stop-color="#c62828"/></linearGradient><linearGradient id="jianpu-modifier-RM" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#a87900"/><stop offset="50%" stop-color="#a87900"/><stop offset="50%" stop-color="#2e7d32"/><stop offset="100%" stop-color="#2e7d32"/></linearGradient></defs>`,
     `<rect class="paper" width="${width}" height="${height}"/>`,
     systems.map((_, systemIndex) => [pagePadding + 88, width / 2, width - pagePadding - 88].map((x) => {
@@ -4174,7 +4211,6 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
     let x = pagePadding + (durationMode ? Math.max(0, (width - pagePadding * 2 - systemWidth) / 2) - 33 : 0);
     const systemTop = headerHeight + systemIndex * systemHeight;
     if (durationMode) parts.push(`<rect class="score-system-highlight" data-score-system-highlight="${systemIndex}" x="${pagePadding + 4}" y="${systemTop + 9}" width="${width - pagePadding * 2 - 8}" height="90" rx="5" visibility="hidden"/>`);
-    if (durationMode) parts.push(`<g class="score-playhead" data-score-playhead="${systemIndex}" visibility="hidden"><line x1="0" y1="${systemTop + 28}" x2="0" y2="${systemTop + 81}"/><path d="M -5 ${systemTop + 25} L 5 ${systemTop + 25} L 0 ${systemTop + 32} Z"/></g>`);
     system.forEach(({ measure, index, width: measureWidth, continued, endsMeasure }) => {
       const contentLeft = x + 13;
       const positions = [];
@@ -4208,6 +4244,8 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
           ? String(item.key || NOTE_KEYS[item.note] || "?").toUpperCase()
           : (match ? match[3] : pitch);
         const modifier = !rest ? ["L", "M", "R"].filter((button) => String(item.modifier || "").includes(button)).join("") : "";
+        const modifierFill = modifier ? jianpuModifierFill(modifier) : "";
+        const hasModifierFill = Boolean(modifierFill);
         const accidental = !rest && notationMode !== "keyboard" && match ? match[1] : "";
         const lowDots = !rest && notationMode !== "keyboard" && match ? match[2].length : 0;
         const highDots = !rest && notationMode !== "keyboard" && match ? match[4].length : 0;
@@ -4215,20 +4253,23 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
         const noteBoxLeft = durationMode ? slotStart : center - (accidental ? 20 : 14);
         const noteBoxRight = durationMode ? slotStart + slotWidth : durationLabel ? center + 14 + durationLabelWidth : center + 14;
         const noteBoxWidth = noteBoxRight - noteBoxLeft;
-        if (modifier || durationMode) parts.push(`<rect x="${noteBoxLeft.toFixed(1)}" y="${(y - 26).toFixed(1)}" width="${noteBoxWidth.toFixed(1)}" height="36" rx="2" fill="${modifier ? jianpuModifierFill(modifier) : "none"}" stroke="${durationMode ? "#87958d" : "none"}" stroke-width="${durationMode ? "1.4" : "0"}"/>`);
-        const noteTextScale = durationMode ? Math.min(1, slotWidth / 44) : 1;
+        if (hasModifierFill || durationMode) {
+          const boxFill = hasModifierFill ? modifierFill : "none";
+          parts.push(`<rect x="${noteBoxLeft.toFixed(1)}" y="${(y - 26).toFixed(1)}" width="${noteBoxWidth.toFixed(1)}" height="36" rx="2" fill="${boxFill}" style="fill:${boxFill};fill-opacity:1" stroke="${durationMode ? "#87958d" : "none"}" stroke-width="${durationMode ? "1.4" : "0"}"/>`);
+        }
+        const noteTextScale = (durationMode ? Math.min(1, slotWidth / 44) : 1) * noteSizeScale;
         if (durationMode) parts.push(`<g transform="translate(${center.toFixed(1)} ${y.toFixed(1)}) scale(${noteTextScale.toFixed(3)}) translate(${(-center).toFixed(1)} ${(-y).toFixed(1)})">`);
         if (highDots) parts.push(jianpuSvgText("•".repeat(highDots), center, y - (modifier ? 34 : 25), "small"));
-        if (accidental) parts.push(jianpuSvgText(accidental, center - (modifier ? 9 : 14), y, modifier ? "accidental-white" : "note"));
-        const noteClass = notationMode === "keyboard" ? modifier ? "keyboard-note-white" : "keyboard-note" : modifier ? "note note-white" : "note";
+        if (accidental) parts.push(jianpuSvgText(accidental, center - (modifier ? 9 : 14), y, hasModifierFill ? "accidental-white" : "note"));
+        const noteClass = notationMode === "keyboard" ? hasModifierFill ? "keyboard-note-white" : "keyboard-note" : hasModifierFill ? "note note-white" : "note";
         parts.push(jianpuSvgText(note, center, y, rest ? "note rest" : noteClass));
         if (lowDots) parts.push(jianpuSvgText("•".repeat(lowDots), center, y + 29, "small"));
         if (showRhythm && duration?.dots) Array.from({ length: duration.dots }, (_, dotIndex) => {
           const dotX = center + 10 + dotIndex * 4;
-          parts.push(`<circle cx="${dotX.toFixed(1)}" cy="${(y + 6).toFixed(1)}" r="2" fill="${modifier ? "#fffef7" : "#172c27"}"/>`);
+          parts.push(`<circle cx="${dotX.toFixed(1)}" cy="${(y + 6).toFixed(1)}" r="2" fill="${hasModifierFill ? "#fffef7" : "#172c27"}"/>`);
         });
         dashCenters.forEach((dashCenter) => parts.push(jianpuSvgText("—", dashCenter, y + 1, "small")));
-        if (durationLabel) parts.push(jianpuSvgText(durationLabel, center + 12, y, modifier ? "duration-mark-white" : "duration-mark", "start", durationLabelWidth));
+        if (durationLabel) parts.push(jianpuSvgText(durationLabel, center + 12, y, hasModifierFill ? "duration-mark-white" : "duration-mark", "start", durationLabelWidth));
         if (durationMode) parts.push("</g>");
       });
       if (showRhythm) positions.forEach((position) => {
@@ -4254,6 +4295,12 @@ function jianpuPreviewSvg(title, meta, measures, meter, pageWidth = 210 * 96 / 2
     });
   });
   parts.push(jianpuSvgText("https://jiko-official.top/delta/", width / 2, height - 25, "footer"));
+  // Draw the playhead last so it remains visible above note boxes, glyphs,
+  // barlines, watermarks, and the footer in every performance layout.
+  if (durationMode) systems.forEach((_, systemIndex) => {
+    const systemTop = headerHeight + systemIndex * systemHeight;
+    parts.push(`<g class="score-playhead" data-score-playhead="${systemIndex}" visibility="hidden" pointer-events="none"><line x1="0" y1="${systemTop + 28}" x2="0" y2="${systemTop + 81}"/><path d="M -5 ${systemTop + 25} L 5 ${systemTop + 25} L 0 ${systemTop + 32} Z"/></g>`);
+  });
   parts.push("</svg>");
   return parts.join("");
 }
@@ -4289,7 +4336,8 @@ function setJianpuPerformanceViewport(preview, firstSystem = 0) {
   svg.setAttribute("viewBox", `0 ${headerHeight + boundedFirst * systemHeight} ${viewBox.width} ${windowHeight}`);
   svg.setAttribute("height", String(windowHeight));
   scroll.classList.add("performance-mode");
-  scroll.style.setProperty("--jianpu-performance-width", `${jianpuPreviewPageWidth()}px`);
+  scroll.classList.toggle("follow-pointer", Boolean(preview.followPointer));
+  scroll.style.setProperty("--jianpu-performance-width", `${Math.max(320, elements.jianpuPreviewDialog.clientWidth - 24)}px`);
   scroll.scrollTop = 0;
   preview.performanceFirstSystem = boundedFirst;
 }
@@ -4308,12 +4356,34 @@ function updateJianpuPreviewSystemHighlights(preview, currentSystem) {
 
 function clearJianpuPreviewPlayhead(preview = activeJianpuPreview) {
   if (!preview) return;
+  if (preview.followScrollFrame) window.cancelAnimationFrame(preview.followScrollFrame);
+  preview.followScrollFrame = 0;
   preview.playheads?.forEach((playhead) => playhead.setAttribute("visibility", "hidden"));
   preview.systemHighlights?.forEach((highlight) => {
     highlight.setAttribute("visibility", "hidden");
     highlight.setAttribute("class", "score-system-highlight");
   });
   preview.activePlayheadSystem = null;
+}
+
+function smoothCenterJianpuPlayhead(preview, scroll) {
+  if (preview.followScrollFrame || !preview.followPointer || !preview.performanceMode) return;
+  const tick = () => {
+    preview.followScrollFrame = 0;
+    if (!preview.followPointer || !preview.performanceMode) return;
+    const playhead = preview.playheads?.find((candidate) => candidate.dataset.scorePlayhead === preview.activePlayheadSystem);
+    if (!playhead || playhead.getAttribute("visibility") === "hidden") return;
+    const scrollRect = scroll.getBoundingClientRect();
+    const playheadRect = playhead.getBoundingClientRect();
+    const center = scrollRect.left + scroll.clientWidth / 2;
+    const desired = scroll.scrollLeft + playheadRect.left + playheadRect.width / 2 - center;
+    const target = Math.max(0, Math.min(scroll.scrollWidth - scroll.clientWidth, desired));
+    const delta = target - scroll.scrollLeft;
+    if (Math.abs(delta) < 0.75) return;
+    scroll.scrollLeft += delta * 0.22;
+    preview.followScrollFrame = window.requestAnimationFrame(tick);
+  };
+  preview.followScrollFrame = window.requestAnimationFrame(tick);
 }
 
 function updateJianpuPreviewPlayhead(preview, positionMs) {
@@ -4345,7 +4415,8 @@ function updateJianpuPreviewPlayhead(preview, positionMs) {
     const playheadRect = playhead.getBoundingClientRect();
     if (systemChanged && playheadRect.top < scrollRect.top) scroll.scrollTop += playheadRect.top - scrollRect.top - 20;
     else if (systemChanged && playheadRect.bottom > scrollRect.bottom) scroll.scrollTop += playheadRect.bottom - scrollRect.bottom + 20;
-    if (playheadRect.left < scrollRect.left) scroll.scrollLeft += playheadRect.left - scrollRect.left - 20;
+    if (preview.performanceMode && preview.followPointer) smoothCenterJianpuPlayhead(preview, scroll);
+    else if (playheadRect.left < scrollRect.left) scroll.scrollLeft += playheadRect.left - scrollRect.left - 20;
     else if (playheadRect.right > scrollRect.right) scroll.scrollLeft += playheadRect.right - scrollRect.right + 20;
   }
   preview.activePlayheadSystem = system;
@@ -4356,7 +4427,8 @@ function syncJianpuPreviewPlaybackButton() {
   if (!button) return;
   const preview = activePreview?.jianpuPreview === activeJianpuPreview ? activePreview : null;
   const visible = activeJianpuPreview?.layoutMode === "duration";
-  button.parentElement.hidden = !visible;
+  const playbackControls = button.closest(".jianpu-preview-playback");
+  if (playbackControls) playbackControls.hidden = !visible;
   button.disabled = !activeJianpuPreview;
   button.textContent = preview?.state === "playing" ? "Ⅱ 暂停" : preview?.state === "paused" ? "▶ 继续" : "▶ 播放";
   button.setAttribute("aria-label", preview?.state === "playing" ? "暂停简谱试听" : preview?.state === "paused" ? "继续简谱试听" : "播放简谱");
@@ -4367,6 +4439,11 @@ function syncJianpuPreviewPlaybackButton() {
     elements.jianpuPerformanceButton.textContent = activeJianpuPreview?.performanceMode ? "退出演奏" : "演奏模式";
     elements.jianpuPerformanceButton.setAttribute("aria-pressed", String(Boolean(activeJianpuPreview?.performanceMode)));
   }
+  if (elements.jianpuPerformanceSettingsToggle) {
+    elements.jianpuPerformanceSettingsToggle.hidden = !activeJianpuPreview?.performanceMode;
+    elements.jianpuPerformanceSettingsToggle.setAttribute("aria-expanded", String(Boolean(activeJianpuPreview?.performanceMode && !elements.jianpuPerformanceSettings?.hidden)));
+  }
+  if (!activeJianpuPreview?.performanceMode && elements.jianpuPerformanceSettings) elements.jianpuPerformanceSettings.hidden = true;
 }
 
 function syncJianpuPreviewProgress(positionMs = 0, totalMs = activeJianpuPreview?.sequence.totalMs || 0) {
@@ -4386,13 +4463,20 @@ function jianpuPreviewPageWidth() {
   return safeWidthMm * 96 / 25.4;
 }
 
+function jianpuPreviewLayoutWidth(preview) {
+  if (!preview?.performanceMode) return jianpuPreviewPageWidth();
+  const viewportWidth = Math.max(1, elements.jianpuPreviewDialog.clientWidth - 24);
+  const lineWidthPercent = Math.max(30, Math.min(100, Number(preview.performanceWidthPercent) || 100));
+  return viewportWidth * lineWidthPercent / 100;
+}
+
 function refreshJianpuPreviewLayout() {
   if (!activeJianpuPreview) return;
   const { sequence, meter, beatsPerMeasure, title, meta, mode, layoutMode, hasCustomDuration } = activeJianpuPreview;
   const measures = splitJianpuPreviewMeasures(sequence.notes, beatsPerMeasure);
   elements.jianpuPreviewMeasures.dataset.layoutMode = layoutMode;
   const durationCellWidth = Number(elements.jianpuDurationSpacing?.value) || 36;
-  elements.jianpuPreviewMeasures.innerHTML = jianpuPreviewSvg(title, meta, measures, meter, jianpuPreviewPageWidth(), mode, layoutMode, durationCellWidth);
+  elements.jianpuPreviewMeasures.innerHTML = jianpuPreviewSvg(title, meta, measures, meter, jianpuPreviewLayoutWidth(activeJianpuPreview), mode, layoutMode, durationCellWidth, activeJianpuPreview.noteSizeScale || 1, activeJianpuPreview.performanceMode);
   const svg = elements.jianpuPreviewMeasures.querySelector("svg");
   activeJianpuPreview.svg = svg;
   activeJianpuPreview.fullViewBox = svg?.getAttribute("viewBox") || "";
@@ -4403,17 +4487,25 @@ function refreshJianpuPreviewLayout() {
   activeJianpuPreview.systemHighlights = [...(svg?.querySelectorAll("[data-score-system-highlight]") || [])];
   activeJianpuPreview.activePlayheadSystem = null;
   const scroll = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-scroll");
+  elements.jianpuPreviewDialog.classList.toggle("performance-fullscreen", layoutMode === "duration" && activeJianpuPreview.performanceMode);
   scroll?.classList.remove("performance-mode");
   scroll?.style.removeProperty("--jianpu-performance-height");
   scroll?.style.removeProperty("--jianpu-performance-width");
   if (elements.jianpuDurationSpacingControl) elements.jianpuDurationSpacingControl.hidden = layoutMode !== "duration";
   if (elements.jianpuDurationSpacingValue && elements.jianpuDurationSpacing) elements.jianpuDurationSpacingValue.value = `${elements.jianpuDurationSpacing.value} px`;
+  if (elements.jianpuPerformanceNoteSize) elements.jianpuPerformanceNoteSize.value = String(Math.round((activeJianpuPreview.noteSizeScale || 1) * 100));
+  if (elements.jianpuPerformanceNoteSizeValue) elements.jianpuPerformanceNoteSizeValue.value = `${Math.round((activeJianpuPreview.noteSizeScale || 1) * 100)}%`;
+  if (elements.jianpuPerformanceCellWidth && elements.jianpuDurationSpacing) elements.jianpuPerformanceCellWidth.value = elements.jianpuDurationSpacing.value;
+  if (elements.jianpuPerformanceCellWidthValue && elements.jianpuDurationSpacing) elements.jianpuPerformanceCellWidthValue.value = `${elements.jianpuDurationSpacing.value} px`;
+  if (elements.jianpuPerformanceLineWidth) elements.jianpuPerformanceLineWidth.value = String(activeJianpuPreview.performanceWidthPercent || 100);
+  if (elements.jianpuPerformanceLineWidthValue) elements.jianpuPerformanceLineWidthValue.value = `${activeJianpuPreview.performanceWidthPercent || 100}%`;
+  if (elements.jianpuPerformanceFollowPointer) elements.jianpuPerformanceFollowPointer.checked = Boolean(activeJianpuPreview.followPointer);
   elements.jianpuPreviewHint.hidden = layoutMode !== "default" || !hasCustomDuration;
   elements.jianpuPreviewHint.textContent = hasCustomDuration ? "精确时值以小号数字标注；无法用常规简谱符号准确表示。" : "";
   if (activePreview?.jianpuPreview === activeJianpuPreview && activePreview.state !== "ready") {
     updateJianpuPreviewPlayhead(activeJianpuPreview, previewPositionMs(activePreview));
   } else if (layoutMode === "duration" && activeJianpuPreview.performanceMode) {
-    updateJianpuPreviewSystemHighlights(activeJianpuPreview, 0);
+    updateJianpuPreviewPlayhead(activeJianpuPreview, activeJianpuPreview.seekPositionMs || 0);
   }
   syncJianpuPreviewPlaybackButton();
 }
@@ -4429,7 +4521,7 @@ function presentJianpuPreview({ sequence, meter, key, beatsPerMeasure, title, me
   if (previewEyebrow) previewEyebrow.textContent = allowDownload ? "NUMBERED NOTATION · PNG EXPORT" : "NUMBERED NOTATION · FREE VIEW";
   const hasCustomDuration = measures.some((measure) => measure.some((segment) => !JIANPU_PREVIEW_DURATIONS.has(Number(segment.beats.toFixed(6)))));
   if (activePreview?.jianpuPreview) stopPreview();
-  activeJianpuPreview = { sequence, meter, key, beatsPerMeasure, title, meta, mode: "jianpu", layoutMode: "default", performanceMode: false, hasCustomDuration, seekPositionMs: 0 };
+  activeJianpuPreview = { sequence, meter, key, beatsPerMeasure, title, meta, mode: "jianpu", layoutMode: "default", performanceMode: false, hasCustomDuration, seekPositionMs: 0, noteSizeScale: 1, performanceWidthPercent: 100, followPointer: false, followScrollFrame: 0 };
   elements.jianpuPreviewDialog.querySelectorAll("[data-jianpu-preview-mode]").forEach((button) => {
     const selected = button.dataset.jianpuPreviewMode === "jianpu";
     button.classList.toggle("active", selected);
@@ -4521,17 +4613,16 @@ function toggleJianpuPerformanceMode() {
   const preview = activeJianpuPreview;
   if (!preview || preview.layoutMode !== "duration") return;
   preview.performanceMode = !preview.performanceMode;
+  elements.jianpuPreviewDialog.classList.toggle("performance-fullscreen", preview.performanceMode);
+  elements.jianpuPreviewDialog.querySelector(".window-titlebar .dialog-close")?.setAttribute("aria-label", preview.performanceMode ? "退出全屏演奏模式" : "关闭简谱预览");
+  refreshJianpuPreviewLayout();
   if (preview.performanceMode) {
     const samePreview = activePreview?.jianpuPreview === preview;
-    const positionMs = samePreview ? previewPositionMs(activePreview) : (preview.seekPositionMs || 0);
-    updateJianpuPreviewPlayhead(preview, positionMs);
-    syncJianpuPreviewPlaybackButton();
     if (!samePreview) {
       playPreview(preview.seekPositionMs || 0, { analytics: false, title: preview.title, sequence: preview.sequence, jianpuPreview: preview });
     } else if (activePreview.state === "paused") resumePreview();
     return;
   }
-  updateJianpuPreviewSystemHighlights(preview, 0);
   syncJianpuPreviewPlaybackButton();
 }
 
@@ -5618,6 +5709,7 @@ function generateLua(sequence, triggerSettings) {
     "local playbackStartedAt = 0",
     "local playbackGeneration = 0",
     `local PLAYBACK_START_GUARD_MS = ${LUA_PLAYBACK_START_GUARD_MS}`,
+    `local STOP_POLL_INTERVAL_MS = ${LUA_STOP_POLL_INTERVAL_MS}`,
     "",
     "local function ReleaseHeldInputs(ownerGeneration)",
     "  if ownerGeneration ~= nil and activePlaybackGeneration ~= ownerGeneration then return end",
@@ -5655,9 +5747,8 @@ function generateLua(sequence, triggerSettings) {
     "    end",
     "    local remaining = targetMs - (GetRunningTime() - playbackStartedAt)",
     "    if remaining <= 0 then return true end",
-    "    -- Sleep coarsely when far away, then use 1ms slices near the target.",
-    "    local slice = remaining > 8 and remaining - 4 or math.min(remaining, 1)",
-    "    Sleep(slice)",
+    "    -- Check the stop button at least every 10ms, including during long notes.",
+    "    Sleep(math.min(remaining, STOP_POLL_INTERVAL_MS))",
     "  end",
     "end",
     "",
@@ -5763,10 +5854,13 @@ function recorderPayloadKey(payload) {
 function warmRecorderCompression(payload) {
   const key = recorderPayloadKey(payload);
   if (recorderCompressionCache.key === key || recorderCompressionPending.key === key) return;
-  recorderCompressionPending = { key, promise: encodeGzipUrlPayload(payload).then((compressed) => {
+  const promise = encodeGzipUrlPayload(payload).then((compressed) => {
     if (recorderCompressionPending.key === key && compressed) recorderCompressionCache = { key, payload: compressed };
     return compressed;
-  }).catch(() => null) };
+  }).catch(() => null).finally(() => {
+    if (recorderCompressionPending.key === key) recorderCompressionPending = { key: "", promise: null };
+  });
+  recorderCompressionPending = { key, promise };
 }
 
 function requestRecorderProtocol(url) {
@@ -5809,24 +5903,26 @@ async function launchIndependentRecorder(sequence) {
   const payloadKey = recorderPayloadKey(payload);
   const compressedPayload = recorderCompressionCache.key === payloadKey ? recorderCompressionCache.payload : null;
   const plainUrl = `harmonica-recorder://play?payload=${encodeUrlSafePayload(payload)}`;
-  const url = compressedPayload
+  const compressedUrl = compressedPayload
     ? `harmonica-recorder://play?encoding=gzip&payload=${compressedPayload}`
-    : plainUrl;
+    : "";
+  const url = compressedUrl && compressedUrl.length < plainUrl.length ? compressedUrl : plainUrl;
   if (url.length > RECORDER_PROTOCOL_MAX_LENGTH) {
     if (compressedPayload) {
-      toast("当前曲谱压缩后仍超过系统导入上限，请拆分为较短的段落。 ");
+      toast("曲谱压缩后仍超过 Windows 启动器的长度限制，请启用「只导出选中范围」分段导出。 ");
       return;
     }
     if (typeof CompressionStream !== "function") {
-      toast("当前浏览器不支持压缩导入，且曲谱过长；请拆分为较短的段落。 ");
+      toast("当前浏览器不支持压缩导入，曲谱链接过长；请启用「只导出选中范围」分段导出。 ");
       return;
     }
     warmRecorderCompression(payload);
-    toast("当前曲谱较长，正在准备压缩导入，请稍后再次点击。 ");
+    toast("曲谱较长，正在压缩导入数据；准备完成后请再次点击「导出到宏录制助手」。 ");
     return;
   }
-  const reservation = await reserveMacroExportSlot();
+  const reservation = await reserveMacroExportSlot((status) => toast(status, { persistent: true }));
   if (!reservation) return;
+  toast("正在唤起宏录制助手…", { persistent: true });
   try {
     requestRecorderProtocol(url);
   } catch {
@@ -6826,10 +6922,15 @@ function scheduleEffectUnlockNotice() {
 }
 
 function setSignedInAccount(account) {
+  const previousAccountId = authState.account?.id || "";
   authState.account = account || null;
+  if (previousAccountId !== (account?.id || "")) {
+    document.querySelectorAll("[data-support-id-status]").forEach((status) => { status.textContent = "请把此 ID 填入微信赞赏备注。"; });
+  }
   elements.accountButton.hidden = !authState.available;
   elements.accountButton.classList.toggle("is-signed-in", Boolean(account));
   elements.accountButtonLabel.innerHTML = account ? `@${userIdMarkup(account.userId)}` : "登录 / 注册";
+  renderSupportAccountId();
   if (!account) mySongLibrary = [];
   if (account) {
     elements.accountEmail.textContent = account.email;
@@ -6837,7 +6938,8 @@ function setSignedInAccount(account) {
   }
   renderPointsUi();
   renderSongLibrary(elements.songSearch.value);
-  renderSupportNotePreview();
+  if (account) void loadSupportSubmissions();
+  else renderSupportSubmissions([]);
   renderIdEffectPicker();
   schedulePointsNotice();
   scheduleEffectUnlockNotice();
@@ -6868,13 +6970,14 @@ document.querySelector("#pointsNoticeDialog").addEventListener("close", () => {
   flushPendingPointsTask();
 });
 
-const POINT_REASON_LABELS = { register: "注册奖励", legacy_grant: "版本更新补偿", legacy_export: "历史导出结算", daily_login: "每日登录", github_star: "GitHub Star", first_upload: "首次投稿", referral: "邀请好友", author: "作品被使用", unlock: "解锁曲谱", partner_outbound: "合作跳转历史奖励", streamer_code: "主播兑换码" };
+const POINT_REASON_LABELS = { register: "注册奖励", legacy_grant: "版本更新补偿", legacy_export: "历史导出结算", legacy_donation: "历史打赏积分", donation: "打赏赠分", manual_donation: "打赏赠分", daily_login: "每日登录", github_star: "GitHub Star", first_upload: "首次投稿", referral: "邀请好友", author: "作品被使用", unlock: "解锁曲谱", partner_outbound: "合作跳转历史奖励", streamer_code: "主播兑换码", reward_code: "活动兑换码" };
 
 // 只有能帮用户看懂来源的参考信息才展示；注册/投稿/邀请的参考值是内部账号 ID，
 // 既不直观也不该暴露，所以不显示。
 const POINT_REFERENCE_NOTES = {
   daily_login: (reference) => (reference ? `日期 ${reference}` : ""),
   github_star: (reference) => (reference ? `GitHub ID ${reference}` : ""),
+  donation: (reference) => (reference ? `转账单号 ${reference}` : ""),
   unlock: (reference) => (reference ? `曲谱 ${reference}` : ""),
   // 作者收益的参考值是「解锁者账号 ID : 曲谱标识」，只展示曲谱，不暴露解锁者内部 ID。
   author: (reference) => { const code = String(reference || "").split(":").pop(); return code ? `曲谱 ${code}` : ""; },
@@ -6904,7 +7007,7 @@ function renderPointsLedger(entries = []) {
     const label = POINT_REASON_LABELS[entry.reason] || entry.reason || "积分变动";
     const date = new Date((Number(entry.created_at) || 0) * 1000);
     const when = Number.isNaN(date.getTime()) ? "" : date.toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
-  const note = entry.reason === "partner_outbound" ? (entry.product_title || "合作产品") : (POINT_REFERENCE_NOTES[entry.reason]?.(String(entry.reference ?? "")) || "");
+  const note = entry.reason === "reward_code" ? (entry.reward_title || "活动兑换码") : entry.reason === "partner_outbound" ? (entry.product_title || "合作产品") : (POINT_REFERENCE_NOTES[entry.reason]?.(String(entry.reference ?? "")) || "");
     const ledgerNote = entry.reason === "streamer_code" ? (entry.streamer_user_id ? `主播 @${entry.streamer_user_id}` : "主播兑换码") : note;
     const meta = [when, ledgerNote].filter(Boolean).join(" · ");
     return `<div class="points-ledger-entry"><span><b>${escapeHtml(label)}</b><small>${escapeHtml(meta)}</small></span><strong class="${amount >= 0 ? "positive" : "negative"}">${amount >= 0 ? "+" : ""}${amount}</strong></div>`;
@@ -6921,9 +7024,9 @@ function renderPointsUi() {
   const signedIn = Boolean(authState.account);
   const inviteCode = authState.account?.inviteCode || points?.inviteCode || "";
   elements.pointsTaskButton.hidden = !authState.available;
-  elements.pointsTaskButtonLabel.textContent = !signedIn ? "登录领 30 分" : points?.unlimited ? "∞" : `${points?.balance ?? 0} 积分`;
+  elements.pointsTaskButtonLabel.textContent = !signedIn ? "登录领 30 分" : `${points?.balance ?? 0} 积分`;
   elements.pointsTaskButton.title = signedIn ? "打开积分页" : "打开积分页，登录或注册领取 30 积分";
-  elements.pointsTaskBalance.textContent = !signedIn ? "登录领 30" : points?.unlimited ? "∞" : `${points?.balance ?? 0} 积分`;
+  elements.pointsTaskBalance.textContent = !signedIn ? "登录领 30" : `${points?.balance ?? 0} 积分`;
   elements.pointsTaskRegistration.textContent = signedIn ? "已领取注册奖励 +30" : "完成注册后领取 +30";
   elements.pointsTaskDailyLogin.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取 +20" : "每天首次登录领取 +20";
   elements.pointsTaskDailyLoginStatus.textContent = signedIn && points?.dailyLoginRewarded ? "今日已领取" : signedIn ? "登录奖励处理中" : "登录后自动领取";
@@ -7765,7 +7868,7 @@ function applyMidiSelection({ focusEditor = true } = {}) {
 
 let toastTimer;
 let toastCloseTimer;
-function toast(message) {
+function toast(message, { persistent = false } = {}) {
   elements.toast.textContent = message;
   window.clearTimeout(toastTimer);
   window.clearTimeout(toastCloseTimer);
@@ -7774,20 +7877,24 @@ function toast(message) {
     if (elements.toast.open) elements.toast.close();
     elements.toast.show();
     window.requestAnimationFrame(() => elements.toast.classList.add("show"));
-    toastTimer = window.setTimeout(() => {
-      elements.toast.classList.remove("show");
-      toastCloseTimer = window.setTimeout(() => {
-        if (!elements.toast.classList.contains("show") && elements.toast.open) elements.toast.close();
-      }, 220);
-    }, 2400);
+    if (!persistent) {
+      toastTimer = window.setTimeout(() => {
+        elements.toast.classList.remove("show");
+        toastCloseTimer = window.setTimeout(() => {
+          if (!elements.toast.classList.contains("show") && elements.toast.open) elements.toast.close();
+        }, 220);
+      }, 2400);
+    }
     return;
   }
   elements.toast.setAttribute("open", "");
   elements.toast.classList.add("show");
-  toastTimer = window.setTimeout(() => {
-    elements.toast.classList.remove("show");
-    toastCloseTimer = window.setTimeout(() => elements.toast.removeAttribute("open"), 220);
-  }, 2400);
+  if (!persistent) {
+    toastTimer = window.setTimeout(() => {
+      elements.toast.classList.remove("show");
+      toastCloseTimer = window.setTimeout(() => elements.toast.removeAttribute("open"), 220);
+    }, 2400);
+  }
 }
 
 async function copyLua(sequence) {
@@ -7907,6 +8014,40 @@ elements.jianpuPreviewStopButton?.addEventListener("click", stopJianpuPreviewPla
 elements.jianpuPerformanceButton?.addEventListener("click", toggleJianpuPerformanceMode);
 elements.jianpuPreviewProgress?.addEventListener("input", (event) => handleJianpuPreviewSeek(event.currentTarget.value));
 elements.jianpuPreviewProgress?.addEventListener("change", (event) => handleJianpuPreviewSeek(event.currentTarget.value, { commit: true }));
+elements.jianpuPerformanceSettingsToggle?.addEventListener("click", () => {
+  if (!activeJianpuPreview?.performanceMode || !elements.jianpuPerformanceSettings) return;
+  elements.jianpuPerformanceSettings.hidden = !elements.jianpuPerformanceSettings.hidden;
+  elements.jianpuPerformanceSettingsToggle.setAttribute("aria-expanded", String(!elements.jianpuPerformanceSettings.hidden));
+});
+elements.jianpuPerformanceNoteSize?.addEventListener("input", (event) => {
+  if (!activeJianpuPreview) return;
+  activeJianpuPreview.noteSizeScale = Math.max(0.6, Math.min(1.6, Number(event.currentTarget.value) / 100));
+  if (elements.jianpuPerformanceNoteSizeValue) elements.jianpuPerformanceNoteSizeValue.value = `${Math.round(activeJianpuPreview.noteSizeScale * 100)}%`;
+  refreshJianpuPreviewLayout();
+});
+elements.jianpuPerformanceCellWidth?.addEventListener("input", (event) => {
+  if (!elements.jianpuDurationSpacing) return;
+  elements.jianpuDurationSpacing.value = event.currentTarget.value;
+  if (elements.jianpuPerformanceCellWidthValue) elements.jianpuPerformanceCellWidthValue.value = `${event.currentTarget.value} px`;
+  elements.jianpuDurationSpacing.dispatchEvent(new Event("input", { bubbles: false }));
+});
+elements.jianpuPerformanceLineWidth?.addEventListener("input", (event) => {
+  if (!activeJianpuPreview) return;
+  activeJianpuPreview.performanceWidthPercent = Math.max(30, Math.min(100, Number(event.currentTarget.value) || 100));
+  if (elements.jianpuPerformanceLineWidthValue) elements.jianpuPerformanceLineWidthValue.value = `${activeJianpuPreview.performanceWidthPercent}%`;
+  refreshJianpuPreviewLayout();
+});
+elements.jianpuPerformanceFollowPointer?.addEventListener("change", (event) => {
+  if (!activeJianpuPreview) return;
+  activeJianpuPreview.followPointer = event.currentTarget.checked;
+  const scroll = elements.jianpuPreviewDialog.querySelector(".jianpu-preview-scroll");
+  if (!activeJianpuPreview.followPointer && activeJianpuPreview.followScrollFrame) {
+    window.cancelAnimationFrame(activeJianpuPreview.followScrollFrame);
+    activeJianpuPreview.followScrollFrame = 0;
+  }
+  scroll?.classList.toggle("follow-pointer", activeJianpuPreview.followPointer);
+  updateJianpuPreviewPlayhead(activeJianpuPreview, activePreview?.jianpuPreview === activeJianpuPreview ? previewPositionMs(activePreview) : activeJianpuPreview.seekPositionMs || 0);
+});
 elements.jianpuPageWidth?.addEventListener("input", () => {
   const widthMm = Number(elements.jianpuPageWidth.value);
   if (Number.isFinite(widthMm) && widthMm >= 180 && widthMm <= 420) refreshJianpuPreviewLayout();
@@ -7916,6 +8057,12 @@ elements.jianpuDurationSpacing?.addEventListener("input", () => {
   refreshJianpuPreviewLayout();
 });
 elements.jianpuPreviewDialog?.addEventListener("click", (event) => {
+  const closeButton = event.target.closest(".window-titlebar .dialog-close");
+  if (closeButton && activeJianpuPreview?.performanceMode) {
+    event.preventDefault();
+    toggleJianpuPerformanceMode();
+    return;
+  }
   const notationButton = event.target.closest("[data-jianpu-preview-mode]");
   const layoutButton = event.target.closest("[data-jianpu-layout-mode]");
   if (!activeJianpuPreview) return;
@@ -7945,12 +8092,20 @@ elements.jianpuPreviewDialog?.addEventListener("click", (event) => {
   }
 });
 elements.jianpuPreviewDialog?.addEventListener("close", () => {
+  if (activeJianpuPreview) activeJianpuPreview.performanceMode = false;
+  elements.jianpuPreviewDialog.classList.remove("performance-fullscreen");
+  if (elements.jianpuPerformanceSettings) elements.jianpuPerformanceSettings.hidden = true;
+  elements.jianpuPerformanceSettingsToggle?.setAttribute("aria-expanded", "false");
+  elements.jianpuPreviewDialog.querySelector(".window-titlebar .dialog-close")?.setAttribute("aria-label", "关闭简谱预览");
   if (activePreview?.jianpuPreview === activeJianpuPreview) stopPreview();
 });
 elements.jianpuPageWidth?.addEventListener("change", () => {
   const widthMm = Number(elements.jianpuPageWidth.value);
   elements.jianpuPageWidth.value = String(Number.isFinite(widthMm) ? Math.min(420, Math.max(180, widthMm || 210)) : 210);
   refreshJianpuPreviewLayout();
+});
+window.addEventListener("resize", () => {
+  if (activeJianpuPreview?.performanceMode && elements.jianpuPreviewDialog.open) refreshJianpuPreviewLayout();
 });
 elements.repairCurrentModeButton.addEventListener("click", repairCurrentMode);
 function openLocalFilePicker(input) {
@@ -8739,26 +8894,72 @@ function openUploadHelpDialogOnFirstVisit() {
   try { window.localStorage.setItem(storageKey, "1"); } catch {}
 }
 
-// 赞赏备注里带上站点 ID，才能把打赏对应到账号、发放赞助者标签。
-function supportNoteText() {
-  const userId = String(authState.account?.userId || "").trim();
-  return userId ? `站点ID：@${userId}` : "站点ID：@你的ID";
+function supportStatusLabel(status) {
+  return status === "credited" ? "已核实，积分已到账"
+    : status === "awaiting_admin" ? "已提交，等待管理员核实金额"
+      : "等待用户提交转账单号";
 }
 
-function renderSupportNotePreview() {
-  if (elements.supportNotePreview) elements.supportNotePreview.textContent = supportNoteText();
-  if (elements.pointsSupportNotePreview) elements.pointsSupportNotePreview.textContent = supportNoteText();
+function renderSupportAccountId() {
+  const userId = authState.account?.userId || "";
+  document.querySelectorAll("[data-support-user-id]").forEach((element) => {
+    element.textContent = userId || "登录后显示";
+  });
 }
 
-function copySupportNote() {
-  const userId = String(authState.account?.userId || "").trim();
+function renderSupportSubmissions(submissions = []) {
+  document.querySelectorAll("[data-support-submission-list]").forEach((container) => {
+    if (!authState.account) {
+      container.innerHTML = '<p class="support-submission-empty">登录后可查看本人旧版单号记录（只读）。</p>';
+      return;
+    }
+    if (!submissions.length) {
+      container.innerHTML = '<p class="support-submission-empty">暂无旧版单号记录。</p>';
+      return;
+    }
+    container.innerHTML = submissions.map((item) => {
+      const amount = item.amountCents == null ? "金额待核实" : `¥${(Number(item.amountCents) / 100).toFixed(2)}`;
+      const points = item.status === "credited" ? ` · +${Number(item.points) || 0} 积分` : "";
+      const date = item.submittedAt ? new Date(item.submittedAt).toLocaleString("zh-CN", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+      return `<div class="support-submission-row"><span><b>${escapeHtml(item.transferId || "")}</b><small>${escapeHtml([supportStatusLabel(item.status), amount + points, date].filter(Boolean).join(" · "))}</small></span></div>`;
+    }).join("");
+  });
+}
+
+document.addEventListener("click", async (event) => {
+  const button = event.target.closest("[data-copy-support-user-id]");
+  if (!button) return;
+  const status = button.closest(".support-user-id-block")?.querySelector("[data-support-id-status]");
+  const userId = authState.account?.userId;
   if (!userId) {
-    toast("请先登录或注册，再把站点用户 ID 或邮箱写进赞赏留言。");
+    if (status) status.textContent = "请先登录后复制站点 ID。";
+    showAuthDialog();
     return;
   }
-  const note = `站点ID：@${userId}`;
-  const copyPromise = navigator.clipboard?.writeText(note);
-  copyPromise?.then(() => toast(`已复制「${note}」，粘贴到赞赏留言即可。`)).catch(() => {});
+  try {
+    await navigator.clipboard.writeText(userId);
+    if (status) status.textContent = "站点 ID 已复制，请粘贴到微信赞赏备注。";
+  } catch {
+    if (status) status.textContent = "复制失败，请手动复制上方显示的站点 ID。";
+  }
+});
+
+async function loadSupportSubmissions() {
+  const accountId = authState.account?.id;
+  if (!accountId) {
+    renderSupportSubmissions([]);
+    return;
+  }
+  try {
+    const result = await authRequest("./api/points/support-submissions");
+    if (authState.account?.id === accountId) renderSupportSubmissions(result.submissions || []);
+  } catch {
+    if (authState.account?.id === accountId) {
+      document.querySelectorAll("[data-support-submission-list]").forEach((container) => {
+        container.innerHTML = '<p class="support-submission-empty">单号状态暂时无法读取，请稍后刷新。</p>';
+      });
+    }
+  }
 }
 
 function openKookChannelDialog() {
@@ -8776,8 +8977,6 @@ elements.updateDialog.addEventListener("close", () => {
   pendingWebsiteUpdate = null;
   deferredWebsiteUpdateDialog = false;
 });
-elements.supportCopyButton.addEventListener("click", copySupportNote);
-elements.pointsSupportCopyButton?.addEventListener("click", copySupportNote);
 elements.uploadScoreButton.addEventListener("click", () => {
   elements.editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   toast("请先在编辑器中使用 MIDI 导入或手动打谱，再点击「上传到曲库」。");
@@ -9202,7 +9401,6 @@ initializeMacroExportSpeedSetting();
 loadRecordingHelperManifest();
 loadObsMonitorReleaseLinks();
 setLibraryView(currentTaskRoute() === "export" ? "all" : currentTaskRoute() === "create" ? "mine" : "recommended");
-renderSupportNotePreview();
 authReadyPromise = enableCommunityUploadEntry();
 updateLineNumbers();
 setInputMode("jianpu", { force: true, silent: true });
@@ -9251,3 +9449,34 @@ if (typeof MutationObserver === "function") {
   new MutationObserver(scheduleWorkbenchHeightSync).observe(elements.editorPanel, { attributes: true, childList: true, subtree: true });
 }
 scheduleWorkbenchHeightSync();
+
+
+document.querySelector("#rewardCodeRedeemForm")?.addEventListener("submit", async event => {
+  event.preventDefault();
+  const form = event.currentTarget, button = form.querySelector("button[type=submit]"), status = document.querySelector("#rewardCodeRedeemStatus");
+  button.disabled = true; status.textContent = "正在兑换…"; status.classList.remove("is-error");
+  try {
+    const result = await authRequest("./api/points/redeem", { method: "POST", body: { code: form.elements.code.value.trim() } });
+    status.textContent = `${result.title}：已获得 ${result.awarded} 积分，余额 ${result.balance}。`;
+    form.reset(); await refreshPointsUi(); await refreshPointsLedger();
+  } catch (error) {
+    if (error.status === 401) showAuthDialog();
+    status.classList.add("is-error"); status.textContent = error.message || "兑换失败，请稍后重试。";
+  } finally { button.disabled = false; }
+});
+
+
+async function refreshCommunityConfig() {
+  try {
+    const response = await fetch("./api/community", { cache: "no-store", headers: { Accept: "application/json" } });
+    if (!response.ok) return;
+    const config = await response.json();
+    if (!/^https:\/\/kook\.vip\/[A-Za-z0-9]{1,128}\/?$/.test(config.kookUrl || "")) return;
+    document.querySelectorAll("[data-kook-link]").forEach(link => { link.href = config.kookUrl; });
+    document.querySelectorAll("[data-kook-link-label]").forEach(label => { label.textContent = `${config.kookUrl.replace(/^https:\/\//, "")} ↗`; });
+    if (/^\.\/(?:assets\/kook-channel-qr\.png(?:\?v=[\w.-]+)?|data\/community\/[a-f0-9]{32}\.(?:png|jpg|webp))$/.test(config.kookQrUrl || "")) {
+      document.querySelectorAll("[data-kook-qr]").forEach(image => { if (image.getAttribute("src") !== config.kookQrUrl) image.src = config.kookQrUrl; });
+    }
+  } catch {}
+}
+void refreshCommunityConfig();

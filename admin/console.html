@@ -76,10 +76,18 @@
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 11px 7px; border-bottom: 1px solid rgba(122,168,151,.22); text-align: left; vertical-align: middle; }
       th { color: var(--dim); font: 10px "JetBrains Mono", monospace; letter-spacing: .06em; }
+      .sortable-header { display: inline-flex; align-items: center; gap: 5px; padding: 0; color: inherit; border: 0; background: transparent; font: inherit; letter-spacing: inherit; text-align: left; white-space: nowrap; }
+      .sortable-header:hover, .sortable-header:focus-visible { color: var(--aqua); outline: none; text-decoration: underline; text-underline-offset: 3px; }
+      .sortable-header span { color: var(--aqua); }
       td { color: #c8e7dc; }
       td:last-child, th:last-child { text-align: right; }
       .title-cell b { display: block; color: var(--ink); font-size: 14px; }
       .title-cell small, td small { display: block; margin-top: 2px; color: var(--dim); font-size: 11px; }
+      .user-export-details { min-width: 180px; margin-top: 5px; color: var(--dim); font: 10px/1.45 "JetBrains Mono", monospace; }
+      .user-export-details summary { color: var(--aqua); cursor: pointer; }
+      .user-export-details ul { display: grid; gap: 4px; max-height: 190px; margin: 6px 0 0; padding: 7px 8px 7px 22px; overflow: auto; background: #071d19; border: 1px solid rgba(122,168,151,.24); }
+      .user-export-details li { padding-left: 1px; }
+      .user-export-details li small { display: inline; margin-left: 7px; white-space: nowrap; }
       .tag { display: inline-flex; align-items: center; min-height: 22px; padding: 0 8px; color: var(--aqua); border: 1px solid rgba(108,232,199,.45); border-radius: 2px; font: 10px "JetBrains Mono", monospace; }
       .tag.amber { color: var(--amber); border-color: rgba(255,202,95,.5); }
       .tag.muted { color: var(--dim); border-color: rgba(122,168,151,.3); }
@@ -90,6 +98,9 @@
       .donation-entry-form input { min-height: 40px; width: 100%; padding: 0 10px; color: var(--ink); border: 1px solid var(--line); outline: none; background: #071d19; }
       .donation-entry-form input:focus { border-color: var(--aqua); box-shadow: 0 0 0 2px rgba(108,232,199,.12); }
       .donation-entry-form .button { min-height: 40px; }
+      .legacy-donation-history { margin-top: 18px; padding-top: 12px; border-top: 1px solid rgba(122,168,151,.22); }
+      .legacy-donation-history summary { color: var(--aqua); cursor: pointer; font: 11px "JetBrains Mono", monospace; }
+      .legacy-donation-history > div { margin-top: 10px; }
       .donation-account-picker { position: relative; }
       .donation-account-results { position: absolute; z-index: 20; top: 100%; right: 0; left: 0; max-height: 240px; overflow: auto; background: #071d19; border: 1px solid var(--aqua); box-shadow: 0 10px 24px #0008; }
       .donation-account-results[hidden] { display: none; }
@@ -340,6 +351,8 @@
           <button data-page="cooperation"><b>06</b><span>合作申请</span></button>
           <button data-page="runtime"><b>07</b><span>运行时状态</span></button>
           <button data-page="analytics"><b>08</b><span>数据分析</span></button>
+          <button data-page="community"><b>11</b><span>KOOK 设置</span></button>
+          <button data-page="reward-codes"><b>10</b><span>活动兑换码</span></button>
           <button data-page="donations"><b>09</b><span>打赏管理</span></button>
         </nav>
         <div class="rail-foot"><span></span>TOKEN LINKED<br /><small>private / no-store</small></div>
@@ -358,6 +371,39 @@
             <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT PULSE</div><h3>最近加入</h3></div><a href="#users" data-jump="users">查看用户 →</a></div><div id="userPreview"></div></section>
           </div>
         </section>
+        <section id="communityPage" data-view hidden>
+          <section class="window panel">
+            <div class="section-heading"><div><div class="eyebrow">COMMUNITY / KOOK SETTINGS</div><h3>KOOK 二维码与链接</h3></div><button id="refreshCommunityConfig" class="button ghost" type="button">重新读取</button></div>
+            <p class="admin-song-description">保存后统一更新首页、积分页、录制助手下载弹窗及投稿入口。配置和上传图片会保存在服务器，后续部署继续保留。</p>
+            <form id="communityConfigForm">
+              <fieldset id="communityConfigFields" disabled class="cooperation-review-card">
+                <div class="points-media-admin-fields">
+                  <label>KOOK 入群链接<input name="kookUrl" type="url" maxlength="160" placeholder="https://kook.vip/jcJIDN" required pattern="https://kook\.vip/[A-Za-z0-9]{1,128}/?" /></label>
+                  <label>上传二维码（PNG / JPEG / WebP，最大 5 MB）<input name="qrFile" type="file" accept="image/png,image/jpeg,image/webp" /></label>
+                </div>
+                <figure style="margin:8px 0"><img id="communityQrPreview" alt="当前 KOOK 二维码预览" style="display:block;width:218px;max-width:100%;height:auto;background:white" /><figcaption id="communityQrCaption" class="admin-song-description">当前已保存的二维码</figcaption></figure>
+                <p><a id="communityLinkPreview" target="_blank" rel="noopener noreferrer">预览入群链接 ↗</a></p>
+                <div><button class="button" type="submit">保存 KOOK 配置</button></div>
+              </fieldset>
+              <p id="communityConfigStatus" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+        </section>
+        <section id="reward-codesPage" data-view hidden>
+          <div class="section-heading"><div><div class="eyebrow">KOOK / COMMUNITY REWARDS</div><h3>活动兑换码</h3></div><button id="refreshRewardCodes" class="button ghost" type="button">刷新</button></div>
+          <p>将兑换码复制到 KOOK 频道或里程碑公告中。每个账号每个码限兑一次，不占用主播兑换额度。KOOK 永久码固定奖励 20 积分，仅在本后台展示码值。</p>
+          <form id="rewardCodeCreateForm" class="cooperation-review-card">
+            <div class="points-media-admin-fields">
+              <label>活动名称<input name="title" maxlength="80" required placeholder="例如：KOOK 频道突破 100 人" /></label>
+              <label>奖励积分<input name="points" type="number" min="1" max="10000" step="1" value="20" required /></label>
+              <label>开始时间（当前设备时区）<input name="startsAt" type="datetime-local" required /></label>
+              <label>截止时间（当前设备时区）<input name="expiresAt" type="datetime-local" required /></label>
+            </div>
+            <div><button class="button" type="submit">生成限时码</button></div>
+          </form>
+          <p id="rewardCodeAdminStatus" role="status" aria-live="polite"></p>
+          <div id="rewardCodeAdminList"></div>
+        </section>
         <section id="cooperationPage" data-view hidden>
           <div class="section-heading"><div><div class="eyebrow">PARTNER APPLICATIONS / REVIEW</div><h3>合作申请</h3></div><span id="cooperationApplicationCount" class="tag">0 条</span></div>
           <p class="admin-song-description">审核主播认证与广告合作意向。批准的广告申请由管理员在积分媒体中配置素材并上架。</p>
@@ -366,34 +412,40 @@
         </section>
 
         <section id="libraryPage" data-view hidden>
-          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><span id="libraryCount" class="tag">—</span></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><div id="libraryTable"></div></section>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><span id="libraryCount" class="tag">—</span></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><p id="libraryExportWindowNote" class="admin-song-description"></p><div id="libraryTable"></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">SCORE BUFFER / HIDDEN</div><h3>下架缓冲区</h3></div><span id="bufferCount" class="tag">—</span></div><p>缓冲区曲谱不在公开曲库展示。可恢复上架，或永久删除。</p><div id="bufferTable"></div></section>
         </section>
 
         <section id="usersPage" data-view hidden>
-          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><div class="heading-actions"><button id="advancedModeButton" class="button ghost" type="button" aria-pressed="false">高级模式</button><span id="advancedModeState" class="tag amber" hidden>高级模式</span><span id="userCount" class="tag">—</span></div></div><div id="advancedBar" class="advanced-bar" hidden>高级模式已开启：本页会显示账号完整邮箱与最近使用的 IP，并可直接封禁 IP。服务端会为每次高级读取写一条审计日志。<button id="advancedModeClear" class="advanced-clear" type="button">退出高级模式</button></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID、邮箱或 IP…" /><button id="userSearchButton" class="button" type="button">检索</button></div><div id="userTable"></div></section>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ACCOUNT DIRECTORY / PRIVACY SAFE</div><h3>用户管理</h3></div><div class="heading-actions"><button id="advancedModeButton" class="button ghost" type="button" aria-pressed="false">高级模式</button><span id="advancedModeState" class="tag amber" hidden>高级模式</span><span id="userCount" class="tag">—</span></div></div><div id="advancedBar" class="advanced-bar" hidden>高级模式已开启：本页会显示账号完整邮箱与最近使用的 IP，并可直接封禁 IP。服务端会为每次高级读取写一条审计日志。<button id="advancedModeClear" class="advanced-clear" type="button">退出高级模式</button></div><div class="searchbar"><input id="userSearch" type="search" placeholder="搜索用户 ID、邮箱或 IP…" /><button id="userSearchButton" class="button" type="button">检索</button></div><p id="userExportWindowNote" class="admin-song-description"></p><div id="userTable"></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">INVITE REGISTRATIONS</div><h3>邀请码注册记录</h3></div><div class="heading-actions"><span id="referralCount" class="tag">—</span><button id="refreshReferralsButton" class="button ghost" type="button">刷新邀请记录 ⟳</button></div></div><p class="admin-song-description">记录注册时绑定的邀请码关系。邀请人需等新用户首次用积分解锁他人曲谱后，才会获得 +20 积分。</p><div id="referralTable"><div class="empty">正在读取邀请记录…</div></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">NETWORK ACCESS CONTROL</div><h3>IP 封禁</h3></div><span id="ipBanCount" class="tag">—</span></div><div class="searchbar"><input id="ipBanAddress" type="text" inputmode="url" placeholder="IPv4 / IPv6 地址" /><input id="ipBanReason" type="text" maxlength="200" placeholder="封禁原因（可选）" /><button id="ipBanButton" class="button danger" type="button">封禁 IP</button></div><div id="ipBanTable"></div></section>
         </section>
         <section id="donationsPage" data-view hidden>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">ALL SUPPORT / TOTAL</div><h3>全部打赏总金额</h3></div><strong id="donationGrandTotal" class="tag">¥0.00</strong></div><p class="admin-song-description" id="donationGrandSummary">包含绑定账号与未绑定账号的全部有效打赏记录。</p></section>
           <section class="window panel">
-            <div class="section-heading"><div><div class="eyebrow">ACCOUNT SUPPORT / LINKED</div><h3>绑定账号的打赏</h3></div><span id="linkedDonationCount" class="tag">0 笔</span></div>
-            <p class="admin-song-description">录入站点用户 ID 后，打赏会绑定到对应账号并开放永久无限导出。每次录入都会新增一笔记录，榜单按单展示。</p>
+            <div class="section-heading"><div><div class="eyebrow">MANUAL SUPPORT / POINTS</div><h3>手动录入打赏与积分</h3></div><span id="supportPaymentCount" class="tag">旧记录 0 笔</span></div>
+            <p class="admin-song-description">用户在微信赞赏备注填写站点 ID。管理员按备注搜索并选择账号，录入核实后的实收金额；最低可录入 ¥0.10，按每元 50 分的基础比例及对应档位加成精确计算，不做积分取整。删除记录时会从公开鸣谢和累计金额中移除，并冲销该笔已发积分。每次录入代表一笔新款项，请先核对避免重复。</p>
             <form id="linkedDonationForm" class="donation-entry-form">
-              <div class="donation-account-picker"><label for="donationUserSearch">站点用户 ID</label><input id="donationUserSearch" type="search" autocomplete="off" placeholder="搜索用户 ID，选择账号" aria-controls="donationAccountResults" aria-expanded="false" /><input name="accountId" type="hidden" /><div id="donationAccountResults" class="donation-account-results" hidden></div></div>
-              <label>本笔金额（元）<input name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required placeholder="0.00" /></label>
-              <button class="button" type="submit">录入绑定打赏</button>
+              <div class="donation-account-picker">
+                <label for="donationUserSearch">站点用户 ID</label>
+                <input id="donationUserSearch" type="search" autocomplete="off" placeholder="输入备注中的站点 ID" aria-controls="donationAccountResults" aria-expanded="false" />
+                <div id="donationAccountResults" class="donation-account-results" hidden></div>
+                <input name="accountId" type="hidden" required />
+              </div>
+              <label>实收金额（元）<input name="amount" type="number" min="0.10" max="100000" step="0.01" inputmode="decimal" required placeholder="例如 0.10 或 18.88" /></label>
+              <button class="button" type="submit">录入并发放积分</button>
             </form>
-            <div id="linkedDonationList"></div>
+            <details class="legacy-donation-history"><summary>绑定账号鸣谢与积分记录</summary><div id="linkedDonationList"></div></details>
+            <details class="legacy-donation-history"><summary>旧版单号提交与核实记录（只读）</summary><div id="supportPaymentList"></div></details>
           </section>
           <section class="window panel">
-            <div class="section-heading"><div><div class="eyebrow">MANUAL SUPPORT / UNLINKED</div><h3>未绑定账号的打赏</h3></div><span id="unboundDonationCount" class="tag">0 笔</span></div>
-            <p class="admin-song-description">填写打赏者在榜单上显示的名称。该记录会以「vx: 名称」公开展示，不关联账号，也不会开通无限导出。</p>
+            <div class="section-heading"><div><div class="eyebrow">HISTORIC SUPPORT / LEGACY</div><h3>历史鸣谢记录</h3></div><span id="unboundDonationCount" class="tag">0 笔</span></div>
+            <p class="admin-song-description">备注缺失或站点 ID 无效时，可将实收金额作为未绑定鸣谢保留在公开榜单中；该记录不发放积分。</p>
             <form id="unboundDonationForm" class="donation-entry-form">
-              <label>打赏显示名称<input name="displayName" required maxlength="80" autocomplete="off" placeholder="微信昵称或打赏备注" /></label>
-              <label>打赏金额（元）<input name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required placeholder="0.00" /></label>
-              <button class="button" type="submit">录入未绑定打赏</button>
+              <label>榜单显示名称<input name="displayName" maxlength="80" required placeholder="例如：匿名支持者" /></label>
+              <label>实收金额（元）<input name="amount" type="number" min="0.01" max="100000" step="0.01" inputmode="decimal" required placeholder="0.00" /></label>
+              <button class="button" type="submit">仅录入鸣谢</button>
             </form>
             <div id="unboundDonationList"></div>
           </section>
@@ -483,7 +535,7 @@
     <script>
       const $ = selector => document.querySelector(selector);
       const number = new Intl.NumberFormat("zh-CN");
-      const state = { token: "", overview: null, songs: [], buffered: [], users: [], referrals: [], sponsorUsers: [], ipBans: [], cooperationApplications: [], donations: { linked: [], unbound: [] }, exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
+      const state = { token: "", overview: null, songs: [], buffered: [], users: [], referrals: [], sponsorUsers: [], ipBans: [], cooperationApplications: [], donations: { linked: [], unbound: [] }, supportPayments: [], exportStats: { libraryAvailable: false, libraryDays: 0, usersAvailable: false, usersDays: 0 }, sort: { library: { key: "createdAt", direction: "desc" }, users: { key: "registeredAt", direction: "desc" } }, exportMethods: { brands: [], methods: [] }, pointsMedia: { items: [] }, analytics: null, analyticsGranularity: "day", analyticsSelectedDays: new Set(), analyticsBusy: false, advanced: sessionStorage.getItem("delta-admin-advanced") === "1" };
       const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g, ch => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch]));
       const formatDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
       const formatBeijingDate = value => { if (!value) return "—"; const date = new Date(value); return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { timeZone:"Asia/Shanghai", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" }); };
@@ -582,12 +634,107 @@
         return body;
       }
       function showPage(page) {
-        const info = { overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "检查相似谱面，审核后可下架并限制投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号规模、上传贡献和近期登录状态。"], donations:["SUPPORTER RECORDS / DONATIONS", "打赏管理", "维护账号打赏记录，并录入未绑定账号的打赏。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理合作广告、首次跳转积分与推广统计。"], cooperation:["PARTNER APPLICATIONS / REVIEW", "合作申请", "审核主播认证与广告合作意向。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
+        const info = { community:["COMMUNITY / KOOK SETTINGS", "KOOK 设置", "统一管理网站各处的 KOOK 入群二维码与链接。"], "reward-codes":["COMMUNITY / REWARD CODES", "活动兑换码", "设置限时活动奖励，管理 KOOK 永久兑换码。"], overview:["CONTROL ROOM · OVERVIEW", "后台总览", "曲库、账号与站内信号都在这里。最后同步："], library:["COMMUNITY LIBRARY / EDITABLE", "曲库管理", "查看导出量与曲谱信息，检查相似谱面并管理投稿。"], users:["ACCOUNT DIRECTORY / PRIVACY SAFE", "用户管理", "查看账号导出歌曲、投稿贡献和近期登录状态。"], donations:["SUPPORTER RECORDS / DONATIONS", "打赏管理", "按备注中的站点 ID 手动录入实收金额与档位积分。"], "export-methods":["EXPORT METHODS / BRAND BINDINGS", "导出方式", "配置每个导出方法适用品牌。"], "points-media":["POINTS.TV / PARTNER CONTENT", "积分媒体", "管理合作广告、首次跳转积分与推广统计。"], cooperation:["PARTNER APPLICATIONS / REVIEW", "合作申请", "审核主播认证与广告合作意向。"], runtime:["RUNTIME MONITOR / LIVE", "运行时状态", "服务器负载、邮件队列与线程池的实时快照。"], analytics:["TRAFFIC / EVENTS / JOURNEYS", "数据分析", "今日与统计区间分开；访客按会话去重，访问按页面事件计数。"] }[page];
         $("#pageEyebrow").textContent = info[0]; $("#pageTitle").textContent = info[1]; $("#pageDescription").innerHTML = info[2] + (page === "overview" ? ' <span id="generatedAt">—</span>' : "");
         document.querySelectorAll("[data-view]").forEach(node => { node.hidden = node.id !== `${page}Page`; });
         document.querySelectorAll("[data-page]").forEach(node => node.classList.toggle("active", node.dataset.page === page));
+        if (page === "community") loadCommunityConfigAdmin();
+        if (page === "reward-codes") loadRewardCodes();
         if (page === "library") loadLibrary(); if (page === "users") { loadUsers(); loadReferralsAdmin(); } if (page === "donations") loadDonationsAdmin(); if (page === "export-methods") loadExportMethods(); if (page === "points-media") loadPointsMediaAdmin(); if (page === "cooperation") loadCooperationApplications(); if (page === "analytics") loadAnalytics(); if (page === "runtime") loadRuntime(); else stopRuntimePolling();
       }
+      let communityConfig = null;
+      let communityQrPreviewUrl = "";
+      function renderCommunityConfig(config) {
+        communityConfig = config;
+        if (communityQrPreviewUrl) { URL.revokeObjectURL(communityQrPreviewUrl); communityQrPreviewUrl = ""; }
+        const form = $("#communityConfigForm");
+        form.elements.kookUrl.value = config.kookUrl;
+        form.elements.qrFile.value = "";
+        $("#communityLinkPreview").href = config.kookUrl;
+        $("#communityQrPreview").src = new URL(`../${config.kookQrUrl.slice(2)}`, location.href).href;
+        $("#communityQrCaption").textContent = "当前已保存的二维码";
+      }
+      async function loadCommunityConfigAdmin() {
+        const fields = $("#communityConfigFields"), refresh = $("#refreshCommunityConfig");
+        fields.disabled = true; refresh.disabled = true;
+        $("#communityConfigStatus").textContent = "正在读取 KOOK 配置…";
+        try { renderCommunityConfig(await api("admin/community")); $("#communityConfigStatus").textContent = ""; }
+        catch (error) { $("#communityConfigStatus").textContent = error.message || "读取失败，请重试。"; }
+        finally { fields.disabled = !communityConfig; refresh.disabled = false; }
+      }
+      $("#refreshCommunityConfig").addEventListener("click", loadCommunityConfigAdmin);
+      $("#communityConfigForm").elements.qrFile.addEventListener("change", event => {
+        const file = event.target.files?.[0];
+        if (communityQrPreviewUrl) { URL.revokeObjectURL(communityQrPreviewUrl); communityQrPreviewUrl = ""; }
+        if (!file) { if (communityConfig) $("#communityQrPreview").src = new URL(`../${communityConfig.kookQrUrl.slice(2)}`, location.href).href; $("#communityQrCaption").textContent = "当前已保存的二维码"; return; }
+        if (file.size > 5 * 1024 * 1024 || !["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+          $("#communityConfigStatus").textContent = "请选择 5 MB 以内的 PNG、JPEG 或 WebP 图片。";
+          event.target.value = "";
+          $("#communityQrPreview").src = new URL(`../${communityConfig.kookQrUrl.slice(2)}`, location.href).href;
+          $("#communityQrCaption").textContent = "当前已保存的二维码";
+          return;
+        }
+        communityQrPreviewUrl = URL.createObjectURL(file);
+        $("#communityQrPreview").src = communityQrPreviewUrl;
+        $("#communityQrCaption").textContent = "新二维码预览 · 保存后生效";
+        $("#communityConfigStatus").textContent = "二维码已选择，保存后生效。";
+      });
+      $("#communityConfigForm").elements.kookUrl.addEventListener("input", event => {
+        const value = event.target.value.trim();
+        if (/^https:\/\/kook\.vip\/[A-Za-z0-9]{1,128}\/?$/.test(value)) $("#communityLinkPreview").href = value;
+        else $("#communityLinkPreview").removeAttribute("href");
+      });
+      $("#communityConfigForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        if (!communityConfig) return;
+        const form = event.currentTarget, fields = $("#communityConfigFields"), refresh = $("#refreshCommunityConfig");
+        const file = form.elements.qrFile.files?.[0], kookUrl = form.elements.kookUrl.value.trim();
+        fields.disabled = true; refresh.disabled = true;
+        try {
+          let kookQrUrl = communityConfig.kookQrUrl;
+          if (file) {
+            $("#communityConfigStatus").textContent = "正在上传二维码…";
+            const result = await api("admin/community/qr", { method: "POST", body: file, headers: { "Content-Type": file.type } });
+            kookQrUrl = result.url;
+          }
+          $("#communityConfigStatus").textContent = "正在保存 KOOK 配置…";
+          renderCommunityConfig(await api("admin/community", { method: "PUT", body: JSON.stringify({ kookUrl, kookQrUrl }) }));
+          $("#communityConfigStatus").textContent = "已保存，网站各处入口将在刷新或下次自动同步后更新。";
+        } catch (error) { $("#communityConfigStatus").textContent = error.message || "保存失败，请重试。"; }
+        finally { fields.disabled = false; refresh.disabled = false; }
+      });
+      let rewardCodeItems = [];
+      function renderRewardCodes(data) {
+        rewardCodeItems = data.items || [];
+        $("#rewardCodeAdminList").innerHTML = rewardCodeItems.map(item => `<article class="cooperation-review-card"><div class="section-heading"><h3>${escapeHtml(item.title)}</h3><span class="tag">${escapeHtml(item.status)}</span></div><p><code>${escapeHtml(item.code)}</code> · +${item.points} 积分 · 已兑换 ${item.redeemed} 人</p><small>${item.kind === "kook" ? "永久有效 · 加入 KOOK 后在频道查看 · 每个账号限兑一次" : `${formatDate(item.startsAt * 1000)} 至 ${formatDate(item.expiresAt * 1000)} · 每个账号限兑一次`}</small><div class="actions"><button class="button ghost" type="button" data-reward-copy="${item.id}">复制兑换码</button><button class="button ghost" type="button" data-reward-toggle="${item.id}">${item.active ? "停用" : "启用"}</button></div></article>`).join("");
+      }
+      async function loadRewardCodes() {
+        try { renderRewardCodes(await api("admin/reward-codes")); $("#rewardCodeAdminStatus").textContent = ""; }
+        catch (error) { $("#rewardCodeAdminStatus").textContent = error.message; }
+      }
+      $("#refreshRewardCodes").addEventListener("click", loadRewardCodes);
+      $("#rewardCodeCreateForm").addEventListener("submit", async event => {
+        event.preventDefault();
+        const form = event.currentTarget, button = form.querySelector("button[type=submit]");
+        button.disabled = true;
+        try {
+          const data = await api("admin/reward-codes", { method: "POST", body: JSON.stringify({ action: "create", title: form.elements.title.value.trim(), points: Number(form.elements.points.value), startsAt: Math.floor(new Date(form.elements.startsAt.value).getTime() / 1000), expiresAt: Math.floor(new Date(form.elements.expiresAt.value).getTime() / 1000) }) });
+          renderRewardCodes(data); form.reset(); $("#rewardCodeAdminStatus").textContent = "限时码已生成，可复制到 KOOK 频道。";
+        } catch (error) { $("#rewardCodeAdminStatus").textContent = error.message; }
+        finally { button.disabled = false; }
+      });
+      $("#rewardCodeAdminList").addEventListener("click", async event => {
+        const button = event.target.closest("[data-reward-copy], [data-reward-toggle]");
+        if (!button) return;
+        const item = rewardCodeItems.find(item => item.id === Number(button.dataset.rewardCopy || button.dataset.rewardToggle));
+        if (!item) return;
+        button.disabled = true;
+        try {
+          if (button.dataset.rewardCopy) { await navigator.clipboard.writeText(item.code); $("#rewardCodeAdminStatus").textContent = "兑换码已复制。"; }
+          else { renderRewardCodes(await api("admin/reward-codes", { method: "POST", body: JSON.stringify({ action: "toggle", id: item.id, active: !item.active }) })); $("#rewardCodeAdminStatus").textContent = item.active ? "已停用，已到账积分保留。" : "已启用，已兑换账号仍不可重复领取。"; }
+        } catch (error) { $("#rewardCodeAdminStatus").textContent = error.message || "操作失败，请手动复制兑换码。"; }
+        finally { button.disabled = false; }
+      });
       function renderCooperationApplications() {
         const items=state.cooperationApplications||[];
         $("#cooperationApplicationCount").textContent=`${items.length} 条 · ${items.filter(item=>item.status==="pending").length} 条待审`;
@@ -605,16 +752,46 @@
         const stamp = $("#generatedAt"); if (stamp) stamp.textContent = formatDate(item.generatedAt);
       }
       function renderLibraryPreview() {
-        const songs = state.songs.slice(0, 5);
+        const songs = sortedAdminRows("library", state.songs).slice(0, 5).map(row => row.item);
         $("#libraryPreview").innerHTML = songs.length ? `<table><thead><tr><th>曲目</th><th>状态</th><th>BPM</th></tr></thead><tbody>${songs.map(song => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)} · ${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐</span>' : '<span class="tag muted">普通</span>'}</td><td class="mono">${song.bpm}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无社区曲谱。</div>';
       }
       function renderUsersPreview() {
-        const users = state.users.slice(0, 5);
+        const users = sortedAdminRows("users", state.users).slice(0, 5).map(row => row.item);
         $("#userPreview").innerHTML = users.length ? `<table><thead><tr><th>用户</th><th>曲谱</th></tr></thead><tbody>${users.map(user => `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td><td class="mono">${number.format(user.uploads)}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无注册用户。</div>';
+      }
+      const descendingSortKeys = new Set(["createdAt", "registeredAt", "exports", "uploads", "donationCents"]);
+      function sortHeader(table, label, key) {
+        const current = state.sort[table];
+        const direction = current.key === key ? current.direction : (descendingSortKeys.has(key) ? "desc" : "asc");
+        const marker = current.key === key ? (direction === "asc" ? " ↑" : " ↓") : " ↕";
+        const aria = current.key === key ? (direction === "asc" ? "ascending" : "descending") : "none";
+        return `<th aria-sort="${aria}"><button class="sortable-header" type="button" data-sort-table="${table}" data-sort-key="${key}">${label}<span aria-hidden="true">${marker}</span></button></th>`;
+      }
+      function sortedAdminRows(table, rows) {
+        const sort = state.sort[table];
+        return rows.map((item, index) => ({ item, index })).sort((left, right) => {
+          const a = left.item[sort.key], b = right.item[sort.key];
+          if (table === "library" && sort.key === "createdAt" && Boolean(a) !== Boolean(b)) return a ? -1 : 1;
+          let compared = 0;
+          if (["createdAt", "registeredAt"].includes(sort.key)) {
+            const aTime = a ? new Date(a).getTime() : 0, bTime = b ? new Date(b).getTime() : 0;
+            compared = (Number.isNaN(aTime) ? 0 : aTime) - (Number.isNaN(bTime) ? 0 : bTime);
+          } else if (["exports", "uploads", "donationCents"].includes(sort.key)) {
+            compared = (Number(a) || 0) - (Number(b) || 0);
+          } else if (["active", "recommended"].includes(sort.key)) {
+            compared = Number(Boolean(a)) - Number(Boolean(b));
+          } else {
+            compared = String(a ?? "").localeCompare(String(b ?? ""), "zh-CN", { sensitivity: "base", numeric: true });
+          }
+          return (sort.direction === "asc" ? compared : -compared) || left.index - right.index;
+        });
       }
       function renderLibrary() {
         $("#libraryCount").textContent = `${number.format(state.songs.length)} 首曲目`;
-        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr><th>曲目</th><th>音乐信息</th><th>归属</th><th>状态</th><th>操作</th></tr></thead><tbody>${state.songs.map((song, index) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.artist)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}${song.similarityReview?.status === "pending" ? `<small class="tag danger">疑似相似 ${Math.round(song.similarityReview.similarity * 100)}% · 参照 ${escapeHtml(state.songs.find(item => item.remixCode === song.similarityReview.reference_code)?.title || song.similarityReview.reference_code)}</small>` : ""}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">移入缓冲区</button>${song.similarityReview?.status === "pending" ? `<button class="button" data-dismiss-review="${index}">排除误报</button><button class="button danger" data-remove-review="${index}">下架并禁传</button>` : ""}</div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
+        const days = state.exportStats.libraryDays;
+        $("#libraryExportWindowNote").textContent = state.exportStats.libraryAvailable ? `导出量按歌曲统计，同一账号或匿名会话在统计窗口内只计一次；当前窗口：${days} 天。` : "导出统计不可用；曲目导出量显示为不可用。";
+        const rows = sortedAdminRows("library", state.songs);
+        $("#libraryTable").innerHTML = state.songs.length ? `<table><thead><tr>${sortHeader("library", "歌名", "title")}${sortHeader("library", "作者", "artist")}${sortHeader("library", "上传者", "owner")}<th>音乐信息</th>${sortHeader("library", "导出量", "exports")}${sortHeader("library", "创建时间", "createdAt")}<th>状态</th><th>操作</th></tr></thead><tbody>${rows.map(({ item: song, index }) => `<tr><td class="title-cell"><b>${escapeHtml(song.title)}</b><small>${escapeHtml(song.remixCode)}</small></td><td>${escapeHtml(song.artist)}</td><td>${escapeHtml(song.owner)}<small>${escapeHtml(song.sharedBy)}</small></td><td class="mono">${escapeHtml(song.key)} · ${escapeHtml(song.meter)}<small>${song.bpm} BPM</small></td><td class="mono">${state.exportStats.libraryAvailable ? number.format(song.exports || 0) : "不可用"}</td><td>${formatDate(song.createdAt)}</td><td>${song.recommended ? '<span class="tag amber">推荐中</span>' : '<span class="tag muted">未推荐</span>'}${song.similarityReview?.status === "pending" ? `<small class="tag danger">疑似相似 ${Math.round(song.similarityReview.similarity * 100)}% · 参照 ${escapeHtml(state.songs.find(item => item.remixCode === song.similarityReview.reference_code)?.title || song.similarityReview.reference_code)}</small>` : ""}</td><td><div class="actions"><button class="button" data-edit-index="${index}">编辑</button><button class="button" data-recommend-index="${index}">${song.recommended ? "取消推荐" : "设为推荐"}</button><button class="button danger" data-delete-index="${index}">移入缓冲区</button>${song.similarityReview?.status === "pending" ? `<button class="button" data-dismiss-review="${index}">排除误报</button><button class="button danger" data-remove-review="${index}">下架并禁传</button>` : ""}</div></td></tr>`).join("")}</tbody></table>` : '<div class="empty">没有匹配的曲目。</div>';
       }
       function renderBuffer() {
         $("#bufferCount").textContent = `${number.format(state.buffered.length)} 首曲目`;
@@ -656,28 +833,44 @@
         if (!$("#userSearch").value.trim()) state.sponsorUsers = state.users.slice();
         const advanced = Boolean(state.advanced);
         $("#userCount").textContent = `${number.format(state.users.length)} 位用户${advanced ? " · 高级" : ""}`;
-        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr><th>用户</th>${advanced ? "<th>邮箱（完整）</th>" : ""}<th>角色</th><th>上传</th><th>状态</th>${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${state.users.map(user => { const banned = Boolean(user.ban?.banned); return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td>${user.active ? '<span class="tag">在线会话</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}${user.uploadBan?.banned ? `<small class="tag danger">禁传：${escapeHtml(user.uploadBan.reason)} · ${user.uploadBan.expiresAt ? formatDate(new Date(user.uploadBan.expiresAt * 1000).toISOString()) : "永久"}</small>` : ""}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button>${user.uploadBan?.banned ? `<button class="button" type="button" data-unban-upload="${escapeHtml(user.id)}">解除禁传</button>` : `<button class="button danger" type="button" data-ban-upload="${escapeHtml(user.id)}">禁止上传</button>`}</td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
+        const days = state.exportStats.usersDays;
+        $("#userExportWindowNote").textContent = state.exportStats.usersAvailable ? `导出量按账号与歌曲去重，窗口内同一账号对同一歌曲只计一次；当前窗口：${days} 天。明细可展开查看。` : "导出统计不可用；用户导出量显示为不可用。";
+        const rows = sortedAdminRows("users", state.users);
+        $("#userTable").innerHTML = state.users.length ? `<table><thead><tr>${sortHeader("users", "用户", "userId")}${advanced ? sortHeader("users", "完整邮箱", "emailFull") : ""}${sortHeader("users", "角色", "role")}${sortHeader("users", "投稿数", "uploads")}${sortHeader("users", "导出量", "exports")}${sortHeader("users", "打赏总额", "donationCents")}${sortHeader("users", "注册时间", "registeredAt")}${sortHeader("users", "会话", "active")}${advanced ? "<th>最近使用的 IP</th>" : ""}<th>封禁</th><th>操作</th></tr></thead><tbody>${rows.map(({ item: user }) => { const banned = Boolean(user.ban?.banned); const exportDetail = state.exportStats.usersAvailable ? (user.exportSongs || []) : []; const detail = exportDetail.length ? `<details class="user-export-details"><summary>歌曲明细（${number.format(exportDetail.length)} 首）</summary><ul>${exportDetail.map(song => `<li><span>${escapeHtml(song.title)}${song.artist ? ` · ${escapeHtml(song.artist)}` : ""}</span><small>${number.format(song.exports || 0)} 次</small></li>`).join("")}</ul></details>` : ""; const exportCell = state.exportStats.usersAvailable ? `<span class="mono">${number.format(user.exports || 0)}</span>${detail}` : "不可用"; return `<tr><td class="title-cell"><b>${escapeHtml(user.userId)}</b><small>${escapeHtml(user.email)}</small></td>${advanced ? `<td class="mono">${escapeHtml(user.emailFull || "—")}</td>` : ""}<td>${user.role === "管理员" ? '<span class="tag amber">管理员</span>' : '<span class="tag muted">用户</span>'}</td><td class="mono">${number.format(user.uploads)}</td><td>${exportCell}</td><td>¥${(Number(user.donationCents || 0) / 100).toFixed(2)}</td><td>${formatDate(user.registeredAt)}</td><td>${user.active ? '<span class="tag">在线</span>' : '<span class="tag muted">离线</span>'}</td>${advanced ? `<td>${userIpCell(user)}</td>` : ""}<td>${banned ? `<span class="tag danger">已封禁</span><small>${escapeHtml(user.ban.reason || "")}</small>` : '<span class="tag muted">正常</span>'}${user.uploadBan?.banned ? `<small class="tag danger">禁传：${escapeHtml(user.uploadBan.reason)} · ${user.uploadBan.expiresAt ? formatDate(new Date(user.uploadBan.expiresAt * 1000).toISOString()) : "永久"}</small>` : ""}</td><td><button class="button ${banned ? "" : "danger"}" type="button" data-ban-account="${escapeHtml(user.id)}">${banned ? "解除封禁" : "封禁账号"}</button>${user.uploadBan?.banned ? `<button class="button" type="button" data-unban-upload="${escapeHtml(user.id)}">解除禁传</button>` : `<button class="button danger" type="button" data-ban-upload="${escapeHtml(user.id)}">禁止上传</button>`}</td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">没有匹配的用户。</div>';
       }
+      document.addEventListener("click", event => {
+        const button = event.target.closest("[data-sort-table][data-sort-key]");
+        if (!button) return;
+        const table = button.dataset.sortTable, key = button.dataset.sortKey;
+        if (!state.sort[table]) return;
+        const current = state.sort[table];
+        current.direction = current.key === key ? (current.direction === "asc" ? "desc" : "asc") : (descendingSortKeys.has(key) ? "desc" : "asc");
+        current.key = key;
+        if (table === "library") { renderLibrary(); renderLibraryPreview(); }
+        else { renderUsers(); renderUsersPreview(); }
+      });
       async function loadIpBans() {
         try { const result = await api("admin/ip-bans"); const bans = result.bans || []; $("#ipBanCount").textContent = `${number.format(bans.length)} 个 IP`; $("#ipBanTable").innerHTML = bans.length ? `<table><thead><tr><th>IP</th><th>原因</th><th>到期</th><th>操作</th></tr></thead><tbody>${bans.map(ban => `<tr><td class="mono">${escapeHtml(ban.ip)}</td><td>${escapeHtml(ban.reason || "—")}</td><td class="mono">${ban.expires_at ? formatDate(new Date(Number(ban.expires_at) * 1000).toISOString()) : "永久"}</td><td><button class="button" type="button" data-unban-ip="${escapeHtml(ban.ip)}">解除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无 IP 封禁。</div>'; } catch (error) { setNotice(error.message); }
       }
       function renderDonationsAdmin() {
         const linked = state.donations.linked || [];
         const unbound = state.donations.unbound || [];
-        const linkedSupporters = new Set(linked.map(item => item.accountId)).size;
+        const payments = state.supportPayments || [];
         const unboundSupporters = new Set(unbound.map(item => item.displayName.trim().toLocaleLowerCase())).size;
         const totalCents = [...linked, ...unbound].reduce((sum, item) => sum + item.amountCents, 0);
         $("#donationGrandTotal").textContent = `¥${(totalCents / 100).toFixed(2)}`;
-        $("#donationGrandSummary").textContent = `包含绑定账号与未绑定账号的 ${number.format(linked.length + unbound.length)} 笔有效打赏记录。`;
-        $("#linkedDonationCount").textContent = `${number.format(linkedSupporters)} 位支持者 · ${number.format(linked.length)} 笔`;
+        $("#donationGrandSummary").textContent = `包含绑定账号与历史未绑定账号的 ${number.format(linked.length + unbound.length)} 笔有效鸣谢记录。`;
         $("#unboundDonationCount").textContent = `${number.format(unboundSupporters)} 位支持者 · ${number.format(unbound.length)} 笔`;
-        $("#linkedDonationList").innerHTML = linked.length ? `<table><thead><tr><th>站点用户 ID</th><th>本笔金额</th><th>录入时间</th><th>记录哈希</th><th>操作</th></tr></thead><tbody>${linked.map(item => `<tr><td>${escapeHtml(item.userId)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td class="mono" title="同一记录的哈希码固定不变">${escapeHtml(item.recordHash || "—")}</td><td><button class="button danger" type="button" data-delete-linked-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无绑定账号的打赏记录。</div>';
+        $("#supportPaymentCount").textContent = `${number.format(payments.length)} 条旧单号记录`;
+        $("#supportPaymentList").innerHTML = payments.length ? `<table><thead><tr><th>旧版转账单号</th><th>账号</th><th>实收金额</th><th>历史状态</th><th>时间</th></tr></thead><tbody>${payments.map(item => { const status = item.status === "credited" ? `已到账 +${number.format(item.points)} 分` : item.status === "awaiting_admin" ? "等待管理员金额" : "等待用户单号"; return `<tr><td class="mono">${escapeHtml(item.transferId)}</td><td>${escapeHtml(item.userId || "未绑定")}</td><td>${item.amountCents == null ? "—" : `¥${(item.amountCents / 100).toFixed(2)}`}</td><td>${escapeHtml(status)}</td><td>${formatDate(item.creditedAt || item.submittedAt || item.recordedAt)}</td></tr>`; }).join("")}</tbody></table>` : '<div class="empty">暂无旧版转账单号记录。</div>';
+        $("#linkedDonationList").innerHTML = linked.length ? `<table><thead><tr><th>站点用户 ID</th><th>实收金额</th><th>发放积分 / 档位</th><th>录入时间</th><th>记录哈希</th><th>操作</th></tr></thead><tbody>${linked.map(item => `<tr><td>${escapeHtml(item.userId)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${item.pointsAwarded == null ? (item.amountCents < 100 ? "历史低额记录（未发积分）" : "旧版记录（原到账保留）") : `+${number.format(item.pointsAwarded)} · ${escapeHtml(item.tierLabel || "Starter")}`}</td><td>${formatDate(item.createdAt)}</td><td class="mono" title="同一记录的哈希码固定不变">${escapeHtml(item.recordHash || "—")}</td><td>${item.deletable ? `<button class="button danger" type="button" data-delete-linked-donation="${item.id}">删除</button>` : "只读"}</td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无绑定账号的打赏记录。</div>';
         $("#unboundDonationList").innerHTML = unbound.length ? `<table><thead><tr><th>榜单显示</th><th>金额（元）</th><th>录入时间</th><th>记录哈希</th><th>操作</th></tr></thead><tbody>${unbound.map(item => `<tr><td>vx: ${escapeHtml(item.displayName)}</td><td>¥${(item.amountCents / 100).toFixed(2)}</td><td>${formatDate(item.createdAt)}</td><td class="mono" title="同一记录的哈希码固定不变">${escapeHtml(item.recordHash || "—")}</td><td><button class="button danger" type="button" data-delete-unbound-donation="${item.id}">删除</button></td></tr>`).join("")}</tbody></table>` : '<div class="empty">暂无未绑定账号的打赏记录。</div>';
       }
       async function loadDonationsAdmin() {
         try {
-          const result = await api("admin/donations");
+          const [result, support] = await Promise.all([api("admin/donations"), api("admin/support-payments")]);
           state.donations = { linked: result.linked || [], unbound: result.unbound || [] };
+          state.supportPayments = support.payments || [];
           renderDonationsAdmin();
           $("#donationAdminStatus").textContent = "";
         } catch (error) { $("#donationAdminStatus").textContent = error.message || "无法读取打赏记录。"; }
@@ -891,10 +1084,10 @@
       }
       async function loadAll() {
         setNotice("正在同步…");
-        try { const [overview, library, buffer, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api("admin/library/buffer"), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.buffered = buffer.songs || []; state.users = users.users || []; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderBuffer(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (!state.overview) { $("#loginNotice").textContent = error.message; $("#app").hidden = true; $("#loginScreen").hidden = false; } }
+        try { const [overview, library, buffer, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api("admin/library/buffer"), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.buffered = buffer.songs || []; state.users = users.users || []; state.exportStats = { libraryAvailable: Boolean(library.exportStatsAvailable), libraryDays: Number(library.exportWindowDays) || 0, usersAvailable: Boolean(users.exportStatsAvailable), usersDays: Number(users.exportWindowDays) || 0 }; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderBuffer(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (!state.overview) { $("#loginNotice").textContent = error.message; $("#app").hidden = true; $("#loginScreen").hidden = false; } }
       }
-      async function loadLibrary() { try { const [result, buffer] = await Promise.all([api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`), api("admin/library/buffer")]); state.songs = result.songs || []; state.buffered = buffer.songs || []; renderLibrary(); renderBuffer(); } catch (error) { setNotice(error.message); } }
-      async function loadUsers() { try { const result = await api(userDirectoryQuery()); state.users = result.users || []; renderUsers(); renderAdvancedMode(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
+      async function loadLibrary() { try { const [result, buffer] = await Promise.all([api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`), api("admin/library/buffer")]); state.songs = result.songs || []; state.exportStats.libraryAvailable = Boolean(result.exportStatsAvailable); state.exportStats.libraryDays = Number(result.exportWindowDays) || 0; state.buffered = buffer.songs || []; renderLibrary(); renderLibraryPreview(); renderBuffer(); } catch (error) { setNotice(error.message); } }
+      async function loadUsers() { try { const result = await api(userDirectoryQuery()); state.users = result.users || []; state.exportStats.usersAvailable = Boolean(result.exportStatsAvailable); state.exportStats.usersDays = Number(result.exportWindowDays) || 0; renderUsers(); renderUsersPreview(); renderAdvancedMode(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
       const runtimeState = { timer: 0, busy: false, data: null };
       const runtimeTone = percent => { const value = Number(percent) || 0; return value >= 90 ? "bad" : value >= 75 ? "warn" : ""; };
       const runtimePercent = value => (value === null || value === undefined ? "—" : `${Number(value).toFixed(1)}%`);
@@ -1209,13 +1402,11 @@
         const form = event.currentTarget;
         const button = form.querySelector("button[type=submit]");
         const amount = Number(form.elements.amount.value);
-        if (!form.elements.accountId.value) { $("#donationAdminStatus").textContent = "请先搜索并选择一个站点账号。"; donationSearch.focus(); return; }
-        if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
+        if (!form.elements.accountId.value) { $("#donationAdminStatus").textContent = "请先搜索并选择备注中的站点账号 ID。"; donationSearch.focus(); return; }
+        if (!Number.isFinite(amount) || amount < 0.1 || amount > 100000) { $("#donationAdminStatus").textContent = "实收金额至少 ¥0.10，且不超过 ¥100,000.00。"; return; }
         const payload = { accountId: form.elements.accountId.value, amountCents: Math.round(amount * 100) };
         const signature = JSON.stringify(payload);
-        if (!linkedDonationPending || linkedDonationPending.signature !== signature) {
-          linkedDonationPending = { signature, requestKey: newDonationRequestKey() };
-        }
+        if (!linkedDonationPending || linkedDonationPending.signature !== signature) linkedDonationPending = { signature, requestKey: newDonationRequestKey() };
         button.disabled = true;
         try {
           const result = await api("admin/donations", { method: "POST", body: JSON.stringify({ ...payload, requestKey: linkedDonationPending.requestKey }) });
@@ -1223,8 +1414,8 @@
           form.reset();
           hideDonationResults();
           await loadDonationsAdmin();
-          $("#donationAdminStatus").textContent = `已录入 ${result.userId} 的 ¥${(result.amountCents / 100).toFixed(2)} 打赏。`;
-        } catch (error) { $("#donationAdminStatus").textContent = error.message || "保存失败。"; }
+          $("#donationAdminStatus").textContent = `已录入 @${result.userId} 的 ¥${(result.amountCents / 100).toFixed(2)}，${result.tierLabel}，发放 +${number.format(result.points)} 积分。`;
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "保存失败；可安全重试本次请求。"; }
         finally { button.disabled = false; }
       });
       $("#unboundDonationForm").addEventListener("submit", async event => {
@@ -1235,29 +1426,16 @@
         if (!Number.isFinite(amount) || amount <= 0 || amount > 100000) { $("#donationAdminStatus").textContent = "金额需大于 0 元且不超过 10 万元。"; return; }
         const payload = { displayName: form.elements.displayName.value.trim(), amountCents: Math.round(amount * 100) };
         const signature = JSON.stringify(payload);
-        if (!unboundDonationPending || unboundDonationPending.signature !== signature) {
-          unboundDonationPending = { signature, requestKey: newDonationRequestKey() };
-        }
+        if (!unboundDonationPending || unboundDonationPending.signature !== signature) unboundDonationPending = { signature, requestKey: newDonationRequestKey() };
         button.disabled = true;
         try {
           const result = await api("admin/donations/unbound", { method: "POST", body: JSON.stringify({ ...payload, requestKey: unboundDonationPending.requestKey }) });
           unboundDonationPending = null;
           form.reset();
           await loadDonationsAdmin();
-          $("#donationAdminStatus").textContent = `已录入 vx: ${result.displayName} 的未绑定打赏。`;
-        } catch (error) { $("#donationAdminStatus").textContent = error.message || "录入失败。"; }
+          $("#donationAdminStatus").textContent = `已录入 vx: ${result.displayName} 的未绑定鸣谢（不发积分）。`;
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "录入失败；可安全重试本次请求。"; }
         finally { button.disabled = false; }
-      });
-      $("#linkedDonationList").addEventListener("click", async event => {
-        const button = event.target.closest("[data-delete-linked-donation]");
-        if (!button) return;
-        if (!window.confirm("删除这笔绑定账号打赏吗？它会从公开打赏榜移除。")) return;
-        button.disabled = true;
-        try {
-          await api("admin/donations", { method: "DELETE", body: JSON.stringify({ id: Number(button.dataset.deleteLinkedDonation) }) });
-          await loadDonationsAdmin();
-          $("#donationAdminStatus").textContent = "绑定账号打赏记录已删除。";
-        } catch (error) { $("#donationAdminStatus").textContent = error.message || "删除失败。"; button.disabled = false; }
       });
       $("#unboundDonationList").addEventListener("click", async event => {
         const button = event.target.closest("[data-delete-unbound-donation]");
@@ -1268,6 +1446,17 @@
           await api("admin/donations/unbound", { method: "DELETE", body: JSON.stringify({ id: Number(button.dataset.deleteUnboundDonation) }) });
           await loadDonationsAdmin();
           $("#donationAdminStatus").textContent = "未绑定打赏记录已删除。";
+        } catch (error) { $("#donationAdminStatus").textContent = error.message || "删除失败。"; button.disabled = false; }
+      });
+      $("#linkedDonationList").addEventListener("click", async event => {
+        const button = event.target.closest("[data-delete-linked-donation]");
+        if (!button) return;
+        if (!window.confirm("删除这条绑定账号打赏记录吗？记录会从鸣谢和累计金额中移除，已发积分会同步冲销。")) return;
+        button.disabled = true;
+        try {
+          await api("admin/donations", { method: "DELETE", body: JSON.stringify({ id: Number(button.dataset.deleteLinkedDonation) }) });
+          await loadDonationsAdmin();
+          $("#donationAdminStatus").textContent = "绑定账号打赏记录已删除；已发积分已冲销。";
         } catch (error) { $("#donationAdminStatus").textContent = error.message || "删除失败。"; button.disabled = false; }
       });
       $("#adminSongFile").addEventListener("change", () => { const file = $("#adminSongFile").files[0]; $("#adminSongFileHint").textContent = file ? "已选择：" + file.name + "（" + number.format(file.size) + " 字节）" : "不选择文件则保留当前简谱内容；替换文件必须是有效的 .deltamusic JSON。"; });

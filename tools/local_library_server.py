@@ -13,6 +13,7 @@ import argparse
 from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal
 from email import policy
 from email.parser import BytesParser
 from email.utils import parsedate_to_datetime
@@ -158,12 +159,15 @@ GITHUB_LOGIN_PROVIDER = "github"
 POINT_RULES = {"unlock": 10, "register": 30, "daily_login": 20, "github_star": 500, "first_upload": 50, "referral": 20, "author_reward": 1, "legacy_grant": 100}
 LEGACY_POINTS_NOTICE_KEY = "legacy-points-grant-v1"
 LEGACY_EXPORT_POINTS_NOTICE_KEY = "legacy-export-points-v1"
+LEGACY_DONATION_POINTS_MIGRATION_KEY = "legacy-donation-points-v1"
 POINTS_NOTICE_KEY = "points-v1"
 POINTS_MEDIA_LIMIT = 12
 PARTNER_COOKIE_NAME = "delta_partner_attribution"
 PARTNER_VISITOR_COOKIE_NAME = "delta_partner_visitor"
 PARTNER_ATTRIBUTION_SECONDS = 7 * 24 * 60 * 60
 POINTS_IMAGE_LIMIT = 5 * 1024 * 1024
+DEFAULT_KOOK_URL = "https://kook.vip/jcJIDN"
+DEFAULT_KOOK_QR = "./assets/kook-channel-qr.png?v=20261020"
 INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 INVITE_CODE_PREFIX = "DH"
 GZIP_MIN_BYTES = 1024
@@ -922,13 +926,16 @@ def line_has_score_export_event(line: str) -> bool:
     return any(f'"{name}"' in line for name in SCORE_EXPORT_EVENTS)
 
 
-def export_event_counts_for_period(retention_days: int) -> tuple[Counter[str], Counter[str]]:
-    """Scan the window once: deduplicated exports per score and per actor."""
+def export_event_counts_for_period(
+    retention_days: int,
+) -> tuple[Counter[str], Counter[str], Counter[tuple[str, str]]]:
+    """Scan once for deduplicated exports per score, actor, and actor/score pair."""
     safe_days = max(1, retention_days)
     today = datetime.now(timezone.utc).date()
     start = today - timedelta(days=safe_days - 1)
     exports: Counter[str] = Counter()
     actor_exports: Counter[str] = Counter()
+    actor_score_exports: Counter[tuple[str, str]] = Counter()
     seen: set[tuple[str, str]] = set()
     aliases = analytics_score_aliases()
     for offset in range(safe_days):
@@ -956,9 +963,10 @@ def export_event_counts_for_period(retention_days: int) -> tuple[Counter[str], C
                 seen.add(export_key)
                 exports[canonical_id] += 1
                 actor_exports[actor] += 1
+                actor_score_exports[(actor, canonical_id)] += 1
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
-    return exports, actor_exports
+    return exports, actor_exports, actor_score_exports
 
 
 def score_export_counts_for_period(retention_days: int) -> Counter[str]:
@@ -1176,7 +1184,9 @@ def get_daily_hot_ranking(retention_days: int) -> dict[str, Any]:
         return ranking
 
 
-def cached_export_event_counts(retention_days: int) -> tuple[Counter[str], Counter[str]]:
+def cached_export_event_counts(
+    retention_days: int,
+) -> tuple[Counter[str], Counter[str], Counter[tuple[str, str]]]:
     """Share one scan of the retention window between every derived leaderboard."""
     safe_days = max(1, retention_days)
     return EXPORT_EVENT_COUNT_CACHE.value(
@@ -1194,6 +1204,11 @@ def cached_score_export_counts(retention_days: int) -> Counter[str]:
 def cached_actor_export_counts(retention_days: int) -> Counter[str]:
     """Deduplicated export totals per actor, from the same cached scan."""
     return cached_export_event_counts(retention_days)[1]
+
+
+def cached_actor_score_export_counts(retention_days: int) -> Counter[tuple[str, str]]:
+    """Deduplicated exports per actor and score, from the same cached scan."""
+    return cached_export_event_counts(retention_days)[2]
 
 
 def build_public_score_export_summary(retention_days: int) -> dict[str, Any]:
@@ -1873,6 +1888,16 @@ def _initialize_auth_database_locked() -> None:
                 account_id TEXT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
                 granted_at INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS support_transactions (
+                transfer_id TEXT PRIMARY KEY,
+                account_id TEXT REFERENCES accounts(id) ON DELETE SET NULL,
+                amount_cents INTEGER CHECK(amount_cents IS NULL OR amount_cents > 0),
+                user_submitted_at INTEGER,
+                admin_recorded_at INTEGER,
+                awarded_at INTEGER,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS point_ledger (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -1882,6 +1907,25 @@ def _initialize_auth_database_locked() -> None:
                 created_at INTEGER NOT NULL,
                 UNIQUE(account_id, reason, reference)
             );
+            CREATE TABLE IF NOT EXISTS community_config (
+                id INTEGER PRIMARY KEY CHECK(id=1),
+                kook_url TEXT NOT NULL,
+                kook_qr_url TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS reward_codes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT NOT NULL UNIQUE,
+                title TEXT NOT NULL,
+                kind TEXT NOT NULL CHECK(kind IN ('limited','kook')),
+                points INTEGER NOT NULL CHECK(points > 0),
+                starts_at INTEGER NOT NULL,
+                expires_at INTEGER,
+                active INTEGER NOT NULL DEFAULT 1,
+                created_at INTEGER NOT NULL,
+                CHECK(kind != 'kook' OR (points = 20 AND expires_at IS NULL))
+            );
+            CREATE UNIQUE INDEX IF NOT EXISTS reward_codes_kook ON reward_codes(kind) WHERE kind='kook';
             CREATE TABLE IF NOT EXISTS cooperation_applications (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 account_id TEXT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -1987,6 +2031,14 @@ def _initialize_auth_database_locked() -> None:
             );
             CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
         """)
+        connection.execute(
+            "INSERT OR IGNORE INTO reward_codes(code,title,kind,points,starts_at,created_at) VALUES (?,?,'kook',20,0,?)",
+            ("KOOK-" + secrets.token_hex(6).upper(), "KOOK 入群奖励", now_timestamp()),
+        )
+        connection.execute(
+            "INSERT OR IGNORE INTO community_config(id,kook_url,kook_qr_url,updated_at) VALUES (1,?,?,?)",
+            (DEFAULT_KOOK_URL, DEFAULT_KOOK_QR, now_timestamp()),
+        )
         media_columns = {row[1] for row in connection.execute("PRAGMA table_info(points_media)").fetchall()}
         for name, definition in {
             "description": "TEXT NOT NULL DEFAULT ''",
@@ -2028,6 +2080,7 @@ def _initialize_auth_database_locked() -> None:
             connection.execute("ALTER TABLE unbound_donations ADD COLUMN request_key TEXT NOT NULL DEFAULT ''")
         connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS donation_entries_request_key ON donation_entries(request_key) WHERE request_key != ''")
         connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS unbound_donations_request_key ON unbound_donations(request_key) WHERE request_key != ''")
+        connection.execute("CREATE INDEX IF NOT EXISTS support_transactions_account ON support_transactions(account_id, created_at DESC)")
         # Older versions stored one cumulative total per account. Import that legacy
         # value only when the account has no individual entries yet. Otherwise a new
         # aggregate created by an admin submission could be re-imported as a second
@@ -2041,12 +2094,10 @@ def _initialize_auth_database_locked() -> None:
             ")",
             (now_timestamp(),),
         )
-        connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) "
-                           "SELECT account_id, COALESCE(NULLIF(created_at, 0), ?) FROM donations WHERE amount_cents > 0",
-                           (now_timestamp(),))
         for row in connection.execute("SELECT id FROM accounts").fetchall():
             ensure_invite_code(connection, row[0])
         apply_legacy_points_migration(connection)
+        apply_legacy_donation_points_migration(connection)
         for method_id, brand_ids in EXPORT_DEFAULT_BRANDS.items():
             existing = connection.execute(
                 "SELECT 1 FROM export_method_brands WHERE method_id = ? LIMIT 1",
@@ -2218,6 +2269,99 @@ def claim_streamer_daily_code(account_id: str) -> dict[str, Any]:
     return {"code": row["code"], "cycle": cycle, "resetsAt": reset_at}
 
 
+def community_config_payload() -> dict[str, Any]:
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        row = connection.execute("SELECT * FROM community_config WHERE id=1").fetchone()
+    return {"kookUrl": row["kook_url"], "kookQrUrl": row["kook_qr_url"], "updatedAt": row["updated_at"]}
+
+
+def update_community_config(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("KOOK 配置格式无效。")
+    url, qr = payload.get("kookUrl"), payload.get("kookQrUrl")
+    if not isinstance(url, str) or not re.fullmatch(r"https://kook\.vip/[A-Za-z0-9]{1,128}/?", url.strip()):
+        raise ValueError("请填写有效的 https://kook.vip/ 入群链接。")
+    if not isinstance(qr, str):
+        raise ValueError("请上传 KOOK 二维码。")
+    if qr != DEFAULT_KOOK_QR:
+        match = re.fullmatch(r"\./data/community/([a-f0-9]{32}\.(?:png|jpg|webp))", qr)
+        if not match or not (DATA_DIRECTORY / "community" / match[1]).is_file():
+            raise ValueError("二维码不存在，请重新上传。")
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("UPDATE community_config SET kook_url=?,kook_qr_url=?,updated_at=? WHERE id=1",
+                           (url.strip(), qr, now_timestamp()))
+    return community_config_payload()
+
+
+def reward_codes_admin_payload() -> dict[str, Any]:
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT c.*, (SELECT COUNT(*) FROM point_ledger l WHERE l.reason='reward_code' "
+            "AND l.reference=CAST(c.id AS TEXT)) AS redeemed FROM reward_codes c ORDER BY c.id DESC"
+        ).fetchall()
+    stamp = now_timestamp()
+    return {"items": [{"id": row["id"], "code": row["code"], "title": row["title"],
+                       "kind": row["kind"], "points": row["points"], "active": bool(row["active"]),
+                       "startsAt": row["starts_at"], "expiresAt": row["expires_at"], "redeemed": row["redeemed"],
+                       "status": "已停用" if not row["active"] else "已过期" if row["expires_at"] is not None and stamp >= row["expires_at"] else "未开始" if stamp < row["starts_at"] else "可兑换"}
+                      for row in rows]}
+
+
+def manage_reward_code(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict):
+        raise ValueError("兑换码参数无效。")
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        if payload.get("action") == "toggle":
+            code_id, active = payload.get("id"), payload.get("active")
+            if isinstance(code_id, bool) or not isinstance(code_id, int) or not isinstance(active, bool):
+                raise ValueError("兑换码参数无效。")
+            if not connection.execute("UPDATE reward_codes SET active=? WHERE id=?", (int(active), code_id)).rowcount:
+                raise ValueError("兑换码不存在。")
+        elif payload.get("action") == "create":
+            title, points = payload.get("title"), payload.get("points")
+            start, end = payload.get("startsAt"), payload.get("expiresAt")
+            if not isinstance(title, str) or not 1 <= len(title.strip()) <= 80:
+                raise ValueError("请填写 1–80 字的活动名称。")
+            if isinstance(points, bool) or not isinstance(points, int) or not 1 <= points <= 10000:
+                raise ValueError("奖励积分须为 1–10000 的整数。")
+            if any(isinstance(v, bool) or not isinstance(v, int) for v in (start, end)):
+                raise ValueError("请设置使用开始和截止时间。")
+            if not 0 <= start < end <= 253402300799 or end <= now_timestamp():
+                raise ValueError("截止时间须晚于开始时间和当前时间。")
+            connection.execute(
+                "INSERT INTO reward_codes(code,title,kind,points,starts_at,expires_at,created_at) VALUES (?,?,'limited',?,?,?,?)",
+                ("EVENT-" + secrets.token_hex(6).upper(), title.strip(), points, start, end, now_timestamp()),
+            )
+        else:
+            raise ValueError("不支持的兑换码操作。")
+    return reward_codes_admin_payload()
+
+
+def redeem_reward_code(account_id: str, payload: Any) -> dict[str, Any]:
+    code = payload.get("code") if isinstance(payload, dict) else None
+    if not isinstance(code, str) or not re.fullmatch(r"(?:KOOK|EVENT)-[A-F0-9]{12}", code.strip().upper()):
+        raise ValueError("请输入有效的活动或 KOOK 兑换码。")
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute("SELECT * FROM reward_codes WHERE code=?", (code.strip().upper(),)).fetchone()
+        stamp = now_timestamp()
+        if not row or not row["active"]:
+            raise ValueError("兑换码无效或已停用。")
+        if stamp < row["starts_at"]:
+            raise ValueError("该兑换码尚未到使用时间。")
+        if row["expires_at"] is not None and stamp >= row["expires_at"]:
+            raise ValueError("该兑换码已过期。")
+        if not award_points(connection, account_id, row["points"], "reward_code", str(row["id"])):
+            raise ValueError("你已兑换过该码，每个账号只能兑换一次。")
+        balance = point_balance(connection, account_id)
+    return {"awarded": row["points"], "balance": balance, "title": row["title"]}
+
+
 def redeem_streamer_code(account_id: str, payload: Any) -> dict[str, Any]:
     code = str(payload.get("code", "") if isinstance(payload,dict) else "").strip().upper()
     if not re.fullmatch(r"[A-F0-9]{8}", code): raise ValueError("兑换码格式无效。")
@@ -2375,10 +2519,11 @@ def is_admin_account(account: sqlite3.Row | dict[str, Any] | None) -> bool:
     return bool(account and str(account["email"]).casefold() == ADMIN_EMAIL.casefold())
 
 
-def award_points(connection: sqlite3.Connection, account_id: str, amount: int, reason: str, reference: str) -> bool:
+def award_points(connection: sqlite3.Connection, account_id: str, amount: int | float | Decimal, reason: str, reference: str) -> bool:
+    stored_amount: int | float | str = format(amount, "f") if isinstance(amount, Decimal) else amount
     cursor = connection.execute(
         "INSERT OR IGNORE INTO point_ledger(account_id, amount, reason, reference, created_at) VALUES (?, ?, ?, ?, ?)",
-        (account_id, amount, reason, reference, now_timestamp()),
+        (account_id, stored_amount, reason, reference, now_timestamp()),
     )
     return cursor.rowcount == 1
 
@@ -2417,6 +2562,36 @@ def apply_legacy_points_migration(connection: sqlite3.Connection) -> None:
     connection.execute("INSERT INTO point_migrations(migration_key, applied_at) VALUES (?, ?)", (migration_key, now_timestamp()))
 
 
+def apply_legacy_donation_points_migration(connection: sqlite3.Connection) -> None:
+    """Replace legacy unlimited-donation access with one +9999 point grant."""
+    migration_key = LEGACY_DONATION_POINTS_MIGRATION_KEY
+    if connection.execute("SELECT 1 FROM point_migrations WHERE migration_key = ?", (migration_key,)).fetchone():
+        return
+    donors = {
+        str(row[0]) for row in connection.execute(
+            "SELECT account_id FROM donor_entitlements "
+            "UNION SELECT account_id FROM donations WHERE amount_cents > 0 "
+            "UNION SELECT account_id FROM donation_entries WHERE amount_cents > 0"
+        ).fetchall()
+    }
+    for account_id in donors:
+        award_points(connection, account_id, 9999, "legacy_donation", migration_key)
+        # Old unlimited donors could have score_unlocks rows without a matching
+        # point debit. Preserve explicitly purchased unlocks and remove only the
+        # rows created under the former free-export entitlement.
+        connection.execute(
+            "DELETE FROM score_unlocks WHERE account_id=? AND NOT EXISTS ("
+            "SELECT 1 FROM point_ledger WHERE point_ledger.account_id=score_unlocks.account_id "
+            "AND point_ledger.reason='unlock' AND point_ledger.reference=score_unlocks.remix_code AND point_ledger.amount<0)",
+            (account_id,),
+        )
+    connection.execute("DELETE FROM donor_entitlements")
+    connection.execute(
+        "INSERT INTO point_migrations(migration_key, applied_at) VALUES (?, ?)",
+        (migration_key, now_timestamp()),
+    )
+
+
 def apply_legacy_export_points_migration(server: ThreadingHTTPServer) -> None:
     """Credit one point per deduplicated historical export for existing owners.
 
@@ -2451,23 +2626,23 @@ def apply_legacy_export_points_migration(server: ThreadingHTTPServer) -> None:
         connection.execute("INSERT INTO point_migrations(migration_key, applied_at) VALUES (?, ?)", (LEGACY_EXPORT_POINTS_NOTICE_KEY, now_timestamp()))
 
 
-def point_balance(connection: sqlite3.Connection, account_id: str) -> int:
-    row = connection.execute("SELECT COALESCE(SUM(amount), 0) FROM point_ledger WHERE account_id = ?", (account_id,)).fetchone()
-    return int(row[0])
+def point_balance(connection: sqlite3.Connection, account_id: str) -> int | float:
+    rows = connection.execute("SELECT amount FROM point_ledger WHERE account_id = ?", (account_id,)).fetchall()
+    total = sum((Decimal(str(row[0])) for row in rows), Decimal(0))
+    return numeric_point_value(total)
 
 
 def points_payload(server: ThreadingHTTPServer, account_id: str) -> dict[str, Any]:
     with AUTH_LOCK, auth_database() as connection:
         ensure_initial_points(connection, account_id)
         invite_code = ensure_invite_code(connection, account_id)
-        donor = connection.execute("SELECT 1 FROM donor_entitlements WHERE account_id = ?", (account_id,)).fetchone()
         author_count = connection.execute("SELECT COUNT(*) FROM author_unlocks WHERE owner_id = ?", (account_id,)).fetchone()[0]
         uploads = connection.execute("SELECT 1 FROM score_owners WHERE account_id = ? LIMIT 1", (account_id,)).fetchone()
         star = connection.execute("SELECT 1 FROM github_stars WHERE account_id = ?", (account_id,)).fetchone()
         notice = connection.execute("SELECT 1 FROM account_notices WHERE account_id = ? AND notice_key = ?", (account_id, POINTS_NOTICE_KEY)).fetchone()
         unlocks = [row[0] for row in connection.execute("SELECT remix_code FROM score_unlocks WHERE account_id = ?", (account_id,))]
         owned = [row[0] for row in connection.execute("SELECT remix_code FROM score_owners WHERE account_id = ?", (account_id,))]
-        return {"balance": point_balance(connection, account_id), "unlimited": bool(donor), "inviteCode": invite_code,
+        return {"balance": point_balance(connection, account_id), "unlimited": False, "inviteCode": invite_code,
                 "unlocked": unlocks, "owned": owned, "firstUploadRewarded": bool(uploads), "githubStarRewarded": bool(star),
                 "dailyLoginRewarded": daily_login_rewarded(connection, account_id),
                 "legacyGrantRewarded": bool(connection.execute("SELECT 1 FROM point_ledger WHERE account_id = ? AND reason = 'legacy_grant' AND reference = ?", (account_id, LEGACY_POINTS_NOTICE_KEY)).fetchone()),
@@ -2523,15 +2698,13 @@ def unlock_public_score(server: ThreadingHTTPServer, account_id: str, remix_code
         ensure_initial_points(connection, account_id)
         owner = connection.execute("SELECT account_id FROM score_owners WHERE remix_code = ?", (code,)).fetchone()
         existing = connection.execute("SELECT 1 FROM score_unlocks WHERE account_id = ? AND remix_code = ?", (account_id, code)).fetchone()
-        donor = connection.execute("SELECT 1 FROM donor_entitlements WHERE account_id = ?", (account_id,)).fetchone()
         owned = bool(owner and owner[0] == account_id)
         if not existing and not owned:
-            if not donor and point_balance(connection, account_id) < POINT_RULES["unlock"]:
+            if point_balance(connection, account_id) < POINT_RULES["unlock"]:
                 raise ValueError("积分不足，完成邀请、投稿或 GitHub Star 可获得积分。")
             connection.execute("INSERT INTO score_unlocks(account_id, remix_code, created_at) VALUES (?, ?, ?)",
                                (account_id, code, now_timestamp()))
-            if not donor:
-                award_points(connection, account_id, -POINT_RULES["unlock"], "unlock", code)
+            award_points(connection, account_id, -POINT_RULES["unlock"], "unlock", code)
             if owner and owner[0] != account_id:
                 # Authors are credited per valid unlock instead of in batches of
                 # ten, so the ledger shows every unlock as it happens. The ledger
@@ -2945,8 +3118,12 @@ def list_recommendations() -> list[dict[str, str]]:
     return [{"remixCode": row["remixCode"], "title": row["title"], "artist": row["artist"], "sharedBy": row["sharedBy"]} for row in rows]
 
 
-def admin_library_catalog() -> list[dict[str, Any]]:
+def admin_library_catalog(server: ThreadingHTTPServer | None = None) -> list[dict[str, Any]]:
     """Return the editable community catalogue for the private admin console."""
+    exports_by_score = (
+        cached_score_export_counts(server.analytics_retention_days)
+        if server is not None and server.analytics_enabled else Counter()
+    )
     with AUTH_LOCK, auth_database() as connection:
         owner_rows = connection.execute(
             "SELECT remix_code, accounts.user_id FROM score_owners "
@@ -2972,6 +3149,8 @@ def admin_library_catalog() -> list[dict[str, Any]]:
             "key": score["key"],
             "meter": score["meter"],
             "bpm": score["bpm"],
+            "exports": int(exports_by_score.get(score["remixCode"], 0)),
+            "createdAt": score.get("createdAt") or "",
             "displayUrl": score.get("displayUrl", ""),
             "declaration": score.get("declaration", ""),
             "source": score.get("source", "社区投稿"),
@@ -3169,7 +3348,10 @@ def admin_unban_ip(payload: Any) -> None:
         clear_ip_ban(connection, str(payload["ip"]).strip())
 
 
-def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
+def admin_user_catalog(
+    advanced: bool = False,
+    server: ThreadingHTTPServer | None = None,
+) -> list[dict[str, Any]]:
     """Return privacy-safe account rows and lightweight activity counts.
 
     The default view keeps emails masked and never includes IP history. Only
@@ -3179,6 +3361,26 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
     """
     now = now_timestamp()
     catalog: list[dict[str, Any]] = []
+    analytics_available = bool(server is not None and server.analytics_enabled)
+    account_song_exports: dict[str, Counter[str]] = {}
+    song_details: dict[str, dict[str, str]] = {}
+    if analytics_available:
+        actor_score_exports = cached_actor_score_export_counts(server.analytics_retention_days)
+        with AUTH_LOCK, auth_database() as connection:
+            account_rows = connection.execute("SELECT id, user_id FROM accounts").fetchall()
+        accounts_by_actor = {
+            analytics_actor_key(server, str(row["id"])): str(row["id"])
+            for row in account_rows
+        }
+        for _, score in read_scores():
+            song_details[score["remixCode"]] = {
+                "title": str(score["title"]),
+                "artist": str(score["artist"]),
+            }
+        for (actor, score_id), count in actor_score_exports.items():
+            account_id = accounts_by_actor.get(actor)
+            if account_id:
+                account_song_exports.setdefault(account_id, Counter())[score_id] += int(count)
     with AUTH_LOCK, auth_database() as connection:
         rows = connection.execute(
             "SELECT accounts.id, accounts.email, accounts.user_id, accounts.created_at, accounts.updated_at, "
@@ -3225,6 +3427,23 @@ def admin_user_catalog(advanced: bool = False) -> list[dict[str, Any]]:
                 "role": "管理员" if is_admin_account(row) else "用户",
                 "donationCents": int(row["donation_cents"] or 0),
                 "uploads": row["uploads"],
+                "exports": sum(account_song_exports.get(str(row["id"]), {}).values()),
+                "exportSongs": [
+                    {
+                        "remixCode": score_id,
+                        "title": song_details.get(score_id, {}).get("title", score_id),
+                        "artist": song_details.get(score_id, {}).get("artist", ""),
+                        "exports": int(count),
+                    }
+                    for score_id, count in sorted(
+                        account_song_exports.get(str(row["id"]), {}).items(),
+                        key=lambda item: (
+                            -item[1],
+                            song_details.get(item[0], {}).get("title", item[0]).casefold(),
+                            item[0],
+                        ),
+                    )
+                ],
                 "active": bool(row["active_sessions"]),
                 "ban": {
                     "banned": bool(current_ban and (current_ban["expires_at"] is None or int(current_ban["expires_at"]) > now)),
@@ -3295,6 +3514,13 @@ def validated_donation_amount_cents(value: Any, *, allow_zero: bool) -> int:
     return amount_cents
 
 
+def numeric_point_value(value: Any) -> int | float:
+    points = Decimal(str(value))
+    if points == points.to_integral_value():
+        return int(points)
+    return float(points)
+
+
 def validated_donation_request_key(value: Any) -> str:
     request_key = str(value or "").strip()
     if request_key and (len(request_key) > 128 or not re.fullmatch(r"[A-Za-z0-9_-]{8,128}", request_key)):
@@ -3302,12 +3528,84 @@ def validated_donation_request_key(value: Any) -> str:
     return request_key
 
 
+DONATION_POINT_TIERS = (
+    (10_000, 16_000, "+60% Bonus · Best Value"),
+    (5_000, 14_000, "+40% Bonus · Popular"),
+    (2_555, 12_500, "+25% Bonus"),
+    (1_888, 11_700, "+17% Bonus"),
+    (666, 10_800, "+8% Bonus"),
+    (100, 10_000, "Starter"),
+)
+
+
+def donation_points_for_amount(amount_cents: int) -> dict[str, Any]:
+    """Calculate exact points at the highest reached promo tier."""
+    if amount_cents < 100:
+        multiplier_bp, tier_label = 10_000, "基础比例"
+    else:
+        _, multiplier_bp, tier_label = next(
+            tier for tier in DONATION_POINT_TIERS if amount_cents >= tier[0]
+        )
+    # amount_cents / 100 yuan × 50 points per yuan × the promo multiplier.
+    # Decimal keeps fractional points exact; the smallest promo fraction has
+    # three decimal places, so no rounding is needed.
+    points = Decimal(amount_cents * 50 * multiplier_bp) / Decimal(100 * 10_000)
+    bonus_percent = multiplier_bp // 100 - 100
+    return {"points": points, "tierLabel": tier_label, "bonusPercent": bonus_percent}
+
+
+def support_transaction_payload(row: sqlite3.Row) -> dict[str, Any]:
+    account_id = str(row["account_id"] or "")
+    awarded_at = row["awarded_at"]
+    status = "credited" if awarded_at else "awaiting_admin" if account_id else "awaiting_user"
+    amount_cents = int(row["amount_cents"]) if row["amount_cents"] is not None else None
+    return {
+        "transferId": str(row["transfer_id"]),
+        "accountId": account_id or None,
+        "userId": str(row["user_id"]) if "user_id" in row.keys() and row["user_id"] else None,
+        "amountCents": amount_cents,
+        "points": amount_cents if status == "credited" else 0,
+        "status": status,
+        "submittedAt": iso_timestamp(row["user_submitted_at"]) if row["user_submitted_at"] else None,
+        "recordedAt": iso_timestamp(row["admin_recorded_at"]) if row["admin_recorded_at"] else None,
+        "creditedAt": iso_timestamp(awarded_at) if awarded_at else None,
+    }
+
+
+def user_support_transactions(account_id: str) -> list[dict[str, Any]]:
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT support_transactions.*, accounts.user_id FROM support_transactions "
+            "LEFT JOIN accounts ON accounts.id=support_transactions.account_id "
+            "WHERE support_transactions.account_id=? "
+            "ORDER BY support_transactions.created_at DESC, support_transactions.transfer_id DESC LIMIT 100",
+            (account_id,),
+        ).fetchall()
+    return [support_transaction_payload(row) for row in rows]
+
+
+def admin_support_transactions() -> list[dict[str, Any]]:
+    initialize_auth_database()
+    with AUTH_LOCK, auth_database() as connection:
+        rows = connection.execute(
+            "SELECT support_transactions.*, accounts.user_id FROM support_transactions "
+            "LEFT JOIN accounts ON accounts.id=support_transactions.account_id "
+            "ORDER BY CASE WHEN support_transactions.awarded_at IS NULL THEN 0 ELSE 1 END, "
+            "COALESCE(support_transactions.user_submitted_at, support_transactions.admin_recorded_at, support_transactions.created_at) DESC, "
+            "support_transactions.transfer_id DESC LIMIT 500"
+        ).fetchall()
+    return [support_transaction_payload(row) for row in rows]
+
+
 def admin_donation_catalog() -> dict[str, list[dict[str, Any]]]:
     """Return each donation entry without exposing account emails."""
     initialize_auth_database()
     with AUTH_LOCK, auth_database() as connection:
         linked = connection.execute(
-            "SELECT entries.id, accounts.id AS account_id, accounts.user_id, entries.amount_cents, entries.created_at "
+            "SELECT entries.id, entries.request_key, accounts.id AS account_id, accounts.user_id, entries.amount_cents, entries.created_at, "
+            "(SELECT amount FROM point_ledger WHERE account_id=entries.account_id AND reason='manual_donation' "
+            "AND reference='manual-donation:' || entries.id LIMIT 1) AS points_awarded "
             "FROM donation_entries AS entries JOIN accounts ON accounts.id=entries.account_id WHERE entries.amount_cents > 0 "
             "ORDER BY entries.created_at DESC, entries.id DESC, accounts.user_id COLLATE NOCASE ASC"
         ).fetchall()
@@ -3319,6 +3617,9 @@ def admin_donation_catalog() -> dict[str, list[dict[str, Any]]]:
         "linked": [{"id": int(row["id"]), "recordHash": hashlib.sha256(f"linked:{int(row['id'])}".encode("utf-8")).hexdigest()[:16],
                     "accountId": row["account_id"], "userId": row["user_id"],
                     "amountCents": int(row["amount_cents"]),
+                    "pointsAwarded": numeric_point_value(row["points_awarded"]) if row["points_awarded"] is not None else None,
+                    "tierLabel": donation_points_for_amount(int(row["amount_cents"]))["tierLabel"] if row["points_awarded"] is not None else None,
+                    "deletable": not str(row["request_key"] or "").startswith("support_"),
                     "createdAt": iso_timestamp(row["created_at"])}
                    for row in linked],
         "unbound": [{"id": int(row["id"]), "recordHash": hashlib.sha256(f"unbound:{int(row['id'])}".encode("utf-8")).hexdigest()[:16],
@@ -3330,13 +3631,17 @@ def admin_donation_catalog() -> dict[str, list[dict[str, Any]]]:
 
 
 def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
-    """Add one separate donation entry for a registered account."""
+    """Record a manually verified donation and award its tiered points atomically."""
     if not isinstance(payload, dict):
         raise ValueError("请求内容无效。")
     account_id = str(payload.get("accountId") or "").strip()
     user_id = str(payload.get("userId") or "").strip()
     amount_cents = validated_donation_amount_cents(payload.get("amountCents"), allow_zero=False)
+    if amount_cents < 10:
+        raise ValueError("绑定账号打赏最低为 ¥0.10。")
     request_key = validated_donation_request_key(payload.get("requestKey"))
+    if not request_key:
+        raise ValueError("打赏请求编号缺失，请刷新后台后重试。")
     if not account_id and not user_id:
         raise ValueError("请选择站点账号。")
     now = now_timestamp()
@@ -3371,16 +3676,19 @@ def admin_add_linked_donation(payload: Any) -> dict[str, Any]:
         total = int(connection.execute(
             "SELECT COALESCE(SUM(amount_cents), 0) FROM donation_entries WHERE account_id=?", (account_id,)
         ).fetchone()[0])
+        reward = donation_points_for_amount(amount_cents)
+        if reward["points"] > 0:
+            award_points(connection, account_id, reward["points"], "manual_donation", f"manual-donation:{entry_id}")
         connection.execute(
             "INSERT INTO donations(account_id, amount_cents, created_at, updated_at) VALUES (?, ?, ?, ?) "
             "ON CONFLICT(account_id) DO UPDATE SET amount_cents=excluded.amount_cents, updated_at=excluded.updated_at",
             (account_id, total, now, now),
         )
-        connection.execute("INSERT OR IGNORE INTO donor_entitlements(account_id, granted_at) VALUES (?, ?)", (account_id, now))
     PUBLIC_DONORS_CACHE.invalidate()
     PUBLIC_RANKINGS_CACHE.invalidate()
     return {"id": entry_id, "accountId": account_id, "userId": user_id,
-            "amountCents": amount_cents, "createdAt": iso_timestamp(created_at)}
+            "amountCents": amount_cents, "points": numeric_point_value(reward["points"]), "tierLabel": reward["tierLabel"],
+            "createdAt": iso_timestamp(created_at)}
 
 
 def admin_delete_linked_donation(payload: Any) -> None:
@@ -3391,10 +3699,24 @@ def admin_delete_linked_donation(payload: Any) -> None:
     if isinstance(donation_id, bool) or not isinstance(donation_id, int) or donation_id < 1:
         raise ValueError("打赏记录编号无效。")
     with AUTH_LOCK, auth_database() as connection:
-        entry = connection.execute("SELECT account_id FROM donation_entries WHERE id=?", (donation_id,)).fetchone()
+        entry = connection.execute("SELECT account_id, request_key FROM donation_entries WHERE id=?", (donation_id,)).fetchone()
         if not entry:
             raise ValueError("未找到这条绑定账号打赏记录。")
+        if str(entry["request_key"] or "").startswith("support_"):
+            raise ValueError("已核实并发放积分的转账记录不可删除。")
         account_id = str(entry["account_id"])
+        reward = connection.execute(
+            "SELECT amount FROM point_ledger WHERE account_id=? AND reason='manual_donation' AND reference=?",
+            (account_id, f"manual-donation:{donation_id}"),
+        ).fetchone()
+        if reward:
+            award_points(
+                connection,
+                account_id,
+                -Decimal(str(reward["amount"])),
+                "manual_donation_reversal",
+                f"manual-donation-reversal:{donation_id}",
+            )
         connection.execute("DELETE FROM donation_entries WHERE id=?", (donation_id,))
         total = int(connection.execute(
             "SELECT COALESCE(SUM(amount_cents), 0) FROM donation_entries WHERE account_id=?", (account_id,)
@@ -5461,6 +5783,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             return
         if self.serve_maintenance_if_active(path):
             return
+        if path in {"/api/community", "/api/admin/community"}:
+            if path == "/api/admin/community" and not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, community_config_payload())
+            return
         if path == "/api/cooperate":
             self.send_json(HTTPStatus.OK, cooperation_catalog())
             return
@@ -5507,7 +5834,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             home_path = github_app_path(self.server) if self.server.github_oauth else "/"
             self.send_redirect(home_path, cookies)
             return
-        if path in {"/api/points", "/api/points/ledger", "/api/points/github/start",
+        if path in {"/api/points", "/api/points/ledger", "/api/points/support-submissions", "/api/points/github/start",
                     "/api/points/github/callback", "/api/auth/github/start"}:
             if not self.server.auth_enabled:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "账号服务未启用。"})
@@ -5535,13 +5862,17 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 with AUTH_LOCK, auth_database() as connection:
                     ensure_initial_points(connection, account["id"])
                     rows = connection.execute(
-                        "SELECT point_ledger.amount, point_ledger.reason, point_ledger.reference, point_ledger.created_at, points_media.title AS product_title, streamer_accounts.user_id AS streamer_user_id "
+                        "SELECT point_ledger.amount, point_ledger.reason, point_ledger.reference, point_ledger.created_at, points_media.title AS product_title, streamer_accounts.user_id AS streamer_user_id, reward_codes.title AS reward_title "
                         "FROM point_ledger LEFT JOIN points_media ON point_ledger.reason='partner_outbound' AND point_ledger.reference=CAST(points_media.id AS TEXT) "
                         "LEFT JOIN accounts AS streamer_accounts ON point_ledger.reason='streamer_code' AND streamer_accounts.user_id=substr(point_ledger.reference,1,instr(point_ledger.reference,':')-1) "
+                        "LEFT JOIN reward_codes ON point_ledger.reason='reward_code' AND point_ledger.reference=CAST(reward_codes.id AS TEXT) "
                         "WHERE point_ledger.account_id = ? ORDER BY point_ledger.created_at DESC, point_ledger.id DESC LIMIT 100",
                         (account["id"],),
                     ).fetchall()
                 self.send_json(HTTPStatus.OK, {"entries": [dict(row) for row in rows]})
+                return
+            if path == "/api/points/support-submissions":
+                self.send_json(HTTPStatus.OK, {"submissions": user_support_transactions(account["id"])})
                 return
             if not config:
                 self.send_json(HTTPStatus.SERVICE_UNAVAILABLE, {"error": "GitHub Star 验证尚未配置。"})
@@ -5688,8 +6019,8 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             except (TypeError, ValueError):
                 requested_days = 30
             days = min(self.server.analytics_retention_days, max(1, requested_days))
-            library = admin_library_catalog()
-            users = admin_user_catalog()
+            library = admin_library_catalog(self.server)
+            users = admin_user_catalog(server=self.server)
             report = build_analytics_report(days)
             self.send_json(HTTPStatus.OK, {
                 "generatedAt": report["generatedAt"],
@@ -5710,6 +6041,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             if not self.is_admin_console_request():
                 return
             self.send_json(HTTPStatus.OK, export_methods_payload())
+            return
+        if path == "/api/admin/reward-codes":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, reward_codes_admin_payload())
             return
         if path == "/api/admin/points/media":
             if not self.is_admin_console_request():
@@ -5743,6 +6079,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, admin_donation_catalog())
             return
+        if path == "/api/admin/support-payments":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, {"payments": admin_support_transactions()})
+            return
         if path == "/api/admin/points":
             if not self.is_admin_console_request():
                 return
@@ -5758,12 +6099,17 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             query = parse_qs(urlparse(self.path).query)
             needle = query.get("q", [""])[0].strip().casefold()
-            items = admin_library_catalog()
+            items = admin_library_catalog(self.server)
             if needle:
                 items = [item for item in items if needle in " ".join(
                     str(item[field]).casefold() for field in ("remixCode", "legacyId", "title", "artist", "sharedBy", "owner")
                 )]
-            self.send_json(HTTPStatus.OK, {"songs": items, "total": len(items)})
+            self.send_json(HTTPStatus.OK, {
+                "songs": items,
+                "total": len(items),
+                "exportStatsAvailable": bool(self.server.analytics_enabled),
+                "exportWindowDays": self.server.analytics_retention_days if self.server.analytics_enabled else 0,
+            })
             return
         if path == "/api/admin/library/buffer":
             if not self.is_admin_console_request():
@@ -5777,7 +6123,7 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             needle = query.get("q", [""])[0].strip().casefold()
             # 高级模式必须显式请求：默认响应只有脱敏邮箱，不含完整邮箱与 IP 历史。
             advanced = query.get("advanced", [""])[0].strip().lower() in {"1", "true", "yes", "on"}
-            users = admin_user_catalog(advanced=advanced)
+            users = admin_user_catalog(advanced=advanced, server=self.server)
             if needle:
                 users = [item for item in users if needle in " ".join([
                     str(item["userId"]),
@@ -5791,7 +6137,13 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                     file=sys.stderr,
                     flush=True,
                 )
-            self.send_json(HTTPStatus.OK, {"users": users, "total": len(users), "advanced": advanced})
+            self.send_json(HTTPStatus.OK, {
+                "users": users,
+                "total": len(users),
+                "advanced": advanced,
+                "exportStatsAvailable": bool(self.server.analytics_enabled),
+                "exportWindowDays": self.server.analytics_retention_days if self.server.analytics_enabled else 0,
+            })
             return
         if path == "/api/admin/ip-bans":
             if not self.is_admin_console_request():
@@ -5859,6 +6211,34 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
         if self.reject_banned_ip():
             return
         path = self.path.split("?", 1)[0]
+        if path == "/api/admin/reward-codes":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = manage_reward_code(self.read_payload())
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "兑换码保存失败。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
+            return
+        if path == "/api/points/redeem":
+            if not self.server.auth_enabled or not self.request_is_same_origin():
+                self.send_json(HTTPStatus.FORBIDDEN, {"error": "请从本站登录后兑换。"})
+                return
+            account = authenticate_request(self)
+            if not account:
+                self.send_json(HTTPStatus.UNAUTHORIZED, {"error": "请先登录。"})
+                return
+            try:
+                result = redeem_reward_code(account["id"], self.read_payload())
+            except (ValueError, UnicodeDecodeError, json.JSONDecodeError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "兑换失败。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
+            return
+        if path == "/api/points/support-submissions":
+            self.send_json(HTTPStatus.GONE, {"error": "单号提交已停用；请在微信赞赏备注中填写站点 ID。"})
+            return
         if path == "/api/auth/preview-login":
             if not (
                 self.server.auth_enabled
@@ -5943,6 +6323,24 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
             except (ValueError, UnicodeDecodeError, json.JSONDecodeError, sqlite3.Error) as error:
                 self.send_json(HTTPStatus.BAD_REQUEST,{"error":str(error) or "操作失败。"}); return
             self.send_json(HTTPStatus.OK,result); return
+        if path == "/api/admin/community/qr":
+            if not self.is_admin_console_request():
+                return
+            try:
+                length = int(self.headers.get("Content-Length", "0"))
+                if not 1 <= length <= POINTS_IMAGE_LIMIT:
+                    raise ValueError("二维码大小须为 1 字节至 5 MB。")
+                image = self.rfile.read(length)
+                extension = points_image_extension(image)
+                folder = DATA_DIRECTORY / "community"
+                folder.mkdir(parents=True, exist_ok=True)
+                name = f"{uuid.uuid4().hex}.{extension}"
+                (folder / name).write_bytes(image)
+            except (ValueError, OSError) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error)})
+                return
+            self.send_json(HTTPStatus.OK, {"url": f"./data/community/{name}"})
+            return
         if path == "/api/admin/points/media/image":
             if not self.is_admin_console_request():
                 return
@@ -6073,14 +6471,28 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 return
             self.send_json(HTTPStatus.OK, {"action": "banned", "ban": result})
             return
-        if path in {"/api/admin/donations", "/api/admin/donations/unbound"}:
+        if path == "/api/admin/support-payments":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.GONE, {"error": "旧版单号核实记录仅供查阅；请使用站点 ID 手动录入打赏。"})
+            return
+        if path == "/api/admin/donations":
             if not self.is_admin_console_request():
                 return
             try:
-                payload = self.read_payload()
-                result = admin_add_unbound_donation(payload) if path.endswith("/unbound") else admin_add_linked_donation(payload)
+                result = admin_add_linked_donation(self.read_payload())
             except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
-                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存打赏金额。"})
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法录入打赏并发放积分。"})
+                return
+            self.send_json(HTTPStatus.OK, result)
+            return
+        if path == "/api/admin/donations/unbound":
+            if not self.is_admin_console_request():
+                return
+            try:
+                result = admin_add_unbound_donation(self.read_payload())
+            except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
+                self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法录入未绑定鸣谢。"})
                 return
             self.send_json(HTTPStatus.OK, result)
             return
@@ -6454,15 +6866,21 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
 
     def do_PUT(self) -> None:  # noqa: N802
         path = self.path.split("?", 1)[0]
-        if path not in {"/api/admin/export-methods", "/api/admin/points/media"}:
+        if path not in {"/api/admin/export-methods", "/api/admin/points/media", "/api/admin/community"}:
             self.send_json(HTTPStatus.NOT_FOUND, {"error": "未找到管理接口。"})
             return
         if not self.is_admin_console_request():
             return
         try:
-            updated = update_export_methods(self.read_payload()) if path == "/api/admin/export-methods" else update_points_media(self.read_payload())
+            payload = self.read_payload()
+            if path == "/api/admin/community":
+                updated = update_community_config(payload)
+            elif path == "/api/admin/export-methods":
+                updated = update_export_methods(payload)
+            else:
+                updated = update_points_media(payload)
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, OSError, sqlite3.Error) as error:
-            self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存导出方式配置。"})
+            self.send_json(HTTPStatus.BAD_REQUEST, {"error": str(error) or "无法保存配置。"})
             return
         self.send_json(HTTPStatus.OK, updated)
 

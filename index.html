@@ -6,10 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#008080" />
     <title>三角洲行动口琴宏生成器｜简谱、MIDI 转宏</title>
-    <link rel="icon" href="./favicon.ico?v=5.4.0" sizes="any" />
-    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.4.0" />
-    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.4.0" sizes="32x32" />
-    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.4.0" />
+    <link rel="icon" href="./favicon.ico?v=5.5.8" sizes="any" />
+    <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg?v=5.5.8" />
+    <link rel="icon" type="image/png" href="./favicon-32x32.png?v=5.5.8" sizes="32x32" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=5.5.8" />
     <meta name="description" content="在线制作三角洲行动口琴宏：支持数字简谱转宏、MIDI 转口琴宏、试听与多种鼠标宏格式导出。" />
     <meta name="robots" content="index,follow,max-image-preview:large" />
     <link rel="canonical" href="https://jiko-official.top/delta/" />
@@ -2740,7 +2740,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Silkscreen:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet" />
     <!-- 修改前端文件后递增这个版本号，兼容 GitHub Pages 等无法配置响应头的静态托管。 -->
-    <link rel="stylesheet" href="./styles.css?v=5.4.0" />
+    <link rel="stylesheet" href="./styles.css?v=5.5.8" />
   </head>
   <body>
     <div class="noise" aria-hidden="true"></div>
@@ -2751,7 +2751,7 @@
         </a>
         <div class="brand-copy">
           <a class="brand-link" href="#top">三角洲口琴演奏家</a>
-          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.4.0</button>
+          <button class="version-button" id="versionButton" type="button" aria-haspopup="dialog" aria-controls="changelogDialog" aria-label="查看网页版本与最近修改">v5.5.8</button>
         </div>
       </div>
       <nav class="topbar-actions" aria-label="项目链接">
@@ -3003,10 +3003,10 @@
             <span class="index">COMMUNITY CONTACT</span>
             <h2 id="kookChannelTitle">分享曲目、反馈问题</h2>
             <p id="kookChannelDescription">欢迎加入 KOOK 频道交流口琴曲谱、宏文件和使用问题。</p>
-            <a class="kook-channel-link" href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>加入 KOOK 频道</span><strong>kook.vip/jcJIDN ↗</strong></a>
+            <a class="kook-channel-link" data-kook-link href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>加入 KOOK 频道</span><strong data-kook-link-label>kook.vip/jcJIDN ↗</strong></a>
           </div>
           <figure class="upload-qr hero-contact-qr">
-            <img src="./assets/kook-channel-qr.png" alt="加入 KOOK 频道的二维码" />
+            <img data-kook-qr src="./assets/kook-channel-qr.png?v=5.5.8" alt="加入 KOOK 频道的二维码" />
             <figcaption>KOOK 频道 · 扫码加入</figcaption>
           </figure>
         </section>
@@ -3014,11 +3014,14 @@
           <div class="hero-block-main">
             <span class="index">SUPPORT THE AUTHOR</span>
             <h2 id="supportTitle">请作者喝杯水</h2>
-            <p id="supportDescription">打赏用于网站维护。经后台确认的任意金额打赏可永久无限导出公共曲谱；请在赞赏留言里写上站点用户 ID 或邮箱，方便关联账号。</p>
-            <p class="support-attribution-note">打赏信息由作者手动维护，24小时内录入。如果超过24小时或打赏时没有提供账号信息请在群聊中联系作者。</p>
-            <button class="support-note-button" id="supportCopyButton" type="button" aria-label="复制赞赏备注格式">
-              <span>复制赞赏备注</span><strong id="supportNotePreview">站点ID：@你的ID</strong>
-            </button>
+            <p id="supportDescription">扫码赞赏时，请在微信备注中填写你的站点 ID。管理员核对备注和实收金额后手动录入积分。</p>
+            <p class="support-attribution-note">登录后复制你的站点 ID 并粘贴到赞赏备注；¥0.10 起即可按金额获得积分，¥1 起进入 Starter 档及对应促销档位。</p>
+            <div class="support-user-id-block"><button class="support-user-id-button" data-copy-support-user-id type="button"><span>复制我的站点 ID</span><strong data-support-user-id>登录后显示</strong></button><small data-support-id-status role="status" aria-live="polite">请把此 ID 填入微信赞赏备注。</small></div>
+            <div class="support-tier-grid" aria-label="打赏金额与积分档位">
+              <div><b>¥1</b><strong>50 Points</strong><small>Starter 档</small></div><div><b>¥6.66</b><strong>359.64 Points</strong><small>+8% Bonus</small></div><div><b>¥18.88</b><strong>1,104.48 Points</strong><small>+17% Bonus · 可远程控制</small></div><div><b>¥25.55</b><strong>1,596.875 Points</strong><small>+25% Bonus</small></div><div><b>¥50</b><strong>3,500 Points</strong><small>+40% Bonus · Popular</small></div><div><b>¥100</b><strong>8,000 Points</strong><small>+60% Bonus · Best Value</small></div>
+            </div>
+            <p class="support-attribution-note">¥0.10 起按每元 50 分的基础比例赠分；达到档位门槛后应用对应加成，积分按实收金额精确计算，最多显示 3 位小数，不做取整。</p>
+            <details class="support-legacy-submissions"><summary>查看我的旧版单号记录（只读）</summary><div class="support-submission-list" data-support-submission-list aria-live="polite"></div></details>
           </div>
           <figure class="upload-qr hero-contact-qr hero-support-qr">
             <img src="./assets/赞赏码.JPG" alt="微信赞赏码，扫码请作者喝杯水" />
@@ -3098,7 +3101,7 @@
               <div><span class="index" data-section-index="donations">03 · SUPPORTERS</span><h2 id="donationThanksTitle">感谢打赏</h2></div>
               <span class="donation-thanks-total" id="donationThanksTotal">等待数据</span>
             </div>
-            <p class="donation-thanks-note">打赏信息由作者手动维护，24小时内录入。如果超过24小时或打赏时没有提供账号信息请在群聊中联系作者。榜单中以「vx: 」开头的支持者未提供站点 ID。</p>
+            <p class="donation-thanks-note">用户将站点 ID 写入微信赞赏备注后，由管理员核实并手动录入金额和积分。榜单中以「vx: 」开头的支持者为未绑定鸣谢记录。</p>
             <div class="donation-thanks-list" id="donationThanksList">
               <div class="donation-stack" id="donationStack">
                 <div class="donation-track" id="donationTrack" role="list" aria-live="polite"></div>
@@ -3713,7 +3716,7 @@
               <div><span>网页版本</span><strong data-recording-helper-field="web">WEB v—</strong></div>
               <div><span>助手当前版本</span><strong data-recording-helper-field="helper">HELPER v—</strong></div>
             </div>
-            <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。助手支持独立选择键盘方案与鼠标方案，并可直接发送内置测试输入验证当前搭配。</p>
+            <p class="export-copy">适用于所有支持宏录制的软件：将当前曲谱导入宏录制助手，再由助手把整段键盘与鼠标变调输入录入目标宏软件。助手支持独立选择键盘方案与鼠标方案，并可直接发送内置测试输入验证当前搭配。较长曲谱会先压缩导入数据，按提示再次点击导出即可。</p>
             <div class="export-actions"><button data-action="launch-independent-recorder" type="button">导出到宏录制助手</button><button id="recordingHelperHelpButton" type="button" aria-haspopup="dialog">如何下载使用？</button><a class="recording-helper-tutorial-link recording-helper-tutorial-link--compact" href="https://v.douyin.com/eptTXTGf5fs/" target="_blank" rel="noopener noreferrer" aria-label="打开通用宏录制导出教程抖音视频"><b aria-hidden="true">▶</b><span>教程</span><i aria-hidden="true">↗</i></a></div>
           </article>
           <article class="export-card manual-entry" data-export-method="manual-entry">
@@ -4004,7 +4007,7 @@
                 <div><span class="index" data-section-index="donations">03 · SUPPORTERS</span><h2 id="tutorialCopyDonationThanksTitle">感谢打赏</h2></div>
                 <span class="donation-thanks-total" id="tutorialCopyDonationThanksTotal">等待数据</span>
               </div>
-              <p class="donation-thanks-note">打赏信息由作者手动维护，24小时内录入。如果超过24小时或打赏时没有提供账号信息请在群聊中联系作者。榜单中以「vx: 」开头的支持者未提供站点 ID。</p>
+              <p class="donation-thanks-note">用户将站点 ID 写入微信赞赏备注后，由管理员核实并手动录入金额和积分。榜单中以「vx: 」开头的支持者为未绑定鸣谢记录。</p>
               <div class="donation-thanks-list" id="tutorialCopyDonationThanksList">
                 <div class="donation-stack" id="tutorialCopyDonationStack">
                   <div class="donation-track" id="tutorialCopyDonationTrack" role="list" aria-live="polite"></div>
@@ -4137,7 +4140,7 @@
           <div class="window-titlebar"><span>THANKS.EXE — SUPPORTERS</span></div>
           <div class="donation-thanks-body">
             <div class="donation-thanks-heading"><div><span class="index">SUPPORTERS</span><h2 id="pointsDonationThanksTitle">感谢打赏</h2></div><span class="donation-thanks-total" id="pointsDonationThanksTotal">等待数据</span></div>
-            <p class="donation-thanks-note">打赏信息由作者手动维护，24小时内录入。如果超过24小时或未提供账号信息请在群聊中联系作者。榜单中以「vx: 」开头的支持者未提供站点 ID。</p>
+            <p class="donation-thanks-note">用户将站点 ID 写入微信赞赏备注后，由管理员核实并手动录入金额和积分。榜单中以「vx: 」开头的支持者为未绑定鸣谢记录。</p>
             <div class="donation-thanks-list" id="pointsDonationThanksList"><div class="donation-stack" id="pointsDonationStack"><div class="donation-track" id="pointsDonationTrack" role="list" aria-live="polite"></div></div></div>
           </div>
         </section>
@@ -4146,12 +4149,13 @@
           <div class="points-tasks-heading"><span class="index">03 · EARN POINTS</span><h2 id="pointsTasksTitle">获取积分</h2><p>完成任务后，积分状态会随账号更新。</p></div>
           <div class="points-task-list" id="pointsTaskList">
             <section class="points-task-row panel points-task-row--github"><div class="window-titlebar"><span>01 / GITHUB STAR</span></div><div class="points-feature-content"><div class="points-task-copy"><b>GitHub Star</b><p>打开仓库页面，点亮标题右侧的 Star，完成账号验证后领取一次奖励。</p><span id="pointsTaskGithub">验证项目 Star 后领取 +500</span><div class="points-feature-actions"><a class="github-star-link" href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer" aria-label="打开 GitHub 仓库点亮 Star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 .9l3.4 6.9 7.6 1.1-5.5 5.4 1.3 7.6-6.8-3.6 1.3-7.6L1 8.9l7.6-1.1L12 .9z" /></svg><span>打开仓库点亮 Star</span></a><button class="text-button" data-points-task="github" type="button">验证 Star ↗</button></div></div><div class="points-star-demo" id="pointsStarDemo"></div></div></section>
-            <section class="points-task-row panel points-task-row--support"><div class="window-titlebar"><span>02 / SUPPORT</span></div><div class="points-feature-content"><div class="points-task-copy"><b>打赏支持</b><p>打赏经确认后，账号可永久无限导出。请在赞赏留言中写上站点用户 ID 或邮箱，方便关联账号。</p><span>任意金额经确认后永久无限导出</span><p>打赏信息由作者手动维护，24 小时内录入。超过 24 小时或未提供账号信息时，请在群聊中联系作者。</p><button class="support-note-button" id="pointsSupportCopyButton" type="button" aria-label="复制赞赏备注格式"><span>复制赞赏备注</span><strong id="pointsSupportNotePreview">站点ID：@你的ID</strong></button></div><figure class="upload-qr hero-contact-qr hero-support-qr"><img src="./assets/赞赏码.JPG" alt="微信赞赏码，扫码请作者喝杯水" /><figcaption>使用微信扫一扫赞赏</figcaption></figure></div></section>
+            <section class="points-task-row panel points-task-row--support"><div class="window-titlebar"><span>02 / SUPPORT</span></div><div class="points-feature-content"><div class="points-task-copy"><b>打赏支持，兑换积分</b><p>赞赏时在微信备注填写站点 ID。管理员核实备注和实收金额后手动录入。</p><div class="support-user-id-block"><button class="support-user-id-button" data-copy-support-user-id type="button"><span>复制我的站点 ID</span><strong data-support-user-id>登录后显示</strong></button><small data-support-id-status role="status" aria-live="polite">请把此 ID 填入微信赞赏备注。</small></div><div class="support-tier-grid" aria-label="打赏金额与积分档位"><div><b>¥1</b><strong>50 Points</strong><small>Starter 档</small></div><div><b>¥6.66</b><strong>359.64 Points</strong><small>+8% Bonus</small></div><div><b>¥18.88</b><strong>1,104.48 Points</strong><small>+17% Bonus · 可远程控制</small></div><div><b>¥25.55</b><strong>1,596.875 Points</strong><small>+25% Bonus</small></div><div><b>¥50</b><strong>3,500 Points</strong><small>+40% Bonus · Popular</small></div><div><b>¥100</b><strong>8,000 Points</strong><small>+60% Bonus · Best Value</small></div></div><small>¥0.10 起按每元 50 分的基础比例赠分；达到档位门槛后应用对应加成，积分按实收金额精确计算，最多显示 3 位小数，不做取整。</small><details class="support-legacy-submissions"><summary>查看我的旧版单号记录（只读）</summary><div class="support-submission-list" data-support-submission-list aria-live="polite"></div></details></div><figure class="upload-qr hero-contact-qr hero-support-qr"><img src="./assets/赞赏码.JPG" alt="微信赞赏码，扫码请作者喝杯水" /><figcaption>使用微信扫一扫赞赏</figcaption></figure></div></section>
             <section class="points-task-row panel points-task-row--registration"><div class="window-titlebar"><span>03 / REGISTRATION</span></div><div class="points-task-copy"><b>注册账号</b><p>创建账号后自动获得首次奖励。</p><span id="pointsTaskRegistration">完成注册后领取 +30</span></div><div class="points-task-action"><button class="text-button" data-points-task="register" type="button">登录 / 注册</button></div></section>
             <section class="points-task-row panel points-task-row--daily"><div class="window-titlebar"><span>04 / DAILY LOGIN</span></div><div class="points-task-copy"><b>每日登录</b><p>每天首次登录自动发放，无需手动签到。</p><span id="pointsTaskDailyLogin">每天首次登录领取 +20</span></div><div class="points-task-action"><span class="points-task-static" id="pointsTaskDailyLoginStatus">登录后自动领取</span></div></section>
             <section class="points-task-row panel points-task-row--invite"><div class="window-titlebar"><span>05 / INVITE FRIENDS</span></div><div class="points-task-copy"><b>邀请注册</b><p>好友注册并首次用积分解锁他人曲谱后到账。</p><span>每位好友完成首次解锁后 +20</span><code id="pointsInviteCode">登录后显示邀请码</code></div><div class="points-task-action"><button class="text-button" data-points-task="invite" type="button">复制邀请链接</button></div></section>
             <section class="points-task-row panel points-task-row--upload"><div class="window-titlebar"><span>06 / FIRST UPLOAD</span></div><div class="points-task-copy"><b>首次投稿</b><p>完成曲谱制作并成功发布到社区曲库。</p><span id="pointsTaskUpload">成功发布一首谱子后领取 +50</span></div><div class="points-task-action"><button class="text-button" data-points-task="upload" type="button">前往自制 ↗</button></div></section>
             <section class="points-task-row panel points-task-row--author"><div class="window-titlebar"><span>07 / COMMUNITY USE</span></div><div class="points-task-copy"><b>作品被使用</b><p>不同用户首次解锁你的作品时自动累计。</p><span id="pointsTaskAuthor">每次有效解锁 +1</span></div><div class="points-task-action"><span class="points-task-static">自动累计</span></div></section>
+            <section class="points-task-row panel points-task-row--streamer-code" aria-labelledby="pointsRewardCodeTitle"><div class="window-titlebar"><span>KOOK / COMMUNITY REWARDS</span></div><div class="points-task-copy"><b id="pointsRewardCodeTitle">KOOK 与限时活动兑换码</b><p>加入 KOOK 频道，查看永久兑换码，首次兑换可得 20 积分。频道还会在用户里程碑等活动中发放限时码，积分和期限以公告为准。</p><span>每个账号每个码限兑一次 · 不占主播额度</span><a class="text-button" data-kook-link href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer">加入 KOOK 领码 ↗</a></div><form id="rewardCodeRedeemForm" class="cooperate-redeem-form"><label>活动 / KOOK 兑换码<input name="code" required maxlength="18" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="输入频道内公布的兑换码" /></label><button class="text-button" type="submit">兑换积分</button><span id="rewardCodeRedeemStatus" role="status" aria-live="polite"></span></form></section>
             <section class="points-task-row panel points-task-row--streamer-code" aria-labelledby="pointsTaskStreamerCodeTitle"><div class="window-titlebar"><span>08 / STREAMER CODE</span></div><div class="points-task-copy"><b id="pointsTaskStreamerCodeTitle">使用主播兑换码</b><p>每周期最多兑换三位不同主播的码；同一主播每周期只能兑换一次，每次获得 20 积分。</p><span id="cooperateRedeemQuota">本周期最多兑换 3 位主播</span></div><form id="cooperateRedeemForm" class="cooperate-redeem-form"><label>主播兑换码<input name="code" required inputmode="text" maxlength="8" autocomplete="off" placeholder="8 位兑换码" /></label><button class="text-button" type="submit">兑换 +20 积分</button><span id="cooperateRedeemStatus" role="status" aria-live="polite"></span></form></section>
           </div>
           <p class="auth-status" id="pointsTaskStatus" role="status" aria-live="polite" hidden></p>
@@ -4206,7 +4210,7 @@
       </section>
     </main>
     </div>
-    <footer><span>HARMONICA DECK · WEB v5.4.0</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
+    <footer><span>HARMONICA DECK · WEB v5.5.8</span><span>YOUR SCORE NEVER LEAVES THIS PAGE.</span><span>闽公网安备35020302037665号</span><span>闽ICP备2026032364号</span></footer>
     <dialog class="usage-notice-dialog" id="usageNoticeDialog" aria-labelledby="usageNoticeTitle" aria-describedby="usageNoticeIntro">
       <form class="usage-notice-form" method="dialog">
         <div class="window-titlebar"><span>USAGE_NOTICE.EXE — READ BEFORE USE</span></div>
@@ -4241,7 +4245,7 @@
         <div class="window-titlebar"><span>VERSION_CONTROL.EXE — CHANGELOG</span><button class="dialog-close" id="changelogClose" type="button" aria-label="关闭最近修改窗口">×</button></div>
         <div class="changelog-body">
           <div class="changelog-heading">
-            <div><span class="index">WEB RELEASE · v5.4.0</span><h2 id="changelogTitle">最近修改</h2></div>
+            <div><span class="index">WEB RELEASE · v5.5.8</span><h2 id="changelogTitle">最近修改</h2></div>
             <span class="changelog-live-status" id="changelogStatus" role="status" aria-live="polite">等待版本信息</span>
           </div>
           <p class="changelog-description" id="changelogDescription">以下内容来自当前版本 version.json 的发布说明。</p>
@@ -4260,7 +4264,7 @@
           <span class="index">UPDATE AVAILABLE</span>
           <div class="update-dialog-heading"><div><h2 id="updateDialogTitle">发现新版本</h2><p id="updateDialogVersion">WEB v—</p></div><span class="update-dialog-badge">READY</span></div>
           <p class="update-dialog-description" id="updateDialogDescription">网页有新的功能和修复，建议刷新后继续使用。</p>
-          <div class="update-version-compare"><span>当前版本 <b>v5.4.0</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
+          <div class="update-version-compare"><span>当前版本 <b>v5.5.8</b></span><i aria-hidden="true">→</i><span>最新版本 <b id="updateDialogLatestVersion">v—</b></span></div>
           <div class="update-changes-panel"><span class="update-changes-label">更新内容</span><ul id="updateDialogChanges"></ul></div>
           <p class="update-dialog-note">选择「稍后手动刷新」可继续编辑；之后可通过浏览器刷新页面获取新版本。</p>
           <div class="dialog-actions update-dialog-actions"><button class="text-button" id="updateLaterButton" value="cancel" type="submit">稍后手动刷新</button><button class="primary-button" id="updateRefreshButton" type="button"><span>立即刷新</span><b>↻</b></button></div>
@@ -4316,7 +4320,7 @@
           <section class="recording-helper-downloads recording-helper-independent" aria-label="独立录制助手下载">
             <p>宏录制助手（Windows 64 位）· <span id="recordingHelperDownloadVersion">HELPER v—</span></p>
             <a class="helper-download-link" id="recorderProtocolTestLink" hidden><span>测试唤起助手</span><b>↗</b></a>
-            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.4.0" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
+            <a class="helper-download-link" href="./recording-helper/package/Install.cmd?v=5.5.8" download="Install.cmd"><span>下载协议修复脚本</span><b>↓</b></a>
             <a class="helper-download-link" data-recording-helper-download="github" target="_blank" rel="noopener noreferrer"><span>GitHub 下载（推荐）</span><b>↗</b></a>
             <a class="helper-download-link" data-recording-helper-download="server" download><span>服务器下载（备用）</span><b>↓</b></a>
             <button class="helper-download-link" id="recordingHelperKookButton" type="button" aria-haspopup="dialog" aria-controls="kookChannelDialog"><span>进 KOOK 频道下载</span><b>↗</b></button>
@@ -4332,8 +4336,8 @@
           <span class="index">COMMUNITY · DOWNLOAD</span>
           <h2 id="kookChannelDialogTitle">加入 KOOK 频道</h2>
           <p id="kookChannelDialogDescription">打开频道链接或扫码，获取录制助手并交流使用问题。</p>
-          <a class="kook-channel-link" href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>打开 KOOK 频道</span><strong>kook.vip/jcJIDN ↗</strong></a>
-          <figure class="upload-qr kook-channel-dialog-qr"><img src="./assets/kook-channel-qr.png" alt="加入 KOOK 频道的二维码" /><figcaption>KOOK 频道 · 扫码加入</figcaption></figure>
+          <a class="kook-channel-link" data-kook-link href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>打开 KOOK 频道</span><strong data-kook-link-label>kook.vip/jcJIDN ↗</strong></a>
+          <figure class="upload-qr kook-channel-dialog-qr"><img data-kook-qr src="./assets/kook-channel-qr.png?v=5.5.8" alt="加入 KOOK 频道的二维码" /><figcaption>KOOK 频道 · 扫码加入</figcaption></figure>
           <div class="dialog-actions"><button class="text-button" value="cancel" type="submit">关闭</button></div>
         </div>
       </form>
@@ -4509,7 +4513,7 @@
           <h2 id="pointsNoticeTitle">曲谱导出改用积分制</h2>
           <p id="pointsNoticeIntro">这个项目由个人维护。服务器、带宽和曲库维护都需要持续投入；随着作品和使用者增加，希望通过积分让免费体验与社区贡献能够长期并存。</p>
           <p>每个账号已经获得 <b>30 积分</b>；每天首次登录还会自动获得 <b>20 积分</b>。公共曲库里他人的曲谱首次导出消耗 <b>10 积分</b>，之后这首谱可以永久重复导出；自己的谱、原创和本地导入仍可免费导出。</p>
-          <p>邀请好友注册并首次解锁，可获得 20 积分；首次投稿获得 50 积分；自己的作品每被一位不同用户首次解锁，即可获得 1 积分（即时到账）。已确认打赏的账号享有永久无限导出。</p>
+          <p>邀请好友注册并首次解锁，可获得 20 积分；首次投稿获得 50 积分；自己的作品每被一位不同用户首次解锁，即可获得 1 积分（即时到账）。打赏基础比例为每元 50 分，并按金额档位提供加成。</p>
           <p>如果你愿意支持这个持续免费的项目，欢迎在 <a href="https://github.com/JikoSchnee/delta-harmonica-macro" target="_blank" rel="noopener noreferrer">GitHub 为项目点 Star</a>。绑定 GitHub 并验证 Star 后，账号可领取 <b>500 积分</b>。感谢你帮助更多人发现和使用它。</p>
           <div class="dialog-actions"><button class="primary-button" id="pointsNoticeConfirm" type="button"><span>我知道了</span><b>✓</b></button></div>
         </div>
@@ -4531,7 +4535,22 @@
     </dialog>
     <dialog class="jianpu-preview-dialog" id="jianpuPreviewDialog" aria-labelledby="jianpuPreviewTitle" aria-describedby="jianpuPreviewMeta">
       <form method="dialog" class="jianpu-preview-form">
-        <div class="window-titlebar"><span>JIANPU SCORE — PREVIEW & EXPORT</span><button class="dialog-close" value="cancel" type="submit" aria-label="关闭简谱预览">×</button></div>
+        <div class="window-titlebar">
+          <span>JIANPU SCORE — PREVIEW & EXPORT</span>
+          <div class="jianpu-performance-window-actions">
+            <button class="text-button jianpu-performance-settings-toggle" id="jianpuPerformanceSettingsToggle" type="button" aria-expanded="false" aria-controls="jianpuPerformanceSettings" hidden>⚙ 设置</button>
+            <button class="dialog-close" value="cancel" type="submit" aria-label="关闭简谱预览">×</button>
+          </div>
+        </div>
+        <section class="jianpu-performance-settings" id="jianpuPerformanceSettings" aria-label="演奏模式设置" hidden>
+          <label for="jianpuPerformanceNoteSize">音符大小 <output id="jianpuPerformanceNoteSizeValue" for="jianpuPerformanceNoteSize">100%</output></label>
+          <input id="jianpuPerformanceNoteSize" type="range" min="60" max="160" step="5" value="100">
+          <label for="jianpuPerformanceCellWidth">时值格宽 <output id="jianpuPerformanceCellWidthValue" for="jianpuPerformanceCellWidth">12 px</output></label>
+          <input id="jianpuPerformanceCellWidth" type="range" min="4" max="64" step="1" value="12">
+          <label for="jianpuPerformanceLineWidth">谱行宽度 <output id="jianpuPerformanceLineWidthValue" for="jianpuPerformanceLineWidth">100%</output></label>
+          <input id="jianpuPerformanceLineWidth" type="range" min="30" max="100" step="5" value="100">
+          <label class="jianpu-performance-follow-setting" for="jianpuPerformanceFollowPointer"><input id="jianpuPerformanceFollowPointer" type="checkbox"> 跟随指针，平滑居中</label>
+        </section>
         <div class="jianpu-preview-body">
           <span class="index">NUMBERED NOTATION · PNG EXPORT</span>
           <h2 id="jianpuPreviewTitle">简谱预览</h2>
@@ -4653,8 +4672,8 @@
           </div>
           <section class="upload-method-panel" id="uploadPanelKook" data-upload-panel="kook" role="tabpanel" aria-labelledby="uploadMethodKook">
             <p>加入 KOOK 频道，把导出的 <code>.deltamusic</code> 文件发送给维护者审核入库。</p>
-            <a class="kook-channel-link" href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>打开 KOOK 频道</span><strong>kook.vip/jcJIDN ↗</strong></a>
-            <figure class="upload-qr kook-upload-qr"><img src="./assets/kook-channel-qr.png" alt="加入 KOOK 频道的二维码" /><figcaption>KOOK 频道 · 扫码加入</figcaption></figure>
+            <a class="kook-channel-link" data-kook-link href="https://kook.vip/jcJIDN" target="_blank" rel="noopener noreferrer"><span>打开 KOOK 频道</span><strong data-kook-link-label>kook.vip/jcJIDN ↗</strong></a>
+            <figure class="upload-qr kook-upload-qr"><img data-kook-qr src="./assets/kook-channel-qr.png?v=5.5.8" alt="加入 KOOK 频道的二维码" /><figcaption>KOOK 频道 · 扫码加入</figcaption></figure>
           </section>
           <section class="upload-method-panel" id="uploadPanelGithub" data-upload-panel="github" role="tabpanel" aria-labelledby="uploadMethodGithub" hidden>
             <p>先下载 <code>.deltamusic</code> 文件，再 Fork 项目，把文件上传到 <code>data/community-scores/</code> 并创建 Pull Request。合并前不会出现在公共曲库。</p>
@@ -4689,7 +4708,7 @@
       </section>
     </div>
     <dialog class="toast" id="toast" role="status" aria-live="polite"></dialog>
-    <script src="./data/community-songs.js?v=5.4.0"></script>
-    <script src="./app.js?v=5.4.0"></script>
+    <script src="./data/community-songs.js?v=5.5.8"></script>
+    <script src="./app.js?v=5.5.8"></script>
   </body>
 </html>
