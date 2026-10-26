@@ -1400,6 +1400,37 @@ def find_similar_score(score: dict[str, Any], existing_scores: list[tuple[Path, 
     return best
 
 
+def admin_library_duplicates() -> list[dict[str, Any]]:
+    """Scan published scores for matching note sequences without changing review state."""
+    scores = [score for _, score in read_scores()]
+    prepared = []
+    for score in scores:
+        notes = score_notes(score)
+        fragments = set(zip(notes, notes[1:], notes[2:], notes[3:]))
+        prepared.append((score, notes, fragments))
+    matches: list[dict[str, Any]] = []
+    for index, (left, left_notes, left_fragments) in enumerate(prepared):
+        if len(left_notes) < 4:
+            continue
+        for right, right_notes, right_fragments in prepared[index + 1:]:
+            shorter = min(len(left_notes), len(right_notes))
+            if shorter < 4 or shorter / max(len(left_notes), len(right_notes)) < .8:
+                continue
+            shared = len(left_fragments & right_fragments)
+            if 2 * shared < .2 * (len(left_fragments) + len(right_fragments)):
+                continue
+            similarity = SequenceMatcher(None, left_notes, right_notes, autojunk=False).ratio()
+            if similarity >= (.85 if shorter >= 16 else 1.0):
+                matches.append({
+                    "leftCode": left["remixCode"], "leftTitle": left["title"],
+                    "leftArtist": left["artist"], "leftSharedBy": left["sharedBy"],
+                    "rightCode": right["remixCode"], "rightTitle": right["title"],
+                    "rightArtist": right["artist"], "rightSharedBy": right["sharedBy"],
+                    "similarity": similarity,
+                })
+    return sorted(matches, key=lambda item: item["similarity"], reverse=True)
+
+
 def upload_ban_for_account(account_id: str) -> dict[str, Any] | None:
     with AUTH_LOCK, auth_database() as connection:
         row = connection.execute("SELECT reason, expires_at FROM upload_bans WHERE account_id = ?", (account_id,)).fetchone()
@@ -6110,6 +6141,11 @@ class LocalLibraryRequestHandler(SimpleHTTPRequestHandler):
                 "exportStatsAvailable": bool(self.server.analytics_enabled),
                 "exportWindowDays": self.server.analytics_retention_days if self.server.analytics_enabled else 0,
             })
+            return
+        if path == "/api/admin/library/duplicates":
+            if not self.is_admin_console_request():
+                return
+            self.send_json(HTTPStatus.OK, {"matches": admin_library_duplicates()})
             return
         if path == "/api/admin/library/buffer":
             if not self.is_admin_console_request():

@@ -6,7 +6,7 @@ document.addEventListener("click", (event) => {
   event.preventDefault();
   button.closest("dialog")?.close("cancel");
 });
-const WEBSITE_VERSION = "5.5.8";
+const WEBSITE_VERSION = "5.5.9";
 const PUBLIC_DATA_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 const EXPORT_BRANDS = {
   logitech: { label: "LOGITECH", small: "G HUB", className: "software-logo--logitech", type: "image", src: "assets/brand-logos/logitech-g.svg" },

@@ -412,7 +412,7 @@
         </section>
 
         <section id="libraryPage" data-view hidden>
-          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><span id="libraryCount" class="tag">—</span></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><p id="libraryExportWindowNote" class="admin-song-description"></p><div id="libraryTable"></div></section>
+          <section class="window panel"><div class="section-heading"><div><div class="eyebrow">COMMUNITY LIBRARY / EDITABLE</div><h3>曲库管理</h3></div><div class="heading-actions"><button id="libraryDuplicateButton" class="button ghost" type="button">全库查重</button><span id="libraryCount" class="tag">—</span></div></div><div class="searchbar"><input id="librarySearch" type="search" placeholder="搜索歌名、作者、共享人或上传者…" /><button id="librarySearchButton" class="button" type="button">检索</button></div><p id="libraryExportWindowNote" class="admin-song-description"></p><div id="libraryDuplicateStatus" class="admin-song-description" role="status" aria-live="polite"></div><div id="libraryDuplicateResults"></div><div id="libraryTable"></div></section>
           <section class="window panel"><div class="section-heading"><div><div class="eyebrow">SCORE BUFFER / HIDDEN</div><h3>下架缓冲区</h3></div><span id="bufferCount" class="tag">—</span></div><p>缓冲区曲谱不在公开曲库展示。可恢复上架，或永久删除。</p><div id="bufferTable"></div></section>
         </section>
 
@@ -1087,6 +1087,19 @@
         try { const [overview, library, buffer, users, exportMethods, ipBans] = await Promise.all([api("admin/overview?days=30"), api(`admin/library?q=${encodeURIComponent($("#librarySearch")?.value || "")}`), api("admin/library/buffer"), api(userDirectoryQuery()), api("admin/export-methods"), api("admin/ip-bans")]); state.overview = overview; state.songs = library.songs || []; state.buffered = buffer.songs || []; state.users = users.users || []; state.exportStats = { libraryAvailable: Boolean(library.exportStatsAvailable), libraryDays: Number(library.exportWindowDays) || 0, usersAvailable: Boolean(users.exportStatsAvailable), usersDays: Number(users.exportWindowDays) || 0 }; state.exportMethods = exportMethods; state.ipBans = ipBans.bans || []; renderOverview(); renderLibraryPreview(); renderUsersPreview(); renderLibrary(); renderBuffer(); renderUsers(); renderAdvancedMode(); renderIpBans(); renderExportMethods(); setNotice(""); } catch (error) { setNotice(error.message); if (!state.overview) { $("#loginNotice").textContent = error.message; $("#app").hidden = true; $("#loginScreen").hidden = false; } }
       }
       async function loadLibrary() { try { const [result, buffer] = await Promise.all([api(`admin/library?q=${encodeURIComponent($("#librarySearch").value)}`), api("admin/library/buffer")]); state.songs = result.songs || []; state.exportStats.libraryAvailable = Boolean(result.exportStatsAvailable); state.exportStats.libraryDays = Number(result.exportWindowDays) || 0; state.buffered = buffer.songs || []; renderLibrary(); renderLibraryPreview(); renderBuffer(); } catch (error) { setNotice(error.message); } }
+      async function scanLibraryDuplicates() {
+        const button = $("#libraryDuplicateButton"), status = $("#libraryDuplicateStatus"), results = $("#libraryDuplicateResults");
+        button.disabled = true;
+        status.textContent = "正在比对曲库谱面…";
+        results.innerHTML = "";
+        try {
+          const response = await api("admin/library/duplicates");
+          const matches = response.matches || [];
+          status.textContent = matches.length ? `发现 ${number.format(matches.length)} 组疑似相似曲谱，请人工核对。` : "查重完成，未发现符合当前相似阈值的曲谱。";
+          results.innerHTML = matches.length ? `<table><thead><tr><th>曲谱 A</th><th>曲谱 B</th><th>谱面相似度</th></tr></thead><tbody>${matches.map(match => `<tr><td class="title-cell"><b>${escapeHtml(match.leftTitle)}</b><small>${escapeHtml(match.leftArtist)} · ${escapeHtml(match.leftSharedBy)} · ${escapeHtml(match.leftCode)}</small></td><td class="title-cell"><b>${escapeHtml(match.rightTitle)}</b><small>${escapeHtml(match.rightArtist)} · ${escapeHtml(match.rightSharedBy)} · ${escapeHtml(match.rightCode)}</small></td><td class="mono">${Math.round(match.similarity * 100)}%</td></tr>`).join("")}</tbody></table>` : "";
+        } catch (error) { status.textContent = error.message || "曲库查重失败。"; }
+        finally { button.disabled = false; }
+      }
       async function loadUsers() { try { const result = await api(userDirectoryQuery()); state.users = result.users || []; state.exportStats.usersAvailable = Boolean(result.exportStatsAvailable); state.exportStats.usersDays = Number(result.exportWindowDays) || 0; renderUsers(); renderUsersPreview(); renderAdvancedMode(); await loadIpBans(); } catch (error) { setNotice(error.message); } }
       const runtimeState = { timer: 0, busy: false, data: null };
       const runtimeTone = percent => { const value = Number(percent) || 0; return value >= 90 ? "bad" : value >= 75 ? "warn" : ""; };
@@ -1211,6 +1224,7 @@
       document.querySelectorAll("[data-analytics-granularity]").forEach(button => button.addEventListener("click", () => { state.analyticsGranularity = button.dataset.analyticsGranularity; document.querySelectorAll("[data-analytics-granularity]").forEach(item => item.classList.toggle("active", item === button)); if (state.analytics) renderAnalyticsTrend(state.analytics); }));
       $("#analyticsCompareDates").addEventListener("change", event => { const input = event.target.closest("[data-analytics-day]"); if (!input) return; if (input.checked) state.analyticsSelectedDays.add(input.dataset.analyticsDay); else state.analyticsSelectedDays.delete(input.dataset.analyticsDay); if (state.analytics) renderAnalyticsTrend(state.analytics); });
       $("#librarySearchButton").addEventListener("click", loadLibrary); $("#userSearchButton").addEventListener("click", loadUsers);
+      $("#libraryDuplicateButton").addEventListener("click", scanLibraryDuplicates);
       $("#saveExportMethodsButton").addEventListener("click", saveExportMethods);
       $("#addPointsMediaButton").addEventListener("click", () => {
         const items = collectPointsMediaAdmin();
