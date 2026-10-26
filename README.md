@@ -1,5 +1,7 @@
 # Harmonica Deck
 
+[![已被 CityUHK Hub 收录](https://cityu-hub.bond/badge/jikoschnee-delta-harmonica-macro.svg)](https://cityu-hub.bond/project/jikoschnee-delta-harmonica-macro)
+
 将《三角洲行动》口琴数字简谱转换为鼠标宏文件，并在浏览器中试听、编辑和分享谱子。
 
 开发、部署与曲库维护说明请见 [develop.md](develop.md)。
