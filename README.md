@@ -1,6 +1,10 @@
 # Harmonica Deck
 
 [![CityU Playground](https://cityu-hub.bond/badge/jikoschnee-delta-harmonica-macro.svg)](https://cityu-hub.bond/project/jikoschnee-delta-harmonica-macro)
+[![GitHub Stars](https://img.shields.io/github/stars/JikoSchnee/delta-harmonica-macro?style=flat)](https://github.com/JikoSchnee/delta-harmonica-macro)
+[![GitHub Forks](https://img.shields.io/github/forks/JikoSchnee/delta-harmonica-macro?style=flat)](https://github.com/JikoSchnee/delta-harmonica-macro/forks)
+[![许可证：PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue?style=flat)](LICENSE)
+[![在线使用](https://img.shields.io/badge/在线使用-三角洲口琴演奏家-brightgreen?style=flat)](https://jiko-official.top/delta/)
 
 将《三角洲行动》口琴数字简谱转换为鼠标宏文件，并在浏览器中试听、编辑和分享谱子。
 
@@ -80,6 +84,20 @@
 ## 使用提醒
 
 请自行确认目标游戏、服务器与鼠标软件的规则是否允许使用宏。因使用宏产生的风险与后果由使用者自行承担。
+
+## Star 趋势
+
+GitHub Stars 累计数量随时间的变化，由 Star History 自动更新。
+
+<a href="https://www.star-history.com/#JikoSchnee/delta-harmonica-macro&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=JikoSchnee/delta-harmonica-macro&amp;type=Date&amp;theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=JikoSchnee/delta-harmonica-macro&amp;type=Date" />
+    <img alt="Harmonica Deck 的 GitHub Stars 累计数量随日期变化趋势图" src="https://api.star-history.com/svg?repos=JikoSchnee/delta-harmonica-macro&amp;type=Date" />
+  </picture>
+</a>
+
+[查看交互图表](https://www.star-history.com/#JikoSchnee/delta-harmonica-macro&Date)
 
 ## 共同开发
 
